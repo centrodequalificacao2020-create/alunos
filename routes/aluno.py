@@ -1,282 +1,84 @@
-from flask import Blueprint, render_template, request, session, redirect
-import sqlite3
+from flask import Blueprint, render_template, request, redirect, flash
+from db import db
+from models import Aluno, Curso, Mensalidade
+from security import login_required, admin_required
 
-aluno_bp = Blueprint("aluno", __name__, url_prefix="/aluno")
+aluno_bp = Blueprint("aluno", __name__)
 
+@aluno_bp.route("/cadastro")
+@login_required
+def cadastro():
+    alunos = Aluno.query.order_by(Aluno.nome).all()
+    cursos = Curso.query.order_by(Curso.nome).all()
+    return render_template("cadastro.html", alunos=alunos, cursos=cursos)
 
-# =========================
-# CONEXÃO COM BANCO
-# =========================
+@aluno_bp.route("/salvar_aluno", methods=["POST"])
+@login_required
+def salvar_aluno():
+    f = request.form
+    aluno = Aluno(
+        nome                 = f.get("nome"),
+        cpf                  = f.get("cpf"),
+        rg                   = f.get("rg"),
+        data_nascimento      = f.get("data_nascimento"),
+        telefone             = f.get("telefone"),
+        whatsapp             = f.get("whatsapp"),
+        telefone_contato     = f.get("telefone_contato"),
+        email                = f.get("email"),
+        endereco             = f.get("endereco"),
+        status               = f.get("status", "Ativo"),
+        curso_id             = f.get("curso_id") or None,
+        responsavel_nome     = f.get("responsavel_nome"),
+        responsavel_cpf      = f.get("responsavel_cpf"),
+        responsavel_telefone = f.get("responsavel_telefone"),
+        responsavel_parentesco = f.get("responsavel_parentesco"),
+    )
+    db.session.add(aluno)
+    db.session.commit()
+    flash("Aluno cadastrado com sucesso.", "sucesso")
+    return redirect("/cadastro")
 
-def conectar_banco():
-    conn = sqlite3.connect("cqp.db")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-# =========================
-# LOGIN DO ALUNO
-# =========================
-
-@aluno_bp.route("/login", methods=["GET", "POST"])
-def login_aluno():
-
+@aluno_bp.route("/editar_aluno/<int:id>", methods=["GET", "POST"])
+@login_required
+def editar_aluno(id):
+    aluno  = Aluno.query.get_or_404(id)
+    cursos = Curso.query.all()
     if request.method == "POST":
+        f = request.form
+        aluno.nome                  = f.get("nome")
+        aluno.cpf                   = f.get("cpf")
+        aluno.rg                    = f.get("rg")
+        aluno.data_nascimento       = f.get("data_nascimento")
+        aluno.telefone              = f.get("telefone")
+        aluno.whatsapp              = f.get("whatsapp")
+        aluno.email                 = f.get("email")
+        aluno.endereco              = f.get("endereco")
+        aluno.status                = f.get("status")
+        aluno.curso_id              = f.get("curso_id") or None
+        aluno.responsavel_nome      = f.get("responsavel_nome")
+        aluno.responsavel_cpf       = f.get("responsavel_cpf")
+        aluno.responsavel_telefone  = f.get("responsavel_telefone")
+        aluno.responsavel_parentesco= f.get("responsavel_parentesco")
+        db.session.commit()
+        flash("Aluno atualizado.", "sucesso")
+        return redirect("/cadastro")
+    return render_template("editar_aluno.html", aluno=aluno, cursos=cursos)
 
-        email = request.form.get("email")
-        senha = request.form.get("senha")
+@aluno_bp.route("/excluir_aluno/<int:id>", methods=["POST"])
+@login_required
+def excluir_aluno(id):
+    total = Mensalidade.query.filter_by(aluno_id=id).count()
+    if total > 0:
+        flash("Não é possível excluir: aluno possui registros financeiros.", "erro")
+        return redirect("/cadastro")
+    aluno = Aluno.query.get_or_404(id)
+    db.session.delete(aluno)
+    db.session.commit()
+    flash("Aluno excluído.", "sucesso")
+    return redirect("/cadastro")
 
-        conn = conectar_banco()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT * FROM alunos WHERE email=? AND senha=?",
-            (email, senha)
-        )
-
-        aluno = cursor.fetchone()
-        conn.close()
-
-        if aluno:
-            session["aluno_id"] = aluno["id"]
-            return redirect("/aluno/dashboard")
-
-    return render_template("aluno/login.html")
-
-
-# =========================
-# DASHBOARD DO ALUNO
-# =========================
-
-@aluno_bp.route("/dashboard")
-def dashboard_aluno():
-
-    if "aluno_id" not in session:
-        return redirect("/aluno/login")
-
-    conn = conectar_banco()
-    cursor = conn.cursor()
-
-    aluno_id = session["aluno_id"]
-
-    # dados do aluno
-    cursor.execute("SELECT * FROM alunos WHERE id=?", (aluno_id,))
-    aluno = cursor.fetchone()
-    # buscar curso do aluno
-    cursor.execute("""
-    SELECT cursos.nome
-    FROM matriculas
-    JOIN cursos ON cursos.id = matriculas.curso_id
-    WHERE matriculas.aluno_id=?
-    LIMIT 1
-    """, (aluno_id,))
-
-    curso_row = cursor.fetchone()
-
-    curso = None
-    if curso_row:
-        curso = curso_row[0]
-
-    # parcelas em aberto
-    cursor.execute("""
-        SELECT COUNT(*) as total
-        FROM mensalidades
-        WHERE aluno_id=? AND status!='Pago'
-    """, (aluno_id,))
-
-    pendentes = cursor.fetchone()["total"]
-
-    # valor total em aberto
-    cursor.execute("""
-        SELECT SUM(valor) as total
-        FROM mensalidades
-        WHERE aluno_id=? AND status!='Pago'
-    """, (aluno_id,))
-
-    valor_pendente = cursor.fetchone()["total"]
-
-    if valor_pendente is None:
-        valor_pendente = 0
-
-    # lista de mensalidades
-    cursor.execute("""
-        SELECT 
-            valor,
-            vencimento,
-            status,
-            tipo,
-            parcela_ref,
-            CASE
-                WHEN status = 'Pago' THEN 'Pago'
-                WHEN date(vencimento) < date('now') THEN 'Vencida'
-                ELSE 'A vencer'
-            END as situacao
-        FROM mensalidades
-        WHERE aluno_id=?
-        ORDER BY vencimento
-    """, (aluno_id,))
-
-    mensalidades = cursor.fetchall()
-
-    conn.close()
-
-    return render_template(
-        "aluno/dashboard.html",
-        aluno=aluno,
-        curso=curso,
-        mensalidades=mensalidades,
-        pendentes=pendentes,
-        valor_pendente=valor_pendente
-    )
-
-# =========================
-# LOGOUT DO ALUNO
-# =========================
-
-@aluno_bp.route("/logout")
-def logout_aluno():
-    session.pop("aluno_id", None)
-    return redirect("/aluno/login")
-
-
-# =========================
-# FREQUÊNCIA DO ALUNO
-# =========================
-
-@aluno_bp.route("/frequencia")
-def frequencia_aluno():
-
-    if "aluno_id" not in session:
-        return redirect("/aluno/login")
-
-    conn = conectar_banco()
-    cursor = conn.cursor()
-
-    aluno_id = session["aluno_id"]
-
-    cursor.execute("""
-        SELECT data, status
-        FROM frequencias
-        WHERE aluno_id=?
-        ORDER BY data DESC
-    """, (aluno_id,))
-
-    frequencias = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM alunos WHERE id=?", (aluno_id,))
-    aluno = cursor.fetchone()
-
-    conn.close()
-
-    return render_template(
-        "aluno/frequencia.html",
-        aluno=aluno,
-        frequencias=frequencias
-    )
-@aluno_bp.route("/conteudo")
-def conteudo_aluno():
-
-    if "aluno_id" not in session:
-        return redirect("/aluno/login")
-
-    conn = conectar_banco()
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    aluno_id = session["aluno_id"]
-
-    # descobrir curso do aluno
-    c.execute("""
-        SELECT curso_id
-        FROM matriculas
-        WHERE aluno_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-    """, (aluno_id,))
-
-    matricula = c.fetchone()
-
-    if not matricula:
-        conn.close()
-        return render_template("aluno/conteudo.html", conteudos=[])
-
-    curso_id = matricula["curso_id"]
-
-    # buscar conteúdos do curso
-    c.execute("""
-    SELECT
-        conteudos.id,
-        conteudos.titulo,
-        conteudos.arquivo,
-        conteudos.data,
-        materias.nome AS materia,
-        COALESCE(progresso_aulas.concluido,0) as concluido
-    FROM conteudos
-    JOIN materias
-        ON materias.id = conteudos.materia_id
-    JOIN cursos_materias
-        ON cursos_materias.materia_id = materias.id
-    LEFT JOIN progresso_aulas
-        ON progresso_aulas.conteudo_id = conteudos.id
-        AND progresso_aulas.aluno_id = ?
-    WHERE cursos_materias.curso_id = ?
-    ORDER BY materias.nome, conteudos.data
-    """, (aluno_id, curso_id))
-
-    conteudos = c.fetchall()
-
-    conn.close()
-
-    return render_template(
-        "aluno/conteudo.html",
-        conteudos=conteudos
-    )
-
-@aluno_bp.route("/buscar_materias/<int:curso_id>")
-def buscar_materias(curso_id):
-
-    conn = conectar_banco()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, nome
-        FROM materias
-        WHERE curso_id = ?
-        ORDER BY nome
-    """, (curso_id,))
-
-    materias = cursor.fetchall()
-
-    conn.close()
-
-    lista = []
-
-    for m in materias:
-        lista.append({
-            "id": m["id"],
-            "nome": m["nome"]
-        })
-
-    return lista
-@aluno_bp.route("/concluir/<int:conteudo_id>")
-def concluir_aula(conteudo_id):
-
-    if "aluno_id" not in session:
-        return redirect("/aluno/login")
-
-    aluno_id = session["aluno_id"]
-
-    conn = conectar_banco()
-    c = conn.cursor()
-
-    c.execute("""
-    INSERT OR REPLACE INTO progresso_aulas
-    (aluno_id, conteudo_id, concluido)
-    VALUES (?, ?, 1)
-    """, (aluno_id, conteudo_id))
-
-    conn.commit()
-    conn.close()
-
-    return redirect("/aluno/conteudo")
-
+@aluno_bp.route("/aluno/<int:aluno_id>")
+@login_required
+def ficha_aluno(aluno_id):
+    aluno = Aluno.query.get_or_404(aluno_id)
+    return render_template("ficha_aluno.html", aluno=aluno)
