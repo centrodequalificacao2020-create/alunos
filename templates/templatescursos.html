@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>📚 Cadastro de Cursos</h2>
+    </div>
+
+    <form method="POST">
+        <div class="grid-2">
+            <div class="campo">
+                <label>Nome do curso</label>
+                <input type="text" name="nome" placeholder="Ex: Técnico em Logística" required>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Salvar</button>
+    </form>
+</div>
+
+<hr>
+
+<h4>📋 Cursos cadastrados</h4>
+
+<div class="tabela-container">
+    <table class="tabela-excel">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Curso</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in cursos %}
+            <tr>
+                <td>{{ c[0] }}</td>
+                <td>{{ c[1] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

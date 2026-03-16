@@ -1,0 +1,642 @@
+/* ===== ESTILO MINIMALISTA DO SISTEMA ===== */
+
+body {
+    margin: 0;
+    padding: 0;
+    background: #f4f6f8;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+
+/* cards */
+.card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* ===== MENU SUPERIOR FIXO AZUL ===== */
+.navbar, header, .topo {
+    background: #1565c0;   /* azul moderno */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+/* botões */
+.btn {
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-pagar {
+    background: #2e7d32;
+    color: #fff;
+}
+
+.btn-editar {
+    background: #1976d2;
+    color: #fff;
+}
+
+.btn-excluir {
+    background: #c62828;
+    color: #fff;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+/* tabelas */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th {
+    background: #f0f2f5;
+    font-size: 13px;
+    padding: 8px;
+    text-align: left;
+}
+
+table td {
+    padding: 8px;
+    font-size: 13px;
+    border-bottom: 1px solid #eee;
+}
+
+/* totais */
+.totais {
+    margin-top: 12px;
+    padding: 10px;
+    background: #e8f5e9;
+    border-left: 4px solid #2e7d32;
+    font-weight: bold;
+}
+.form-pequeno {
+    width: 100%;
+    max-width: 100%;
+}
+
+
+/* ===== CORREÇÃO DEFINITIVA: PLANILHA NÃO ESTOURA A TELA ===== */
+
+/* garante que cards não forcem largura infinita */
+.card {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* container da tabela estilo Excel */
+.tabela-planilha {
+    max-width: 100%;
+    overflow-x: auto;      /* scroll horizontal AQUI */
+    overflow-y: auto;      /* scroll vertical */
+    max-height: 340px;     /* altura visível */
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+   .tabela-container {
+    max-height: 320px;   /* aprox. 10 linhas visíveis */
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid #ccc;
+}
+
+/* força a tabela a respeitar o container */
+.tabela-excel {
+    width: max-content;   /* MUITO IMPORTANTE */
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+/* impede quebra de linha */
+.tabela-excel th,
+.tabela-excel td {
+    white-space: nowrap;
+}
+/* ===== BOTÕES DE AÇÃO (ESTILO PRINT) ===== */
+
+td.acoes {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.acoes .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 32px;
+    padding: 0;
+    margin: 0 3px;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+/* cores individuais */
+.btn-lixeira {
+    background: #f4a62a;
+    color: #fff;
+}
+
+.btn-editar {
+    background: #4cc3e8;
+    color: #fff;
+}
+
+.btn-pagar {
+    background: #2e7d32;
+    color: #fff;
+}
+
+.btn-imprimir {
+    background: #1976d2;
+    color: #fff;
+}
+
+/* hover */
+.acoes .btn:hover {
+    opacity: 0.85;
+}
+/* ===== BOTÃO RECIBO (PADRÃO AÇÃO) ===== */
+
+.btn-recibo {
+    background: #4cc3e8;   /* azul claro */
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 32px;
+    padding: 0;
+    border-radius: 6px;
+    font-size: 15px;
+    text-decoration: none;
+}
+
+.btn-recibo:hover {
+    opacity: 0.85;
+}
+
+/* ===== TOOLTIP CUSTOM ===== */
+.tooltip {
+    position: relative;
+}
+
+.tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.tooltip:hover::after {
+    opacity: 1;
+}
+/* ===== CABEÇALHO DAS TABELAS (AZUL MAIS FORTE) ===== */
+
+.tabela-excel thead th {
+    background: #1565c0;          /* azul forte */
+    color: #ffffff;               /* texto branco */
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #0d47a1;
+}
+
+/* mantém o cabeçalho fixo bonito */
+.tabela-excel thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+/* melhora contraste ao passar o mouse nas linhas */
+.tabela-excel tbody tr:hover {
+    background: #e3f2fd;
+}
+
+/* ===== CABEÇALHO AZUL + COLUNA AÇÃO FIXA (VERSÃO ESTÁVEL) ===== */
+
+/* container com scroll */
+.tabela-planilha {
+    max-width: 100%;
+    overflow: auto;
+}
+
+/* tabela base */
+.tabela-excel {
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+/* cabeçalho */
+.tabela-excel thead th {
+    background: #1565c0;
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 13px;
+    padding: 10px;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+/* coluna AÇÃO (cabeçalho) */
+.tabela-excel thead th.acoes {
+    background: #1565c0;
+    position: sticky;
+    right: 0;
+    z-index: 3;
+}
+
+/* coluna AÇÃO (linhas) */
+.tabela-excel td.acoes {
+    background: #fff;
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    text-align: center;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.15);
+}
+
+/* hover */
+.tabela-excel tbody tr:hover td {
+    background: #e3f2fd;
+}
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.grid-1 {
+    margin-bottom: 15px;
+}
+
+.acoes-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+h4 {
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+.form-aluno {
+    max-width: 900px;
+    margin: auto;
+}
+
+.secao {
+    margin: 30px 0 15px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+    color: #333;
+}
+
+.grid-1 {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-bottom: 15px;
+}
+
+.grid-1 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.campo label {
+    font-weight: 500;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.acoes-form {
+    margin-top: 30px;
+    display: flex;
+    gap: 15px;
+}
+.form-cadastro {
+    max-width: 1200
+px;
+    margin: auto;
+}
+
+.grid-1 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 12px;
+}
+
+.grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 2fr 1fr 1fr;
+    gap: 12px;
+}
+
+.campo label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+    width: 100%;
+}
+
+.grande {
+    grid-column: span 2;
+}
+
+.acoes-form {
+    margin-top: 25px;
+    display: flex;
+    justify-content: flex-end;
+}
+input {
+    height: 36px;
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 6px;
+}
+.alerta {
+    padding: 10px 14px;
+    margin: 10px 0 15px 0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.alerta.erro {
+    background: #ffe5e5;
+    color: #a30000;
+    border: 1px solid #f5bcbc;
+}
+
+.alerta.sucesso {
+    background: #e6f7ea;
+    color: #0a7a2f;
+    border: 1px solid #b7e3c4;
+}
+/* Material Didático - ajuste fino para não quebrar layout */
+.material-opcoes {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+/* Card compacto */
+.material-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 2px solid #dcdcdc;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    height: 36px;           /* 🔑 trava altura */
+    box-sizing: border-box;
+}
+
+/* Esconde radio padrão */
+.material-card input {
+    display: none;
+}
+
+/* Selecionado */
+.material-card input:checked + span {
+    color: #1e90ff;
+    font-weight: 600;
+}
+
+/* Borda quando selecionado */
+.material-card:has(input:checked) {
+    border-color: #1e90ff;
+    background: #f0f7ff;
+}
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.input-pequeno {
+    width: 100%;
+    max-width: 180px;
+    text-align: center;
+}
+
+.observacao-grande {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+}
+.botoes-matricula {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+    align-items: center;
+}
+
+.btn-azul {
+    background: #1e90ff;
+    color: #fff;
+}
+
+.btn-verde {
+    background: #198754;
+    color: #fff;
+}
+/* ==============================
+   MOVIMENTAÇÃO - CONTEÚDO À ESQUERDA
+   ============================== */
+
+.movimentacao-container {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* garante que grids internos não recentralizem */
+.movimentacao-container .grid,
+.movimentacao-container .grid-2,
+.movimentacao-container .grid-4 {
+    justify-content: flex-start;
+}
+.btn-primary {
+    background-color: #007bff;
+    color: #ffffff;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+.select-curso {
+    width: 300px;
+}
+.flash {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.flash.sucesso {
+    background-color: #e6ffed;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+/* ===== CORREÇÃO FINAL DA MOVIMENTAÇÃO ===== */
+
+main {
+    width: 100%;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    width: 100%;
+    max-width: 1400px;
+    margin: 30px auto;
+}
+
+.card {
+    width: 100%;
+}
+body {
+    padding-top: 70px;
+}
+/* ===== MENU SUPERIOR AZUL FIXO ===== */
+.menu {
+    background: #1565c0 !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+}
+/* ===== DASHBOARD CARDS PADRONIZADOS ===== */
+
+.grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* cards do dashboard */
+.dashboard-card {
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.dashboard-card h4 {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.dashboard-card p {
+    font-size: 26px;
+    font-weight: bold;
+    margin: 0;
+}
+/* ===== MODO EXECUTIVO (layout compacto) ===== */
+
+.executivo .dashboard-card {
+    padding: 10px;
+}
+
+.executivo .dashboard-card h4 {
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.executivo .dashboard-card p {
+    font-size: 18px;
+}
+
+.executivo .grid-4 {
+    gap: 8px;
+}
+/* Reduz espaço entre blocos do dashboard */
+h3 {
+    margin-top: -10px !important;
+    margin-bottom: 8px;
+}
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+/* ===== HOME FULL SCREEN (FORÇA TOTAL) ===== */
+.home-bg{
+    position: fixed;
+    top: 70px; /* respeita menu */
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 70px);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    z-index: 1;
+}

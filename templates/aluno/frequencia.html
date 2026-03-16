@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Portal do Aluno</h2>
+
+<h3>Frequência de {{ aluno.nome }}</h3>
+
+<a href="/aluno/dashboard">💰 Financeiro</a> |
+<a href="/aluno/notas">📚 Notas</a> |
+<a href="/aluno/frequencia">📅 Frequência</a> |
+<a href="/aluno/logout">Sair</a>
+
+<br><br>
+
+<table class="tabela-excel">
+
+<tr>
+    <th>Data</th>
+    <th>Status</th>
+</tr>
+
+{% for f in frequencias %}
+<tr>
+    <td>{{ f.data }}</td>
+    <td>{{ f.status }}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+{% endblock %}

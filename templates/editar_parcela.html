@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <span>✏️</span>
+        <h2>Editar Parcela</h2>
+    </div>
+
+    <form method="POST" class="form-pequeno">
+
+        <label>Aluno</label>
+        <input type="text" value="{{ parcela.aluno_id }}" disabled>
+
+        <label>Tipo</label>
+        <select name="tipo">
+            <option value="Mensalidade" {% if parcela.tipo == 'Mensalidade' %}selected{% endif %}>Mensalidade</option>
+            <option value="Matrícula" {% if parcela.tipo == 'Matrícula' %}selected{% endif %}>Matrícula</option>
+            <option value="Material" {% if parcela.tipo == 'Material' %}selected{% endif %}>Material</option>
+        </select>
+
+        <label>Valor</label>
+        <input type="number" step="0.01" name="valor" value="{{ parcela.valor }}" required>
+
+        <label>Vencimento</label>
+        <input type="date" name="vencimento" value="{{ parcela.vencimento }}" required>
+
+        <button class="btn btn-azul">Salvar Alterações</button>
+        <a href="/financeiro?aluno_id={{ aluno_id }}" class="btn btn-vermelho">Cancelar</a>
+
+    </form>
+</div>
+
+{% endblock %}
+

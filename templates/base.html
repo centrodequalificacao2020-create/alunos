@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema Escolar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+    <style>
+    
+        .acoes {
+    display: flex;
+    gap: 8px;
+}
+
+        :root {
+            --azul: #0d6efd;
+            --cinza: #f1f3f5;
+            --cinza-escuro: #343a40;
+            --preto: #212529;
+            --branco: #ffffff;
+            --verde: #198754;
+            --vermelho: #dc3545;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--cinza);
+            color: var(--preto);
+        }
+
+        header {
+    margin: 0;
+    background-color: #1565c0;
+    color: #ffffff;
+    padding: 12px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+        }
+
+
+
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        nav a {
+            color: var(--branco);
+            margin-left: 18px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        nav a:hover {
+            color: var(--azul);
+        }
+
+        main {
+    padding: 32px;
+       }
+
+
+        .card {
+            background-color: var(--branco);
+            padding: 28px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            margin-bottom: 32px;
+        }
+
+        h2, h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .card-header
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.card-header span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    line-height: 1;
+}
+
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: -8px;
+            margin-bottom: 24px;
+        }
+
+        form input,
+        form select {
+            width: 100%;
+            padding: 11px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        .form-pequeno {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th {
+            text-align: left;
+            padding: 14px;
+            background-color: var(--cinza);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        table td {
+            padding: 14px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+
+        .acoes {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-azul {
+            background-color: var(--azul);
+            color: var(--branco);
+        }
+
+        .btn-verde {
+            background-color: var(--verde);
+            color: var(--branco);
+        }
+
+        .btn-vermelho {
+            background-color: var(--vermelho);
+            color: var(--branco);
+        }
+
+        .status-ativo {
+            color: var(--verde);
+            font-weight: bold;
+        }
+
+        .status-inativo {
+            color: var(--vermelho);
+            font-weight: bold;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #888;
+            padding: 32px 0;
+            font-size: 10px;
+        }
+    </style>
+
+<style>
+    /* outros estilos acima */
+
+    .linha-financeiro {
+        display: flex;
+        gap: 16px;
+        align-items: flex-end;
+        flex-wrap: nowrap;
+    }
+
+    .linha-financeiro .campo {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .linha-financeiro .aluno {
+        width: 10cm;
+    }
+
+    .linha-financeiro .valor {
+        width: 5cm;
+    }
+
+    .linha-financeiro .data {
+        width: 4cm;
+    }
+
+    .linha-financeiro .parcela {
+        width: 4cm;
+    }
+
+    .linha-financeiro .tipo {
+        width: 4cm;
+    }
+
+    .linha-financeiro .acao {
+        width: 3cm;
+    }
+
+    /* outros estilos abaixo */
+</style>
+
+
+</head>
+
+<body class="executivo">
+
+<header>
+    <h1>Sistema Escolar</h1>
+
+    <nav>
+
+    <!-- HOME - todos veem -->
+    <a href="/">Home</a>
+
+    <!-- ADMIN E FINANCEIRO -->
+    {% if session.perfil in ["Administrador", "Financeiro"] %}
+        <a href="/dashboard">Dashboard</a>
+        <a href="/financeiro">Financeiro</a>
+        <a href="/despesas">Despesas</a>
+        <a href="/relatorio">Relatórios</a>
+    {% endif %}
+
+    <!-- ADMIN, FINANCEIRO E USUÁRIO -->
+    {% if session.perfil in ["Administrador", "Financeiro", "Usuario"] %}
+        <a href="/cadastro">Alunos</a>
+        <a href="/cursos">Cursos</a>
+        <a href="/movimentacao">Matrículas</a>
+    {% endif %}
+
+    <!-- USUÁRIO E INSTRUTOR -->
+    {% if session.perfil in ["Usuario", "Instrutor"] %}
+        <a href="/materias">Matérias</a>
+        <a href="/notas">Notas</a>
+        <a href="/frequencia">Frequência</a>
+    {% endif %}
+
+    <!-- ADMIN vê tudo -->
+    {% if session.perfil == "Administrador" %}
+        <a href="/materias">Matérias</a>
+        <a href="/notas">Notas</a>
+        <a href="/frequencia">Frequência</a>
+    {% endif %}
+
+    <a href="/backup_banco">Backup</a>
+    <a href="/logout">Sair</a>
+
+</nav>
+
+</header>
+
+<main>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}
+    {% endblock %}
+</main>
+
+</body>
+</html>
+

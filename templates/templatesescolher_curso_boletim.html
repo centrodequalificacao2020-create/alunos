@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<div class="card">
+    <h2>📄 Gerar Boletim</h2>
+
+    <p><strong>Aluno:</strong> {{ aluno_nome }}</p>
+
+    <form method="GET" action="/boletim">
+        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+
+        <label>Curso / Matrícula</label>
+        <select name="matricula_id" required>
+            <option value="">Selecione o curso</option>
+            {% for m in matriculas %}
+                <option value="{{ m[0] }}">
+                    {{ m[1] }} (Matrícula {{ m[0] }})
+                </option>
+            {% endfor %}
+        </select>
+
+        <br><br>
+
+        <button type="submit" class="btn btn-primary">
+            Gerar Boletim
+        </button>
+    </form>
+</div>
+
+{% endblock %}

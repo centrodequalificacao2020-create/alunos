@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Portal do Aluno</h2>
+
+<h3>Bem vindo {{ aluno.nome }}</h3>
+<p><b>Curso:</b> {{ curso }}</p>
+
+<h3>Resumo</h3>
+
+<p>Mensalidades em aberto: {{ pendentes }}</p>
+
+<p>Total em aberto: R$ {{ valor_pendente }}</p>
+
+<br>
+
+<a href="/aluno/logout">Sair</a>
+
+<br><br>
+
+<div style="display:flex; gap:20px; margin-bottom:20px;">
+
+    <a href="/aluno/dashboard">💰 Financeiro</a>
+
+    <a href="#">📚 Notas</a>
+
+    <a href="/aluno/frequencia">📅 Frequência</a>
+    <a href="/aluno/conteudo">📥 Conteúdo</a>
+
+    <a href="#">📥 Material</a>
+
+</div>
+
+<h3>Financeiro</h3>
+
+<table class="tabela-excel">
+
+<tr>
+    <th>Parcela</th>
+    <th>Vencimento</th>
+    <th>Tipo</th>
+    <th>Valor</th>
+    <th>Status</th>
+</tr>
+
+{% for m in mensalidades %}
+<tr {% if m.status != 'Pago' %}style="background:#ffe5e5"{% endif %}>
+    <td>{{ m.parcela_ref }}</td>
+    <td>{{ m.vencimento }}</td>
+    <td>{{ m.tipo }}</td>
+    <td>R$ {{ m.valor }}</td>
+    <td>{{ m.situacao }}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+{% endblock %}

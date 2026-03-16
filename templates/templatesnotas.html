@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>📝 Lançamento de Notas</h2>
+        <p>Digite o nome do aluno para buscar</p>
+    </div>
+
+    <!-- BUSCA DE ALUNO -->
+    <form method="GET">
+        <div class="grid-2">
+            <div class="campo">
+                <label>Buscar aluno</label>
+                <input type="text"
+                       name="q"
+                       value="{{ termo or '' }}"
+                       placeholder="Ex: Alex"
+                       onkeyup="this.form.submit()">
+            </div>
+        </div>
+    </form>
+
+    <!-- LISTA DE ALUNOS (SÓ ANTES DE SELECIONAR) -->
+    {% if termo and alunos and not aluno_id %}
+        <ul style="list-style:none; padding:0; margin-top:10px;">
+            {% for a in alunos %}
+                <li style="padding:6px; border-bottom:1px solid #ddd;">
+                    <a href="/notas?aluno_id={{ a[0] }}">
+                        {{ a[1] }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <!-- SELEÇÃO DE CURSO -->
+    {% if cursos_matriculados %}
+        <form method="GET" style="margin-top:15px;">
+            <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+
+            <label>Curso</label>
+            <select name="curso_id" onchange="this.form.submit()" required>
+                <option value="">Selecione o curso</option>
+                {% for c in cursos_matriculados %}
+                    <option value="{{ c[1] }}"
+                        {% if curso_id == c[1] %}selected{% endif %}>
+                        {{ c[0] }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    {% endif %}
+
+    <!-- LANÇAMENTO DE NOTAS -->
+    {% if materias %}
+        <form method="POST" style="margin-top:20px;">
+            <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+            <input type="hidden" name="curso_id" value="{{ curso_id }}">
+
+            <h3>📚 Disciplinas — {{ aluno_nome }}</h3>
+
+            <div class="grid-4">
+                {% for m in materias %}
+                    <div class="campo">
+                        <label>{{ m[1] }}</label>
+                        <input type="number"
+                               step="0.1"
+                               min="0"
+                               max="10"
+                               name="nota_{{ m[0] }}"
+                               placeholder="Nota">
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button type="submit" class="btn btn-primary">
+                    Salvar
+                </button>
+
+                <a href="/notas_visualizar/{{ aluno_id }}?curso_id={{ curso_id }}"
+                   class="btn">
+                    👁️ Visualizar
+                </a>
+
+                <a href="/notas_visualizar/{{ aluno_id }}?curso_id={{ curso_id }}"
+                   target="_blank"
+                   class="btn">
+                    🖨️ Imprimir
+                </a>
+            </div>
+        </form>
+    {% endif %}
+</div>
+
+{% endblock %}

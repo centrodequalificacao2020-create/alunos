@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <h3>➕ Cadastrar nova matéria</h3>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="nova_materia" value="1">
+
+        <div class="grid-2">
+            <div class="campo">
+                <label>Curso</label>
+                <select name="curso_id" required>
+                    <option value="">Selecione o curso</option>
+                    {% for c in cursos %}
+                        <option value="{{ c[0] }}">{{ c[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="campo">
+                <label>Nome da matéria</label>
+                <input type="text" name="nome" placeholder="Ex: Word, Excel..." required>
+            </div>
+        </div>
+
+        <button type="submit" name="nova_materia" class="btn btn-primary">
+            ➕ Adicionar Matéria
+        </button>
+    </form>
+</div>
+
+<hr>
+<h4>📚 Matérias cadastradas</h4>
+
+{% for (curso_id, curso_nome), materias in materias_por_curso.items() %}
+<div class="card" style="margin-top:15px;">
+
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>📘 {{ curso_nome }}</strong>
+        <button type="button" class="btn btn-sm"
+                onclick="toggleCurso('{{ curso_id }}')">
+            ▶
+        </button>
+    </div>
+
+    <div id="curso_{{ curso_id }}" style="display:none; padding:10px;">
+        {% if materias %}
+            <ul>
+                {% for m_id, m_nome in materias %}
+                <li style="
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:8px;
+">
+
+    <strong style="min-width:200px;">
+        {{ m_nome }}
+    </strong>
+
+    <!-- EDITAR -->
+    <form method="POST" onsubmit="return editarMateria('{{ m_nome }}', this)">
+        <input type="hidden" name="materia_id" value="{{ m_id }}">
+        <input type="hidden" name="editar_materia" value="1">
+        <input type="hidden" name="novo_nome">
+
+        <button class="btn btn-sm" title="Editar matéria">
+            ✏️
+        </button>
+    </form>
+
+    <!-- EXCLUIR -->
+    <form method="POST">
+        <input type="hidden" name="materia_id" value="{{ m_id }}">
+        <input type="hidden" name="excluir_materia" value="1">
+
+        <button class="btn btn-sm btn-danger"
+                title="Excluir matéria"
+                onclick="return confirm('Excluir esta matéria?')">
+            🗑️
+        </button>
+    </form>
+
+</li>
+
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Nenhuma matéria cadastrada.</p>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+<script>
+function toggleCurso(id) {
+    const el = document.getElementById('curso_' + id);
+    el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+</script>
+<script>
+function editarMateria(nomeAtual, form) {
+    const novoNome = prompt("Editar matéria:", nomeAtual);
+
+    if (!novoNome) {
+        return false;
+    }
+
+    form.querySelector('input[name="novo_nome"]').value = novoNome;
+    return true;
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>📘 Cadastro de Matérias</h2>
+    </div>
+
+    <form method="POST">
+
+        <div class="grid-2">
+            <div class="campo">
+                <label>Curso</label>
+                <select name="curso_id" required>
+                    <option value="">Selecione o curso</option>
+                    {% for c in cursos %}
+                        <option value="{{ c[0] }}">{{ c[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="campo">
+                <label>Nome da matéria</label>
+                <input type="text" name="nome" required>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Salvar</button>
+
+    </form>
+</div>
+
+<hr>
+
+<h4>📋 Matérias cadastradas</h4>
+
+<table class="tabela-excel">
+    <thead>
+        <tr>
+            <th>Curso</th>
+            <th>Matéria</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in materias %}
+        <tr>
+            <td>{{ m[2] }}</td>
+            <td>{{ m[1] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="grid-2" style="max-width:1300px; margin:auto; gap:20px;">
+
+    <!-- CARD ESQUERDA: FORMULÁRIO -->
+    <div class="card">
+        <h2>Cadastrar Funcionário</h2>
+
+        <form method="POST" action="/salvar_funcionario">
+
+            <label>Nome completo</label>
+            <input type="text" name="nome" required>
+
+            <div class="grid-4">
+                <div class="campo">
+                    <label>CPF</label>
+                    <input type="text" name="cpf">
+                </div>
+
+                <div class="campo">
+                    <label>Data de nascimento</label>
+                    <input type="date" name="data_nascimento">
+                </div>
+
+                <div class="campo">
+                    <label>Status</label>
+                    <select name="status">
+                        <option>Ativo</option>
+                        <option>Inativo</option>
+                    </select>
+                </div>
+
+                <div class="campo">
+                    <label>WhatsApp</label>
+                    <input type="text" name="telefone">
+                </div>
+            </div>
+
+            <label>Email</label>
+            <input type="email" name="email">
+
+            <h3 style="margin-top:20px;">Endereço</h3>
+
+            <div class="grid-4">
+                <div class="campo">
+                    <label>CEP</label>
+                    <input type="text" name="cep">
+                </div>
+
+                <div class="campo">
+                    <label>Bairro</label>
+                    <input type="text" name="bairro">
+                </div>
+
+                <div class="campo">
+                    <label>Cidade</label>
+                    <input type="text" name="cidade">
+                </div>
+
+                <div class="campo">
+                    <label>Estado</label>
+                    <input type="text" name="estado">
+                </div>
+            </div>
+
+            <div class="grid-4">
+                <div class="campo" style="grid-column: span 3;">
+                    <label>Rua</label>
+                    <input type="text" name="endereco">
+                </div>
+
+                <div class="campo">
+                    <label>Complemento</label>
+                    <input type="text" name="complemento">
+                </div>
+            </div>
+
+            <h3 style="margin-top:20px;">Dados de acesso</h3>
+
+            <div class="grid-3">
+                <div class="campo">
+                    <label>Usuário</label>
+                    <input type="text" name="usuario" required>
+                </div>
+
+                <div class="campo">
+                    <label>Senha</label>
+                    <input type="text" name="senha" required>
+                </div>
+
+                <div class="campo">
+                    <label>Perfil</label>
+                    <select name="perfil" required>
+                        <option value="Administrador">Administrador</option>
+                        <option value="Financeiro">Financeiro</option>
+                        <option value="Usuario">Usuário</option>
+                        <option value="Instrutor">Instrutor</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top:20px;">
+                <button type="submit" class="btn btn-azul">
+                    Salvar funcionário
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- CARD DIREITA: LISTA -->
+   <!-- CARD DIREITA: LISTA -->
+<div class="card">
+    <h2>Funcionários cadastrados</h2>
+
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+    <tr style="background:#f4f6f8;">
+        <th>Nome</th>
+        <th>Usuário</th>
+        <th>Perfil</th>
+        <th style="width:90px; text-align:center;">Ações</th>
+    </tr>
+</thead>
+<tbody>
+    {% for f in funcionarios %}
+    <tr>
+        <td>{{ f[1] }}</td>
+        <td>{{ f[2] }}</td>
+        <td>{{ f[3] }}</td>
+        <td style="white-space:nowrap; text-align:center; width:90px;">
+            <a href="/ver_funcionario/{{ f[0] }}">🔍</a>
+            <a href="/editar_funcionario/{{ f[0] }}" style="margin-left:8px;">✏️</a>
+            <a href="/excluir_funcionario/{{ f[0] }}"
+               onclick="return confirm('Deseja excluir este funcionário?')"
+               style="margin-left:8px;">
+               🗑️
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+
+    </table>
+
+</div>
+
+            {% for f in funcionarios %}
+            <tr>
+                <td>{{ f[1] }}</td>
+                <td>{{ f[2] }}</td>
+                <td>{{ f[3] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

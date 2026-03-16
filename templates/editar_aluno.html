@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+
+    <div class="card-header">
+        <h2>✏️ Editar Aluno</h2>
+    </div>
+
+    <form method="POST" class="form-aluno">
+
+        <!-- ================= DADOS DO ALUNO ================= -->
+        <h3 class="secao">👤 Dados do Aluno</h3>
+
+        <div class="grid-2">
+            <div class="campo">
+                <label>Nome</label>
+                <input type="text" name="nome" value="{{ aluno['nome'] }}" required>
+            </div>
+
+            <div class="campo">
+                <label>Status</label>
+                <select name="status">
+                    <option value="Ativo" {% if aluno.status == 'Ativo' %}selected{% endif %}>Ativo</option>
+                    <option value="Trancado" {% if aluno.status == 'Trancado' %}selected{% endif %}>Trancado</option>
+                    <option value="Cancelado" {% if aluno.status == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+                    <option value="Finalizado" {% if aluno.status == 'Finalizado' %}selected{% endif %}>Finalizado</option>
+                 </select>
+
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="campo">
+                <label>CPF</label>
+                <input type="text" name="cpf" value="{{ aluno['cpf'] }}">
+            </div>
+
+            <div class="campo">
+                <label>RG</label>
+                <input type="text" name="rg" value="{{ aluno['rg'] }}">
+            </div>
+        </div>
+
+        <div class="grid-1">
+            <div class="campo">
+                <label>Data de Nascimento</label>
+                <input type="date" name="data_nascimento" value="{{ aluno['data_nascimento'] }}">
+            </div>
+        </div>
+
+        <!-- ================= CONTATO ================= -->
+        <h3 class="secao">📞 Contato</h3>
+
+        <div class="grid-2">
+            <div class="campo">
+                <label>Telefone</label>
+                <input type="text" name="telefone" value="{{ aluno['telefone'] }}">
+            </div>
+
+            <div class="campo">
+                <label>WhatsApp</label>
+                <input type="text" name="whatsapp" value="{{ aluno['whatsapp'] }}">
+            </div>
+        </div>
+
+        <div class="grid-1">
+            <div class="campo">
+                <label>E-mail</label>
+                <input type="email" name="email" value="{{ aluno['email'] }}">
+            </div>
+        </div>
+
+        <!-- ================= RESPONSÁVEL ================= -->
+        {% if aluno['menor'] == 1 %}
+        <h3 class="secao">👨‍👩‍👧 Responsável Legal</h3>
+
+        <div class="grid-2">
+            <div class="campo">
+                <label>Nome do Responsável</label>
+                <input type="text" name="responsavel_nome" value="{{ aluno['responsavel_nome'] }}">
+            </div>
+
+            <div class="campo">
+                <label>CPF do Responsável</label>
+                <input type="text" name="responsavel_cpf" value="{{ aluno['responsavel_cpf'] }}">
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="campo">
+                <label>Telefone do Responsável</label>
+                <input type="text" name="responsavel_telefone" value="{{ aluno['responsavel_telefone'] }}">
+            </div>
+
+            <div class="campo">
+                <label>Parentesco</label>
+                <input type="text" name="responsavel_parentesco" value="{{ aluno['responsavel_parentesco'] }}">
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ================= CURSO ================= -->
+        <h3 class="secao">📚 Curso</h3>
+
+        <div class="grid-1">
+            <div class="campo">
+                <select name="curso_id" required>
+                    {% for c in cursos %}
+                        <option value="{{ c['id'] }}"
+                            {% if aluno['curso_id'] == c['id'] %}selected{% endif %}>
+                            {{ c['nome'] }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- ================= AÇÕES ================= -->
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">💾 Salvar</button>
+            <a href="/cadastro" class="btn btn-cinza">Cancelar</a>
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}

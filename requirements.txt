@@ -1,0 +1,4 @@
+Flask
+reportlab
+python-dateutil
+gunicorn

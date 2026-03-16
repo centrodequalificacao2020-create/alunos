@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card form-pequeno">
+    <div class="card-header">
+        <span>💲</span>
+        <h2>Quitar Parcela</h2>
+    </div>
+
+    <form method="POST">
+        <label>Forma de Pagamento</label>
+        <select name="forma" required>
+            <option value="">Selecione</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="PIX">PIX</option>
+            <option value="Cartão">Cartão</option>
+        </select>
+
+        <div style="margin-top:15px;">
+    <button type="submit" class="btn btn-verde">
+        Confirmar Pagamento
+    </button>
+
+    <a href="/financeiro?aluno_id={{ aluno_id }}" class="btn btn-azul">
+        Voltar
+    </a>
+</div>
+
+    </form>
+</div>
+
+{% endblock %}

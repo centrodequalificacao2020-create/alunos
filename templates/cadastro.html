@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>Cadastrar Aluno</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for categoria, mensagem in messages %}
+              <div class="alerta {{ categoria }}">
+                {{ mensagem }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+    </div>
+
+    <form method="POST">
+
+<div class="grid-1">
+    <div class="campo">
+        <label>Nome do aluno</label>
+        <input type="text" name="nome" required>
+    </div>
+</div>
+
+<div class="grid-4">
+    <div class="campo">
+        <label>CPF</label>
+        <input type="text" name="cpf">
+    </div>
+
+    <div class="campo">
+        <label>RG / Identidade</label>
+        <input type="text" name="rg">
+    </div>
+
+    <div class="campo">
+        <label>Data de nascimento</label>
+        <input type="date" name="data_nascimento" id="data_nascimento">
+    </div>
+
+    <div class="campo">
+        <label>Status</label>
+        <select name="status">
+            <option value="Ativo">Ativo</option>
+            <option value="Trancado">Trancado</option>
+            <option value="Cancelado">Cancelado</option>
+            <option value="Finalizado">Finalizado</option>
+        </select>
+    </div>
+</div>
+
+<div class="grid-4">
+    <div class="campo">
+        <label>WhatsApp</label>
+        <input type="text" name="telefone">
+    </div>
+
+    <div class="campo">
+        <label>Telefone do responsável</label>
+        <input type="text" name="telefone_contato">
+    </div>
+
+    <div class="campo">
+        <label>E-mail</label>
+        <input type="email" name="email">
+    </div>
+</div>
+
+<div id="bloco_responsavel" style="display:none;">
+    <h3 style="margin-top:15px;">👨‍👩‍👧 Responsável Legal</h3>
+
+    <div class="grid-4">
+        <div class="campo">
+            <label>Nome do responsável</label>
+            <input type="text" name="responsavel_nome">
+        </div>
+
+        <div class="campo">
+            <label>CPF do responsável</label>
+            <input type="text" name="responsavel_cpf">
+        </div>
+
+        <div class="campo">
+            <label>Telefone do responsável</label>
+            <input type="text" name="responsavel_telefone">
+        </div>
+
+        <div class="campo">
+            <label>Parentesco</label>
+            <input type="text" name="responsavel_parentesco">
+        </div>
+    </div>
+</div>
+
+<h3 style="margin-top:15px;">🏠 Endereço</h3>
+
+<div class="grid-4">
+    <div class="campo">
+        <label>CEP</label>
+        <input type="text" name="cep">
+    </div>
+
+    <div class="campo">
+        <label>Bairro</label>
+        <input type="text" name="bairro">
+    </div>
+
+    <div class="campo">
+        <label>Cidade</label>
+        <input type="text" name="cidade">
+    </div>
+
+    <div class="campo">
+        <label>Estado</label>
+        <input type="text" name="estado">
+    </div>
+</div>
+
+<div class="grid-4">
+    <div class="campo" style="grid-column: span 3;">
+        <label>Rua</label>
+        <input type="text" name="endereco">
+    </div>
+
+    <div class="campo">
+        <label>Complemento</label>
+        <input type="text" name="complemento">
+    </div>
+</div>
+
+<div style="margin-top:20px;">
+    <div style="display:flex; justify-content:space-between; margin-top:20px;">
+        <button type="submit" class="btn btn-azul">Salvar</button>
+        <a href="/novo_funcionario" class="btn btn-azul">➕ Adicionar Funcionário</a>
+    </div>
+</div>
+
+</form>
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; gap:10px;">
+
+    <h4>👥 ALUNOS MATRICULADOS</h4>
+
+    <div style="display:flex; gap:10px;">
+        
+        <input 
+            type="text" 
+            id="buscaAluno" 
+            placeholder="Buscar aluno..."
+            style="padding:6px; width:200px;"
+            onkeyup="filtrarAlunos()"
+        >
+
+        <select id="filtroStatus" onchange="filtrarAlunos()" style="padding:6px;">
+            <option value="">Todos</option>
+            <option value="Ativo">Ativos</option>
+            <option value="Inadimplente">Inadimplentes</option>
+            <option value="Trancado">Trancados</option>
+            <option value="Cancelado">Cancelados</option>
+            <option value="Finalizado">Finalizados</option>
+        </select>
+
+    </div>
+
+</div>
+
+<!-- TABELA -->
+<div class="tabela-container">
+    <table class="tabela-excel">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>WhatsApp</th>
+                <th>E-mail</th>
+                <th>Situação</th>
+                <th>Tel. Resp.</th>
+                <th class="acao-fixa">Ação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for aluno in alunos %}
+            <tr data-inadimplente="{{ aluno.inadimplente }}">
+                <td>{{ aluno.nome }}</td>
+                <td>{{ aluno.telefone or '' }}</td>
+                <td>{{ aluno.email or '' }}</td>
+                <td>{{ aluno.status }}</td>
+                <td>{{ aluno.telefone_contato or '' }}</td>
+                <td class="acao-fixa">
+                    <a href="/aluno/{{ aluno.id }}">🔍</a>
+                    <a href="/editar_aluno/{{ aluno.id }}">✏️</a>
+                    <a href="/excluir_aluno/{{ aluno.id }}" onclick="return confirm('Deseja realmente excluir este aluno?')">🗑️</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- RODAPÉ FORA DA TABELA -->
+<div style="
+    display:flex;
+    justify-content:flex-end;
+    gap:25px;
+    font-weight:bold;
+    margin-top:10px;
+    padding:10px 15px;
+    background:#ffffff;
+    border-top:2px solid #ddd;
+">
+
+    {% set ativos = alunos | selectattr('status','equalto','Ativo') | list | length %}
+    {% set trancados = alunos | selectattr('status','equalto','Trancado') | list | length %}
+    {% set cancelados = alunos | selectattr('status','equalto','Cancelado') | list | length %}
+    {% set finalizados = alunos | selectattr('status','equalto','Finalizado') | list | length %}
+
+   <span style="color:#2ecc71;">Ativos: {{ ativos }}</span>
+   <span style="color:#f39c12;">Trancado: {{ trancados }}</span>
+   <span style="color:#e74c3c;">Cancelado: {{ cancelados }}</span>
+   <span style="color:#7f8c8d;">Finalizado: {{ finalizados }}</span>
+   <span style="color:red; font-weight:bold;">
+   Inadimplentes: {{ inadimplentes }}
+   </span>
+   </div>
+<script>
+function filtrarAlunos() {
+
+    const input = document.getElementById("buscaAluno");
+    const filtroTexto = input.value.toLowerCase();
+
+    const filtroStatus = document.getElementById("filtroStatus").value;
+
+    const linhas = document.querySelectorAll(".tabela-excel tbody tr");
+
+    linhas.forEach(linha => {
+
+        const nome = linha.cells[0].innerText.toLowerCase();
+        const status = linha.cells[3].innerText.trim();
+        const inad = linha.dataset.inadimplente;
+
+        const matchTexto = nome.includes(filtroTexto);
+
+        let matchStatus = true;
+
+        if (filtroStatus === "Inadimplente") {
+            matchStatus = inad === "1";
+        } else if (filtroStatus !== "") {
+            matchStatus = status === filtroStatus;
+        }
+
+        linha.style.display = (matchTexto && matchStatus) ? "" : "none";
+
+    });
+}
+
+function verificarIdade() {
+    const campo = document.getElementById("data_nascimento");
+    const bloco = document.getElementById("bloco_responsavel");
+
+    if (!campo || !bloco) return;
+
+    const data = new Date(campo.value);
+    if (isNaN(data)) return;
+
+    const hoje = new Date();
+    let idade = hoje.getFullYear() - data.getFullYear();
+    const m = hoje.getMonth() - data.getMonth();
+
+    if (m < 0 || (m === 0 && hoje.getDate() < data.getDate())) idade--;
+
+    bloco.style.display = idade < 18 ? "block" : "none";
+}
+
+document.getElementById("data_nascimento").addEventListener("change", verificarIdade);
+window.addEventListener("load", verificarIdade);
+</script>
+
+{% endblock %}

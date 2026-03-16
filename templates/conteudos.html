@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Conteúdos das Aulas</h2>
+
+<form method="POST" enctype="multipart/form-data">
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+
+<div>
+<label>Título</label>
+<input type="text" name="titulo" required style="width:100%">
+</div>
+
+<div>
+<label>Curso</label>
+<select id="curso" name="curso_id" style="width:100%">
+<option value="">Selecione</option>
+{% for c in cursos %}
+<option value="{{ c.id }}">{{ c.nome }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div>
+<label>Matéria</label>
+<select name="materia_id" id="materia" style="width:100%">
+<option value="">Selecione o curso primeiro</option>
+</select>
+</div>
+
+<div>
+<label>Módulo</label>
+<input type="text" name="modulo" placeholder="Ex: Módulo 1" style="width:100%">
+</div>
+
+<div>
+<label>Arquivo PDF</label>
+<input type="file" name="arquivo" style="width:100%">
+</div>
+
+<div>
+<label>Link do Vídeo</label>
+<input type="text" name="video" style="width:100%">
+</div>
+
+</div>
+
+<br>
+
+<button type="submit" style="padding:10px 25px;font-size:16px">
+Enviar Conteúdo
+</button>
+
+</form>
+
+<br><br>
+
+<h3>📚 Conteúdos enviados</h3>
+
+{% set curso_atual = "" %}
+{% set materia_atual = "" %}
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+
+{% for c in conteudos %}
+
+{% if curso_atual != c.curso_id %}
+
+{% if not loop.first %} </ul> </div>
+
+</div>
+{% endif %}
+
+{% set curso_atual = c.curso_id %}
+{% set materia_atual = "" %}
+
+<div class="card">
+
+<div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+
+<div style="cursor:pointer" onclick="toggleCurso('{{ c.curso_id }}')">
+<strong>📘 {{ c.curso }}</strong>
+</div>
+
+<a href="/curso/excluir/{{ c.curso_id }}"
+onclick="return confirm('Excluir curso?')">
+🗑️ </a>
+
+</div>
+
+<div id="curso_{{ c.curso_id }}" style="display:none;padding:10px">
+
+{% endif %}
+
+{% if materia_atual != c.materia %}
+
+{% if materia_atual != "" %}
+
+</ul>
+{% endif %}
+
+<div style="font-weight:bold;margin-top:10px">
+📂 {{ c.materia }}
+</div>
+
+<ul style="padding-left:15px">
+
+{% set materia_atual = c.materia %}
+
+{% endif %}
+
+<li style="display:flex;gap:10px;align-items:center">
+
+{{ c.titulo }}
+
+{% if c.arquivo %} <a href="/uploads/{{ c.arquivo }}" target="_blank">📄 PDF</a>
+{% endif %}
+
+{% if c.video %} <a href="{{ c.video }}" target="_blank">🎬 Vídeo</a>
+{% endif %}
+
+<a href="/conteudos/excluir/{{ c.id }}" onclick="return confirm('Excluir conteúdo?')">
+🗑️
+</a>
+
+</li>
+
+{% if loop.last %} </ul> </div>
+
+</div>
+{% endif %}
+
+{% endfor %}
+
+</div>
+
+<script>
+
+function toggleCurso(id){
+
+let el = document.getElementById("curso_"+id)
+
+if(el.style.display === "none"){
+    el.style.display = "block"
+}else{
+    el.style.display = "none"
+}
+
+}
+
+let materias = {{ materias | tojson }}
+
+document.getElementById("curso").addEventListener("change", function(){
+
+let curso = parseInt(this.value)
+let selectMateria = document.getElementById("materia")
+
+selectMateria.innerHTML = '<option value="">Selecione</option>'
+
+materias.forEach(function(m){
+
+if(parseInt(m.curso_id) === curso){
+
+let opt = document.createElement("option")
+opt.value = m.id
+opt.textContent = m.nome
+
+selectMateria.appendChild(opt)
+
+}
+
+})
+
+})
+
+</script>
+
+{% endblock %}

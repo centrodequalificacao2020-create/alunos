@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="max-width:500px; margin:auto;">
+    <h2>Editar Funcionário</h2>
+
+    <form method="POST">
+
+        <label>Nome</label>
+        <input type="text" name="nome" value="{{ funcionario.nome }}" required>
+
+        <label>Usuário</label>
+        <input type="text" name="usuario" value="{{ funcionario.usuario }}" required>
+
+        <label>Perfil</label>
+        <select name="perfil">
+            <option value="Administrador" {% if funcionario.perfil == "Administrador" %}selected{% endif %}>Administrador</option>
+            <option value="Financeiro" {% if funcionario.perfil == "Financeiro" %}selected{% endif %}>Financeiro</option>
+            <option value="Usuario" {% if funcionario.perfil == "Usuario" %}selected{% endif %}>Usuário</option>
+            <option value="Instrutor" {% if funcionario.perfil == "Instrutor" %}selected{% endif %}>Instrutor</option>
+        </select>
+
+        <div style="margin-top:20px;">
+            <button type="submit" class="btn btn-azul">
+                Salvar alterações
+            </button>
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}

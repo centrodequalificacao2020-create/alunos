@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <span>📘</span>
+        <h2>Editar Curso</h2>
+    </div>
+
+    <form method="POST" class="form-pequeno">
+
+        <label>Nome do Curso</label>
+        <input type="text" name="nome" value="{{ curso[1] }}" required>
+
+        <label>Valor Mensal</label>
+        <input type="number" step="0.01" name="valor_mensal" value="{{ curso[2] }}" required>
+
+        <label>Valor Matrícula</label>
+        <input type="number" step="0.01" name="valor_matricula" value="{{ curso[3] }}">
+
+        <label>Parcelas</label>
+        <input type="number" name="parcelas" value="{{ curso[4] }}" required>
+
+        <button class="btn btn-azul">Salvar</button>
+        <a href="/cursos" class="btn btn-vermelho">Cancelar</a>
+    </form>
+</div>
+
+{% endblock %}

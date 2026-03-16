@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="max-width:1100px; margin:auto;">
+
+    <!-- HEADER -->
+    <div class="card-header" style="border-left:6px solid #6f42c1;">
+        <h2>📝 Lançamento de Notas</h2>
+        <p style="color:#666;">Busque o aluno e lance as notas por disciplina</p>
+    </div>
+
+    <!-- BUSCA -->
+    <form method="GET" style="margin-top:20px;">
+        <label style="font-weight:bold;">Buscar aluno</label>
+
+        <div style="display:flex; gap:10px; margin-top:5px;">
+            <input type="text"
+                   name="q"
+                   value="{{ termo or '' }}"
+                   placeholder="Digite o nome do aluno..."
+                   style="flex:1; padding:10px; border-radius:8px; border:1px solid #ccc;"
+                   onkeyup="this.form.submit()">
+        </div>
+    </form>
+
+    <!-- LISTA DE ALUNOS -->
+    {% if termo and alunos and not aluno_id %}
+    <div style="margin-top:20px;">
+        <label style="font-weight:bold;">Resultados:</label>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px; margin-top:10px;">
+            {% for a in alunos %}
+            <a href="/notas?aluno_id={{ a[0] }}" style="text-decoration:none;">
+                <div style="
+                    padding:12px;
+                    border-radius:10px;
+                    border:1px solid #ddd;
+                    background:#fafafa;
+                    transition:0.2s;
+                "
+                onmouseover="this.style.background='#f3f0ff'"
+                onmouseout="this.style.background='#fafafa'">
+
+                    👤 {{ a[1] }}
+
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ALUNO -->
+    {% if aluno_id and aluno_nome %}
+    <div style="margin-top:20px; padding:12px; background:#f4f6f8; border-radius:8px;">
+        <strong>Aluno selecionado:</strong> {{ aluno_nome }}
+    </div>
+    {% endif %}
+
+    <!-- CURSO -->
+    {% if cursos_matriculados %}
+    <form method="GET" style="margin-top:20px;">
+        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+
+        <label style="font-weight:bold;">Curso</label>
+
+        <select name="curso_id" onchange="this.form.submit()"
+            style="width:100%; margin-top:5px; padding:10px; border-radius:8px; border:1px solid #ccc;">
+            <option value="">Selecione o curso</option>
+
+            {% for c in cursos_matriculados %}
+                <option value="{{ c[0] }}"
+                    {% if curso_id == c[0] %}selected{% endif %}>
+                    {{ c[1] }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
+
+    <!-- NOTAS -->
+    {% if materias %}
+    <form method="POST" style="margin-top:25px;">
+
+        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+        <input type="hidden" name="curso_id" value="{{ curso_id }}">
+
+        <h3 style="margin-bottom:15px;">
+            📚 Disciplinas — {{ aluno_nome }}
+        </h3>
+
+        <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f4f6f8;">
+                    <th style="padding:10px; text-align:left;">Matéria</th>
+                    <th style="padding:10px;">Nota</th>
+                    <th style="padding:10px;">Resultado</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                {% for m in materias %}
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px;">
+                        📘 {{ m[1] }}
+                    </td>
+
+                    <td style="padding:10px; text-align:center;">
+                        <input type="number"
+                               step="0.1"
+                               min="0"
+                               max="10"
+                               name="nota_{{ m[0] }}"
+                               placeholder="0 - 10"
+                               style="width:80px; padding:6px; border-radius:6px; border:1px solid #ccc;">
+                    </td>
+
+                    <td style="padding:10px; text-align:center;">
+                        <select name="resultado_{{ m[0] }}"
+                            style="padding:6px; border-radius:6px; border:1px solid #ccc;">
+
+                            <option value="">Selecionar</option>
+                            <option value="APROVADO">✅ Aprovado</option>
+                            <option value="REPROVADO">❌ Reprovado</option>
+                            <option value="NAO_CURSOU">⚪ Não cursou</option>
+
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+
+            </tbody>
+        </table>
+        </div>
+
+        <!-- BOTÕES -->
+        <div style="margin-top:25px; display:flex; gap:10px; flex-wrap:wrap;">
+
+            <button type="submit" class="btn btn-primary">
+                💾 Salvar Notas
+            </button>
+
+            <a href="/notas_visualizar/{{ aluno_id }}?curso_id={{ curso_id }}"
+               class="btn">
+                👁️ Visualizar
+            </a>
+
+            <a href="/notas_visualizar/{{ aluno_id }}?curso_id={{ curso_id }}"
+               target="_blank"
+               class="btn">
+                🖨️ Imprimir
+            </a>
+
+            <a href="/notas_pdf/{{ aluno_id }}/{{ curso_id }}"
+               class="btn btn-success">
+                📄 PDF
+            </a>
+
+        </div>
+
+    </form>
+    {% endif %}
+
+</div>
+
+{% endblock %}

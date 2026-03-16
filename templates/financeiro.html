@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Financeiro</h1>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    <div style="margin-bottom:15px;">
+        {% for category, message in messages %}
+            <div style="
+                padding:10px;
+                border-radius:6px;
+                background:#e8f5e9;
+                color:#1b5e20;
+                font-weight:bold;
+                margin-bottom:8px;
+            ">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endwith %}
+
+<div class="card">
+    <div class="card-header">
+        <span>💰</span>
+        <h2>Financeiro</h2>
+    </div>
+
+    <!-- SELEÇÃO DO ALUNO -->
+    <form method="GET" action="/financeiro" class="form-pequeno">
+        <label>Aluno</label>
+        <select name="aluno_id" onchange="this.form.submit()" required>
+            <option value="">Selecione o aluno</option>
+            {% for a in alunos %}
+                <option value="{{ a[0] }}" {% if aluno_id == a[0] %}selected{% endif %}>
+                    {{ a[1] }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+    
+    {% if aluno_id %}
+    <form action="#" method="get" style="margin-top:10px;">
+        <button type="button" class="btn btn-primary" disabled>
+            Gerar Financeiro
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+{% if aluno_id %}
+    
+    {% if aluno_id %}
+<div class="card" style="margin-top:10px;">
+    <div style="display:flex; gap:40px; font-weight:bold;">
+        <div>💰 Total pago: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
+        <div>📄 Total a pagar: R$ {{ "%.2f"|format(total_a_pagar or 0) }}</div>
+        <div>📊 Saldo restante: R$ {{ "%.2f"|format(saldo_restante or 0) }}</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ================= A PAGAR ================= -->
+<div class="card">
+    <div class="card-header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h3>A PAGAR</h3>
+
+    {% if aluno_id %}
+    <a href="/movimentacao?aluno_id={{ aluno_id }}" class="btn btn-verde">
+        + Nova Mensalidade
+    </a>
+    {% endif %}
+</div>
+    </div>
+
+    {% if pendentes %}
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Parcela</th>
+                    <th>Vencimento</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th class="acoes">Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in pendentes %}
+                <tr>
+                    <td>{{ p[4] }}</td>
+                    <td>{{ p[2][8:10] }}/{{ p[2][5:7] }}/{{ p[2][0:4] }}</td>
+
+                    <td>
+                        {% if p[3] == "Material" %}
+                            <span style="
+                                background:#ffe8cc;
+                                color:#b35400;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-weight:bold;
+                            ">
+                                🟧 Material Didático
+                            </span>
+
+                        {% elif "Mensalidade" in p[3] %}
+                            <span style="
+                                background:#e3f2fd;
+                                color:#0d47a1;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-weight:bold;
+                            ">
+                                🟦 Mensalidade
+                            </span>
+
+                        {% elif p[3] == "Matrícula" %}
+                            <span style="
+                                background:#e8f5e9;
+                                color:#1b5e20;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-weight:bold;
+                            ">
+                                🟩 Matrícula
+                            </span>
+
+                        {% else %}
+                            {{ p[3] }}
+                        {% endif %}
+                    </td>
+
+                    <td>R$ {{ "%.2f"|format(p[1] or 0) }}</td>
+                    <td class="acoes">
+
+                        <a href="/excluir_parcela/{{ p[0] }}/{{ aluno_id }}"
+                           onclick="return confirm('Deseja realmente excluir esta parcela?')"
+                           title="Excluir parcela">
+                           🗑️
+                        </a>
+
+                        <a href="/editar_parcela/{{ p[0] }}" class="btn btn-azul">✏️</a>
+
+                        <a href="/pagar/{{ p[0] }}" class="btn btn-pagar" title="Pagar">
+                            $
+                        </a>
+
+                        <a href="/carne/{{ aluno_id }}"
+                           class="btn btn-imprimir"
+                           title="Imprimir"
+                           target="_blank">
+                           🖨️
+                        </a>
+
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="empty-state">Nenhuma cobrança pendente</div>
+    {% endif %}
+</div>
+
+{% if pendentes %}
+<div class="totais">
+    TOTAL A PAGAR: R$ {{ "%.2f"|format(total_a_pagar or 0) }}
+</div>
+{% endif %}
+
+<!-- ================= PAGAS ================= -->
+<div class="card">
+    <div class="card-header">
+        <h3>PAGAS</h3>
+    </div>
+
+    {% if pagas %}
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Parcela</th>
+                    <th>Vencimento</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Data Pgto</th>
+                    <th>Funcionário</th>
+                    <th class="acoes">Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in pagas %}
+                <tr>
+                    <td>{{ p[4] }}</td>
+                    <td>{{ p[2][8:10] }}/{{ p[2][5:7] }}/{{ p[2][0:4] }}</td>
+
+                    <td>
+                        {% if p[3] == "Material" %}
+                            <span style="
+                                background:#ffe8cc;
+                                color:#b35400;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-weight:bold;
+                            ">
+                                🟧 Material Didático
+                            </span>
+
+                        {% elif p[3] == "Mensalidade" %}
+                            <span style="
+                                background:#e3f2fd;
+                                color:#0d47a1;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-weight:bold;
+                            ">
+                                🟦 Mensalidade
+                            </span>
+
+                        {% elif p[3] == "Matrícula" %}
+                            <span style="
+                                background:#e8f5e9;
+                                color:#1b5e20;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-weight:bold;
+                            ">
+                                🟩 Matrícula
+                            </span>
+
+                        {% else %}
+                            {{ p[3] }}
+                        {% endif %}
+                    </td>
+
+                    <td>R$ {{ "%.2f"|format(p[1] or 0) }}</td>
+                    <td>{{ p[5] or '-' }}</td>
+                    <td>{{ p[6] or 'Sistema' }}</td>
+                    <td class="acoes">
+
+                        <a href="/recibo/{{ p[0] }}"
+                           target="_blank"
+                           class="btn-recibo"
+                           title="Gerar Recibo">
+                            🧾
+                        </a>
+
+                        <form method="POST"
+                              action="/excluir_parcela_segura/{{ p[0] }}/{{ aluno_id }}"
+                              onsubmit="return confirmarExclusao(this);"
+                              style="display:inline;">
+                            <input type="hidden" name="senha">
+                            <button type="submit"
+                                    class="btn-excluir"
+                                    title="Excluir parcela">
+                                🗑️
+                            </button>
+                        </form>
+
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="totais">
+        TOTAL PAGO: R$ {{ "%.2f"|format(total_pago or 0) }}
+    </div>
+
+    {% else %}
+        <div class="empty-state">Nenhuma cobrança paga</div>
+    {% endif %}
+</div>
+
+{% endif %}
+
+<!-- ================= SCRIPT ÚNICO ================= -->
+<script>
+function confirmarExclusao(form) {
+    const senha = prompt("Digite a senha para excluir esta parcela:");
+
+    if (!senha) {
+        return false;
+    }
+
+    form.querySelector('input[name="senha"]').value = senha;
+    return true;
+}
+</script>
+
+{% endblock %}

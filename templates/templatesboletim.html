@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<div class="card">
+    <h2>📄 Boletim Escolar</h2>
+
+    <p><strong>Escola:</strong> CQP – Centro de Qualificação Profissional</p>
+    <p><strong>Aluno:</strong> {{ aluno_nome }}</p>
+    <p><strong>Curso:</strong> {{ curso_nome }}</p>
+
+    <hr>
+
+    <table class="tabela-excel">
+        <thead>
+            <tr>
+                <th>Matéria</th>
+                <th>Nota</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in notas %}
+            <tr>
+                <td>{{ m[0] }}</td>
+                <td>{{ m[1] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <hr>
+
+    <form method="POST">
+        <label><strong>Situação Final:</strong></label>
+        <select name="situacao" required>
+            <option value="">Selecione</option>
+            <option value="Aprovado" {% if situacao == "Aprovado" %}selected{% endif %}>Aprovado</option>
+            <option value="Reprovado" {% if situacao == "Reprovado" %}selected{% endif %}>Reprovado</option>
+            <option value="Não cursou" {% if situacao == "Não cursou" %}selected{% endif %}>Não cursou</option>
+        </select>
+
+        <br><br>
+
+        <button type="submit" class="btn btn-primary">Salvar Situação</button>
+        <a href="/notas_visualizar/{{ aluno_id }}" class="btn">Voltar</a>
+    </form>
+</div>
+
+{% endblock %}
