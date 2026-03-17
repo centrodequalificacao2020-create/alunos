@@ -1,509 +1,204 @@
 {% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
 <div class="executivo">
 
-<div style="display:flex; justify-content:space-between; align-items:center; margin:2px 0;">
-    <h2 style="margin:0;">Dashboard</h2>
-
-    <form method="get" style="display:flex; align-items:center; gap:5px;">
+<div class="dashboard-toolbar">
+    <h2>Dashboard</h2>
+    <form method="get" class="dashboard-filtro">
         <label>Período:</label>
         <input type="month" name="mes" value="{{ mes }}">
-        <button type="submit">Filtrar</button>
+        <button type="submit" class="btn btn-azul">Filtrar</button>
     </form>
 </div>
 
-<h3 style="color:#444; font-weight:normal; margin-bottom:20px;">
-    Visão Geral do Mês
-</h3>
+<p class="card-subtitle">Visão Geral do Mês</p>
 
-<h3 style="margin-top:20px; color:#444;">
-    Indicadores Financeiros Principais
-</h3>
-
-<!-- LINHA PRINCIPAL -->
-<div class="grid-4" style="margin-top:10px;">
-
-    <div class="card dashboard-card" style="border-left:8px solid #2ecc71;">
+<h3 class="section-title">Indicadores Financeiros Principais</h3>
+<div class="grid-4">
+    <div class="card dashboard-card card--success">
         <h4>Recebido no mês</h4>
-        <p style="color:#2ecc71; font-size:30px;">
-            R$ {{ "{:,.2f}".format(recebido_mes).replace(",", "X").replace(".", ",").replace("X", ".") }}
-        </p>
+        <p class="valor-success">R$ {{ "{:,.2f}".format(recebido_mes).replace(",","X").replace(".",",").replace("X",".") }}</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:8px solid #3498db;">
+    <div class="card dashboard-card card--info">
         <h4>A receber</h4>
-        <p style="color:#3498db; font-size:30px;">
-            R$ {{ "{:,.2f}".format(a_receber_mes).replace(",", "X").replace(".", ",").replace("X", ".") }}
-        </p>
+        <p class="valor-info">R$ {{ "{:,.2f}".format(a_receber_mes).replace(",","X").replace(".",",").replace("X",".") }}</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:8px solid #e74c3c;">
+    <div class="card dashboard-card card--danger">
         <h4>Total em atraso</h4>
-        <p style="color:#e74c3c; font-size:30px;">
-            R$ {{ "%.2f"|format(total_atraso) }}
-        </p>
+        <p class="valor-danger">R$ {{ "%.2f"|format(total_atraso) }}</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:8px solid #16a085;">
+    <div class="card dashboard-card card--teal">
         <h4>Alunos ativos</h4>
-        <p style="color:#16a085; font-size:30px;">
-            {{ alunos_ativos }}
-        </p>
+        <p class="valor-teal">{{ alunos_ativos }}</p>
     </div>
-
 </div>
 
-<h3 style="margin-top:30px; color:#444;">
-    Indicadores Comerciais
-</h3>
-
-<!-- LINHA DE GESTÃO (4 CARDS COMPLETOS) -->
-<div class="grid-4" style="margin-top:10px;">
-
-    <div class="card dashboard-card" style="border-left:6px solid #16a085;">
-    <h4>Recebimento de Matrícula</h4>
-    <p style="color:#16a085; font-size:24px;">
-        R$ {{ "{:,.2f}".format(recebimento_matricula).replace(",", "X").replace(".", ",").replace("X", ".") }}
-    </p>
-</div>
-
-
-    <div class="card dashboard-card" style="border-left:6px solid #8e44ad;">
+<h3 class="section-title">Indicadores Comerciais</h3>
+<div class="grid-4">
+    <div class="card dashboard-card card--teal">
+        <h4>Recebimento de Matrícula</h4>
+        <p class="valor-teal">R$ {{ "{:,.2f}".format(recebimento_matricula).replace(",","X").replace(".",",").replace("X",".") }}</p>
+    </div>
+    <div class="card dashboard-card card--purple">
         <h4>Matrículas no mês</h4>
-        <p style="color:#8e44ad;">
-            {{ matriculas_mes }}
-        </p>
+        <p class="valor-purple">{{ matriculas_mes }}</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:6px solid #d35400;">
+    <div class="card dashboard-card card--orange">
         <h4>Parcelas pendentes</h4>
-        <p style="color:#d35400;">
-            {{ vencendo }}
-        </p>
+        <p class="valor-orange">{{ vencendo }}</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:6px solid #2c3e50;">
-       <h4>Matrículas Futuras</h4>
-       <p>R$ {{ "{:,.2f}".format(matriculas_futuras).replace(",", "X").replace(".", ",").replace("X", ".") }}
-
-        </p>
-    </div> 
-    
+    <div class="card dashboard-card card--dark">
+        <h4>Matrículas Futuras</h4>
+        <p>R$ {{ "{:,.2f}".format(matriculas_futuras).replace(",","X").replace(".",",").replace("X",".") }}</p>
     </div>
+</div>
 
-<h3 style="margin-top:30px; color:#444;">
-    Resultado do Negócio
-</h3>
-
-    <!-- LINHA DE DESPESAS E LUCRO -->
-    <div class="grid-4" style="margin-top:10px;">
-
-    <div class="card dashboard-card" style="border-left:6px solid #c0392b;">
+<h3 class="section-title">Resultado do Negócio</h3>
+<div class="grid-4">
+    <div class="card dashboard-card card--danger">
         <h4>Despesas do mês</h4>
-        <p style="color:#c0392b; font-size:24px;">
-            R$ {{ "{:,.2f}".format(despesas_mes).replace(",", "X").replace(".", ",").replace("X", ".") }}
+        <p class="valor-danger">R$ {{ "{:,.2f}".format(despesas_mes).replace(",","X").replace(".",",").replace("X",".") }}</p>
+    </div>
+    <div class="card dashboard-card {{ 'card--danger' if lucro_liquido < 0 else 'card--success' }}">
+        <h4>EBITDA (Lucro Operacional)</h4>
+        <p class="{{ 'valor-danger' if lucro_liquido < 0 else 'valor-success' }} valor-xl">
+            R$ {{ "{:,.2f}".format(lucro_liquido).replace(",","X").replace(".",",").replace("X",".") }}
         </p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:6px solid {{ '#e74c3c' if lucro_liquido < 0 else '#27ae60' }};">
-    <h4>EBITDA (Lucro Operacional)</h4>
-    <p style="color: {{ '#e74c3c' if lucro_liquido < 0 else '#27ae60' }}; font-size:32px; font-weight:bold;">
-        R$ {{ "{:,.2f}".format(lucro_liquido).replace(",", "X").replace(".", ",").replace("X", ".") }}
-    </p>
-</div>
-
-    <div class="card dashboard-card" style="border-left:6px solid #2980b9;">
+    <div class="card dashboard-card card--info">
         <h4>Margem de lucro</h4>
-        <p style="color:#2980b9; font-size:24px;">
-            {{ "%.1f"|format(margem_lucro) }}%
-        </p>
+        <p class="valor-info">{{ "%.1f"|format(margem_lucro) }}%</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:6px solid #7f8c8d;">
+    <div class="card dashboard-card">
         <h4>Resultado</h4>
-        <p style="font-size:20px;">
-            {% if lucro_liquido >= 0 %}
-                Lucro
-            {% else %}
-                Prejuízo
-            {% endif %}
-        </p>
+        <p>{% if lucro_liquido >= 0 %}Lucro{% else %}Prejuízo{% endif %}</p>
     </div>
-
 </div>
 
-<h3 style="margin-top:30px; color:#444;">
-    Indicadores Financeiros Avançados
-</h3>
-
-<div class="grid-4" style="margin-top:10px;">
-
-    <div class="card dashboard-card" style="border-left:6px solid #27ae60;">
+<h3 class="section-title">Indicadores Financeiros Avançados</h3>
+<div class="grid-4">
+    <div class="card dashboard-card card--success">
         <h4>Receita projetada</h4>
-        <p style="color:#27ae60;">
-            R$ {{ "{:,.2f}".format(receita_projetada).replace(",", "X").replace(".", ",").replace("X", ".") }}
-        </p>
+        <p class="valor-success">R$ {{ "{:,.2f}".format(receita_projetada).replace(",","X").replace(".",",").replace("X",".") }}</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:6px solid #2980b9;">
+    <div class="card dashboard-card card--info">
         <h4>Ticket médio</h4>
-        <p style="color:#2980b9;">
-            R$ {{ "{:,.2f}".format(ticket_medio).replace(",", "X").replace(".", ",").replace("X", ".") }}
-        </p>
+        <p class="valor-info">R$ {{ "{:,.2f}".format(ticket_medio).replace(",","X").replace(".",",").replace("X",".") }}</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:6px solid #c0392b;">
+    <div class="card dashboard-card card--danger">
         <h4>Taxa de inadimplência</h4>
-        <p style="color:#c0392b;">
-            {{ "%.1f"|format(taxa_inadimplencia) }}%
-        </p>
+        <p class="valor-danger">{{ "%.1f"|format(taxa_inadimplencia) }}%</p>
     </div>
-
-    <div class="card dashboard-card" style="border-left:6px solid #8e44ad;">
-        <h4>Crescimento de alunos</h4>
-        <p style="color:#8e44ad;">
-            {{ crescimento }}
-        </p>
+    <div class="card dashboard-card card--purple">
+        <h4>Taxa de evasão</h4>
+        <p class="valor-purple">{{ "%.1f"|format(taxa_evasao) }}%</p>
     </div>
-
 </div>
-<!-- ÁREA DE GRÁFICOS -->
-<div class="grid-4" style="margin-top:25px;">
 
-    <!-- PIZZA RECEITA -->
-    <div class="card" style="height:260px;">
-        <h3 style="font-size:14px; color:#666;">Receita (Últimos Meses)</h3>
-        <canvas id="graficoReceitaPizza" style="max-height:240px;"></canvas>
+<div class="grid-4 graficos-row">
+    <div class="card grafico-card">
+        <h3>Receita (Últimos Meses)</h3>
+        <canvas id="graficoReceitaPizza"></canvas>
     </div>
-
-    <!-- PIZZA VENDAS POR TIPO -->
-    <div class="card" style="height:260px;">
+    <div class="card grafico-card">
         <h3>Vendas por Tipo de Curso</h3>
-        <canvas id="graficoVendasPizza" style="max-height:240px;"></canvas>
+        <canvas id="graficoVendasPizza"></canvas>
     </div>
-
-    <!-- PIZZA RECEITA x DESPESA -->
-    <div class="card" style="height:260px;">
+    <div class="card grafico-card">
         <h3>Receita x Despesa</h3>
-        <canvas id="graficoFinanceiro" style="max-height:240px;"></canvas>
+        <canvas id="graficoFinanceiro"></canvas>
     </div>
-
-    <!-- PIZZA TOP CURSOS -->
-    <div class="card" style="height:260px;">
+    <div class="card grafico-card">
         <h3>Top cursos por faturamento</h3>
-        <canvas id="graficoTopCursosPizza" style="max-height:240px;"></canvas>
+        <canvas id="graficoTopCursosPizza"></canvas>
     </div>
-
-</div>
-<!-- SEPARADOR -->
-<h3 style="margin-top:40px; color:#444; border-top:2px solid #eee; padding-top:20px;">
-    📊 Análise Comercial (Leads x Matrículas)
-</h3>
-
-<!-- NOVOS GRAFICOS -->
-<div class="grid-3" style="margin-top:20px;">
-
-    <div class="card" style="height:260px;">
-        <h3>Leads</h3>
-        <canvas id="graficoLeads"></canvas>
-    </div>
-
-    <div class="card" style="height:260px;">
-        <h3>Conversão</h3>
-        <canvas id="graficoConversao"></canvas>
-    </div>
-
-    <div class="card" style="height:260px;">
-        <h3>Vendas</h3>
-        <canvas id="graficoVendas"></canvas>
-    </div>
-
 </div>
 
-<!-- CHART -->
+<h3 class="section-title section-title--sep">📊 Análise Comercial (Leads x Matrículas)</h3>
+<div class="grid-3">
+    <div class="card grafico-card"><h3>Leads</h3><canvas id="graficoLeads"></canvas></div>
+    <div class="card grafico-card"><h3>Conversão</h3><canvas id="graficoConversao"></canvas></div>
+    <div class="card grafico-card"><h3>Vendas</h3><canvas id="graficoVendas"></canvas></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-/* ===== FUNÇÕES ===== */
 function safeValue(v){ return Number(v || 0); }
+function limitarTexto(t, l=12){ return t && t.length>l ? t.substring(0,l)+'...' : (t||''); }
 
-function limitarTexto(texto, limite = 12) {
-    if (!texto) return '';
-    return texto.length > limite
-        ? texto.substring(0, limite) + '...'
-        : texto;
-}
-
-/* ===== PLUGIN TEXTO NO CENTRO ===== */
 const centerText = {
-    id: 'centerText',
-    afterDraw(chart) {
-        const {ctx, chartArea} = chart;
-
-        if (!chartArea) return;
-
-        const {left, right, top, bottom} = chartArea;
-        const x = (left + right) / 2;
-        const y = (top + bottom) / 2;
-
-        const data = chart.data.datasets[0].data;
-        const total = data.reduce((a,b)=>a + Number(b || 0),0);
-
+    id:'centerText',
+    afterDraw(chart){
+        const {ctx,chartArea} = chart;
+        if(!chartArea) return;
+        const x=(chartArea.left+chartArea.right)/2, y=(chartArea.top+chartArea.bottom)/2;
+        const total = chart.data.datasets[0].data.reduce((a,b)=>a+Number(b||0),0);
         ctx.save();
-
-        ctx.font = 'bold 16px Arial';
-        ctx.fillStyle = '#2c3e50';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        ctx.fillText(total.toLocaleString('pt-BR'), x, y);
-
+        ctx.font='bold 16px Arial'; ctx.fillStyle='#2c3e50';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(total.toLocaleString('pt-BR'),x,y);
         ctx.restore();
     }
 };
-
 Chart.register(centerText);
 
-/* ===== CONFIG ===== */
-const configPadrao = {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: '75%',
-
-    plugins: {
-        legend: {
-            position: 'bottom',
-            labels: {
-                font: { size: 11, weight: 'bold' },
-                boxWidth: 12,
-                padding: 15
-            }
-        },
-
-        tooltip: {
-            callbacks: {
-                label: function(ctx){
-                    let v = safeValue(ctx.raw);
-                    return ctx.label + ': R$ ' + v.toLocaleString('pt-BR');
-                }
-            }
-        }
+const cfgPizza = {
+    responsive:true, maintainAspectRatio:false, cutout:'75%',
+    plugins:{
+        legend:{ position:'bottom', labels:{ font:{size:11,weight:'bold'}, boxWidth:12, padding:15 }},
+        tooltip:{ callbacks:{ label:(c)=>c.label+': R$ '+safeValue(c.raw).toLocaleString('pt-BR') }}
     }
 };
 
-/* ===== CORES ===== */
-function cores(qtd){
-    const base = [
-        '#2ecc71','#3498db','#9b59b6',
-        '#f39c12','#e74c3c','#1abc9c','#34495e'
-    ];
-    return Array.from({length:qtd},(_,i)=>base[i%base.length]);
+function cores(n){
+    const b=['#2ecc71','#3498db','#9b59b6','#f39c12','#e74c3c','#1abc9c','#34495e'];
+    return Array.from({length:n},(_,i)=>b[i%b.length]);
 }
 
-/* ===== RECEITA ===== */
 const dadosReceita = {{ valores | tojson }};
-new Chart(document.getElementById('graficoReceitaPizza'),{
-    type:'doughnut',
-    data:{
-        labels: {{ meses | tojson }}.map(i=>limitarTexto(i)),
-        datasets:[{
-            data: dadosReceita.map(safeValue),
-            backgroundColor: cores(dadosReceita.length),
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: configPadrao
-});
+new Chart('graficoReceitaPizza',{ type:'doughnut',
+    data:{ labels:{{ meses|tojson }}.map(i=>limitarTexto(i)),
+           datasets:[{data:dadosReceita.map(safeValue),backgroundColor:cores(dadosReceita.length),borderWidth:2,borderColor:'#fff'}]},
+    options:cfgPizza });
 
-/* ===== FINANCEIRO ===== */
-const financeiro = {{ grafico_financeiro | tojson }};
-let receita = 0;
-let despesa = 0;
+const fin={{ grafico_financeiro|tojson }};
+let rec=0,desp=0;
+fin.forEach(i=>{ if(i[0]=='Receita') rec=safeValue(i[1]); if(i[0]=='Despesas') desp=safeValue(i[1]); });
+new Chart('graficoFinanceiro',{ type:'doughnut',
+    data:{ labels:['Receita','Despesas'], datasets:[{data:[rec,desp],backgroundColor:['#2ecc71','#e74c3c'],borderWidth:2,borderColor:'#fff'}]},
+    options:cfgPizza });
 
-financeiro.forEach(i => {
-    if(i[0] == 'Receita') receita = safeValue(i[1]);
-    if(i[0] == 'Despesas') despesa = safeValue(i[1]);
-});
+const vendas={{ vendas_tipo|tojson }};
+const vOrd=[...vendas].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
+new Chart('graficoVendasPizza',{ type:'bar',
+    data:{ labels:vOrd.map(i=>limitarTexto(i[0],20)), datasets:[{data:vOrd.map(i=>safeValue(i[1])),
+        backgroundColor:vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'), borderRadius:6}]},
+    options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>c.raw+' alunos'}}},
+        scales:{ x:{beginAtZero:true}, y:{grid:{display:false}} } } });
 
-new Chart(document.getElementById('graficoFinanceiro'),{
-    type:'doughnut',
-    data:{
-        labels:['Receita','Despesas'],
-        datasets:[{
-            data:[receita, despesa],
-            backgroundColor:['#2ecc71','#e74c3c'],
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: configPadrao
-});
+const rank={{ ranking_cursos|tojson }};
+new Chart('graficoTopCursosPizza',{ type:'bar',
+    data:{ labels:rank.map(i=>limitarTexto(i[0],18)), datasets:[{label:'Faturamento',
+        data:rank.map(i=>safeValue(i[1])), backgroundColor:cores(rank.length), borderRadius:6}]},
+    options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>'R$ '+c.raw.toLocaleString('pt-BR')}}},
+        scales:{ x:{beginAtZero:true,ticks:{callback:v=>'R$ '+v}}, y:{grid:{display:false}} } } });
 
-/* ===== VENDAS ===== */
-const vendas = {{ vendas_tipo | tojson }};
-const vendasOrdenadas = [...vendas]
-    .sort((a,b)=> safeValue(b[1]) - safeValue(a[1]));
+const meta=Number('{{ rel_meta or 0 }}')||0, leads=Number('{{ rel_realizado or 0 }}')||0,
+      matriculas=Number('{{ rel_matriculas or 0 }}')||0, vendasRel=Number('{{ rel_vendas or 0 }}')||0,
+      metaVendas=Math.round(leads*0.35);
 
-new Chart(document.getElementById('graficoVendasPizza'),{
-    type:'bar',
-    data:{
-        labels: vendasOrdenadas.map(i=>limitarTexto(i[0], 20)),
-        datasets:[{
-            data: vendasOrdenadas.map(i=>safeValue(i[1])),
-
-            backgroundColor: vendasOrdenadas.map((_, i) =>
-                i === 0 ? '#2ecc71' : '#3498db'
-            ),
-
-            borderRadius: 6
-        }]
-    },
-    options:{
-        responsive:true,
-        maintainAspectRatio:false,
-        indexAxis:'y',
-
-        plugins:{
-            legend:{ display:false },
-
-            tooltip:{
-                callbacks:{
-                    label:(ctx)=> ctx.raw + ' alunos'
-                }
-            }
-        },
-
-        scales:{
-            x:{ beginAtZero:true },
-            y:{ grid:{ display:false } }
-        }
-    },
-
-    plugins:[{
-        id:'valorBarra',
-        afterDatasetsDraw(chart){
-            const {ctx} = chart;
-
-            chart.data.datasets[0].data.forEach((valor, i)=>{
-                const meta = chart.getDatasetMeta(0).data[i];
-
-                ctx.save();
-                ctx.fillStyle = '#2c3e50';
-                ctx.font = 'bold 11px Arial';
-
-                ctx.fillText(
-                    valor,
-                    meta.x + 5,
-                    meta.y + 4
-                );
-
-                ctx.restore();
-            });
-        }
-    }]
-});
-
-/* ===== TOP CURSOS ===== */
-const ranking = {{ ranking_cursos | tojson }};
-new Chart(document.getElementById('graficoTopCursosPizza'),{
-    type:'bar',
-    data:{
-        labels: ranking.map(i=>limitarTexto(i[0], 18)),
-        datasets:[{
-    label: 'Faturamento',
-    data: ranking.map(i=>safeValue(i[1])),
-
-    backgroundColor: cores(ranking.length), // 🔥 CORES DINÂMICAS
-
-    borderRadius: 6
-}]
-    },
-    options:{
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y',
-
-        plugins:{
-            legend: { display: false },
-            tooltip:{
-                callbacks:{
-                    label: function(ctx){
-                        return 'R$ ' + ctx.raw.toLocaleString('pt-BR');
-                    }
-                }
-            }
-        },
-
-        scales:{
-            x:{
-                beginAtZero: true,
-                ticks:{
-                    callback: function(value){
-                        return 'R$ ' + value;
-                    }
-                }
-            },
-            y:{
-                grid:{ display:false }
-            }
-        }
-    }
-});
-
-/* ===== RELATORIO ===== */
-const meta = Number("{{ rel_meta or 0 }}") || 0;
-const leads = Number("{{ rel_realizado or 0 }}") || 0;
-const matriculas = Number("{{ rel_matriculas or 0 }}") || 0;
-const vendasRel = Number("{{ rel_vendas or 0 }}") || 0;
-const metaVendas = Math.round(leads * 0.35);
-
-/* ===== LEADS ===== */
-new Chart(document.getElementById('graficoLeads'), {
-    type:'doughnut',
-    data:{
-        labels:['Meta','Realizado'],
-        datasets:[{
-            data:[meta, leads],
-            backgroundColor:['#95a5a6','#3498db'],
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: configPadrao
-});
-
-/* ===== CONVERSÃO ===== */
-new Chart(document.getElementById('graficoConversao'), {
-    type:'doughnut',
-    data:{
-        labels:['Leads','Matrículas'],
-        datasets:[{
-            data:[leads, matriculas],
-            backgroundColor:['#3498db','#2ecc71'],
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: configPadrao
-});
-
-/* ===== VENDAS ===== */
-new Chart(document.getElementById('graficoVendas'), {
-    type:'doughnut',
-    data:{
-        labels:['Meta','Vendas'],
-        datasets:[{
-            data:[metaVendas, vendasRel],
-            backgroundColor:['#95a5a6','#2ecc71'],
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: configPadrao
-});
-
+new Chart('graficoLeads',{ type:'doughnut',
+    data:{ labels:['Meta','Realizado'], datasets:[{data:[meta,leads],backgroundColor:['#95a5a6','#3498db'],borderWidth:2,borderColor:'#fff'}]},
+    options:cfgPizza });
+new Chart('graficoConversao',{ type:'doughnut',
+    data:{ labels:['Leads','Matrículas'], datasets:[{data:[leads,matriculas],backgroundColor:['#3498db','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
+    options:cfgPizza });
+new Chart('graficoVendas',{ type:'doughnut',
+    data:{ labels:['Meta','Vendas'], datasets:[{data:[metaVendas,vendasRel],backgroundColor:['#95a5a6','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
+    options:cfgPizza });
 </script>
-
+</div>
 {% endblock %}
-
