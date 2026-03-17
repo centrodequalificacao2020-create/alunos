@@ -23,8 +23,8 @@ class Curso(db.Model):
     valor_matricula = db.Column(db.Float, default=0)
     parcelas        = db.Column(db.Integer, default=1)
     tipo            = db.Column(db.String(60))
-    alunos          = db.relationship("Aluno", backref="curso", lazy=True)
-    matriculas      = db.relationship("Matricula", backref="curso", lazy=True)
+    alunos          = db.relationship("Aluno",     backref="curso",    lazy=True)
+    matriculas      = db.relationship("Matricula", backref="curso",    lazy=True)
 
 class Aluno(db.Model):
     __tablename__ = "alunos"
@@ -67,9 +67,9 @@ class Matricula(db.Model):
 class Mensalidade(db.Model):
     __tablename__ = "mensalidades"
     __table_args__ = (
-        db.Index("ix_mensalidades_aluno_id", "aluno_id"),
+        db.Index("ix_mensalidades_aluno_id",  "aluno_id"),
         db.Index("ix_mensalidades_vencimento", "vencimento"),
-        db.Index("ix_mensalidades_status", "status"),
+        db.Index("ix_mensalidades_status",     "status"),
     )
     id               = db.Column(db.Integer, primary_key=True)
     aluno_id         = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
@@ -96,12 +96,12 @@ class Despesa(db.Model):
 
 class Relatorio(db.Model):
     __tablename__ = "relatorios"
-    id                 = db.Column(db.Integer, primary_key=True)
-    mes                = db.Column(db.String(7), unique=True)
-    meta               = db.Column(db.Integer, default=0)
-    realizado          = db.Column(db.Integer, default=0)
-    matriculas         = db.Column(db.Integer, default=0)
-    matriculas_venda   = db.Column(db.Integer, default=0)
+    id               = db.Column(db.Integer, primary_key=True)
+    mes              = db.Column(db.String(7), unique=True)
+    meta             = db.Column(db.Integer, default=0)
+    realizado        = db.Column(db.Integer, default=0)
+    matriculas       = db.Column(db.Integer, default=0)
+    matriculas_venda = db.Column(db.Integer, default=0)
 
 class Frequencia(db.Model):
     __tablename__ = "frequencias"
@@ -109,19 +109,20 @@ class Frequencia(db.Model):
     id       = db.Column(db.Integer, primary_key=True)
     aluno_id = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
     data     = db.Column(db.String(10))
-    status   = db.Column(db.String(20))   # Presente / Falta
+    status   = db.Column(db.String(20))  # Presente / Falta
 
 class Materia(db.Model):
     __tablename__ = "materias"
     id       = db.Column(db.Integer, primary_key=True)
     nome     = db.Column(db.String(120))
     curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"))
+    conteudos = db.relationship("Conteudo", backref="materia", lazy=True)
 
 class CursoMateria(db.Model):
     __tablename__ = "cursos_materias"
-    id        = db.Column(db.Integer, primary_key=True)
-    curso_id  = db.Column(db.Integer, db.ForeignKey("cursos.id"))
-    materia_id= db.Column(db.Integer, db.ForeignKey("materias.id"))
+    id         = db.Column(db.Integer, primary_key=True)
+    curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
+    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"))
 
 class Conteudo(db.Model):
     __tablename__ = "conteudos"
@@ -130,6 +131,7 @@ class Conteudo(db.Model):
     materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"))
     modulo     = db.Column(db.String(60))
     arquivo    = db.Column(db.String(300))
+    video      = db.Column(db.String(300))  # URL de vídeo externo (YouTube etc.)
     data       = db.Column(db.String(10))
 
 class ProgressoAula(db.Model):

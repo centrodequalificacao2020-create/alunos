@@ -35,13 +35,14 @@
     <div class="sidebar">
         {% set ns_mat = namespace(atual="") %}
         {% for c, prog in conteudos %}
-            {% if ns_mat.atual != c.materia_nome %}
-            <h4 style="margin-top:15px">{{ c.materia_nome }}</h4>
-            {% set ns_mat.atual = c.materia_nome %}
+            {% if ns_mat.atual != c.materia.nome %}
+            <h4 style="margin-top:15px">{{ c.materia.nome }}</h4>
+            {% set ns_mat.atual = c.materia.nome %}
             {% endif %}
             <div class="aula"
                  data-id="{{ c.id }}"
                  data-arquivo="{{ c.arquivo or '' }}"
+                 data-video="{{ c.video or '' }}"
                  data-titulo="{{ c.titulo }}"
                  data-concluido="{{ '1' if prog and prog.concluido == 1 else '0' }}">
                 {% if prog and prog.concluido == 1 %}✔{% else %}○{% endif %}
@@ -51,7 +52,7 @@
 
         <h4 style="margin-top:20px">Progresso</h4>
         <div class="progresso">
-            <div class="barra" style="width:{{ progresso }}%"></div>
+            <div class="barra" style="width:{{ progresso|round(1) }}%"></div>
         </div>
         <p>{{ ns.concluidas }} / {{ total }} aulas concluídas</p>
     </div>
@@ -73,6 +74,7 @@ const aulas = document.querySelectorAll('.aula');
 
 function abrirAula(el){
     const arquivo   = el.dataset.arquivo;
+    const video     = el.dataset.video;
     const titulo    = el.dataset.titulo;
     const id        = el.dataset.id;
     const concluido = el.dataset.concluido;
@@ -84,13 +86,18 @@ function abrirAula(el){
     aulas.forEach(a => a.classList.remove('ativa'));
     el.classList.add('ativa');
 
-    let src = arquivo;
-    if (arquivo.includes('youtube') || arquivo.includes('youtu.be')){
-        src = arquivo.replace('watch?v=', 'embed/');
+    // Prioriza vídeo externo; se não houver, usa arquivo PDF/local
+    const src_video = video || arquivo;
+    let src = src_video;
+    if (src_video.includes('youtube') || src_video.includes('youtu.be')){
+        src = src_video.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/');
+        area.innerHTML = `<iframe class="video" src="${src}" allowfullscreen></iframe>`;
+    } else if (src_video) {
+        src = src_video.startsWith('http') ? src_video : '/' + src_video;
+        area.innerHTML = `<iframe class="video" src="${src}"></iframe>`;
     } else {
-        src = '/' + arquivo;
+        area.innerHTML = '<p class="empty-state">Nenhum conteúdo disponível para esta aula.</p>';
     }
-    area.innerHTML = `<iframe class="video" src="${src}" allowfullscreen></iframe>`;
 
     botao.innerHTML = concluido === '1'
         ? `<span style="color:#2ecc71;font-weight:bold">✔ Aula concluída</span>`

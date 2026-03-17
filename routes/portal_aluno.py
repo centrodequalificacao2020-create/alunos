@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, session, flash
-from models import Aluno, Mensalidade, Frequencia, Conteudo, Matricula, ProgressoAula, CursoMateria
+from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria
 from security import verificar_senha, aluno_login_required
 from db import db
 
@@ -59,11 +59,12 @@ def conteudo_aluno():
             .outerjoin(
                 ProgressoAula,
                 (ProgressoAula.conteudo_id == Conteudo.id) &
-                (ProgressoAula.aluno_id == aluno.id)
+                (ProgressoAula.aluno_id    == aluno.id)
             )
-            .join(CursoMateria, CursoMateria.materia_id == Conteudo.materia_id)
+            .join(Materia,     Materia.id     == Conteudo.materia_id)
+            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
             .filter(CursoMateria.curso_id == matricula.curso_id)
-            .order_by(Conteudo.data)
+            .order_by(Materia.nome, Conteudo.data)
             .all()
         )
 
@@ -77,9 +78,9 @@ def concluir_aula(conteudo_id):
         aluno_id=session["aluno_id"], conteudo_id=conteudo_id).first()
     if not p:
         p = ProgressoAula(
-            aluno_id=session["aluno_id"],
-            conteudo_id=conteudo_id,
-            concluido=1
+            aluno_id    = session["aluno_id"],
+            conteudo_id = conteudo_id,
+            concluido   = 1
         )
         db.session.add(p)
     else:
