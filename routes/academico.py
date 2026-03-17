@@ -494,9 +494,9 @@ def relatorio():
         return redirect("/login")
     conn = conectar()
     c = conn.cursor()
-    c.execute("SELECT SUM(valor) FROM movimentacoes WHERE tipo='Receita' AND status='Pago'")
+    c.execute("SELECT SUM(valor) FROM mensalidades WHERE status='Pago'")
     pago = c.fetchone()[0] or 0
-    c.execute("SELECT SUM(valor) FROM movimentacoes WHERE tipo='Receita' AND status='Pendente'")
+    c.execute("SELECT SUM(valor) FROM mensalidades WHERE status='Pendente'")
     pendente = c.fetchone()[0] or 0
     conn.close()
     return render_template("relatorio.html", total_pago=pago, total_pendente=pendente)

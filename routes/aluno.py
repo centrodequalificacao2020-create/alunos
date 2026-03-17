@@ -95,7 +95,7 @@ def editar_aluno(id):
 def excluir_aluno(id):
     conn = conectar()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM movimentacoes WHERE aluno_id=?", (id,))
+    c.execute("SELECT COUNT(*) FROM mensalidades WHERE aluno_id=?", (id,))
     total = c.fetchone()[0]
     if total > 0:
         conn.close()
