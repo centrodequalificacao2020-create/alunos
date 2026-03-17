@@ -1,57 +1,53 @@
 {% extends "base.html" %}
+{% block title %}Histórico de Frequência{% endblock %}
 {% block content %}
-
-<h1>Cadastro</h1>
-
 
 <div class="card">
     <div class="card-header">
-        <h2>📋 Histórico de Frequência</h2>
+        <span>📅</span>
+        <h2>Histórico de Frequência</h2>
     </div>
-
-    {% if aluno and curso %}
-        <a
-          href="/frequencia_historico_pdf/{{ aluno.id }}/{{ curso.id }}"
-          class="btn btn-success"
-          style="margin-bottom:15px; display:inline-block;"
-        >
-            📄 Baixar PDF
-        </a>
-
-        <p><strong>Aluno:</strong> {{ aluno.nome }}</p>
-        <p><strong>Curso:</strong> {{ curso.nome }}</p>
-
-        {% if historico %}
-            <table style="width:100%; margin-top:15px;">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for h in historico %}
-                        <tr>
-                            <td>{{ h.data }}</td>
-                            <td>
-                                {% if h.status == 'P' %}
-                                    ✅ Presente
-                                {% else %}
-                                    ❌ Falta
-                                {% endif %}
-                            </td>
-                        </tr>
+    <form method="GET" class="form-pequeno">
+        <div class="grid-2">
+            <div class="campo">
+                <label>Aluno</label>
+                <select name="aluno_id" onchange="this.form.submit()">
+                    <option value="">Selecione</option>
+                    {% for a in alunos %}
+                    <option value="{{ a.id }}" {% if aluno_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
                     {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>Nenhum registro encontrado.</p>
-        {% endif %}
-    {% else %}
-        <p>Selecione um aluno e um curso para visualizar o histórico.</p>
-    {% endif %}
-
-    <a href="/frequencia" class="btn" style="margin-top:20px;">⬅ Voltar</a>
+                </select>
+            </div>
+        </div>
+    </form>
 </div>
 
+{% if historico %}
+<div class="card">
+    <h3>Registro de Presenças</h3>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr><th>Data</th><th>Matéria</th><th>Presença</th><th>Justificativa</th></tr>
+            </thead>
+            <tbody>
+                {% for r in historico %}
+                <tr>
+                    <td>{{ r.data_aula }}</td>
+                    <td>{{ r.materia_nome }}</td>
+                    <td>
+                        {% if r.presente %}
+                            <span class="status-ativo">✅ Presente</span>
+                        {% else %}
+                            <span class="status-inativo">❌ Falta</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.justificativa or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -1,32 +1,30 @@
 {% extends "base.html" %}
+{% block title %}Confirmar Pagamento{% endblock %}
 {% block content %}
 
-<div class="card form-pequeno">
+<div class="card">
     <div class="card-header">
-        <span>💲</span>
-        <h2>Quitar Parcela</h2>
+        <span>✅</span>
+        <h2>Confirmar Pagamento</h2>
+    </div>
+    <p class="card-subtitle">Parcela: {{ parcela.parcela_ref }}</p>
+
+    <div class="grid-2">
+        <p><strong>Aluno:</strong> {{ parcela.aluno_nome }}</p>
+        <p><strong>Valor:</strong> R$ {{ "%.2f"|format(parcela.valor or 0) }}</p>
+        <p><strong>Vencimento:</strong> {{ parcela.vencimento }}</p>
+        <p><strong>Tipo:</strong> {{ parcela.tipo }}</p>
     </div>
 
     <form method="POST">
-        <label>Forma de Pagamento</label>
-        <select name="forma" required>
-            <option value="">Selecione</option>
-            <option value="Dinheiro">Dinheiro</option>
-            <option value="PIX">PIX</option>
-            <option value="Cartão">Cartão</option>
-        </select>
-
-        <div style="margin-top:15px;">
-    <button type="submit" class="btn btn-verde">
-        Confirmar Pagamento
-    </button>
-
-    <a href="/financeiro?aluno_id={{ aluno_id }}" class="btn btn-azul">
-        Voltar
-    </a>
-</div>
-
+        <div class="campo">
+            <label>Data de pagamento</label>
+            <input type="date" name="data_pagamento" required>
+        </div>
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-verde">Confirmar Pagamento</button>
+            <a href="/financeiro" class="btn btn-vermelho">Cancelar</a>
+        </div>
     </form>
 </div>
-
 {% endblock %}

@@ -1,32 +1,41 @@
 {% extends "base.html" %}
+{% block title %}Editar Funcionário{% endblock %}
 {% block content %}
 
-<div class="card" style="max-width:500px; margin:auto;">
-    <h2>Editar Funcionário</h2>
-
-    <form method="POST">
-
-        <label>Nome</label>
-        <input type="text" name="nome" value="{{ funcionario.nome }}" required>
-
-        <label>Usuário</label>
-        <input type="text" name="usuario" value="{{ funcionario.usuario }}" required>
-
-        <label>Perfil</label>
-        <select name="perfil">
-            <option value="Administrador" {% if funcionario.perfil == "Administrador" %}selected{% endif %}>Administrador</option>
-            <option value="Financeiro" {% if funcionario.perfil == "Financeiro" %}selected{% endif %}>Financeiro</option>
-            <option value="Usuario" {% if funcionario.perfil == "Usuario" %}selected{% endif %}>Usuário</option>
-            <option value="Instrutor" {% if funcionario.perfil == "Instrutor" %}selected{% endif %}>Instrutor</option>
-        </select>
-
-        <div style="margin-top:20px;">
-            <button type="submit" class="btn btn-azul">
-                Salvar alterações
-            </button>
+<div class="card">
+    <div class="card-header">
+        <span>✏️</span>
+        <h2>Editar Funcionário</h2>
+    </div>
+    <form method="POST" class="form-pequeno">
+        <div class="grid-2">
+            <div class="campo">
+                <label>Nome</label>
+                <input type="text" name="nome" value="{{ funcionario.nome }}" required>
+            </div>
+            <div class="campo">
+                <label>Cargo</label>
+                <input type="text" name="cargo" value="{{ funcionario.cargo or '' }}">
+            </div>
         </div>
-
+        <div class="grid-2">
+            <div class="campo">
+                <label>Login</label>
+                <input type="text" name="login" value="{{ funcionario.login or '' }}">
+            </div>
+            <div class="campo">
+                <label>Perfil</label>
+                <select name="perfil">
+                    {% for p in ['Administrador','Financeiro','Usuario','Instrutor'] %}
+                    <option value="{{ p }}" {% if funcionario.perfil == p %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">Salvar</button>
+            <a href="/funcionario" class="btn btn-vermelho">Cancelar</a>
+        </div>
     </form>
 </div>
-
 {% endblock %}

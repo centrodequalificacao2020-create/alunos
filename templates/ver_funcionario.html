@@ -1,95 +1,23 @@
 {% extends "base.html" %}
+{% block title %}Ver Funcionário{% endblock %}
 {% block content %}
 
-<div class="card" style="max-width:900px; margin:auto;">
-    <h2>Dados do Funcionário</h2>
-
-    <div class="grid-2">
-
+<div class="card">
+    <div class="card-header card-header--between">
         <div>
-            <strong>Nome:</strong><br>
-            {{ funcionario.nome }}
+            <h2>{{ funcionario.nome }}</h2>
+            <p class="card-subtitle">{{ funcionario.cargo or 'Sem cargo' }}</p>
         </div>
-
-        <div>
-            <strong>CPF:</strong><br>
-            {{ funcionario.cpf or "-" }}
+        <div class="acoes">
+            <a href="/editar_funcionario/{{ funcionario.id }}" class="btn btn-editar">Editar</a>
+            <a href="/funcionario" class="btn btn-azul">Voltar</a>
         </div>
-
-        <div>
-            <strong>Data de nascimento:</strong><br>
-            {{ funcionario.data_nascimento or "-" }}
-        </div>
-
-        <div>
-            <strong>Status:</strong><br>
-            {{ funcionario.status or "-" }}
-        </div>
-
-        <div>
-            <strong>WhatsApp:</strong><br>
-            {{ funcionario.telefone or "-" }}
-        </div>
-
-        <div>
-            <strong>Email:</strong><br>
-            {{ funcionario.email or "-" }}
-        </div>
-
     </div>
 
-    <h3 style="margin-top:20px;">Endereço</h3>
-
     <div class="grid-2">
-
-        <div>
-            <strong>CEP:</strong><br>
-            {{ funcionario.cep or "-" }}
-        </div>
-
-        <div>
-            <strong>Bairro:</strong><br>
-            {{ funcionario.bairro or "-" }}
-        </div>
-
-        <div>
-            <strong>Cidade:</strong><br>
-            {{ funcionario.cidade or "-" }}
-        </div>
-
-        <div>
-            <strong>Estado:</strong><br>
-            {{ funcionario.estado or "-" }}
-        </div>
-
-        <div>
-            <strong>Rua:</strong><br>
-            {{ funcionario.endereco or "-" }}
-        </div>
-
-        <div>
-            <strong>Complemento:</strong><br>
-            {{ funcionario.complemento or "-" }}
-        </div>
-
+        <p><strong>Login:</strong> {{ funcionario.login or 'Não definido' }}</p>
+        <p><strong>Perfil:</strong> {{ funcionario.perfil }}</p>
+        <p><strong>Cargo:</strong> {{ funcionario.cargo or 'Não informado' }}</p>
     </div>
-
-    <h3 style="margin-top:20px;">Dados de acesso</h3>
-
-    <div class="grid-2">
-
-        <div>
-            <strong>Usuário:</strong><br>
-            {{ funcionario.usuario }}
-        </div>
-
-        <div>
-            <strong>Perfil:</strong><br>
-            {{ funcionario.perfil }}
-        </div>
-
-    </div>
-
 </div>
-
 {% endblock %}

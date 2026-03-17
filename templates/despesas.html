@@ -1,174 +1,77 @@
 {% extends "base.html" %}
+{% block title %}Despesas{% endblock %}
 {% block content %}
 
-<div class="executivo" style="max-width:1200px; margin:auto;">
-
-<h2 style="margin-bottom:20px;">💰 Controle de Despesas</h2>
-
-<!-- 🔥 PAINEL FINANCEIRO -->
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:15px; margin-bottom:20px;">
-
-    <div class="card" style="border-left:6px solid #2ecc71;">
-        <h4>Total Geral</h4>
-        <p id="totalGeral">R$ 0.00</p>
+<div class="card">
+    <div class="card-header">
+        <span>💸</span>
+        <h2>Despesas</h2>
     </div>
+    <p class="card-subtitle">Registre e acompanhe as despesas operacionais</p>
 
-    <div class="card" style="border-left:6px solid #3498db;">
-        <h4>Fixas</h4>
-        <p id="totalFixa">R$ 0.00</p>
-    </div>
-
-    <div class="card" style="border-left:6px solid #e67e22;">
-        <h4>Variáveis</h4>
-        <p id="totalVariavel">R$ 0.00</p>
-    </div>
-
-    <div class="card" style="border-left:6px solid #9b59b6;">
-        <h4>Registros</h4>
-        <p id="totalQtd">0</p>
-    </div>
-
+    <form method="POST" class="form-pequeno">
+        <div class="grid-4">
+            <div class="campo">
+                <label>Descrição</label>
+                <input type="text" name="descricao" required>
+            </div>
+            <div class="campo">
+                <label>Valor</label>
+                <input type="number" step="0.01" name="valor" required>
+            </div>
+            <div class="campo">
+                <label>Data</label>
+                <input type="date" name="data" required>
+            </div>
+            <div class="campo">
+                <label>Categoria</label>
+                <select name="categoria">
+                    <option>Aluguel</option>
+                    <option>Salário</option>
+                    <option>Marketing</option>
+                    <option>Material</option>
+                    <option>Outros</option>
+                </select>
+            </div>
+        </div>
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">Registrar Despesa</button>
+        </div>
+    </form>
 </div>
 
-<div class="grid-2" style="gap:20px;">
-
-    <!-- FORM -->
-    <div class="card" style="padding:20px;">
-        <h3>➕ Nova despesa</h3>
-
-        <form method="POST">
-
-            <label>Descrição</label>
-            <input type="text" name="descricao" required>
-
-            <label>Valor</label>
-            <input type="number" step="0.01" name="valor" required>
-
-            <label>Tipo</label>
-            <select name="tipo">
-                <option value="Fixa">Fixa</option>
-                <option value="Variável">Variável</option>
-            </select>
-
-            <label>Despesa recorrente?</label>
-            <select name="recorrente">
-                <option value="1">Sim</option>
-                <option value="0">Não</option>
-            </select>
-
-            <label>Dia de vencimento</label>
-            <input type="number" name="dia_vencimento" min="1" max="31">
-
-            <label>Categoria</label>
-            <input type="text" name="categoria">
-
-            <label>Data</label>
-            <input type="date" name="data" required>
-
-            <label>Observação</label>
-            <textarea name="observacao"></textarea>
-
-            <button type="submit" class="btn btn-azul" style="margin-top:10px;">
-                💾 Salvar
-            </button>
-
-        </form>
-    </div>
-
-    <!-- LISTA -->
-    <div class="card" style="padding:20px;">
-        <h3>📋 Despesas cadastradas</h3>
-
-        <table id="tabelaDespesas" style="width:100%; border-collapse:collapse;">
-            <tr style="background:#f4f6f8;">
-                <th>Data</th>
-                <th>Descrição</th>
-                <th>Tipo</th>
-                <th>Valor</th>
-                <th>Ações</th>
-            </tr>
-
-            {% for d in despesas %}
-            <tr>
-                <td>{{ d["data"] }}</td>
-                <td>{{ d["descricao"] }}</td>
-                <td class="tipo">{{ d["tipo"] }}</td>
-                <td class="valor">{{ "%.2f"|format(d["valor"]) }}</td>
-                <td>
-                    <a href="/editar_despesa/{{ d['id'] }}">✏️</a>
-                    <a href="/excluir_despesa/{{ d['id'] }}">🗑️</a>
-                </td>
-            </tr>
-            {% endfor %}
+<div class="card">
+    <h3>Despesas Registradas</h3>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th>Data</th>
+                    <th>Valor</th>
+                    <th class="acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in despesas %}
+                <tr>
+                    <td>{{ d.descricao }}</td>
+                    <td>{{ d.categoria or '-' }}</td>
+                    <td>{{ d.data }}</td>
+                    <td>R$ {{ "%.2f"|format(d.valor or 0) }}</td>
+                    <td class="acoes">
+                        <a href="/editar_despesa/{{ d.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                        <a href="/excluir_despesa/{{ d.id }}" class="btn btn-lixeira tooltip" data-tooltip="Excluir"
+                           onclick="return confirm('Excluir despesa?')">🗑️</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
-
     </div>
-
+    {% if despesas %}
+    <div class="totais">TOTAL: R$ {{ "%.2f"|format(total or 0) }}</div>
+    {% endif %}
 </div>
-
-</div>
-
-<!-- 🔥 SCRIPT AUTOMÁTICO -->
-<script>
-let total = 0;
-let fixa = 0;
-let variavel = 0;
-let qtd = 0;
-
-document.querySelectorAll("#tabelaDespesas tbody tr, #tabelaDespesas tr").forEach((row, i) => {
-
-    const valorEl = row.querySelector(".valor");
-    const tipoEl = row.querySelector(".tipo");
-
-    if(valorEl && tipoEl){
-        let valor = parseFloat(valorEl.innerText.replace(",", "."));
-        let tipo = tipoEl.innerText.trim();
-
-        if(!isNaN(valor)){
-            total += valor;
-            qtd++;
-
-            if(tipo === "Fixa"){
-                fixa += valor;
-            }else{
-                variavel += valor;
-            }
-        }
-    }
-});
-
-// atualizar painel
-document.getElementById("totalGeral").innerText = "R$ " + total.toFixed(2);
-document.getElementById("totalFixa").innerText = "R$ " + fixa.toFixed(2);
-document.getElementById("totalVariavel").innerText = "R$ " + variavel.toFixed(2);
-document.getElementById("totalQtd").innerText = qtd;
-</script>
-<script>
-document.querySelectorAll("#tabelaDespesas tr").forEach(row => {
-    const cell = row.children[0]; // coluna da data
-
-    if(cell && cell.innerText.includes("-")){
-        const partes = cell.innerText.split("-");
-
-        if(partes.length === 3){
-            const [ano, mes, dia] = partes;
-            cell.innerText = `${dia}/${mes}/${ano}`;
-        }
-    }
-});
-</script>
-<script>
-document.querySelectorAll(".valor").forEach(el => {
-
-    let valor = parseFloat(el.innerText.replace(",", "."));
-
-    if(!isNaN(valor)){
-        el.innerText = valor.toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL"
-        });
-    }
-
-});
-</script>
 {% endblock %}

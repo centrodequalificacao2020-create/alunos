@@ -1,29 +1,31 @@
 {% extends "base.html" %}
+{% block title %}Editar Curso{% endblock %}
 {% block content %}
 
 <div class="card">
     <div class="card-header">
-        <span>📘</span>
+        <span>✏️</span>
         <h2>Editar Curso</h2>
     </div>
-
     <form method="POST" class="form-pequeno">
-
-        <label>Nome do Curso</label>
-        <input type="text" name="nome" value="{{ curso[1] }}" required>
-
-        <label>Valor Mensal</label>
-        <input type="number" step="0.01" name="valor_mensal" value="{{ curso[2] }}" required>
-
-        <label>Valor Matrícula</label>
-        <input type="number" step="0.01" name="valor_matricula" value="{{ curso[3] }}">
-
-        <label>Parcelas</label>
-        <input type="number" name="parcelas" value="{{ curso[4] }}" required>
-
-        <button class="btn btn-azul">Salvar</button>
-        <a href="/cursos" class="btn btn-vermelho">Cancelar</a>
+        <div class="grid-3">
+            <div class="campo">
+                <label>Nome do curso</label>
+                <input type="text" name="nome" value="{{ curso.nome }}" required>
+            </div>
+            <div class="campo">
+                <label>Carga Horária</label>
+                <input type="text" name="carga_horaria" value="{{ curso.carga_horaria or '' }}">
+            </div>
+            <div class="campo">
+                <label>Valor</label>
+                <input type="number" step="0.01" name="valor" value="{{ curso.valor or '' }}">
+            </div>
+        </div>
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">Salvar</button>
+            <a href="/cursos" class="btn btn-vermelho">Cancelar</a>
+        </div>
     </form>
 </div>
-
 {% endblock %}

@@ -1,63 +1,62 @@
 {% extends "base.html" %}
+{% block title %}Cursos{% endblock %}
 {% block content %}
 
 <div class="card">
-  <div class="card-header">
-    <span>📚</span>
-    <h2>Cadastrar Curso</h2>
-  </div>
-  <form method="POST" action="/salvar_curso" class="form-pequeno">
-    <label>Nome do Curso</label>
-    <input type="text" name="nome" required>
+    <div class="card-header">
+        <span>📚</span>
+        <h2>Cursos</h2>
+    </div>
+    <p class="card-subtitle">Cadastre e gerencie os cursos oferecidos</p>
 
-    <label>Valor do Pacote (R$)</label>
-    <input type="number" step="0.01" name="valor_mensal" required>
-
-    <label>Valor da Matrícula (R$)</label>
-    <input type="number" step="0.01" name="valor_matricula">
-
-    <label>Quantidade de Parcelas</label>
-    <input type="number" name="parcelas" required>
-
-    <button class="btn btn-azul">Salvar Curso</button>
-  </form>
+    <form method="POST" class="form-pequeno">
+        <div class="grid-3">
+            <div class="campo">
+                <label>Nome do curso</label>
+                <input type="text" name="nome" required>
+            </div>
+            <div class="campo">
+                <label>Carga Horária</label>
+                <input type="text" name="carga_horaria">
+            </div>
+            <div class="campo">
+                <label>Valor</label>
+                <input type="number" step="0.01" name="valor">
+            </div>
+        </div>
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">Salvar Curso</button>
+        </div>
+    </form>
 </div>
 
 <div class="card">
-  <div class="card-header">
     <h3>Cursos Cadastrados</h3>
-  </div>
-
-  {% if cursos %}
-  <table>
-    <thead>
-      <tr>
-        <th>CURSO</th>
-        <th>VALOR DO PACOTE</th>
-        <th>MATRÍCULA</th>
-        <th>PARCELAS</th>
-        <th class="acoes">AÇÃO</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in cursos %}
-      <tr>
-        <td>{{ c.nome }}</td>
-        <td>R$ {{ "%.2f"|format(c.valor_mensal or 0) }}</td>
-        <td>R$ {{ "%.2f"|format(c.valor_matricula or 0) }}</td>
-        <td>{{ c.parcelas or 0 }}</td>
-        <td class="acoes">
-          <a class="btn btn-azul" href="/editar_curso/{{ c.id }}">✏️</a>
-          <a class="btn btn-vermelho" href="/excluir_curso/{{ c.id }}"
-             onclick="return confirm('Excluir este curso?')">🗑️</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <div class="empty-state">Nenhum curso cadastrado</div>
-  {% endif %}
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Carga Horária</th>
+                    <th>Valor</th>
+                    <th class="acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cursos %}
+                <tr>
+                    <td>{{ c.nome }}</td>
+                    <td>{{ c.carga_horaria or '-' }}</td>
+                    <td>R$ {{ "%.2f"|format(c.valor or 0) }}</td>
+                    <td class="acoes">
+                        <a href="/editar_curso/{{ c.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                        <a href="/excluir_curso/{{ c.id }}" class="btn btn-lixeira tooltip" data-tooltip="Excluir"
+                           onclick="return confirm('Excluir curso?')">🗑️</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
-
 {% endblock %}

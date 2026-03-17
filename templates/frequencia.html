@@ -1,152 +1,73 @@
 {% extends "base.html" %}
+{% block title %}Frequência{% endblock %}
 {% block content %}
 
-<div class="card" style="max-width:900px; margin:auto;">
-
-    <!-- HEADER -->
-    <div class="card-header" style="border-left:6px solid #3498db;">
-        <h2 style="margin-bottom:5px;">📅 Frequência</h2>
-        <p style="color:#666;">Registro de presença por curso</p>
+<div class="card">
+    <div class="card-header">
+        <span>🗓️</span>
+        <h2>Frequência</h2>
     </div>
+    <p class="card-subtitle">Registre a presença dos alunos por aula</p>
 
-    <!-- BUSCA -->
-    <form method="GET" style="margin-top:20px;">
-        <label style="font-weight:bold;">Buscar aluno</label>
-        <div style="display:flex; gap:10px; margin-top:5px;">
-            <input 
-                type="text" 
-                name="q" 
-                value="{{ termo or '' }}" 
-                placeholder="Digite o nome do aluno..."
-                style="flex:1; padding:10px; border-radius:8px; border:1px solid #ccc;"
-            >
-            <button class="btn btn-primary">Buscar</button>
-        </div>
-    </form>
-
-    <!-- LISTA DE ALUNOS -->
-    {% if alunos %}
-    <div style="margin-top:20px;">
-        <label style="font-weight:bold;">Resultados:</label>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px; margin-top:10px;">
-            {% for a in alunos %}
-            <a href="/frequencia?aluno_id={{ a.id }}{% if termo %}&q={{ termo }}{% endif %}"
-               style="text-decoration:none;">
-
-                <div style="
-                    padding:12px;
-                    border-radius:10px;
-                    border:1px solid #ddd;
-                    background:#fafafa;
-                    transition:0.2s;
-                "
-                onmouseover="this.style.background='#f0f8ff'"
-                onmouseout="this.style.background='#fafafa'">
-
-                    👤 {{ a.nome }}
-
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- ALUNO SELECIONADO -->
-    {% if aluno_id %}
-    <div style="margin-top:20px; padding:10px; background:#f4f6f8; border-radius:8px;">
-        <strong>Aluno selecionado:</strong> {{ aluno_nome }}
-    </div>
-    {% endif %}
-
-    <!-- CURSOS -->
-    {% if cursos_matriculados %}
-    <form method="GET" style="margin-top:20px;">
-        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
-
-        <label style="font-weight:bold;">Curso</label>
-
-        <select name="curso_id" onchange="this.form.submit()"
-            style="width:100%; margin-top:5px; padding:10px; border-radius:8px; border:1px solid #ccc;">
-            <option value="">Selecione um curso</option>
-            {% for c in cursos_matriculados %}
-                <option value="{{ c.id }}" {% if curso_id == c.id %}selected{% endif %}>
-                    {{ c.nome }}
-                </option>
-            {% endfor %}
-        </select>
-    </form>
-    {% endif %}
-
-    <!-- FORM FREQUÊNCIA -->
-    {% if curso_id %}
-    <form method="POST" style="margin-top:25px; padding:15px; border-top:1px solid #eee;">
-
-        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
-        <input type="hidden" name="curso_id" value="{{ curso_id }}">
-
-        <h4 style="margin-bottom:10px;">
-            Curso:
-            {{ cursos_matriculados | selectattr("id", "equalto", curso_id) | first | attr("nome") }}
-        </h4>
-
-        <label style="font-weight:bold;">Data da aula</label>
-        <input type="date" name="data" value="{{ data_aula or '' }}" required
-            style="width:100%; margin-top:5px; padding:10px; border-radius:8px; border:1px solid #ccc;">
-
-        <!-- STATUS -->
-        <div style="margin-top:20px;">
-            <label style="font-weight:bold;">Status</label>
-
-            <div style="display:flex; gap:20px; margin-top:10px;">
-
-                <label style="
-                    flex:1;
-                    padding:12px;
-                    border-radius:10px;
-                    border:1px solid #2ecc71;
-                    background:#eafaf1;
-                    text-align:center;
-                    cursor:pointer;
-                ">
-                    <input type="radio" name="status" value="P" required style="margin-right:5px;">
-                    ✅ Presente
-                </label>
-
-                <label style="
-                    flex:1;
-                    padding:12px;
-                    border-radius:10px;
-                    border:1px solid #e74c3c;
-                    background:#fdecea;
-                    text-align:center;
-                    cursor:pointer;
-                ">
-                    <input type="radio" name="status" value="F" style="margin-right:5px;">
-                    ❌ Falta
-                </label>
-
+    <form method="GET" class="form-pequeno">
+        <div class="grid-3">
+            <div class="campo">
+                <label>Turma / Materia</label>
+                <select name="materia_id" onchange="this.form.submit()">
+                    <option value="">Selecione a matéria</option>
+                    {% for m in materias %}
+                    <option value="{{ m.id }}" {% if materia_id == m.id %}selected{% endif %}>{{ m.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="campo">
+                <label>Data da aula</label>
+                <input type="date" name="data_aula" value="{{ data_aula or '' }}">
+            </div>
+            <div class="campo">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-azul">Carregar</button>
             </div>
         </div>
-
-        <!-- BOTÕES -->
-        <div style="margin-top:25px; display:flex; gap:10px; flex-wrap:wrap;">
-            <button type="submit" class="btn btn-primary">
-                💾 Salvar Frequência
-            </button>
-
-            <a
-                href="/frequencia_historico?aluno_id={{ aluno_id }}&curso_id={{ curso_id }}"
-                class="btn"
-            >
-                📋 Ver Histórico
-            </a>
-        </div>
-
     </form>
-    {% endif %}
-
 </div>
 
+{% if alunos_materia %}
+<div class="card">
+    <form method="POST">
+        <input type="hidden" name="materia_id" value="{{ materia_id }}">
+        <input type="hidden" name="data_aula" value="{{ data_aula }}">
+        <h3>Alunos — {{ data_aula }}</h3>
+        <div class="tabela-planilha">
+            <table class="tabela-excel">
+                <thead>
+                    <tr>
+                        <th>Aluno</th>
+                        <th>Presente</th>
+                        <th>Justificativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in alunos_materia %}
+                    <tr>
+                        <td>{{ a.nome }}</td>
+                        <td>
+                            <input type="checkbox" name="presentes" value="{{ a.id }}"
+                                {% if a.id in presentes_ids %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="text" name="justificativa_{{ a.id }}"
+                                value="{{ justificativas.get(a.id, '') }}" placeholder="Opcional">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">Salvar Frequência</button>
+        </div>
+    </form>
+</div>
+{% endif %}
 {% endblock %}
