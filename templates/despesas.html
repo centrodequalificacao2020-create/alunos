@@ -9,33 +9,31 @@
     </div>
     <p class="card-subtitle">Registre e acompanhe as despesas operacionais</p>
 
-    <form method="POST" class="form-pequeno">
+    <form method="POST">
         <div class="grid-4">
             <div class="campo">
-                <label>Descrição</label>
-                <input type="text" name="descricao" required>
+                <label for="descricao">Descrição</label>
+                <input type="text" id="descricao" name="descricao" required placeholder="Ex: Conta de luz">
             </div>
             <div class="campo">
-                <label>Valor</label>
-                <input type="number" step="0.01" name="valor" required>
+                <label for="valor">Valor (R$)</label>
+                <input type="number" id="valor" name="valor" step="0.01" min="0" required placeholder="0,00">
             </div>
             <div class="campo">
-                <label>Data</label>
-                <input type="date" name="data" required>
+                <label for="data">Data</label>
+                <input type="date" id="data" name="data" required>
             </div>
             <div class="campo">
-                <label>Categoria</label>
-                <select name="categoria">
-                    <option>Aluguel</option>
-                    <option>Salário</option>
-                    <option>Marketing</option>
-                    <option>Material</option>
-                    <option>Outros</option>
+                <label for="categoria">Categoria</label>
+                <select id="categoria" name="categoria">
+                    {% for cat in ['Aluguel','Salário','Marketing','Material','Outros'] %}
+                    <option>{{ cat }}</option>
+                    {% endfor %}
                 </select>
             </div>
         </div>
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">Registrar Despesa</button>
+            <button type="submit" class="btn btn-azul">💾 Registrar Despesa</button>
         </div>
     </form>
 </div>
@@ -59,19 +57,22 @@
                     <td>{{ d.descricao }}</td>
                     <td>{{ d.categoria or '-' }}</td>
                     <td>{{ d.data }}</td>
-                    <td>R$ {{ "%.2f"|format(d.valor or 0) }}</td>
+                    <td>R$ {{ "%.2f"|format(d.valor or 0) }}</td>
                     <td class="acoes">
-                        <a href="/editar_despesa/{{ d.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                        <a href="/editar_despesa/{{ d.id }}" class="btn btn-editar   tooltip" data-tooltip="Editar">✏️</a>
                         <a href="/excluir_despesa/{{ d.id }}" class="btn btn-lixeira tooltip" data-tooltip="Excluir"
-                           onclick="return confirm('Excluir despesa?')">🗑️</a>
+                           onclick="return confirm('Excluir esta despesa?')">🗑️</a>
                     </td>
                 </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty-state">Nenhuma despesa registrada.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% if despesas %}
-    <div class="totais">TOTAL: R$ {{ "%.2f"|format(total or 0) }}</div>
+    <div class="totais">TOTAL: R$ {{ "%.2f"|format(total or 0) }}</div>
     {% endif %}
 </div>
+
 {% endblock %}

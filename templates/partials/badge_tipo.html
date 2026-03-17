@@ -1,0 +1,12 @@
+{#
+  Partial: badge colorido para tipo de parcela.
+  Uso: {% include 'partials/badge_tipo.html' %}
+  Variável esperada: p (objeto com atributo .tipo)
+#}
+{% set _cores = {
+    'Matrícula':   'badge-matricula',
+    'Mensalidade': 'badge-mensalidade',
+    'Material':    'badge-material',
+    'Outros':      'badge-outros'
+} %}
+<span class="badge {{ _cores.get(p.tipo, 'badge-outros') }}">{{ p.tipo }}</span>

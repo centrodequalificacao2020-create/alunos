@@ -1,154 +1,156 @@
 {% extends "base.html" %}
 {% block title %}Financeiro{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/financeiro.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 
 <div class="card">
-  <div class="card-header">
-    <span>💰</span>
-    <h2>Financeiro</h2>
-  </div>
+    <div class="card-header">
+        <span>💰</span>
+        <h2>Financeiro</h2>
+    </div>
 
-  <form method="GET" action="/financeiro" class="form-pequeno">
-    <label>Aluno</label>
-    <select name="aluno_id" onchange="this.form.submit()" required>
-      <option value="">Selecione o aluno</option>
-      {% for a in alunos %}
-        <option value="{{ a.id }}" {% if aluno_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
-      {% endfor %}
-    </select>
-  </form>
+    <form method="GET" action="/financeiro">
+        <div class="campo">
+            <label for="aluno_id">Aluno</label>
+            <select id="aluno_id" name="aluno_id" onchange="this.form.submit()">
+                <option value="">Selecione o aluno…</option>
+                {% for a in alunos %}
+                <option value="{{ a.id }}" {% if aluno_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
 </div>
 
 {% if aluno_id %}
 
-  <div class="card">
-    <div class="resumo-financeiro">
-      <div>Total pago: <strong>R$ {{ "%.2f"|format(total_pago or 0) }}</strong></div>
-      <div>Total a pagar: <strong>R$ {{ "%.2f"|format(total_pagar or 0) }}</strong></div>
-      <div>Saldo restante: <strong>R$ {{ "%.2f"|format(saldo or 0) }}</strong></div>
+<div class="card resumo-financeiro">
+    <div class="resumo-financeiro__itens">
+        <div class="resumo-item resumo-item--pago">
+            <span class="resumo-label">Total pago</span>
+            <span class="resumo-valor">R$ {{ "%.2f"|format(total_pago or 0) }}</span>
+        </div>
+        <div class="resumo-item resumo-item--pagar">
+            <span class="resumo-label">A pagar</span>
+            <span class="resumo-valor">R$ {{ "%.2f"|format(total_pagar or 0) }}</span>
+        </div>
+        <div class="resumo-item resumo-item--saldo">
+            <span class="resumo-label">Saldo restante</span>
+            <span class="resumo-valor">R$ {{ "%.2f"|format(saldo or 0) }}</span>
+        </div>
     </div>
-  </div>
+</div>
 
-  <div class="card">
-    <div class="card-header card-header--between">
-      <h3>A PAGAR</h3>
-      <a href="/movimentacao?aluno_id={{ aluno_id }}" class="btn btn-verde">Nova Mensalidade</a>
+<div class="card">
+    <div class="card-header--between">
+        <h3>🗓 A PAGAR</h3>
+        <a href="/movimentacao?aluno_id={{ aluno_id }}" class="btn btn-verde">➕ Nova Mensalidade</a>
     </div>
 
     {% if pendentes %}
     <div class="tabela-planilha">
-      <table class="tabela-excel">
-        <thead>
-          <tr>
-            <th>Parcela</th><th>Vencimento</th><th>Tipo</th><th>Valor</th>
-            <th class="acoes">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in pendentes %}
-          <tr>
-            <td>{{ p.parcela_ref }}</td>
-            <td>{{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}</td>
-            <td>{% include 'partials/badge_tipo.html' %}</td>
-            <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
-            <td class="acoes">
-              <a href="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
-                 onclick="return confirm('Deseja realmente excluir esta parcela?')"
-                 class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</a>
-              <a href="/editar_parcela/{{ p.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
-              <a href="/pagar/{{ p.id }}" class="btn btn-pagar tooltip" data-tooltip="Pagar">✔️</a>
-              <a href="/carne/{{ aluno_id }}" class="btn btn-imprimir tooltip" data-tooltip="Imprimir" target="_blank">🖨️</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Parcela</th>
+                    <th>Vencimento</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th class="acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in pendentes %}
+            <tr>
+                <td>{{ p.parcela_ref }}</td>
+                <td>{{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}</td>
+                <td>{% include 'partials/badge_tipo.html' %}</td>
+                <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
+                <td class="acoes">
+                    <a href="/pagar/{{ p.id }}"             class="btn btn-pagar    tooltip" data-tooltip="Registrar pagamento">✔️</a>
+                    <a href="/editar_parcela/{{ p.id }}"    class="btn btn-editar   tooltip" data-tooltip="Editar">✏️</a>
+                    <a href="/carne/{{ aluno_id }}"         class="btn btn-imprimir tooltip" data-tooltip="Imprimir carnê" target="_blank">🖨️</a>
+                    <a href="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
+                       class="btn btn-lixeira tooltip" data-tooltip="Excluir"
+                       onclick="return confirm('Excluir esta parcela pendente?')">🗑️</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-    <div class="totais">TOTAL A PAGAR: R$ {{ "%.2f"|format(total_pagar or 0) }}</div>
+    <div class="totais">TOTAL A PAGAR: R$ {{ "%.2f"|format(total_pagar or 0) }}</div>
     {% else %}
-    <div class="empty-state">Nenhuma cobrança pendente</div>
+    <p class="empty-state">✅ Nenhuma cobrança pendente</p>
     {% endif %}
-  </div>
+</div>
 
-  <div class="card">
+<div class="card">
     <div class="card-header">
-      <h3>PAGAS</h3>
+        <h3>✅ PAGAS</h3>
     </div>
     {% if pagas %}
     <div class="tabela-planilha">
-      <table class="tabela-excel">
-        <thead>
-          <tr>
-            <th>Parcela</th><th>Vencimento</th><th>Tipo</th><th>Valor</th>
-            <th>Data Pgto</th><th>Funcionário</th><th class="acoes">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in pagas %}
-          <tr>
-            <td>{{ p.parcela_ref }}</td>
-            <td>{{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}</td>
-            <td>{% include 'partials/badge_tipo.html' %}</td>
-            <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
-            <td>{{ p.data_pagamento or '-' }}</td>
-            <td>{{ p.usuario_pagamento or 'Sistema' }}</td>
-            <td class="acoes">
-              <a href="/recibo/{{ p.id }}" target="_blank" class="btn-recibo tooltip" data-tooltip="Recibo">🧾</a>
-              <form method="POST" action="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
-                    onsubmit="return confirmarExclusao(this)" style="display:inline">
-                <input type="hidden" name="senha">
-                <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Parcela</th>
+                    <th>Vencimento</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Data Pgto</th>
+                    <th>Funcionário</th>
+                    <th class="acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in pagas %}
+            <tr>
+                <td>{{ p.parcela_ref }}</td>
+                <td>{{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}</td>
+                <td>{% include 'partials/badge_tipo.html' %}</td>
+                <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
+                <td>{{ p.data_pagamento or '-' }}</td>
+                <td>{{ p.usuario_pagamento or 'Sistema' }}</td>
+                <td class="acoes">
+                    <a href="/recibo/{{ p.id }}" target="_blank" class="btn btn-recibo tooltip" data-tooltip="Ver recibo">🧾</a>
+                    <form method="POST" action="/excluir_parcela_segura/{{ p.id }}/{{ aluno_id }}"
+                          onsubmit="return confirmarExclusao(this)" style="display:inline">
+                        <input type="hidden" name="senha">
+                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-    <div class="totais">TOTAL PAGO: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
+    <div class="totais">TOTAL PAGO: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
     {% else %}
-    <div class="empty-state">Nenhuma cobrança paga</div>
+    <p class="empty-state">Nenhuma cobrança paga</p>
     {% endif %}
-  </div>
+</div>
 
 {% endif %}
 
-<div id="modal-senha" class="modal-overlay" style="display:none">
-  <div class="modal-box">
-    <h3>Confirmar exclusão</h3>
-    <p>Digite sua senha para excluir esta parcela:</p>
-    <input type="password" id="campo-senha" class="modal-input">
-    <div class="acoes-form">
-      <button onclick="confirmarSenha()" class="btn btn-vermelho">Excluir</button>
-      <button onclick="fecharModal()"    class="btn btn-azul">Cancelar</button>
+{# Modal de senha para excluir parcela paga #}
+<div id="modal-senha" class="modal-overlay">
+    <div class="modal">
+        <h3>🔒 Confirmar exclusão</h3>
+        <p>Digite a senha de autorização para excluir esta parcela:</p>
+        <div class="campo">
+            <label for="campo-senha">Senha</label>
+            <input type="password" id="campo-senha" placeholder="Senha">
+        </div>
+        <div class="acoes-form">
+            <button type="button" class="btn btn-vermelho" onclick="confirmarSenha()">Excluir</button>
+            <button type="button" class="btn btn-azul"     onclick="fecharModalSenha()">Cancelar</button>
+        </div>
     </div>
-  </div>
 </div>
 
-<script>
-let formAtual = null;
-function confirmarExclusao(form) {
-  formAtual = form;
-  document.getElementById('campo-senha').value = '';
-  const modal = document.getElementById('modal-senha');
-  modal.style.display = 'flex';
-  setTimeout(() => document.getElementById('campo-senha').focus(), 100);
-  return false;
-}
-function confirmarSenha() {
-  const senha = document.getElementById('campo-senha').value;
-  if (!senha) { alert('Digite a senha.'); return; }
-  formAtual.querySelector('input[name="senha"]').value = senha;
-  fecharModal();
-  formAtual.submit();
-}
-function fecharModal() {
-  document.getElementById('modal-senha').style.display = 'none';
-  formAtual = null;
-}
-document.getElementById('campo-senha').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter')  confirmarSenha();
-  if (e.key === 'Escape') fecharModal();
-});
-</script>
 {% endblock %}

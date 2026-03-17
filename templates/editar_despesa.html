@@ -2,20 +2,22 @@
 {% block title %}Editar Despesa{% endblock %}
 {% block content %}
 
-<div class="card">
+<div class="card" style="max-width:600px">
     <div class="card-header">
         <span>✏️</span>
         <h2>Editar Despesa</h2>
     </div>
-    <form method="POST" class="form-pequeno">
+
+    <form method="POST">
         <div class="grid-2">
             <div class="campo">
-                <label>Descrição</label>
-                <input type="text" name="descricao" value="{{ despesa.descricao }}" required>
+                <label for="descricao">Descrição</label>
+                <input type="text" id="descricao" name="descricao"
+                       value="{{ despesa.descricao }}" required>
             </div>
             <div class="campo">
-                <label>Categoria</label>
-                <select name="categoria">
+                <label for="categoria">Categoria</label>
+                <select id="categoria" name="categoria">
                     {% for cat in ['Aluguel','Salário','Marketing','Material','Outros'] %}
                     <option value="{{ cat }}" {% if despesa.categoria == cat %}selected{% endif %}>{{ cat }}</option>
                     {% endfor %}
@@ -24,18 +26,22 @@
         </div>
         <div class="grid-2">
             <div class="campo">
-                <label>Valor</label>
-                <input type="number" step="0.01" name="valor" value="{{ despesa.valor }}" required>
+                <label for="valor">Valor (R$)</label>
+                <input type="number" id="valor" name="valor"
+                       step="0.01" min="0"
+                       value="{{ despesa.valor }}" required>
             </div>
             <div class="campo">
-                <label>Data</label>
-                <input type="date" name="data" value="{{ despesa.data }}" required>
+                <label for="data">Data</label>
+                <input type="date" id="data" name="data"
+                       value="{{ despesa.data }}" required>
             </div>
         </div>
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">Salvar</button>
-            <a href="/despesas" class="btn btn-vermelho">Cancelar</a>
+            <button type="submit" class="btn btn-azul">💾 Salvar</button>
+            <a href="/despesas" class="btn btn-vermelho">✖ Cancelar</a>
         </div>
     </form>
 </div>
+
 {% endblock %}
