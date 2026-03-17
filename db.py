@@ -1,9 +1,28 @@
+import sqlite3
+import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import text
 
 db = SQLAlchemy()
 migrate = Migrate()
+
+
+def get_db_path(app=None):
+    """Retorna o caminho correto do banco em qualquer ambiente."""
+    azure = "/home/site/wwwroot/cqp.db"
+    if os.path.exists(azure):
+        return azure
+    if app:
+        return os.path.join(app.root_path, "cqp.db")
+    from flask import current_app
+    return os.path.join(current_app.root_path, "cqp.db")
+
+
+def conectar():
+    """Conexão sqlite3 pura — usada por todos os blueprints."""
+    path = get_db_path()
+    return sqlite3.connect(path, timeout=30, check_same_thread=False)
 
 
 def init_db(app):

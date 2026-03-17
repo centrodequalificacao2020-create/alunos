@@ -6,16 +6,9 @@ import io
 from datetime import datetime, date
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from db import conectar
 
 academico_bp = Blueprint("academico", __name__)
-
-
-def _conectar():
-    db_path = "/home/site/wwwroot/cqp.db"
-    if not os.path.exists(db_path):
-        from flask import current_app
-        db_path = os.path.join(current_app.root_path, "cqp.db")
-    return sqlite3.connect(db_path, timeout=30, check_same_thread=False)
 
 
 def _logado():
@@ -50,7 +43,8 @@ def materias():
     if not _logado():
         return redirect("/login")
 
-    conn   = _conectar()
+    conn   = conectar()
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     if request.method == "POST" and "nova_materia" in request.form:
@@ -114,7 +108,8 @@ def notas():
     aluno_id = request.args.get("aluno_id", type=int)
     curso_id = request.args.get("curso_id", type=int)
 
-    conn = _conectar()
+    conn = conectar()
+    conn.row_factory = sqlite3.Row
     c    = conn.cursor()
 
     alunos = []
@@ -131,7 +126,7 @@ def notas():
         c.execute("SELECT nome FROM alunos WHERE id = ?", (aluno_id,))
         row = c.fetchone()
         if row:
-            aluno_nome = row[0]
+            aluno_nome = row["nome"]
         c.execute("""
             SELECT c.id, c.nome
             FROM cursos c JOIN matriculas m ON m.curso_id = c.id
@@ -150,7 +145,8 @@ def notas():
     if request.method == "POST":
         aluno_id = request.form.get("aluno_id", type=int)
         curso_id = request.form.get("curso_id", type=int)
-        for materia_id, _, _ in materias_lista:
+        for row in materias_lista:
+            materia_id = row["id"]
             nota      = request.form.get(f"nota_{materia_id}") or None
             resultado = request.form.get(f"resultado_{materia_id}")
             c.execute("""
@@ -176,7 +172,7 @@ def notas_visualizar(aluno_id):
     if not _logado():
         return redirect("/login")
 
-    conn = _conectar()
+    conn = conectar()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -221,7 +217,7 @@ def notas_visualizar(aluno_id):
 @academico_bp.route("/notas_pdf/<int:aluno_id>/<int:curso_id>")
 def notas_pdf(aluno_id, curso_id):
     from flask import current_app
-    conn = _conectar()
+    conn = conectar()
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
@@ -313,7 +309,7 @@ def frequencia():
     if not _logado():
         return redirect("/login")
 
-    conn = _conectar()
+    conn = conectar()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -385,7 +381,7 @@ def frequencia_historico():
     aluno_id = request.args.get("aluno_id", type=int)
     curso_id = request.args.get("curso_id", type=int)
 
-    conn = _conectar()
+    conn = conectar()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -411,7 +407,7 @@ def frequencia_historico():
 @academico_bp.route("/frequencia_historico_pdf/<int:aluno_id>/<int:curso_id>")
 def frequencia_historico_pdf(aluno_id, curso_id):
     from flask import current_app
-    conn = _conectar()
+    conn = conectar()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -421,6 +417,7 @@ def frequencia_historico_pdf(aluno_id, curso_id):
     curso = c.fetchone()
 
     if not aluno or not curso:
+        conn.close()
         return "Aluno ou curso não encontrado"
 
     c.execute("""
@@ -495,11 +492,13 @@ def frequencia_historico_pdf(aluno_id, curso_id):
 def relatorio():
     if not _logado():
         return redirect("/login")
-    c = _conectar().cursor()
-    c.execute("SELECT SUM(valor) FROM mensalidades WHERE status='Pago'")
+    conn = conectar()
+    c = conn.cursor()
+    c.execute("SELECT SUM(valor) FROM movimentacoes WHERE tipo='Receita' AND status='Pago'")
     pago = c.fetchone()[0] or 0
-    c.execute("SELECT SUM(valor) FROM mensalidades WHERE status='Pendente'")
+    c.execute("SELECT SUM(valor) FROM movimentacoes WHERE tipo='Receita' AND status='Pendente'")
     pendente = c.fetchone()[0] or 0
+    conn.close()
     return render_template("relatorio.html", total_pago=pago, total_pendente=pendente)
 
 
