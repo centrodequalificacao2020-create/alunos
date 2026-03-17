@@ -16,7 +16,7 @@ def login_aluno():
             session["aluno_id"] = aluno.id
             return redirect("/aluno/dashboard")
         flash("E-mail ou senha incorretos.", "erro")
-    return render_template("alunos/login.html")
+    return render_template("aluno/login.html")
 
 
 @portal_aluno_bp.route("/logout")
@@ -28,13 +28,12 @@ def logout_aluno():
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
 def dashboard_aluno():
-    
     aluno        = db.get_or_404(Aluno, session["aluno_id"])
     matricula    = Matricula.query.filter_by(aluno_id=aluno.id, status="ATIVA").first()
     mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
     pendentes    = sum(1 for m in mensalidades if m.status != "Pago")
     val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
-    return render_template("alunos/dashboard.html", aluno=aluno,
+    return render_template("aluno/dashboard.html", aluno=aluno,
         matricula=matricula, mensalidades=mensalidades,
         pendentes=pendentes, valor_pendente=val_pend)
 
@@ -42,9 +41,9 @@ def dashboard_aluno():
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
 def frequencia_aluno():
-    aluno      = db.get_or_404(Aluno, session["aluno_id"])
+    aluno       = db.get_or_404(Aluno, session["aluno_id"])
     frequencias = Frequencia.query.filter_by(aluno_id=aluno.id).order_by(Frequencia.data.desc()).all()
-    return render_template("alunos/frequencia.html", aluno=aluno, frequencias=frequencias)
+    return render_template("aluno/frequencia.html", aluno=aluno, frequencias=frequencias)
 
 
 @portal_aluno_bp.route("/conteudo")
@@ -55,7 +54,6 @@ def conteudo_aluno():
     conteudos = []
 
     if matricula:
-        # filtra matérias do curso específico da matrícula
         conteudos = (
             db.session.query(Conteudo, ProgressoAula)
             .outerjoin(
@@ -69,7 +67,7 @@ def conteudo_aluno():
             .all()
         )
 
-    return render_template("alunos/conteudo.html", aluno=aluno, conteudos=conteudos)
+    return render_template("aluno/conteudo.html", aluno=aluno, conteudos=conteudos)
 
 
 @portal_aluno_bp.route("/concluir/<int:conteudo_id>")
