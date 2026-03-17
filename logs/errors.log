@@ -112,3 +112,71 @@ Traceback (most recent call last):
     R$ {{ "{:,.2f}".format(a_receber_mes).replace(",", "X").replace(".", ",").replace("X", ".") }}
     ^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: unsupported format string passed to Undefined.__format__
+[2026-03-17 12:27:07,678] ERROR app: Exception on /notas [GET]
+Traceback (most recent call last):
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\routes\academico.py", line 142, in notas
+    c.execute("""
+sqlite3.OperationalError: no such table: materias
+[2026-03-17 12:27:12,193] ERROR app: Exception on /dashboard [GET]
+Traceback (most recent call last):
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\routes\dashboard.py", line 54, in dashboard
+    c.execute("""
+sqlite3.OperationalError: no such table: mensalidades
+[2026-03-17 12:27:16,886] ERROR app: Exception on /notas [GET]
+Traceback (most recent call last):
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\routes\academico.py", line 142, in notas
+    c.execute("""
+sqlite3.OperationalError: no such table: materias
+[2026-03-17 12:29:17,633] ERROR app: Exception on /relatorio [GET]
+Traceback (most recent call last):
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\CQP_ADM\Desktop\Sistema\alunos\routes\academico.py", line 499, in relatorio
+    c.execute("SELECT SUM(valor) FROM mensalidades WHERE status='Pago'")
+sqlite3.OperationalError: no such table: mensalidades
