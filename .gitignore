@@ -1,19 +1,22 @@
 # Ambiente virtual
 venv/
 .venv/
+env/
 
 # Cache Python
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
 
 # Banco de dados
 *.db
 *.sqlite3
 
-# Variáveis de ambiente
+# Variáveis de ambiente — NUNCA versionar
 .env
 .env.*
+!.env.example
 
 # Logs
 logs/
@@ -29,10 +32,16 @@ static/uploads/
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Instância Flask
 instance/
+
+# Migrações geradas automaticamente (manter só o essencial)
+migrations/versions/

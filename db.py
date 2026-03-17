@@ -20,9 +20,12 @@ def get_db_path(app=None):
 
 
 def conectar():
-    """Conexão sqlite3 pura — usada por todos os blueprints."""
+    """Conexao sqlite3 pura — usada por todos os blueprints."""
     path = get_db_path()
-    return sqlite3.connect(path, timeout=30, check_same_thread=False)
+    conn = sqlite3.connect(path, timeout=30, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
 
 
 def init_db(app):

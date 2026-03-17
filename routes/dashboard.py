@@ -1,21 +1,22 @@
+import calendar
 from flask import Blueprint, render_template, request, redirect, session, jsonify
 import sqlite3
 import os
 from datetime import datetime, date
+from db import conectar
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
-def _conectar():
-    db_path = "/home/site/wwwroot/cqp.db"
-    if not os.path.exists(db_path):
-        from flask import current_app
-        db_path = os.path.join(current_app.root_path, "cqp.db")
-    return sqlite3.connect(db_path, timeout=30, check_same_thread=False)
+def _fim_mes(mes_str):
+    """Retorna o ultimo dia real do mes (ex: '2026-02' -> '2026-02-28')."""
+    ano, mes = int(mes_str[:4]), int(mes_str[5:7])
+    ultimo = calendar.monthrange(ano, mes)[1]
+    return f"{mes_str}-{ultimo:02d}"
 
 
 def _buscar_relatorio_mes(mes):
-    conn = _conectar()
+    conn = conectar()
     c = conn.cursor()
     c.execute("""
         SELECT meta, realizado, matriculas, matriculas_venda
@@ -40,7 +41,7 @@ def dashboard():
     if not _logado():
         return redirect("/login")
 
-    conn = _conectar()
+    conn = conectar()
     c = conn.cursor()
 
     hoje = datetime.today()
@@ -48,7 +49,7 @@ def dashboard():
     mes = request.args.get("mes") or mes_atual
 
     inicio = f"{mes}-01"
-    fim    = f"{mes}-31"
+    fim    = _fim_mes(mes)          # ✅ último dia real do mês
 
     # ── RECEBIDO NO MÊS ──
     c.execute("""
@@ -127,7 +128,7 @@ def dashboard():
         if str(data_inicio)[:7] <= mes:
             try:
                 fixas += float(valor or 0)
-            except:
+            except Exception:
                 continue
     despesas_mes = variaveis + fixas
 
@@ -157,20 +158,21 @@ def dashboard():
     ]
 
     # ── GRÁFICO RECEITA MENSAL (JAN–MÊS ATUAL) ──
-    meses   = []
-    valores = []
+    meses_label = []
+    valores     = []
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
                 "Jul","Ago","Set","Out","Nov","Dez"]
 
     for m in range(1, hoje.month + 1):
-        ini_m = f"{hoje.year}-{m:02d}-01"
-        fim_m = f"{hoje.year}-{m:02d}-31"
+        mes_str = f"{hoje.year}-{m:02d}"
+        ini_m   = f"{mes_str}-01"
+        fim_m   = _fim_mes(mes_str)    # ✅ último dia real de cada mês
         c.execute("""
             SELECT SUM(valor) FROM mensalidades
             WHERE status='Pago' AND data_pagamento BETWEEN ? AND ?
         """, (ini_m, fim_m))
         total = c.fetchone()[0] or 0
-        meses.append(f"{meses_pt[m-1]}/{str(hoje.year)[2:]}")
+        meses_label.append(f"{meses_pt[m-1]}/{str(hoje.year)[2:]}")
         valores.append(total)
 
     # ── RANKING DE CURSOS ──
@@ -225,7 +227,7 @@ def dashboard():
         meta_mensal=meta_mensal,
         taxa_evasao=taxa_evasao,
         grafico_financeiro=grafico_financeiro,
-        meses=meses,
+        meses=meses_label,
         valores=valores,
         ranking_cursos=ranking_cursos,
         vendas_tipo=vendas_tipo,
@@ -241,7 +243,7 @@ def dashboard():
 @dashboard_bp.route("/salvar_relatorio", methods=["POST"])
 def salvar_relatorio():
     dados = request.get_json()
-    conn  = _conectar()
+    conn  = conectar()
     c     = conn.cursor()
     c.execute("""
         INSERT INTO relatorios (mes, meta, realizado, matriculas, matriculas_venda)
@@ -263,7 +265,7 @@ def salvar_relatorio():
 # ── CARREGAR RELATÓRIO ──
 @dashboard_bp.route("/carregar_relatorio/<mes>")
 def carregar_relatorio(mes):
-    conn = _conectar()
+    conn = conectar()
     c    = conn.cursor()
     c.execute("""
         SELECT meta, realizado, matriculas, matriculas_venda
@@ -282,9 +284,9 @@ def carregar_relatorio(mes):
 def relatorio_trimestre(ano, tri):
     meses_tri = {"1":["01","02","03"],"2":["04","05","06"],
                  "3":["07","08","09"],"4":["10","11","12"]}
-    lista = [f"{ano}-{m}" for m in meses_tri[tri]]
-    conn  = _conectar()
-    c     = conn.cursor()
+    lista  = [f"{ano}-{m}" for m in meses_tri.get(tri, [])]
+    conn   = conectar()
+    c      = conn.cursor()
     totais = {"meta":0,"realizado":0,"matriculas":0,"matriculas_venda":0}
     for mes in lista:
         c.execute("""
