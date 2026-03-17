@@ -1,0 +1,42 @@
+{# partial reutilizável: campos de endereço #}
+{# uso: {% include 'partials/form_endereco.html' %} #}
+{# variável opcional 'aluno' — se presente, preenche os values #}
+
+<h3 class="secao">🏠 Endereço</h3>
+
+<div class="grid-4">
+    <div class="campo">
+        <label for="cep">CEP</label>
+        <input type="text" id="cep" name="cep"
+               value="{{ aluno.cep if aluno else '' }}"
+               inputmode="numeric" placeholder="00000-000">
+    </div>
+    <div class="campo">
+        <label for="bairro">Bairro</label>
+        <input type="text" id="bairro" name="bairro"
+               value="{{ aluno.bairro if aluno else '' }}">
+    </div>
+    <div class="campo">
+        <label for="cidade">Cidade</label>
+        <input type="text" id="cidade" name="cidade"
+               value="{{ aluno.cidade if aluno else '' }}">
+    </div>
+    <div class="campo">
+        <label for="estado">Estado</label>
+        <input type="text" id="estado" name="estado"
+               value="{{ aluno.estado if aluno else '' }}">
+    </div>
+</div>
+
+<div class="grid-4">
+    <div class="campo grande">
+        <label for="endereco">Rua</label>
+        <input type="text" id="endereco" name="endereco"
+               value="{{ aluno.endereco if aluno else '' }}">
+    </div>
+    <div class="campo">
+        <label for="complemento">Complemento</label>
+        <input type="text" id="complemento" name="complemento"
+               value="{{ aluno.complemento if aluno else '' }}">
+    </div>
+</div>

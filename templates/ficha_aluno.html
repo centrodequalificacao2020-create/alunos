@@ -1,16 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Ficha do Aluno{% endblock %}
+{% block title %}Ficha — {{ aluno.nome }}{% endblock %}
+
 {% block content %}
 
 <div class="card">
-    <div class="card-header card-header--between">
+    <div class="card-header--between">
         <div>
             <h2>{{ aluno.nome }}</h2>
             <p class="card-subtitle">Ficha completa do aluno</p>
         </div>
         <div class="acoes">
-            <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar">Editar</a>
-            <a href="/cadastro" class="btn btn-azul">Voltar</a>
+            <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno">✏️</a>
+            <a href="/cadastro" class="btn btn-azul">← Voltar</a>
         </div>
     </div>
 
@@ -26,7 +27,9 @@
             <p><strong>Status:</strong>
                 <span class="status-{{ aluno.status|lower }}">{{ aluno.status }}</span>
             </p>
-            <p><strong>Endereço:</strong> {{ aluno.endereco or '' }}{% if aluno.complemento %}, {{ aluno.complemento }}{% endif %}</p>
+            <p><strong>Endereço:</strong>
+                {{ aluno.endereco or '' }}{% if aluno.complemento %}, {{ aluno.complemento }}{% endif %}
+            </p>
             <p><strong>Bairro:</strong> {{ aluno.bairro or '' }}</p>
             <p><strong>Cidade/UF:</strong> {{ aluno.cidade or '' }} {{ aluno.estado or '' }}</p>
             <p><strong>CEP:</strong> {{ aluno.cep or '' }}</p>
@@ -36,11 +39,15 @@
 
 {% if matriculas %}
 <div class="card">
-    <h3>Matrículas</h3>
+    <h3>📋 Matrículas</h3>
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
-                <tr><th>Curso</th><th>Data</th><th>Status</th></tr>
+                <tr>
+                    <th>Curso</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                </tr>
             </thead>
             <tbody>
                 {% for m in matriculas %}
@@ -54,5 +61,10 @@
         </table>
     </div>
 </div>
+{% else %}
+<div class="card">
+    <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
+</div>
 {% endif %}
+
 {% endblock %}

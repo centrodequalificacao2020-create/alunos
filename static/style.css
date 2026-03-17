@@ -1,6 +1,6 @@
 /* ================================================================
    SISTEMA ESCOLAR — style.css
-   Fonte única de estilos. Não duplicar regras no base.html.
+   Fonte única de estilos. Não duplicar regras em templates.
    ================================================================ */
 
 /* ── 1. VARIÁVEIS SEMÂNTICAS ─────────────────────────────────── */
@@ -36,10 +36,7 @@
 /* ── 2. RESET E BASE ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body {
-    margin: 0;
-    padding: 0;
-}
+html, body { margin: 0; padding: 0; }
 
 body {
     background: var(--color-surface);
@@ -58,17 +55,11 @@ header {
     align-items: center;
     justify-content: space-between;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
+    top: 0; left: 0; width: 100%;
     z-index: 1000;
 }
 
-header h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-}
+header h1 { margin: 0; font-size: 18px; font-weight: 600; }
 
 nav a {
     color: rgba(255,255,255,.85);
@@ -79,23 +70,11 @@ nav a {
     border-bottom: 2px solid transparent;
     transition: color .15s, border-color .15s;
 }
-
-nav a:hover {
-    color: var(--color-white);
-    border-bottom-color: rgba(255,255,255,.5);
-}
-
-nav a.active {
-    color: var(--color-white);
-    font-weight: 600;
-    border-bottom-color: var(--color-white);
-}
+nav a:hover { color: var(--color-white); border-bottom-color: rgba(255,255,255,.5); }
+nav a.active { color: var(--color-white); font-weight: 600; border-bottom-color: var(--color-white); }
 
 /* ── 4. MAIN ─────────────────────────────────────────────────── */
-main {
-    padding: 32px;
-    width: 100%;
-}
+main { padding: 32px; width: 100%; }
 
 /* ── 5. CARDS ────────────────────────────────────────────────── */
 .card {
@@ -111,6 +90,15 @@ main {
 .card-header {
     display: flex;
     align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+/* modificador: título à esquerda, ações à direita */
+.card-header--between {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
 }
@@ -131,9 +119,6 @@ main {
 }
 
 h2, h3 { margin-top: 0; margin-bottom: 10px; }
-
-h3 { margin-top: 0; margin-bottom: 8px; }
-
 h4 { margin-top: 25px; margin-bottom: 10px; }
 
 /* ── 6. FLASH MESSAGES ───────────────────────────────────────── */
@@ -155,41 +140,24 @@ h4 { margin-top: 25px; margin-bottom: 10px; }
     100% { opacity: 0; pointer-events: none; }
 }
 
-.flash.sucesso, .flash.success {
-    background: var(--color-success-light);
-    color: #0a7a2f;
-    border: 1px solid #b7e3c4;
-}
-.flash.sucesso::before, .flash.success::before { content: "✅"; }
+.flash.sucesso, .flash.success    { background: var(--color-success-light); color: #0a7a2f; border: 1px solid #b7e3c4; }
+.flash.sucesso::before,
+.flash.success::before             { content: "✅"; }
 
-.flash.erro, .flash.error, .flash.danger {
-    background: var(--color-danger-light);
-    color: #a30000;
-    border: 1px solid #f5bcbc;
-}
-.flash.erro::before, .flash.error::before, .flash.danger::before { content: "❌"; }
+.flash.erro, .flash.error,
+.flash.danger                      { background: var(--color-danger-light);  color: #a30000; border: 1px solid #f5bcbc; }
+.flash.erro::before, .flash.error::before,
+.flash.danger::before              { content: "❌"; }
 
-.flash.warning, .flash.aviso {
-    background: var(--color-warning-light);
-    color: #7a4f00;
-    border: 1px solid #ffe08a;
-}
-.flash.warning::before, .flash.aviso::before { content: "⚠️"; }
+.flash.warning, .flash.aviso      { background: var(--color-warning-light); color: #7a4f00; border: 1px solid #ffe08a; }
+.flash.warning::before,
+.flash.aviso::before               { content: "⚠️"; }
 
-.flash.info {
-    background: #e8f4fd;
-    color: #0c4a6e;
-    border: 1px solid #bae6fd;
-}
-.flash.info::before { content: "ℹ️"; }
+.flash.info                        { background: #e8f4fd; color: #0c4a6e; border: 1px solid #bae6fd; }
+.flash.info::before                { content: "ℹ️"; }
 
 /* ── 7. FORMULÁRIOS ──────────────────────────────────────────── */
-.form-pequeno,
-.form-aluno,
-.form-cadastro {
-    width: 100%;
-    max-width: 900px;
-}
+.form-pequeno, .form-aluno, .form-cadastro { width: 100%; max-width: 900px; }
 
 .campo label {
     font-size: 13px;
@@ -198,16 +166,10 @@ h4 { margin-top: 25px; margin-bottom: 10px; }
     display: block;
 }
 
-.campo input,
-.campo select,
-.campo textarea {
-    width: 100%;
-}
+.campo input, .campo select, .campo textarea { width: 100%; }
 
-form input,
-form select,
-.campo input,
-.campo select {
+form input, form select,
+.campo input, .campo select {
     height: 36px;
     padding: 6px 10px;
     font-size: 14px;
@@ -217,13 +179,17 @@ form select,
     margin-bottom: 16px;
 }
 
-form input:focus,
-form select:focus,
-.campo input:focus,
-.campo select:focus {
+form input:focus, form select:focus,
+.campo input:focus, .campo select:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(21,101,192,.15);
+}
+
+/* campo inválido após tentativa de submit */
+.campo input:invalid:not(:placeholder-shown),
+.campo select:invalid:not(:placeholder-shown) {
+    border-color: var(--color-danger);
 }
 
 .secao {
@@ -233,19 +199,12 @@ form select:focus,
     color: #333;
 }
 
-.observacao-grande {
-    width: 100%;
-    min-height: 120px;
-    resize: vertical;
-}
-
-.input-pequeno {
-    width: 100%;
-    max-width: 180px;
-    text-align: center;
-}
-
+.observacao-grande { width: 100%; min-height: 120px; resize: vertical; }
+.input-pequeno { width: 100%; max-width: 180px; text-align: center; }
 .select-curso { width: 300px; }
+
+/* bloco condicional (ex: responsável legal) */
+.bloco-oculto { display: none; }
 
 /* ── 8. BOTÕES ───────────────────────────────────────────────── */
 .btn {
@@ -258,28 +217,26 @@ form select:focus,
     display: inline-block;
     transition: opacity .15s;
 }
-
 .btn:hover { opacity: .88; }
 
 .btn-azul,
-.btn-primary    { background: var(--color-primary);  color: var(--color-white); }
+.btn-primary  { background: var(--color-primary);  color: var(--color-white); }
 .btn-verde,
-.btn-pagar      { background: var(--color-success);  color: var(--color-white); }
+.btn-pagar    { background: var(--color-success);  color: var(--color-white); }
 .btn-vermelho,
-.btn-excluir    { background: var(--color-danger);   color: var(--color-white); }
-.btn-editar     { background: #1976d2;               color: var(--color-white); }
-.btn-lixeira    { background: var(--color-warning);  color: var(--color-white); }
-.btn-imprimir   { background: var(--color-primary);  color: var(--color-white); }
+.btn-excluir  { background: var(--color-danger);   color: var(--color-white); }
+.btn-editar   { background: #1976d2;               color: var(--color-white); }
+.btn-lixeira  { background: var(--color-warning);  color: var(--color-white); }
+.btn-imprimir { background: var(--color-primary);  color: var(--color-white); }
 .btn-info,
-.btn-recibo     { background: var(--color-info);     color: var(--color-white); }
+.btn-recibo   { background: var(--color-info);     color: var(--color-white); }
 
 /* botões ícone (36×32) */
 .acoes .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 32px;
+    width: 36px; height: 32px;
     padding: 0;
     margin: 0 3px;
     border-radius: var(--radius-md);
@@ -292,6 +249,15 @@ form select:focus,
     margin-top: 20px;
 }
 
+/* modificador: botão primário à esquerda, secundário à direita */
+.acoes-form--between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
 .botoes-matricula {
     display: flex;
     gap: 15px;
@@ -300,11 +266,7 @@ form select:focus,
 }
 
 /* ── 9. TABELAS ──────────────────────────────────────────────── */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
 
 table th {
     text-align: left;
@@ -316,18 +278,10 @@ table th {
     color: var(--color-text-head);
 }
 
-table td {
-    padding: 14px;
-    border-bottom: 1px solid var(--color-border);
-    font-size: 14px;
-}
+table td { padding: 14px; border-bottom: 1px solid var(--color-border); font-size: 14px; }
 
-td.acoes {
-    text-align: center;
-    white-space: nowrap;
-}
+td.acoes { text-align: center; white-space: nowrap; }
 
-/* tabela estilo planilha com scroll */
 .tabela-planilha {
     max-width: 100%;
     overflow: auto;
@@ -336,21 +290,10 @@ td.acoes {
     max-height: 340px;
 }
 
-.tabela-container {
-    max-height: 320px;
-    overflow-y: auto;
-    overflow-x: auto;
-    border: 1px solid #ccc;
-}
+.tabela-container { max-height: 320px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
 
-.tabela-excel {
-    width: max-content;
-    min-width: 100%;
-    border-collapse: collapse;
-}
-
-.tabela-excel th,
-.tabela-excel td { white-space: nowrap; }
+.tabela-excel { width: max-content; min-width: 100%; border-collapse: collapse; }
+.tabela-excel th, .tabela-excel td { white-space: nowrap; }
 
 .tabela-excel thead th {
     background: var(--color-primary);
@@ -360,31 +303,26 @@ td.acoes {
     text-transform: uppercase;
     border-bottom: 2px solid var(--color-primary-dark);
     padding: 10px;
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    position: sticky; top: 0; z-index: 2;
 }
 
-.tabela-excel thead th.acoes {
-    position: sticky;
-    right: 0;
-    z-index: 3;
-    background: var(--color-primary);
-}
+.tabela-excel thead th.acoes { position: sticky; right: 0; z-index: 3; background: var(--color-primary); }
 
 .tabela-excel td.acoes {
     background: var(--color-white);
-    position: sticky;
-    right: 0;
-    z-index: 1;
+    position: sticky; right: 0; z-index: 1;
     box-shadow: -2px 0 5px rgba(0,0,0,.15);
 }
 
 .tabela-excel tbody tr:hover td { background: var(--color-primary-light); }
 
 /* ── 10. STATUS ──────────────────────────────────────────────── */
-.status-ativo   { color: var(--color-success); font-weight: bold; }
-.status-inativo { color: var(--color-danger);  font-weight: bold; }
+.status-ativo      { color: var(--color-success); font-weight: 600; }
+.status-inativo    { color: var(--color-danger);  font-weight: 600; }
+.status-trancado   { color: #7a4f00;              font-weight: 600; }
+.status-cancelado  { color: var(--color-danger);  font-weight: 600; }
+.status-finalizado { color: var(--color-text-muted); font-weight: 600; }
+.status-ativa      { color: var(--color-success); font-weight: 600; }
 
 /* ── 11. TOTAIS E ALERTAS ────────────────────────────────────── */
 .totais {
@@ -395,12 +333,7 @@ td.acoes {
     font-weight: bold;
 }
 
-.alerta {
-    padding: 10px 14px;
-    margin: 10px 0 15px;
-    border-radius: var(--radius-md);
-    font-size: 14px;
-}
+.alerta { padding: 10px 14px; margin: 10px 0 15px; border-radius: var(--radius-md); font-size: 14px; }
 .alerta.erro    { background: var(--color-danger-light);  color: #a30000; border: 1px solid #f5bcbc; }
 .alerta.sucesso { background: var(--color-success-light); color: #0a7a2f; border: 1px solid #b7e3c4; }
 
@@ -410,20 +343,16 @@ td.acoes {
 .tooltip::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: 110%;
-    left: 50%;
+    bottom: 110%; left: 50%;
     transform: translateX(-50%);
-    background: #333;
-    color: var(--color-white);
+    background: #333; color: var(--color-white);
     padding: 4px 8px;
     border-radius: var(--radius-sm);
     font-size: 12px;
     white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0; pointer-events: none;
     transition: opacity .15s ease;
 }
-
 .tooltip:hover::after { opacity: 1; }
 
 /* ── 13. GRIDS ───────────────────────────────────────────────── */
@@ -440,12 +369,7 @@ td.acoes {
 .movimentacao-container .grid-4 { justify-content: flex-start; }
 
 /* ── 14. DASHBOARD ───────────────────────────────────────────── */
-.dashboard-card {
-    min-height: 110px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
+.dashboard-card { min-height: 110px; display: flex; flex-direction: column; justify-content: center; }
 .dashboard-card h4 { font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px; }
 .dashboard-card p  { font-size: 26px; font-weight: bold; margin: 0; }
 
@@ -455,12 +379,7 @@ td.acoes {
 .executivo .grid-4 { gap: 8px; }
 
 /* ── 15. LINHA FINANCEIRO ────────────────────────────────────── */
-.linha-financeiro {
-    display: flex;
-    gap: 16px;
-    align-items: flex-end;
-    flex-wrap: wrap;           /* wrap em telas menores */
-}
+.linha-financeiro { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
 .linha-financeiro .campo   { display: flex; flex-direction: column; }
 .linha-financeiro .aluno   { flex: 0 0 260px; }
 .linha-financeiro .valor   { flex: 0 0 140px; }
@@ -484,33 +403,73 @@ td.acoes {
     height: 36px;
     box-sizing: border-box;
 }
-
 .material-card input { display: none; }
-
 .material-card input:checked + span { color: #1e90ff; font-weight: 600; }
-
-.material-card:has(input:checked) {
-    border-color: #1e90ff;
-    background: #f0f7ff;
-}
+.material-card:has(input:checked) { border-color: #1e90ff; background: #f0f7ff; }
 
 /* ── 17. HOME FULLSCREEN ─────────────────────────────────────── */
 .home-bg {
     position: fixed;
-    top: var(--nav-height);
-    left: 0;
+    top: var(--nav-height); left: 0;
     width: 100%;
     height: calc(100vh - var(--nav-height));
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: flex; justify-content: center; align-items: center;
     z-index: 1;
 }
 
 /* ── 18. EMPTY STATE ─────────────────────────────────────────── */
-.empty-state {
-    text-align: center;
-    color: #888;
-    padding: 32px 0;
-    font-size: 14px;
+.empty-state { text-align: center; color: #888; padding: 32px 0; font-size: 14px; }
+
+/* ── 19. TOOLBAR DE ALUNOS ───────────────────────────────────── */
+.toolbar-alunos {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
 }
+.toolbar-alunos h4 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; color: var(--color-text-head); }
+.toolbar-alunos__filtros { display: flex; gap: 10px; flex-wrap: wrap; }
+.toolbar-alunos__filtros input  { height: 36px; width: 220px; margin-bottom: 0; }
+.toolbar-alunos__filtros select { height: 36px; width: 160px; margin-bottom: 0; }
+
+/* ── 20. RODAPÉ DE CONTAGEM ──────────────────────────────────── */
+.rodape-contagem {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.contagem-ativo        { color: var(--color-success); }
+.contagem-trancado     { color: #7a4f00; }
+.contagem-cancelado    { color: var(--color-danger); }
+.contagem-finalizado   { color: var(--color-text-muted); }
+.contagem-inadimplente { color: var(--color-danger); }
+
+/* ── 21. MODAL DE CONFIRMAÇÃO ────────────────────────────────── */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.aberto { display: flex; }
+
+.modal {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    text-align: center;
+}
+.modal h3 { margin-bottom: 8px; }
+.modal p  { color: var(--color-text-muted); margin-bottom: 24px; font-size: 14px; }
+.modal .acoes-form { justify-content: center; }

@@ -6,7 +6,7 @@
     <title>{% block title %}Sistema Escolar{% endblock %} — CQP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="executivo">
+<body>
 
 <header>
     <h1>Sistema Escolar</h1>
@@ -29,7 +29,7 @@
             <a href="/movimentacao" class="{{ 'active' if request.path == '/movimentacao' }}">Matrículas</a>
         {% endif %}
 
-        {# ── USUÁRIO, INSTRUTOR E ADMIN (sem duplicar) ── #}
+        {# ── USUÁRIO, INSTRUTOR E ADMIN ── #}
         {% if session.perfil in ["Administrador", "Usuario", "Instrutor"] %}
             <a href="/materias"   class="{{ 'active' if request.path == '/materias'   }}">Matérias</a>
             <a href="/notas"      class="{{ 'active' if request.path == '/notas'      }}">Notas</a>
@@ -56,6 +56,8 @@
 
     {% block content %}{% endblock %}
 </main>
+
+{% block scripts %}{% endblock %}
 
 </body>
 </html>
