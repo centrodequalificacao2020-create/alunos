@@ -1,54 +1,55 @@
 {% extends "base.html" %}
-{% block content %}
+{% block title %}Cadastro de Matérias{% endblock %}
 
+{% block content %}
 <div class="card">
     <div class="card-header">
         <h2>📘 Cadastro de Matérias</h2>
     </div>
-
     <form method="POST">
-
         <div class="grid-2">
             <div class="campo">
-                <label>Curso</label>
-                <select name="curso_id" required>
+                <label for="curso_id">Curso</label>
+                <select id="curso_id" name="curso_id" required>
                     <option value="">Selecione o curso</option>
                     {% for c in cursos %}
-                        <option value="{{ c[0] }}">{{ c[1] }}</option>
+                    <option value="{{ c[0] }}">{{ c[1] }}</option>
                     {% endfor %}
                 </select>
             </div>
-
             <div class="campo">
-                <label>Nome da matéria</label>
-                <input type="text" name="nome" required>
+                <label for="nome">Nome da matéria</label>
+                <input type="text" id="nome" name="nome" required>
             </div>
         </div>
-
-        <button type="submit" class="btn btn-primary">Salvar</button>
-
+        <div style="margin-top:16px">
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
     </form>
 </div>
 
-<hr>
+<h3 class="section-title" style="margin-top:28px">📋 Matérias cadastradas</h3>
 
-<h4>📋 Matérias cadastradas</h4>
-
-<table class="tabela-excel">
-    <thead>
-        <tr>
-            <th>Curso</th>
-            <th>Matéria</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for m in materias %}
-        <tr>
-            <td>{{ m[2] }}</td>
-            <td>{{ m[1] }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
+{% if materias %}
+<div class="tabela-planilha">
+    <table class="tabela-excel">
+        <thead>
+            <tr>
+                <th>Curso</th>
+                <th>Matéria</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in materias %}
+            <tr>
+                <td>{{ m[2] }}</td>
+                <td>{{ m[1] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="empty-state">Nenhuma matéria cadastrada ainda.</p>
+{% endif %}
 {% endblock %}

@@ -1,30 +1,29 @@
 {% extends "base.html" %}
-{% block conteudo %}
+{% block title %}Gerar Boletim — {{ aluno_nome }}{% endblock %}
 
+{% block content %}
 <div class="card">
     <h2>📄 Gerar Boletim</h2>
-
     <p><strong>Aluno:</strong> {{ aluno_nome }}</p>
 
+    {% if matriculas %}
     <form method="GET" action="/boletim">
         <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
-
-        <label>Curso / Matrícula</label>
-        <select name="matricula_id" required>
-            <option value="">Selecione o curso</option>
-            {% for m in matriculas %}
-                <option value="{{ m[0] }}">
-                    {{ m[1] }} (Matrícula {{ m[0] }})
-                </option>
-            {% endfor %}
-        </select>
-
-        <br><br>
-
-        <button type="submit" class="btn btn-primary">
-            Gerar Boletim
-        </button>
+        <div class="campo">
+            <label for="matricula_id">Curso / Matrícula</label>
+            <select id="matricula_id" name="matricula_id" required>
+                <option value="">Selecione o curso</option>
+                {% for m in matriculas %}
+                <option value="{{ m[0] }}">{{ m[1] }} (Matrícula {{ m[0] }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="margin-top:16px">
+            <button type="submit" class="btn btn-primary">Gerar Boletim</button>
+        </div>
     </form>
+    {% else %}
+    <p class="empty-state">Este aluno não possui matrículas ativas.</p>
+    {% endif %}
 </div>
-
 {% endblock %}

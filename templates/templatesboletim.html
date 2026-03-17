@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% block conteudo %}
+{% block title %}Boletim — {{ aluno_nome }}{% endblock %}
 
+{% block content %}
 <div class="card">
     <h2>📄 Boletim Escolar</h2>
 
@@ -10,6 +11,7 @@
 
     <hr>
 
+    {% if notas %}
     <table class="tabela-excel">
         <thead>
             <tr>
@@ -26,23 +28,26 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <p class="empty-state">Nenhuma nota lançada para este boletim.</p>
+    {% endif %}
 
     <hr>
 
     <form method="POST">
-        <label><strong>Situação Final:</strong></label>
-        <select name="situacao" required>
-            <option value="">Selecione</option>
-            <option value="Aprovado" {% if situacao == "Aprovado" %}selected{% endif %}>Aprovado</option>
-            <option value="Reprovado" {% if situacao == "Reprovado" %}selected{% endif %}>Reprovado</option>
-            <option value="Não cursou" {% if situacao == "Não cursou" %}selected{% endif %}>Não cursou</option>
-        </select>
-
-        <br><br>
-
-        <button type="submit" class="btn btn-primary">Salvar Situação</button>
-        <a href="/notas_visualizar/{{ aluno_id }}" class="btn">Voltar</a>
+        <div class="campo">
+            <label for="situacao"><strong>Situação Final:</strong></label>
+            <select id="situacao" name="situacao" required>
+                <option value="">Selecione</option>
+                <option value="Aprovado"   {% if situacao == 'Aprovado' %}selected{% endif %}>Aprovado</option>
+                <option value="Reprovado"  {% if situacao == 'Reprovado' %}selected{% endif %}>Reprovado</option>
+                <option value="Não cursou" {% if situacao == 'Não cursou' %}selected{% endif %}>Não cursou</option>
+            </select>
+        </div>
+        <div class="acoes" style="margin-top:16px">
+            <button type="submit" class="btn btn-primary">Salvar Situação</button>
+            <a href="/notas_visualizar/{{ aluno_id }}" class="btn btn-azul">← Voltar</a>
+        </div>
     </form>
 </div>
-
 {% endblock %}

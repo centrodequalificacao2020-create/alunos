@@ -1,22 +1,36 @@
 {% extends "base.html" %}
+{% block title %}Relatório Comercial{% endblock %}
+
+{% block styles %}
+<style>
+.rel-topo {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.rel-topo .campo { display: flex; flex-direction: column; gap: 4px; }
+.rel-topo input,
+.rel-topo select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+.box { background: #f8f9fa; padding: 10px; border-radius: 8px; text-align: center; }
+.box span { display: block; font-size: 0.82rem; color: #666; margin-bottom: 4px; }
+.destaque { background: #2c3e50; color: #fff; }
+.destaque span { color: #ccc; }
+</style>
+{% endblock %}
+
 {% block content %}
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<div class="card" style="margin-bottom:20px;">
+<div class="card">
     <h2>📊 Relatório Comercial</h2>
 </div>
 
-<!-- TOPO -->
-<div class="card" style="display:flex; gap:10px; flex-wrap:wrap;">
-
-    <div>
-        <label>Mês</label>
+<div class="card rel-topo">
+    <div class="campo">
+        <label for="mes_ref">Mês</label>
         <input type="month" id="mes_ref">
     </div>
-
-    <div>
-        <label>Trimestre</label>
+    <div class="campo">
+        <label for="trimestre">Trimestre</label>
         <select id="trimestre">
             <option value="">--</option>
             <option value="1">1º</option>
@@ -25,34 +39,36 @@
             <option value="4">4º</option>
         </select>
     </div>
-
-    <!-- META INTELIGENTE -->
-    <div>
-        <label>Meta %</label>
+    <div class="campo">
+        <label for="meta_percentual">Meta %</label>
         <select id="meta_percentual">
             <option value="0.30">30%</option>
             <option value="0.35" selected>35%</option>
             <option value="0.40">40%</option>
         </select>
     </div>
-
-    <button onclick="carregarMes()" class="btn-padrao">📂 Carregar</button>
-    <button onclick="carregarTrimestre()" class="btn-padrao" style="background:#9b59b6;">📊 Trimestre</button>
-    <button onclick="salvarBanco()" class="btn-padrao" style="background:#2ecc71;">💾 Salvar</button>
-
+    <button onclick="carregarMes()" class="btn btn-azul">📂 Carregar</button>
+    <button onclick="carregarTrimestre()" class="btn btn-purple">📊 Trimestre</button>
+    <button onclick="salvarBanco()" class="btn btn-success">💾 Salvar</button>
 </div>
 
-<!-- LEADS -->
-<div class="card" style="margin-top:20px;">
+<div class="card" style="margin-top:20px">
     <h3>Leads</h3>
-
     <div class="grid-3">
-        <input type="number" id="meta" placeholder="Meta Leads">
-        <input type="number" id="realizado" placeholder="Leads Realizados">
-        <input type="number" id="matriculas" placeholder="Matrículas">
+        <div class="campo">
+            <label for="meta">Meta Leads</label>
+            <input type="number" id="meta" placeholder="Meta Leads">
+        </div>
+        <div class="campo">
+            <label for="realizado">Leads Realizados</label>
+            <input type="number" id="realizado" placeholder="Leads Realizados">
+        </div>
+        <div class="campo">
+            <label for="matriculas">Matrículas</label>
+            <input type="number" id="matriculas" placeholder="Matrículas">
+        </div>
     </div>
-
-    <div class="grid-4">
+    <div class="grid-4" style="margin-top:12px">
         <div class="box"><span>% Captação</span><strong id="percentual"></strong></div>
         <div class="box"><span>Conversão</span><strong id="conversao"></strong></div>
         <div class="box"><span>Status</span><strong id="status_leads"></strong></div>
@@ -60,183 +76,138 @@
     </div>
 </div>
 
-<!-- VENDAS -->
-<div class="card" style="margin-top:20px;">
+<div class="card" style="margin-top:20px">
     <h3>Vendas</h3>
-
     <div class="grid-3">
         <div class="box">
             <span>Meta de Matrículas</span>
             <strong id="meta_alunos"></strong>
         </div>
-
-        <input type="number" id="matriculas_venda" placeholder="Matrículas Realizadas">
-
+        <div class="campo">
+            <label for="matriculas_venda">Matrículas Realizadas</label>
+            <input type="number" id="matriculas_venda" placeholder="Matrículas Realizadas">
+        </div>
         <div class="box destaque">
             <span>% Atingido</span>
             <strong id="percentual_venda"></strong>
         </div>
     </div>
-
-    <div class="box" style="margin-top:15px;">
+    <div class="box" style="margin-top:15px">
         <strong id="faltando"></strong>
     </div>
 </div>
 
-<!-- GRÁFICO -->
-<div class="card" style="margin-top:20px;">
+<div class="card" style="margin-top:20px">
     <h3>📊 Desempenho</h3>
     <canvas id="grafico" height="100"></canvas>
 </div>
+{% endblock %}
 
-<style>
-.grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
-.grid-4 { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
-input, select { padding:10px; border:1px solid #ddd; border-radius:8px; }
-.box { background:#f8f9fa; padding:10px; border-radius:8px; text-align:center; }
-.destaque { background:#2c3e50; color:white; }
-.btn-padrao { padding:10px; border:none; border-radius:8px; background:#3498db; color:white; cursor:pointer; }
-</style>
-
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+const metaEl             = document.getElementById('meta');
+const realizadoEl        = document.getElementById('realizado');
+const matriculasEl       = document.getElementById('matriculas');
+const matriculasVendaEl  = document.getElementById('matriculas_venda');
+const percentualEl       = document.getElementById('percentual');
+const conversaoEl        = document.getElementById('conversao');
+const statusEl           = document.getElementById('status_leads');
+const comparacaoEl       = document.getElementById('comparacao');
+const metaAlunosEl       = document.getElementById('meta_alunos');
+const percentualVendaEl  = document.getElementById('percentual_venda');
+const faltandoEl         = document.getElementById('faltando');
 
-function getMesAtual() {
-    return document.getElementById('mes_ref').value;
-}
+function getMesAtual(){ return document.getElementById('mes_ref').value; }
 
-/* ===== CALCULAR ===== */
-function calcular() {
+function calcular(){
+    const meta       = parseFloat(metaEl.value) || 0;
+    const realizado  = parseFloat(realizadoEl.value) || 0;
+    const matriculas = parseFloat(matriculasEl.value) || 0;
+    const perc       = document.getElementById('meta_percentual').value;
 
-    let meta = parseFloat(metaEl.value)||0;
-    let realizado = parseFloat(realizadoEl.value)||0;
-    let matriculas = parseFloat(matriculasEl.value)||0;
+    percentualEl.innerText = meta > 0 ? ((realizado / meta) * 100).toFixed(0) + '%' : '0%';
+    conversaoEl.innerText  = realizado > 0 ? ((matriculas / realizado) * 100).toFixed(0) + '%' : '0%';
 
-    let perc = document.getElementById("meta_percentual").value;
+    if (realizado >= meta)           { statusEl.innerText = 'Meta Batida'; statusEl.style.color = '#2ecc71'; }
+    else if (realizado >= meta * 0.7){ statusEl.innerText = 'Atenção';     statusEl.style.color = '#f39c12'; }
+    else                             { statusEl.innerText = 'Crítico';     statusEl.style.color = '#e74c3c'; }
 
-    percentualEl.innerText = meta>0?((realizado/meta)*100).toFixed(0)+"%":"0%";
-    let conv = realizado>0?((matriculas/realizado)*100):0;
-    conversaoEl.innerText = conv.toFixed(0)+"%";
+    const metaAuto = Math.round(realizado * perc);
+    metaAlunosEl.innerText = metaAuto;
 
-    if(realizado>=meta){statusEl.innerText="Meta Batida";statusEl.style.color="#2ecc71";}
-    else if(realizado>=meta*0.7){statusEl.innerText="Atenção";statusEl.style.color="#f39c12";}
-    else{statusEl.innerText="Crítico";statusEl.style.color="#e74c3c";}
+    const matA = parseFloat(matriculasVendaEl.value) || 0;
+    percentualVendaEl.innerText = metaAuto > 0 ? ((matA / metaAuto) * 100).toFixed(0) + '%' : '0%';
 
-    // META INTELIGENTE
-    let metaAuto=Math.round(realizado * perc);
-    metaAlunosEl.innerText=metaAuto;
-
-    let matA=parseFloat(matriculasVendaEl.value)||0;
-
-    percentualVendaEl.innerText=metaAuto>0?((matA/metaAuto)*100).toFixed(0)+"%":"0%";
-
-    let diff=matA-metaAuto;
-
-    if(diff>0){faltandoEl.innerText="+"+diff+" Acima";faltandoEl.style.color="#2ecc71";}
-    else if(diff<0){faltandoEl.innerText=diff+" Abaixo";faltandoEl.style.color="#e74c3c";}
-    else{faltandoEl.innerText="Meta OK";}
+    const diff = matA - metaAuto;
+    if (diff > 0)     { faltandoEl.innerText = '+' + diff + ' Acima'; faltandoEl.style.color = '#2ecc71'; }
+    else if (diff < 0){ faltandoEl.innerText = diff + ' Abaixo';      faltandoEl.style.color = '#e74c3c'; }
+    else              { faltandoEl.innerText = 'Meta OK'; faltandoEl.style.color = ''; }
 
     atualizarGrafico(meta, realizado, matriculas);
 }
 
-/* ===== GRÁFICO ===== */
 let grafico;
-
-function atualizarGrafico(meta, realizado, matriculas) {
-
+function atualizarGrafico(meta, realizado, matriculas){
     const ctx = document.getElementById('grafico');
-
     if (grafico) grafico.destroy();
-
     grafico = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: ['Meta Leads', 'Leads', 'Matrículas'],
-            datasets: [{
-                data: [meta, realizado, matriculas]
-            }]
+            datasets: [{ data: [meta, realizado, matriculas], backgroundColor: ['#95a5a6','#3498db','#2ecc71'], borderRadius: 6 }]
         },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } }
-        }
+        options: { responsive: true, plugins: { legend: { display: false } } }
     });
 }
 
-/* ===== SALVAR ===== */
 function salvarBanco(){
-    fetch("/salvar_relatorio",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            mes:getMesAtual(),
-            meta:metaEl.value,
-            realizado:realizadoEl.value,
-            matriculas:matriculasEl.value,
-            matriculas_venda:matriculasVendaEl.value
+    fetch('/salvar_relatorio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            mes: getMesAtual(),
+            meta: metaEl.value,
+            realizado: realizadoEl.value,
+            matriculas: matriculasEl.value,
+            matriculas_venda: matriculasVendaEl.value
         })
-    }).then(()=>alert("Salvo!"));
+    }).then(() => alert('Salvo!'));
 }
 
-/* ===== CARREGAR MÊS ===== */
 function carregarMes(){
-    fetch("/carregar_relatorio/"+getMesAtual())
-    .then(r=>r.json())
-    .then(d=>{
-        if(d.meta!=undefined){
-            metaEl.value=d.meta;
-            realizadoEl.value=d.realizado;
-            matriculasEl.value=d.matriculas;
-            matriculasVendaEl.value=d.matriculas_venda;
+    fetch('/carregar_relatorio/' + getMesAtual())
+    .then(r => r.json())
+    .then(d => {
+        if (d.meta !== undefined){
+            metaEl.value            = d.meta;
+            realizadoEl.value       = d.realizado;
+            matriculasEl.value      = d.matriculas;
+            matriculasVendaEl.value = d.matriculas_venda;
         }
         calcular();
     });
 }
 
-/* ===== TRIMESTRE ===== */
 function carregarTrimestre(){
-
-    let tri=document.getElementById("trimestre").value;
-    let ano=getMesAtual().split("-")[0];
-
-    if(!tri){alert("Selecione trimestre");return;}
-
+    const tri = document.getElementById('trimestre').value;
+    const ano = getMesAtual().split('-')[0];
+    if (!tri){ alert('Selecione trimestre'); return; }
     fetch(`/relatorio_trimestre/${ano}/${tri}`)
-    .then(r=>r.json())
-    .then(d=>{
-        metaEl.value=d.meta||0;
-        realizadoEl.value=d.realizado||0;
-        matriculasEl.value=d.matriculas||0;
-        matriculasVendaEl.value=d.matriculas_venda||0;
+    .then(r => r.json())
+    .then(d => {
+        metaEl.value            = d.meta || 0;
+        realizadoEl.value       = d.realizado || 0;
+        matriculasEl.value      = d.matriculas || 0;
+        matriculasVendaEl.value = d.matriculas_venda || 0;
         calcular();
     });
 }
 
-/* ===== ELEMENTOS ===== */
-const metaEl=document.getElementById('meta');
-const realizadoEl=document.getElementById('realizado');
-const matriculasEl=document.getElementById('matriculas');
-const matriculasVendaEl=document.getElementById('matriculas_venda');
-
-const percentualEl=document.getElementById('percentual');
-const conversaoEl=document.getElementById('conversao');
-const statusEl=document.getElementById('status_leads');
-const comparacaoEl=document.getElementById('comparacao');
-
-const metaAlunosEl=document.getElementById('meta_alunos');
-const percentualVendaEl=document.getElementById('percentual_venda');
-const faltandoEl=document.getElementById('faltando');
-
-/* ===== START ===== */
-window.onload=function(){
-    document.getElementById('mes_ref').value=new Date().toISOString().slice(0,7);
-
-    document.querySelectorAll("input, select").forEach(i=>{
-        i.addEventListener("input",calcular);
-    });
-
+window.onload = function(){
+    document.getElementById('mes_ref').value = new Date().toISOString().slice(0, 7);
+    document.querySelectorAll('input, select').forEach(i => i.addEventListener('input', calcular));
     carregarMes();
-}
-
+};
 </script>
-
 {% endblock %}

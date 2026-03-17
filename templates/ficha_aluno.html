@@ -2,7 +2,6 @@
 {% block title %}Ficha — {{ aluno.nome }}{% endblock %}
 
 {% block content %}
-
 <div class="card">
     <div class="card-header--between">
         <div>
@@ -37,9 +36,9 @@
     </div>
 </div>
 
-{% if matriculas %}
-<div class="card">
+<div class="card" style="margin-top:20px">
     <h3>📋 Matrículas</h3>
+    {% if matriculas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
@@ -60,11 +59,8 @@
             </tbody>
         </table>
     </div>
-</div>
-{% else %}
-<div class="card">
+    {% else %}
     <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
+    {% endif %}
 </div>
-{% endif %}
-
 {% endblock %}

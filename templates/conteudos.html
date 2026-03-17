@@ -1,180 +1,124 @@
 {% extends "base.html" %}
+{% block title %}Conteúdos das Aulas{% endblock %}
+
+{% block styles %}
+<style>
+.conteudos-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 24px; }
+.conteudo-materia { font-weight: bold; margin-top: 10px; margin-bottom: 4px; color: #555; }
+.conteudo-item { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
+.conteudo-item:last-child { border-bottom: none; }
+.curso-body { display: none; padding: 10px; }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="card">
+    <div class="card-header--between">
+        <h2>Conteúdos das Aulas</h2>
+    </div>
 
-<h2>Conteúdos das Aulas</h2>
-
-<form method="POST" enctype="multipart/form-data">
-
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
-
-<div>
-<label>Título</label>
-<input type="text" name="titulo" required style="width:100%">
+    <form method="POST" enctype="multipart/form-data">
+        <div class="grid-3">
+            <div class="campo">
+                <label for="titulo">Título</label>
+                <input type="text" id="titulo" name="titulo" required>
+            </div>
+            <div class="campo">
+                <label for="curso_id">Curso</label>
+                <select id="curso_id" name="curso_id">
+                    <option value="">Selecione</option>
+                    {% for c in cursos %}
+                    <option value="{{ c.id }}">{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="campo">
+                <label for="materia_id">Matéria</label>
+                <select id="materia_id" name="materia_id">
+                    <option value="">Selecione o curso primeiro</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="modulo">Módulo</label>
+                <input type="text" id="modulo" name="modulo" placeholder="Ex: Módulo 1">
+            </div>
+            <div class="campo">
+                <label for="arquivo">Arquivo PDF</label>
+                <input type="file" id="arquivo" name="arquivo">
+            </div>
+            <div class="campo">
+                <label for="video">Link do Vídeo</label>
+                <input type="text" id="video" name="video">
+            </div>
+        </div>
+        <div style="margin-top:16px">
+            <button type="submit" class="btn btn-primary">Enviar Conteúdo</button>
+        </div>
+    </form>
 </div>
 
-<div>
-<label>Curso</label>
-<select id="curso" name="curso_id" style="width:100%">
-<option value="">Selecione</option>
-{% for c in cursos %}
-<option value="{{ c.id }}">{{ c.nome }}</option>
-{% endfor %}
-</select>
-</div>
+<h3 class="section-title" style="margin-top:32px">📚 Conteúdos enviados</h3>
 
-<div>
-<label>Matéria</label>
-<select name="materia_id" id="materia" style="width:100%">
-<option value="">Selecione o curso primeiro</option>
-</select>
-</div>
-
-<div>
-<label>Módulo</label>
-<input type="text" name="modulo" placeholder="Ex: Módulo 1" style="width:100%">
-</div>
-
-<div>
-<label>Arquivo PDF</label>
-<input type="file" name="arquivo" style="width:100%">
-</div>
-
-<div>
-<label>Link do Vídeo</label>
-<input type="text" name="video" style="width:100%">
-</div>
-
-</div>
-
-<br>
-
-<button type="submit" style="padding:10px 25px;font-size:16px">
-Enviar Conteúdo
-</button>
-
-</form>
-
-<br><br>
-
-<h3>📚 Conteúdos enviados</h3>
-
-{% set curso_atual = "" %}
-{% set materia_atual = "" %}
-
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
-
+{% if conteudos %}
+<div class="conteudos-lista">
+{% set ns_curso = namespace(atual="") %}
+{% set ns_mat   = namespace(atual="") %}
 {% for c in conteudos %}
 
-{% if curso_atual != c.curso_id %}
-
-{% if not loop.first %} </ul> </div>
-
-</div>
-{% endif %}
-
-{% set curso_atual = c.curso_id %}
-{% set materia_atual = "" %}
-
+{% if ns_curso.atual != c.curso_id %}
+{% if not loop.first %}</div></div>{% endif %}
+{% set ns_curso.atual = c.curso_id %}
+{% set ns_mat.atual   = "" %}
 <div class="card">
-
-<div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-
-<div style="cursor:pointer" onclick="toggleCurso('{{ c.curso_id }}')">
-<strong>📘 {{ c.curso }}</strong>
-</div>
-
-<a href="/curso/excluir/{{ c.curso_id }}"
-onclick="return confirm('Excluir curso?')">
-🗑️ </a>
-
-</div>
-
-<div id="curso_{{ c.curso_id }}" style="display:none;padding:10px">
-
+    <div class="card-header--between">
+        <div style="cursor:pointer" onclick="toggleCurso('{{ c.curso_id }}')">
+            <strong>📘 {{ c.curso }}</strong>
+        </div>
+        <a href="/curso/excluir/{{ c.curso_id }}" onclick="return confirm('Excluir curso e todos os conteúdos?')">🗑️</a>
+    </div>
+    <div class="curso-body" id="curso_{{ c.curso_id }}">
 {% endif %}
 
-{% if materia_atual != c.materia %}
-
-{% if materia_atual != "" %}
-
-</ul>
+{% if ns_mat.atual != c.materia %}
+{% if ns_mat.atual != "" %}</ul>{% endif %}
+<p class="conteudo-materia">📂 {{ c.materia }}</p>
+<ul style="padding-left:0;list-style:none">
+{% set ns_mat.atual = c.materia %}
 {% endif %}
 
-<div style="font-weight:bold;margin-top:10px">
-📂 {{ c.materia }}
-</div>
-
-<ul style="padding-left:15px">
-
-{% set materia_atual = c.materia %}
-
-{% endif %}
-
-<li style="display:flex;gap:10px;align-items:center">
-
-{{ c.titulo }}
-
-{% if c.arquivo %} <a href="/uploads/{{ c.arquivo }}" target="_blank">📄 PDF</a>
-{% endif %}
-
-{% if c.video %} <a href="{{ c.video }}" target="_blank">🎬 Vídeo</a>
-{% endif %}
-
-<a href="/conteudos/excluir/{{ c.id }}" onclick="return confirm('Excluir conteúdo?')">
-🗑️
-</a>
-
+<li class="conteudo-item">
+    <span>{{ c.titulo }}</span>
+    {% if c.arquivo %}<a href="/uploads/{{ c.arquivo }}" target="_blank">📄 PDF</a>{% endif %}
+    {% if c.video %}<a href="{{ c.video }}" target="_blank">🎬 Vídeo</a>{% endif %}
+    <a href="/conteudos/excluir/{{ c.id }}" onclick="return confirm('Excluir conteúdo?')">🗑️</a>
 </li>
 
-{% if loop.last %} </ul> </div>
-
-</div>
-{% endif %}
-
+{% if loop.last %}</ul></div></div>{% endif %}
 {% endfor %}
-
 </div>
+{% else %}
+<p class="empty-state">Nenhum conteúdo cadastrado ainda.</p>
+{% endif %}
+{% endblock %}
 
+{% block scripts %}
 <script>
-
 function toggleCurso(id){
-
-let el = document.getElementById("curso_"+id)
-
-if(el.style.display === "none"){
-    el.style.display = "block"
-}else{
-    el.style.display = "none"
+    const el = document.getElementById('curso_' + id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
-}
-
-let materias = {{ materias | tojson }}
-
-document.getElementById("curso").addEventListener("change", function(){
-
-let curso = parseInt(this.value)
-let selectMateria = document.getElementById("materia")
-
-selectMateria.innerHTML = '<option value="">Selecione</option>'
-
-materias.forEach(function(m){
-
-if(parseInt(m.curso_id) === curso){
-
-let opt = document.createElement("option")
-opt.value = m.id
-opt.textContent = m.nome
-
-selectMateria.appendChild(opt)
-
-}
-
-})
-
-})
-
+const materias = {{ materias | tojson }};
+document.getElementById('curso_id').addEventListener('change', function(){
+    const cursoId = parseInt(this.value);
+    const sel = document.getElementById('materia_id');
+    sel.innerHTML = '<option value="">Selecione</option>';
+    materias.filter(m => parseInt(m.curso_id) === cursoId).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.nome;
+        sel.appendChild(opt);
+    });
+});
 </script>
-
 {% endblock %}

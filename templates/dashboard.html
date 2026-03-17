@@ -1,13 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+.dashboard-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.dashboard-filtro {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.graficos-row { margin-top: 24px; }
+.grafico-card canvas { height: 220px !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="executivo">
 
 <div class="dashboard-toolbar">
     <h2>Dashboard</h2>
     <form method="get" class="dashboard-filtro">
-        <label>Período:</label>
-        <input type="month" name="mes" value="{{ mes }}">
+        <label for="mes">Período:</label>
+        <input type="month" id="mes" name="mes" value="{{ mes }}">
         <button type="submit" class="btn btn-azul">Filtrar</button>
     </form>
 </div>
@@ -122,6 +143,10 @@
     <div class="card grafico-card"><h3>Vendas</h3><canvas id="graficoVendas"></canvas></div>
 </div>
 
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 function safeValue(v){ return Number(v || 0); }
@@ -200,5 +225,4 @@ new Chart('graficoVendas',{ type:'doughnut',
     data:{ labels:['Meta','Vendas'], datasets:[{data:[metaVendas,vendasRel],backgroundColor:['#95a5a6','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
 </script>
-</div>
 {% endblock %}

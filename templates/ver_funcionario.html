@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Ver Funcionário{% endblock %}
-{% block content %}
+{% block title %}{{ funcionario.nome }} — Funcionário{% endblock %}
 
+{% block content %}
 <div class="card">
     <div class="card-header card-header--between">
         <div>
@@ -9,8 +9,8 @@
             <p class="card-subtitle">{{ funcionario.cargo or 'Sem cargo' }}</p>
         </div>
         <div class="acoes">
-            <a href="/editar_funcionario/{{ funcionario.id }}" class="btn btn-editar">Editar</a>
-            <a href="/funcionario" class="btn btn-azul">Voltar</a>
+            <a href="/editar_funcionario/{{ funcionario.id }}" class="btn btn-editar">✏️ Editar</a>
+            <a href="/funcionario" class="btn btn-azul">← Voltar</a>
         </div>
     </div>
 
