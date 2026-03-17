@@ -7,11 +7,11 @@
         <span>📅</span>
         <h2>Histórico de Frequência</h2>
     </div>
-    <form method="GET" class="form-pequeno">
+    <form method="GET">
         <div class="grid-2">
             <div class="campo">
-                <label>Aluno</label>
-                <select name="aluno_id" onchange="this.form.submit()">
+                <label for="aluno_id">Aluno</label>
+                <select id="aluno_id" name="aluno_id" onchange="this.form.submit()">
                     <option value="">Selecione</option>
                     {% for a in alunos %}
                     <option value="{{ a.id }}" {% if aluno_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
@@ -28,7 +28,12 @@
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
-                <tr><th>Data</th><th>Matéria</th><th>Presença</th><th>Justificativa</th></tr>
+                <tr>
+                    <th>Data</th>
+                    <th>Matéria</th>
+                    <th>Presença</th>
+                    <th>Justificativa</th>
+                </tr>
             </thead>
             <tbody>
                 {% for r in historico %}
@@ -37,9 +42,9 @@
                     <td>{{ r.materia_nome }}</td>
                     <td>
                         {% if r.presente %}
-                            <span class="status-ativo">✅ Presente</span>
+                        <span class="status-ativo">✅ Presente</span>
                         {% else %}
-                            <span class="status-inativo">❌ Falta</span>
+                        <span class="status-inativo">❌ Falta</span>
                         {% endif %}
                     </td>
                     <td>{{ r.justificativa or '-' }}</td>
@@ -48,6 +53,10 @@
             </tbody>
         </table>
     </div>
+</div>
+{% else %}
+<div class="card">
+    <p class="empty-state">Selecione um aluno para ver o histórico de frequência.</p>
 </div>
 {% endif %}
 {% endblock %}

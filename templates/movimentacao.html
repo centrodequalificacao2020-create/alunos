@@ -1,200 +1,197 @@
 {% extends "base.html" %}
+{% block title %}Matrículas{% endblock %}
 {% block content %}
 
 <div class="grid-2" style="max-width:1400px; margin:0 auto;">
 
-    <!-- ================= MATRÍCULA NORMAL ================= -->
+    <!-- Matrícula normal -->
     <div class="card">
-        <h2>Confirmação de Matrícula</h2>
+        <div class="card-header">
+            <span>📚</span>
+            <h2>Confirmação de Matrícula</h2>
+        </div>
 
-        <form method="POST" action="/salvar_matricula" class="form-pequeno">
+        <form method="POST" action="/salvar_matricula">
 
-            <label>Aluno</label>
-            <select name="aluno_id" required>
-                <option value="">Selecione o aluno</option>
-                {% for a in alunos %}
-                    <option value="{{ a[0] }}" {% if aluno_id == a[0]|string %}selected{% endif %}>
-                        {{ a[1] }}
-                    </option>  
-                {% endfor %}
-            </select>
+            <div class="campo">
+                <label for="aluno_id_mat">Aluno</label>
+                <select id="aluno_id_mat" name="aluno_id" required>
+                    <option value="">Selecione o aluno</option>
+                    {% for a in alunos %}
+                    <option value="{{ a[0] }}" {% if aluno_id == a[0]|string %}selected{% endif %}>{{ a[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label>Curso</label>
-            <select name="curso_id" required>
-                <option value="">Selecione o curso</option>
-                {% for c in cursos %}
+            <div class="campo">
+                <label for="curso_id_mat">Curso</label>
+                <select id="curso_id_mat" name="curso_id" required>
+                    <option value="">Selecione o curso</option>
+                    {% for c in cursos %}
                     <option value="{{ c[0] }}">{{ c[1] }}</option>
-                {% endfor %}
-            </select>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label>Tipo do Curso</label>
-            <select name="tipo_curso" required>
-                <option value="">Selecione</option>
-                <option>Profissionalizante</option>
-                <option>Técnico</option>
-                <option>Graduação</option>
-                <option>NR</option>
-                <option>Pós-graduação</option>
-                <option>EJA</option>
-                <option>Livre</option>
-                <option>Capacitação</option>
-            </select>
+            <div class="campo">
+                <label for="tipo_curso">Tipo do Curso</label>
+                <select id="tipo_curso" name="tipo_curso" required>
+                    <option value="">Selecione</option>
+                    {% for t in ['Profissionalizante','Técnico','Graduação','NR','Pós-graduação','EJA','Livre','Capacitação'] %}
+                    <option>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <!-- MATRÍCULA -->
+            <h3 class="secao">💳 Matrícula</h3>
             <div class="grid-2">
-                <div>
-                    <label>Valor da Matrícula</label>
-                    <input type="number" step="0.01" name="valor_matricula">
+                <div class="campo">
+                    <label for="valor_matricula">Valor da Matrícula (R$)</label>
+                    <input type="number" id="valor_matricula" name="valor_matricula" step="0.01" min="0">
                 </div>
-
-                <div>
-                    <label>Data do pagamento da matrícula</label>
-                    <input type="date" name="data_matricula">
+                <div class="campo">
+                    <label for="data_matricula">Data do pagamento</label>
+                    <input type="date" id="data_matricula" name="data_matricula">
                 </div>
             </div>
 
-            <!-- MENSALIDADE -->
+            <h3 class="secao">📅 Mensalidade</h3>
             <div class="grid-2">
-                <div>
-                    <label>Valor da Mensalidade</label>
-                    <input type="number" step="0.01" name="valor_mensal">
+                <div class="campo">
+                    <label for="valor_mensal">Valor da Mensalidade (R$)</label>
+                    <input type="number" id="valor_mensal" name="valor_mensal" step="0.01" min="0">
                 </div>
-
-                <div>
-                    <label>Data da primeira mensalidade</label>
-                    <input type="date" name="data_primeira_mensalidade">
+                <div class="campo">
+                    <label for="data_primeira_mensalidade">Primeiro vencimento</label>
+                    <input type="date" id="data_primeira_mensalidade" name="data_primeira_mensalidade">
                 </div>
             </div>
 
-            <!-- PARCELAS -->
             <div class="grid-2">
-                <div>
-                    <label>Quantidade de Parcelas (Mensalidade)</label>
-                    <input type="number" name="parcelas" min="1" value="1">
+                <div class="campo">
+                    <label for="parcelas">Qtd. Parcelas Mensalidade</label>
+                    <input type="number" id="parcelas" name="parcelas" min="1" value="1">
                 </div>
-
-                <div>
-                    <label>Parcelas do Material Didático</label>
-                    <input type="number" name="parcelas_material" min="1" value="1">
+                <div class="campo">
+                    <label for="parcelas_material">Qtd. Parcelas Material</label>
+                    <input type="number" id="parcelas_material" name="parcelas_material" min="1" value="1">
                 </div>
             </div>
 
-            <!-- MATERIAL -->
+            <h3 class="secao">📚 Material Didático</h3>
             <div class="grid-2">
-                <div>
-                    <label>Valor do Material Didático</label>
-                    <input type="number" step="0.01" name="valor_material">
+                <div class="campo">
+                    <label for="valor_material">Valor do Material (R$)</label>
+                    <input type="number" id="valor_material" name="valor_material" step="0.01" min="0">
                 </div>
-
-                <div>
-                    <label>Data do primeiro material</label>
-                    <input type="date" name="data_material">
+                <div class="campo">
+                    <label for="data_material">Primeiro vencimento material</label>
+                    <input type="date" id="data_material" name="data_material">
                 </div>
             </div>
 
-            <label>Material Didático</label>
-            <div class="material-opcoes">
-                <label class="material-card">
-                    <input type="radio" name="material_didatico" value="Digital" checked>
-                    <span>📱 Digital</span>
-                </label>
-
-                <label class="material-card">
-                    <input type="radio" name="material_didatico" value="Físico">
-                    <span>📘 Físico</span>
-                </label>
+            <div class="campo">
+                <label>Formato</label>
+                <div class="material-opcoes">
+                    <label class="material-card">
+                        <input type="radio" name="material_didatico" value="Digital" checked>
+                        <span>📱 Digital</span>
+                    </label>
+                    <label class="material-card">
+                        <input type="radio" name="material_didatico" value="Físico">
+                        <span>📘 Físico</span>
+                    </label>
+                </div>
             </div>
 
-            <label>Observações</label>
-            <textarea name="observacao"
-                      class="observacao-grande"
-                      placeholder="Observações adicionais (opcional)"></textarea>
+            <div class="campo">
+                <label for="observacao_mat">Observações</label>
+                <textarea id="observacao_mat" name="observacao" class="observacao-grande" placeholder="Opcional"></textarea>
+            </div>
 
             <div class="botoes-matricula">
-                <button type="submit" class="btn btn-azul">
-                    💾 Salvar Matrícula
-                </button>
+                <button type="submit" class="btn btn-azul">💾 Salvar Matrícula</button>
             </div>
-
         </form>
     </div>
 
-    <!-- ================= PRÉ-MATRÍCULA ================= -->
+    <!-- Pré-matrícula -->
     <div class="card">
-        <h2>Confirmação de Pré-Matrícula</h2>
+        <div class="card-header">
+            <span>📄</span>
+            <h2>Confirmação de Pré-Matrícula</h2>
+        </div>
 
-        <form method="POST" action="/pre_matricula" target="_blank" class="form-pequeno">
+        <form method="POST" action="/pre_matricula" target="_blank">
 
-            <label>Aluno</label>
-            <select name="aluno_id" required>
-                <option value="">Selecione o aluno</option>
-                {% for a in alunos %}
+            <div class="campo">
+                <label for="aluno_id_pre">Aluno</label>
+                <select id="aluno_id_pre" name="aluno_id" required>
+                    <option value="">Selecione o aluno</option>
+                    {% for a in alunos %}
                     <option value="{{ a[0] }}">{{ a[1] }}</option>
-                {% endfor %}
-            </select>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label>Curso</label>
-            <select name="curso_id" required>
-                <option value="">Selecione o curso</option>
-                {% for c in cursos %}
+            <div class="campo">
+                <label for="curso_id_pre">Curso</label>
+                <select id="curso_id_pre" name="curso_id" required>
+                    <option value="">Selecione o curso</option>
+                    {% for c in cursos %}
                     <option value="{{ c[0] }}">{{ c[1] }}</option>
-                {% endfor %}
-            </select>
-
-            <div class="grid-2">
-                <div>
-                    <label>Valor da Matrícula</label>
-                    <input type="number" step="0.01" name="valor_matricula">
-                </div>
-
-                <div>
-                    <label>Valor da Mensalidade</label>
-                    <input type="number" step="0.01" name="valor_mensal">
-                </div>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="grid-2">
-                <div>
-                    <label>Quantidade de Parcelas</label>
-                    <input type="number" name="parcelas" min="1" value="1">
+                <div class="campo">
+                    <label for="vm_pre">Valor da Matrícula (R$)</label>
+                    <input type="number" id="vm_pre" name="valor_matricula" step="0.01" min="0">
                 </div>
-
-                <div>
-                    <label>Valor do Material Didático</label>
-                    <input type="number" step="0.01" name="valor_material">
+                <div class="campo">
+                    <label for="vms_pre">Valor da Mensalidade (R$)</label>
+                    <input type="number" id="vms_pre" name="valor_mensal" step="0.01" min="0">
                 </div>
             </div>
 
             <div class="grid-2">
-                <div>
-                    <label>Parcelas do Material</label>
-                    <input type="number" name="parcelas_material" min="1" value="1">
+                <div class="campo">
+                    <label for="parc_pre">Qtd. Parcelas</label>
+                    <input type="number" id="parc_pre" name="parcelas" min="1" value="1">
                 </div>
-
-                <div>
-                    <label>Data do pagamento da matrícula</label>
-                    <input type="date" name="data_matricula">
+                <div class="campo">
+                    <label for="vmat_pre">Valor do Material (R$)</label>
+                    <input type="number" id="vmat_pre" name="valor_material" step="0.01" min="0">
                 </div>
             </div>
 
-            <div class="grid-1">
-                <label>Data do primeiro pagamento da mensalidade</label>
-                <input type="date" name="data_primeira_mensalidade">
+            <div class="grid-2">
+                <div class="campo">
+                    <label for="pmat_pre">Parcelas do Material</label>
+                    <input type="number" id="pmat_pre" name="parcelas_material" min="1" value="1">
+                </div>
+                <div class="campo">
+                    <label for="dm_pre">Data pagamento matrícula</label>
+                    <input type="date" id="dm_pre" name="data_matricula">
+                </div>
             </div>
 
-            <label>Observações</label>
-            <textarea name="observacao"
-                      class="observacao-grande"></textarea>
+            <div class="campo">
+                <label for="dpm_pre">Primeiro pagamento mensalidade</label>
+                <input type="date" id="dpm_pre" name="data_primeira_mensalidade">
+            </div>
+
+            <div class="campo">
+                <label for="obs_pre">Observações</label>
+                <textarea id="obs_pre" name="observacao" class="observacao-grande"></textarea>
+            </div>
 
             <div class="botoes-matricula">
-                <button type="submit" class="btn btn-azul">
-                    📄 Gerar Pré-Matrícula
-                </button>
+                <button type="submit" class="btn btn-azul">📄 Gerar Pré-Matrícula</button>
             </div>
-
         </form>
     </div>
 
 </div>
-
 {% endblock %}

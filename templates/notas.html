@@ -9,11 +9,11 @@
     </div>
     <p class="card-subtitle">Lançamento de notas por matéria</p>
 
-    <form method="GET" class="form-pequeno">
+    <form method="GET">
         <div class="grid-2">
             <div class="campo">
-                <label>Matéria</label>
-                <select name="materia_id" onchange="this.form.submit()">
+                <label for="materia_id">Matéria</label>
+                <select id="materia_id" name="materia_id" onchange="this.form.submit()">
                     <option value="">Selecione</option>
                     {% for m in materias %}
                     <option value="{{ m.id }}" {% if materia_id == m.id %}selected{% endif %}>{{ m.nome }}</option>
@@ -45,11 +45,14 @@
                     <tr>
                         <td>{{ a.nome }}</td>
                         <td><input type="number" step="0.1" min="0" max="10"
-                            name="nota1_{{ a.id }}" value="{{ a.nota1 or '' }}" class="input-pequeno"></td>
+                            name="nota1_{{ a.id }}" value="{{ a.nota1 or '' }}"
+                            aria-label="Nota 1 {{ a.nome }}" class="input-pequeno"></td>
                         <td><input type="number" step="0.1" min="0" max="10"
-                            name="nota2_{{ a.id }}" value="{{ a.nota2 or '' }}" class="input-pequeno"></td>
+                            name="nota2_{{ a.id }}" value="{{ a.nota2 or '' }}"
+                            aria-label="Nota 2 {{ a.nome }}" class="input-pequeno"></td>
                         <td><input type="number" step="0.1" min="0" max="10"
-                            name="nota3_{{ a.id }}" value="{{ a.nota3 or '' }}" class="input-pequeno"></td>
+                            name="nota3_{{ a.id }}" value="{{ a.nota3 or '' }}"
+                            aria-label="Nota 3 {{ a.nome }}" class="input-pequeno"></td>
                         <td>{{ a.media or '-' }}</td>
                     </tr>
                     {% endfor %}
@@ -57,7 +60,7 @@
             </table>
         </div>
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">Salvar Notas</button>
+            <button type="submit" class="btn btn-azul">💾 Salvar Notas</button>
         </div>
     </form>
 </div>

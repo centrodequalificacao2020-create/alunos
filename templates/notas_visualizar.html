@@ -1,16 +1,21 @@
 {% extends "base.html" %}
+{% block title %}Visualização de Notas{% endblock %}
 {% block content %}
 
 <div class="card">
-
-
-<div class="card">
-    <div class="card-header">
-        <h2>📄 Visualização de Notas</h2>
-        <p>
-            <strong>Aluno:</strong> {{ aluno_nome }}<br>
-            <strong>Curso:</strong> {{ curso_nome }}
-        </p>
+    <div class="card-header--between">
+        <div>
+            <h2>📄 Visualização de Notas</h2>
+            <p class="card-subtitle">
+                <strong>Aluno:</strong> {{ aluno_nome }}
+                &nbsp;•&nbsp;
+                <strong>Curso:</strong> {{ curso_nome }}
+            </p>
+        </div>
+        <div class="acoes">
+            <button onclick="window.print()" class="btn btn-imprimir tooltip" data-tooltip="Imprimir">🖨️</button>
+            <a href="/notas" class="btn btn-azul">← Voltar</a>
+        </div>
     </div>
 
     {% if boletim %}
@@ -27,24 +32,14 @@
                 {% for b in boletim %}
                 <tr>
                     <td>{{ b[0] }}</td>
-
-                    <td>
-                        {{ b[1] if b[1] is not none else '-' }}
-                    </td>
-
+                    <td>{{ b[1] if b[1] is not none else '-' }}</td>
                     <td>
                         {% if b[2] == 'APROVADO' %}
-                            <span style="color:green; font-weight:bold;">
-                                Aprovado
-                            </span>
+                            <span class="status-ativo">✅ Aprovado</span>
                         {% elif b[2] == 'REPROVADO' %}
-                            <span style="color:red; font-weight:bold;">
-                                Reprovado
-                            </span>
+                            <span class="status-inativo">❌ Reprovado</span>
                         {% elif b[2] == 'NAO_CURSOU' %}
-                            <span style="color:#777;">
-                                Não cursou
-                            </span>
+                            <span class="status-finalizado">Não cursou</span>
                         {% else %}
                             -
                         {% endif %}
@@ -55,18 +50,7 @@
         </table>
     </div>
     {% else %}
-        <p>⚠️ Nenhuma nota encontrada para este curso.</p>
+    <p class="empty-state">⚠️ Nenhuma nota encontrada para este curso.</p>
     {% endif %}
-
-    <div style="margin-top:20px; display:flex; gap:10px;">
-        <button onclick="window.print()" class="btn btn-primary">
-            🖨️ Imprimir
-        </button>
-
-        <a href="/notas" class="btn">
-            ← Voltar
-        </a>
-    </div>
 </div>
-
 {% endblock %}

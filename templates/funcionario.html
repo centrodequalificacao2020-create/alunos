@@ -9,38 +9,37 @@
     </div>
     <p class="card-subtitle">Cadastre e gerencie a equipe</p>
 
-    <form method="POST" class="form-pequeno">
+    <form method="POST">
         <div class="grid-4">
             <div class="campo">
-                <label>Nome</label>
-                <input type="text" name="nome" required>
+                <label for="nome_func">Nome</label>
+                <input type="text" id="nome_func" name="nome" required placeholder="Nome completo">
             </div>
             <div class="campo">
-                <label>Cargo</label>
-                <input type="text" name="cargo">
+                <label for="cargo">Cargo</label>
+                <input type="text" id="cargo" name="cargo" placeholder="Ex: Recepcionista">
             </div>
             <div class="campo">
-                <label>Login</label>
-                <input type="text" name="login">
+                <label for="login">Login</label>
+                <input type="text" id="login" name="login" autocomplete="off">
             </div>
             <div class="campo">
-                <label>Perfil</label>
-                <select name="perfil">
-                    <option>Administrador</option>
-                    <option>Financeiro</option>
-                    <option>Usuario</option>
-                    <option>Instrutor</option>
+                <label for="perfil">Perfil</label>
+                <select id="perfil" name="perfil">
+                    {% for p in ['Administrador','Financeiro','Usuario','Instrutor'] %}
+                    <option>{{ p }}</option>
+                    {% endfor %}
                 </select>
             </div>
         </div>
         <div class="grid-2">
             <div class="campo">
-                <label>Senha</label>
-                <input type="password" name="senha">
+                <label for="senha">Senha</label>
+                <input type="password" id="senha" name="senha" autocomplete="new-password">
             </div>
         </div>
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">Cadastrar</button>
+            <button type="submit" class="btn btn-azul">💾 Cadastrar</button>
         </div>
     </form>
 </div>
@@ -66,12 +65,14 @@
                     <td>{{ f.login or '-' }}</td>
                     <td>{{ f.perfil }}</td>
                     <td class="acoes">
-                        <a href="/ver_funcionario/{{ f.id }}" class="btn btn-info tooltip" data-tooltip="Ver">🔍</a>
-                        <a href="/editar_funcionario/{{ f.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                        <a href="/ver_funcionario/{{ f.id }}"     class="btn btn-info    tooltip" data-tooltip="Ver">🔍</a>
+                        <a href="/editar_funcionario/{{ f.id }}"  class="btn btn-editar  tooltip" data-tooltip="Editar">✏️</a>
                         <a href="/excluir_funcionario/{{ f.id }}" class="btn btn-lixeira tooltip" data-tooltip="Excluir"
                            onclick="return confirm('Excluir funcionário?')">🗑️</a>
                     </td>
                 </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty-state">Nenhum funcionário cadastrado.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
