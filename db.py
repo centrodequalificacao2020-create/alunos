@@ -1,13 +1,17 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from sqlalchemy import text
 
 db = SQLAlchemy()
 migrate = Migrate()
+
 
 def init_db(app):
     db.init_app(app)
     migrate.init_app(app, db)
     with app.app_context():
-        db.engine.execute("PRAGMA journal_mode=WAL")  
-        db.engine.execute("PRAGMA foreign_keys=ON")
+        with db.engine.connect() as conn:
+            conn.execute(text("PRAGMA journal_mode=WAL"))
+            conn.execute(text("PRAGMA foreign_keys=ON"))
+            conn.commit()
         db.create_all()

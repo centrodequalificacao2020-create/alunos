@@ -4,293 +4,228 @@
 <h1>Financeiro</h1>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-    <div style="margin-bottom:15px;">
-        {% for category, message in messages %}
-            <div style="
-                padding:10px;
-                border-radius:6px;
-                background:#e8f5e9;
-                color:#1b5e20;
-                font-weight:bold;
-                margin-bottom:8px;
-            ">
-                {{ message }}
-            </div>
-        {% endfor %}
+  {% if messages %}
+    <div style="margin-bottom:15px">
+      {% for category, message in messages %}
+        <div style="padding:10px; border-radius:6px; background:#e8f5e9;
+                    color:#1b5e20; font-weight:bold; margin-bottom:8px">
+          {{ message }}
+        </div>
+      {% endfor %}
     </div>
-{% endif %}
+  {% endif %}
 {% endwith %}
 
 <div class="card">
-    <div class="card-header">
-        <span>💰</span>
-        <h2>Financeiro</h2>
-    </div>
+  <div class="card-header">
+    <span>💰</span>
+    <h2>Financeiro</h2>
+  </div>
 
-    <!-- SELEÇÃO DO ALUNO -->
-    <form method="GET" action="/financeiro" class="form-pequeno">
-        <label>Aluno</label>
-        <select name="aluno_id" onchange="this.form.submit()" required>
-            <option value="">Selecione o aluno</option>
-            {% for a in alunos %}
-                <option value="{{ a[0] }}" {% if aluno_id == a[0] %}selected{% endif %}>
-                    {{ a[1] }}
-                </option>
-            {% endfor %}
-        </select>
-    </form>
-    
-    {% if aluno_id %}
-    <form action="#" method="get" style="margin-top:10px;">
-        <button type="button" class="btn btn-primary" disabled>
-            Gerar Financeiro
-        </button>
-    </form>
-    {% endif %}
+  <!-- SELEÇÃO DO ALUNO -->
+  <form method="GET" action="/financeiro" class="form-pequeno">
+    <label>Aluno</label>
+    <select name="aluno_id" onchange="this.form.submit()" required>
+      <option value="">Selecione o aluno</option>
+      {% for a in alunos %}
+        <option value="{{ a.id }}" {% if aluno_id == a.id %}selected{% endif %}>
+          {{ a.nome }}
+        </option>
+      {% endfor %}
+    </select>
+  </form>
 </div>
 
 {% if aluno_id %}
-    
-    {% if aluno_id %}
-<div class="card" style="margin-top:10px;">
-    <div style="display:flex; gap:40px; font-weight:bold;">
-        <div>💰 Total pago: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
-        <div>📄 Total a pagar: R$ {{ "%.2f"|format(total_a_pagar or 0) }}</div>
-        <div>📊 Saldo restante: R$ {{ "%.2f"|format(saldo_restante or 0) }}</div>
+
+  <!-- TOTAIS -->
+  <div class="card" style="margin-top:10px">
+    <div style="display:flex; gap:40px; font-weight:bold">
+      <div>Total pago: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
+      <div>Total a pagar: R$ {{ "%.2f"|format(total_pagar or 0) }}</div>
+      <div>Saldo restante: R$ {{ "%.2f"|format(saldo or 0) }}</div>
     </div>
-</div>
-{% endif %}
+  </div>
 
-<!-- ================= A PAGAR ================= -->
-<div class="card">
+  <!-- A PAGAR -->
+  <div class="card">
     <div class="card-header">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h3>A PAGAR</h3>
-
-    {% if aluno_id %}
-    <a href="/movimentacao?aluno_id={{ aluno_id }}" class="btn btn-verde">
-        + Nova Mensalidade
-    </a>
-    {% endif %}
-</div>
+      <div style="display:flex; justify-content:space-between; align-items:center">
+        <h3>A PAGAR</h3>
+        <a href="/movimentacao?aluno_id={{ aluno_id }}" class="btn btn-verde">
+          Nova Mensalidade
+        </a>
+      </div>
     </div>
 
     {% if pendentes %}
     <div class="tabela-planilha">
-        <table class="tabela-excel">
-            <thead>
-                <tr>
-                    <th>Parcela</th>
-                    <th>Vencimento</th>
-                    <th>Tipo</th>
-                    <th>Valor</th>
-                    <th class="acoes">Ação</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in pendentes %}
-                <tr>
-                    <td>{{ p[4] }}</td>
-                    <td>{{ p[2][8:10] }}/{{ p[2][5:7] }}/{{ p[2][0:4] }}</td>
-
-                    <td>
-                        {% if p[3] == "Material" %}
-                            <span style="
-                                background:#ffe8cc;
-                                color:#b35400;
-                                padding:4px 8px;
-                                border-radius:6px;
-                                font-weight:bold;
-                            ">
-                                🟧 Material Didático
-                            </span>
-
-                        {% elif "Mensalidade" in p[3] %}
-                            <span style="
-                                background:#e3f2fd;
-                                color:#0d47a1;
-                                padding:4px 8px;
-                                border-radius:6px;
-                                font-weight:bold;
-                            ">
-                                🟦 Mensalidade
-                            </span>
-
-                        {% elif p[3] == "Matrícula" %}
-                            <span style="
-                                background:#e8f5e9;
-                                color:#1b5e20;
-                                padding:4px 8px;
-                                border-radius:6px;
-                                font-weight:bold;
-                            ">
-                                🟩 Matrícula
-                            </span>
-
-                        {% else %}
-                            {{ p[3] }}
-                        {% endif %}
-                    </td>
-
-                    <td>R$ {{ "%.2f"|format(p[1] or 0) }}</td>
-                    <td class="acoes">
-
-                        <a href="/excluir_parcela/{{ p[0] }}/{{ aluno_id }}"
-                           onclick="return confirm('Deseja realmente excluir esta parcela?')"
-                           title="Excluir parcela">
-                           🗑️
-                        </a>
-
-                        <a href="/editar_parcela/{{ p[0] }}" class="btn btn-azul">✏️</a>
-
-                        <a href="/pagar/{{ p[0] }}" class="btn btn-pagar" title="Pagar">
-                            $
-                        </a>
-
-                        <a href="/carne/{{ aluno_id }}"
-                           class="btn btn-imprimir"
-                           title="Imprimir"
-                           target="_blank">
-                           🖨️
-                        </a>
-
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+      <table class="tabela-excel">
+        <thead>
+          <tr>
+            <th>Parcela</th>
+            <th>Vencimento</th>
+            <th>Tipo</th>
+            <th>Valor</th>
+            <th class="acoes">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pendentes %}
+          <tr>
+            <td>{{ p.parcela_ref }}</td>
+            <td>
+              {{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}
+            </td>
+            <td>
+              {% if p.tipo == 'Material' %}
+                <span style="background:#ffe8cc; color:#b35400; padding:4px 8px;
+                             border-radius:6px; font-weight:bold">Material Didático</span>
+              {% elif 'Mensalidade' in p.tipo %}
+                <span style="background:#e3f2fd; color:#0d47a1; padding:4px 8px;
+                             border-radius:6px; font-weight:bold">Mensalidade</span>
+              {% elif p.tipo == 'Matrícula' %}
+                <span style="background:#e8f5e9; color:#1b5e20; padding:4px 8px;
+                             border-radius:6px; font-weight:bold">Matrícula</span>
+              {% else %}
+                {{ p.tipo }}
+              {% endif %}
+            </td>
+            <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
+            <td class="acoes">
+              <a href="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
+                 onclick="return confirm('Deseja realmente excluir esta parcela?')"
+                 title="Excluir parcela">🗑️</a>
+              <a href="/editar_parcela/{{ p.id }}" class="btn btn-azul">✏️</a>
+              <a href="/pagar/{{ p.id }}" class="btn btn-pagar" title="Pagar">✔️</a>
+              <a href="/carne/{{ aluno_id }}" class="btn btn-imprimir"
+                 title="Imprimir" target="_blank">🖨️</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
     {% else %}
-        <div class="empty-state">Nenhuma cobrança pendente</div>
+    <div class="empty-state">Nenhuma cobrança pendente</div>
     {% endif %}
-</div>
 
-{% if pendentes %}
-<div class="totais">
-    TOTAL A PAGAR: R$ {{ "%.2f"|format(total_a_pagar or 0) }}
-</div>
-{% endif %}
+    {% if pendentes %}
+    <div class="totais">TOTAL A PAGAR: R$ {{ "%.2f"|format(total_pagar or 0) }}</div>
+    {% endif %}
+  </div>
 
-<!-- ================= PAGAS ================= -->
-<div class="card">
+  <!-- PAGAS -->
+  <div class="card">
     <div class="card-header">
-        <h3>PAGAS</h3>
+      <h3>PAGAS</h3>
     </div>
 
     {% if pagas %}
     <div class="tabela-planilha">
-        <table class="tabela-excel">
-            <thead>
-                <tr>
-                    <th>Parcela</th>
-                    <th>Vencimento</th>
-                    <th>Tipo</th>
-                    <th>Valor</th>
-                    <th>Data Pgto</th>
-                    <th>Funcionário</th>
-                    <th class="acoes">Ação</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in pagas %}
-                <tr>
-                    <td>{{ p[4] }}</td>
-                    <td>{{ p[2][8:10] }}/{{ p[2][5:7] }}/{{ p[2][0:4] }}</td>
-
-                    <td>
-                        {% if p[3] == "Material" %}
-                            <span style="
-                                background:#ffe8cc;
-                                color:#b35400;
-                                padding:4px 8px;
-                                border-radius:6px;
-                                font-weight:bold;
-                            ">
-                                🟧 Material Didático
-                            </span>
-
-                        {% elif p[3] == "Mensalidade" %}
-                            <span style="
-                                background:#e3f2fd;
-                                color:#0d47a1;
-                                padding:4px 8px;
-                                border-radius:6px;
-                                font-weight:bold;
-                            ">
-                                🟦 Mensalidade
-                            </span>
-
-                        {% elif p[3] == "Matrícula" %}
-                            <span style="
-                                background:#e8f5e9;
-                                color:#1b5e20;
-                                padding:4px 8px;
-                                border-radius:6px;
-                                font-weight:bold;
-                            ">
-                                🟩 Matrícula
-                            </span>
-
-                        {% else %}
-                            {{ p[3] }}
-                        {% endif %}
-                    </td>
-
-                    <td>R$ {{ "%.2f"|format(p[1] or 0) }}</td>
-                    <td>{{ p[5] or '-' }}</td>
-                    <td>{{ p[6] or 'Sistema' }}</td>
-                    <td class="acoes">
-
-                        <a href="/recibo/{{ p[0] }}"
-                           target="_blank"
-                           class="btn-recibo"
-                           title="Gerar Recibo">
-                            🧾
-                        </a>
-
-                        <form method="POST"
-                              action="/excluir_parcela_segura/{{ p[0] }}/{{ aluno_id }}"
-                              onsubmit="return confirmarExclusao(this);"
-                              style="display:inline;">
-                            <input type="hidden" name="senha">
-                            <button type="submit"
-                                    class="btn-excluir"
-                                    title="Excluir parcela">
-                                🗑️
-                            </button>
-                        </form>
-
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+      <table class="tabela-excel">
+        <thead>
+          <tr>
+            <th>Parcela</th>
+            <th>Vencimento</th>
+            <th>Tipo</th>
+            <th>Valor</th>
+            <th>Data Pgto</th>
+            <th>Funcionário</th>
+            <th class="acoes">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagas %}
+          <tr>
+            <td>{{ p.parcela_ref }}</td>
+            <td>
+              {{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}
+            </td>
+            <td>
+              {% if p.tipo == 'Material' %}
+                <span style="background:#ffe8cc; color:#b35400; padding:4px 8px;
+                             border-radius:6px; font-weight:bold">Material Didático</span>
+              {% elif 'Mensalidade' in p.tipo %}
+                <span style="background:#e3f2fd; color:#0d47a1; padding:4px 8px;
+                             border-radius:6px; font-weight:bold">Mensalidade</span>
+              {% elif p.tipo == 'Matrícula' %}
+                <span style="background:#e8f5e9; color:#1b5e20; padding:4px 8px;
+                             border-radius:6px; font-weight:bold">Matrícula</span>
+              {% else %}
+                {{ p.tipo }}
+              {% endif %}
+            </td>
+            <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
+            <td>{{ p.data_pagamento or '-' }}</td>
+            <td>{{ p.usuario_pagamento or 'Sistema' }}</td>
+            <td class="acoes">
+              <a href="/recibo/{{ p.id }}" target="_blank"
+                 class="btn-recibo" title="Gerar Recibo">🧾</a>
+              <form method="POST" action="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
+                    onsubmit="return confirmarExclusao(this)" style="display:inline">
+                <input type="hidden" name="senha">
+                <button type="submit" class="btn-excluir" title="Excluir parcela">🗑️</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-
-    <div class="totais">
-        TOTAL PAGO: R$ {{ "%.2f"|format(total_pago or 0) }}
-    </div>
-
+    <div class="totais">TOTAL PAGO: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
     {% else %}
-        <div class="empty-state">Nenhuma cobrança paga</div>
+    <div class="empty-state">Nenhuma cobrança paga</div>
     {% endif %}
-</div>
+  </div>
 
 {% endif %}
 
-<!-- ================= SCRIPT ÚNICO ================= -->
+<!-- MODAL DE SENHA (substitui o prompt()) -->
+<div id="modal-senha" style="display:none; position:fixed; top:0; left:0; width:100%;
+     height:100%; background:rgba(0,0,0,0.5); z-index:999; align-items:center;
+     justify-content:center">
+  <div style="background:#fff; padding:30px; border-radius:12px; width:320px">
+    <h3 style="margin-top:0">Confirmar exclusão</h3>
+    <p>Digite sua senha para excluir esta parcela:</p>
+    <input type="password" id="campo-senha" style="width:100%; padding:10px;
+           border-radius:8px; border:1px solid #ccc; margin-bottom:15px">
+    <div style="display:flex; gap:10px">
+      <button onclick="confirmarSenha()" class="btn btn-vermelho">Excluir</button>
+      <button onclick="fecharModal()" class="btn btn-azul">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script>
+let formAtual = null;
+
 function confirmarExclusao(form) {
-    const senha = prompt("Digite a senha para excluir esta parcela:");
-
-    if (!senha) {
-        return false;
-    }
-
-    form.querySelector('input[name="senha"]').value = senha;
-    return true;
+  formAtual = form;
+  document.getElementById('campo-senha').value = '';
+  const modal = document.getElementById('modal-senha');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('campo-senha').focus(), 100);
+  return false;
 }
+
+function confirmarSenha() {
+  const senha = document.getElementById('campo-senha').value;
+  if (!senha) { alert('Digite a senha.'); return; }
+  formAtual.querySelector('input[name="senha"]').value = senha;
+  fecharModal();
+  formAtual.submit();
+}
+
+function fecharModal() {
+  document.getElementById('modal-senha').style.display = 'none';
+  formAtual = null;
+}
+
+document.getElementById('campo-senha').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') confirmarSenha();
+  if (e.key === 'Escape') fecharModal();
+});
 </script>
 
 {% endblock %}

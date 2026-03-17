@@ -29,7 +29,11 @@ def create_app(config_class=Config):
     from routes.funcionario import funcionario_bp
     from routes.conteudos  import conteudos_bp
     from routes.portal_aluno import portal_aluno_bp
+    from routes.dashboard import dashboard_bp
+    from routes.academico import academico_bp
 
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(academico_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(cursos_bp)
     app.register_blueprint(aluno_bp)

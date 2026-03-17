@@ -1,69 +1,63 @@
 {% extends "base.html" %}
 {% block content %}
 
-
-
 <div class="card">
-    <div class="card-header">
-        <span>📚</span>
-        <h2>Cadastrar Curso</h2>
-    </div>
+  <div class="card-header">
+    <span>📚</span>
+    <h2>Cadastrar Curso</h2>
+  </div>
+  <form method="POST" action="/salvar_curso" class="form-pequeno">
+    <label>Nome do Curso</label>
+    <input type="text" name="nome" required>
 
-    <form method="POST" action="/salvar_curso" class="form-pequeno">
+    <label>Valor do Pacote (R$)</label>
+    <input type="number" step="0.01" name="valor_mensal" required>
 
-        <label>Nome do Curso</label>
-        <input type="text" name="nome" required>
-       
-        <label>Valor do Pacote (R$)</label>
-        <input type="number" step="0.01" name="valor_mensal" required>
+    <label>Valor da Matrícula (R$)</label>
+    <input type="number" step="0.01" name="valor_matricula">
 
-        <label>Valor da Matrícula (R$)</label>
-        <input type="number" step="0.01" name="valor_matricula">
+    <label>Quantidade de Parcelas</label>
+    <input type="number" name="parcelas" required>
 
-        <label>Quantidade de Parcelas</label>
-        <input type="number" name="parcelas" required>
-
-        <button class="btn btn-azul">Salvar Curso</button>
-    </form>
+    <button class="btn btn-azul">Salvar Curso</button>
+  </form>
 </div>
 
 <div class="card">
-    <div class="card-header">
-        <h3>Cursos Cadastrados</h3>
-    </div>
+  <div class="card-header">
+    <h3>Cursos Cadastrados</h3>
+  </div>
 
-    {% if cursos %}
-    <table>
-        <tr>
-            <th>Curso</th>
-            <th>Valor do Pacote</th>
-            <th>Matrícula</th>
-            <th>Parcelas</th>
-            <th>Ação</th>
-        </tr>
-
-        {% for c in cursos %}
-        <tr>
-            <tr>
-    <td>{{ c[1] }}</td>
-    <td>R$ {{ "%.2f"|format(c[2] or 0) }}</td>
-    <td>R$ {{ "%.2f"|format(c[3] or 0) }}</td>
-    <td>{{ c[4] or 0 }}</td>
-    <td class="acoes">
-        <a class="btn btn-azul" href="/editar_curso/{{ c[0] }}">✏️</a>
-        <a class="btn btn-vermelho"
-           href="/excluir_curso/{{ c[0] }}"
-           onclick="return confirm('Excluir este curso?')">🗑️</a>
-    </td>
-</tr>
-
-
-        </tr>
-        {% endfor %}
-    </table>
-    {% else %}
-        <div class="empty-state">Nenhum curso cadastrado</div>
-    {% endif %}
+  {% if cursos %}
+  <table>
+    <thead>
+      <tr>
+        <th>CURSO</th>
+        <th>VALOR DO PACOTE</th>
+        <th>MATRÍCULA</th>
+        <th>PARCELAS</th>
+        <th class="acoes">AÇÃO</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in cursos %}
+      <tr>
+        <td>{{ c.nome }}</td>
+        <td>R$ {{ "%.2f"|format(c.valor_mensal or 0) }}</td>
+        <td>R$ {{ "%.2f"|format(c.valor_matricula or 0) }}</td>
+        <td>{{ c.parcelas or 0 }}</td>
+        <td class="acoes">
+          <a class="btn btn-azul" href="/editar_curso/{{ c.id }}">✏️</a>
+          <a class="btn btn-vermelho" href="/excluir_curso/{{ c.id }}"
+             onclick="return confirm('Excluir este curso?')">🗑️</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">Nenhum curso cadastrado</div>
+  {% endif %}
 </div>
 
 {% endblock %}

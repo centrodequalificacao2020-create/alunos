@@ -1,27 +1,17 @@
-import logging
 import os
-from logging.handlers import RotatingFileHandler
+from dotenv import load_dotenv
 
-def configure_logging(app):
-    os.makedirs("logs", exist_ok=True)
-    formatter = logging.Formatter(
-        "[%(asctime)s] %(levelname)s %(module)s: %(message)s"
-    )
-    # Arquivo geral
-    file_handler = RotatingFileHandler(
-        "logs/app.log", maxBytes=5_000_000, backupCount=5
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.INFO)
+load_dotenv()
 
-    # Arquivo só de erros
-    error_handler = RotatingFileHandler(
-        "logs/errors.log", maxBytes=2_000_000, backupCount=3
-    )
-    error_handler.setFormatter(formatter)
-    error_handler.setLevel(logging.ERROR)
 
-    app.logger.addHandler(file_handler)
-    app.logger.addHandler(error_handler)
-    app.logger.setLevel(logging.INFO)
-    app.logger.info("Aplicação iniciada.")
+class Config:
+    SECRET_KEY = os.getenv("FLASK_SECRET_KEY", os.urandom(32))
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///cqp.db")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"check_same_thread": False, "timeout": 30},
+    }
+    UPLOAD_FOLDER = os.path.join("static", "uploads")
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+    EXTENSOES_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "docx", "mp4"}
+    DEBUG = os.getenv("FLASK_DEBUG", "False") == "True"
