@@ -2,9 +2,10 @@ import os
 import secrets
 from dotenv import load_dotenv
 
-load_dotenv()
-
+# Caminho absoluto garante que o .env é encontrado independente de onde o CLI é chamado
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(BASEDIR, ".env"))
+
 DB_PATH = os.path.join(BASEDIR, "cqp.db")
 
 
