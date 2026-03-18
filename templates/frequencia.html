@@ -4,7 +4,7 @@
 
 <div class="card">
     <div class="card-header">
-        <span>🗃️</span>
+        <span>📋</span>
         <h2>Frequência</h2>
     </div>
     <p class="card-subtitle">Registre a presença dos alunos por aula</p>
@@ -12,70 +12,73 @@
     <form method="GET">
         <div class="grid-3">
             <div class="campo">
-                <label for="materia_id">Turma / Matéria</label>
-                <select id="materia_id" name="materia_id" onchange="this.form.submit()">
-                    <option value="">Selecione a matéria</option>
-                    {% for m in materias %}
-                    <option value="{{ m.id }}" {% if materia_id == m.id %}selected{% endif %}>{{ m.nome }}</option>
+                <label for="q">Buscar aluno</label>
+                <input type="text" id="q" name="q" value="{{ termo }}" placeholder="Nome do aluno...">
+            </div>
+            <div class="campo">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-azul">🔍 Buscar</button>
+            </div>
+        </div>
+    </form>
+
+    {% if alunos %}
+    <div class="tabela-planilha" style="margin-top:16px">
+        <table class="tabela-excel">
+            <thead><tr><th>Aluno</th><th class="acoes">Selecionar</th></tr></thead>
+            <tbody>
+            {% for a in alunos %}
+            <tr>
+                <td>{{ a.nome }}</td>
+                <td class="acoes">
+                    <a href="/frequencia?aluno_id={{ a.id }}" class="btn btn-azul">Selecionar</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+{% if aluno_id and aluno_nome %}
+<div class="card">
+    <h3>📌 {{ aluno_nome }}</h3>
+
+    {% if cursos_matriculados %}
+    <form method="POST">
+        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+        <div class="grid-3">
+            <div class="campo">
+                <label for="curso_id">Curso</label>
+                <select id="curso_id" name="curso_id" required>
+                    <option value="">Selecione o curso</option>
+                    {% for c in cursos_matriculados %}
+                    <option value="{{ c.id }}" {% if curso_id == c.id %}selected{% endif %}>{{ c.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="campo">
-                <label for="data_aula">Data da aula</label>
-                <input type="date" id="data_aula" name="data_aula" value="{{ data_aula or '' }}">
+                <label for="data">Data da aula</label>
+                <input type="date" id="data" name="data" required>
             </div>
             <div class="campo">
-                <label>&nbsp;</label>
-                <button type="submit" class="btn btn-azul">Carregar</button>
+                <label for="status">Presença</label>
+                <select id="status" name="status" required>
+                    <option value="P">Presente</option>
+                    <option value="F">Falta</option>
+                </select>
             </div>
-        </div>
-    </form>
-</div>
-
-{% if alunos_materia %}
-<div class="card">
-    <form method="POST">
-        <input type="hidden" name="materia_id" value="{{ materia_id }}">
-        <input type="hidden" name="data_aula"  value="{{ data_aula }}">
-        <div class="card-header--between">
-            <h3>Alunos — {{ data_aula }}</h3>
-            <a href="/frequencia_historico" class="btn btn-editar">📊 Histórico</a>
-        </div>
-        <div class="tabela-planilha">
-            <table class="tabela-excel">
-                <thead>
-                    <tr>
-                        <th>Aluno</th>
-                        <th>Presente</th>
-                        <th>Justificativa</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for a in alunos_materia %}
-                    <tr>
-                        <td>{{ a.nome }}</td>
-                        <td style="text-align:center">
-                            <input type="checkbox"
-                                   name="presentes" value="{{ a.id }}"
-                                   aria-label="Presença {{ a.nome }}"
-                                   {% if a.id in presentes_ids %}checked{% endif %}>
-                        </td>
-                        <td>
-                            <input type="text"
-                                   name="justificativa_{{ a.id }}"
-                                   value="{{ justificativas.get(a.id, '') }}"
-                                   aria-label="Justificativa {{ a.nome }}"
-                                   placeholder="Opcional">
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
         <div class="acoes-form">
             <button type="submit" class="btn btn-azul">💾 Salvar Frequência</button>
+            <a href="/frequencia_historico?aluno_id={{ aluno_id }}&curso_id={{ curso_id or '' }}" class="btn btn-editar">📊 Ver Histórico</a>
         </div>
     </form>
+    {% else %}
+    <p class="empty-state">Aluno não possui matrícula ativa em nenhum curso.</p>
+    {% endif %}
 </div>
 {% endif %}
+
 {% endblock %}
