@@ -50,8 +50,10 @@
                     <td>R$ {{ "%.2f"|format(c.valor or 0) }}</td>
                     <td class="acoes">
                         <a href="/editar_curso/{{ c.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
-                        <a href="/excluir_curso/{{ c.id }}" class="btn btn-lixeira tooltip" data-tooltip="Excluir"
-                           onclick="return confirm('Excluir curso?')">🗑️</a>
+                        <form method="POST" action="/excluir_curso/{{ c.id }}" style="display:inline"
+                              onsubmit="return confirm('Excluir este curso?')">
+                            <button class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
+                        </form>
                     </td>
                 </tr>
                 {% else %}

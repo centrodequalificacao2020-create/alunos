@@ -47,7 +47,7 @@ def conteudos():
 
     return render_template("conteudos.html", cursos=cursos, materias=materias, conteudos=lista)
 
-@conteudos_bp.route("/conteudos/excluir/<int:id>")
+@conteudos_bp.route("/conteudos/excluir/<int:id>", methods=["POST"])
 @login_required
 def excluir_conteudo(id):
     c = Conteudo.query.get_or_404(id)

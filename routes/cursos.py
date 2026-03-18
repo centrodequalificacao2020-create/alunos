@@ -42,7 +42,7 @@ def editar_curso(id):
         return redirect("/cursos")
     return render_template("editar_curso.html", curso=curso)
 
-@cursos_bp.route("/excluir_curso/<int:id>")
+@cursos_bp.route("/excluir_curso/<int:id>", methods=["POST"])
 @admin_required
 def excluir_curso(id):
     curso = Curso.query.get_or_404(id)
