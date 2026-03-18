@@ -60,40 +60,33 @@
 <h3 class="section-title" style="margin-top:32px">📚 Conteúdos enviados</h3>
 
 {% if conteudos %}
-<div class="conteudos-lista">
-{% set ns_curso = namespace(atual="") %}
-{% set ns_mat   = namespace(atual="") %}
+<div style="margin-top:24px">
+{% set ns_mat = namespace(atual="") %}
 {% for c in conteudos %}
 
-{% if ns_curso.atual != c.curso_id %}
-{% if not loop.first %}</div></div>{% endif %}
-{% set ns_curso.atual = c.curso_id %}
-{% set ns_mat.atual   = "" %}
+{% if ns_mat.atual != (c.materia.nome if c.materia else "Sem matéria") %}
+{% if not loop.first %}</ul></div>{% endif %}
+{% set ns_mat.atual = c.materia.nome if c.materia else "Sem matéria" %}
 <div class="card">
-    <div class="card-header--between">
-        <div style="cursor:pointer" onclick="toggleCurso('{{ c.curso_id }}')">
-            <strong>📘 {{ c.curso }}</strong>
-        </div>
-        <a href="/curso/excluir/{{ c.curso_id }}" onclick="return confirm('Excluir curso e todos os conteúdos?')">🗑️</a>
+    <div class="card-header">
+        <span>📂</span>
+        <h3>{{ ns_mat.atual }}{% if c.materia and c.materia.curso %} — {{ c.materia.curso.nome }}{% endif %}</h3>
     </div>
-    <div class="curso-body" id="curso_{{ c.curso_id }}">
-{% endif %}
-
-{% if ns_mat.atual != c.materia %}
-{% if ns_mat.atual != "" %}</ul>{% endif %}
-<p class="conteudo-materia">📂 {{ c.materia }}</p>
-<ul style="padding-left:0;list-style:none">
-{% set ns_mat.atual = c.materia %}
+    <ul style="padding-left:0;list-style:none">
 {% endif %}
 
 <li class="conteudo-item">
-    <span>{{ c.titulo }}</span>
-    {% if c.arquivo %}<a href="/uploads/{{ c.arquivo }}" target="_blank">📄 PDF</a>{% endif %}
+    <span>{{ c.titulo or "Sem título" }}</span>
+    {% if c.modulo %}<small style="color:#888">{{ c.modulo }}</small>{% endif %}
+    {% if c.arquivo %}<a href="/{{ c.arquivo }}" target="_blank">📄 PDF</a>{% endif %}
     {% if c.video %}<a href="{{ c.video }}" target="_blank">🎬 Vídeo</a>{% endif %}
-    <a href="/conteudos/excluir/{{ c.id }}" onclick="return confirm('Excluir conteúdo?')">🗑️</a>
+    <form method="POST" action="/conteudos/excluir/{{ c.id }}" style="display:inline"
+          onsubmit="return confirm('Excluir conteúdo?')">
+        <button class="btn btn-lixeira" style="padding:2px 6px;font-size:13px">🗑️</button>
+    </form>
 </li>
 
-{% if loop.last %}</ul></div></div>{% endif %}
+{% if loop.last %}</ul></div>{% endif %}
 {% endfor %}
 </div>
 {% else %}
@@ -103,12 +96,7 @@
 
 {% block scripts %}
 <script>
-function toggleCurso(id){
-    const el = document.getElementById('curso_' + id);
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-
-const materias = {{ materias | tojson }};
+const materias = {{ materias_json | tojson }};
 document.getElementById('curso_id').addEventListener('change', function(){
     const cursoId = parseInt(this.value);
     const sel = document.getElementById('materia_id');

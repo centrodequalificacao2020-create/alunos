@@ -45,7 +45,9 @@ def conteudos():
         flash("Conteúdo salvo.", "sucesso")
         return redirect("/conteudos")
 
-    return render_template("conteudos.html", cursos=cursos, materias=materias, conteudos=lista)
+    materias_json = [{"id": m.id, "nome": m.nome, "curso_id": m.curso_id} for m in materias]
+    return render_template("conteudos.html", cursos=cursos, materias=materias,
+                           materias_json=materias_json, conteudos=lista)
 
 @conteudos_bp.route("/conteudos/excluir/<int:id>", methods=["POST"])
 @login_required
