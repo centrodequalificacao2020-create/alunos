@@ -13,7 +13,7 @@
         <h2>Cadastrar Aluno</h2>
     </div>
 
-    <form method="POST">
+    <form method="POST" action="/cadastro">
 
         <div class="grid-1">
             <div class="campo">
@@ -87,7 +87,7 @@
 
         <div class="acoes-form acoes-form--between">
             <button type="submit" class="btn btn-azul">💾 Salvar</button>
-            <a href="/novo_funcionario" class="btn btn-editar">➕ Adicionar Funcionário</a>
+            <a href="/funcionario" class="btn btn-editar">➕ Adicionar Funcionário</a>
         </div>
 
     </form>
@@ -156,7 +156,6 @@
     <span class="contagem-inadimplente">⚠️ Inadimplentes: {{ inadimplentes }}</span>
 </div>
 
-{# ── Modal de confirmação de exclusão ── #}
 <div id="modalExclusao" class="modal-overlay">
     <div class="modal">
         <h3>⚠️ Confirmar exclusão</h3>
