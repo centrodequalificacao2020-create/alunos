@@ -30,11 +30,9 @@
           <div class="col-md-3">
             <label for="tipo" class="form-label">Tipo</label>
             <select id="tipo" name="tipo" class="form-select" required>
-              {% for op, label in [("graduacao","Graduação"),("tecnico","Técnico"),("ingles","Inglês")] %}
-              <option value="{{ op }}"
-                {% if turma.tipo == op %}selected{% endif %}>
-                {{ label }}
-              </option>
+              <option value="">Selecione</option>
+              {% for t in tipos %}
+              <option value="{{ t }}" {% if turma.tipo == t %}selected{% endif %}>{{ t }}</option>
               {% endfor %}
             </select>
           </div>

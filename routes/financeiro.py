@@ -6,8 +6,17 @@ from services.pdf_service import gerar_recibo, gerar_carne
 from services.matricula_service import criar_matricula
 from datetime import date
 from flask import send_file, make_response
+from sqlalchemy import distinct
 
 financeiro_bp = Blueprint("financeiro", __name__)
+
+
+def _tipos_curso():
+    rows = db.session.query(distinct(Curso.tipo)).filter(
+        Curso.tipo != None, Curso.tipo != ""
+    ).order_by(Curso.tipo).all()
+    return [r[0] for r in rows]
+
 
 @financeiro_bp.route("/financeiro")
 @login_required
@@ -24,6 +33,7 @@ def financeiro():
     return render_template("financeiro.html", alunos=alunos, aluno_id=aluno_id,
                            pendentes=pendentes, pagas=pagas, **totais)
 
+
 @financeiro_bp.route("/pagar/<int:id>", methods=["GET","POST"])
 @login_required
 def pagar(id):
@@ -38,6 +48,7 @@ def pagar(id):
         return redirect(f"/financeiro?aluno_id={mensalidade.aluno_id}")
     return render_template("pagar.html", id=id, aluno_id=mensalidade.aluno_id)
 
+
 @financeiro_bp.route("/editar_parcela/<int:id>", methods=["GET","POST"])
 @login_required
 def editar_parcela(id):
@@ -50,6 +61,7 @@ def editar_parcela(id):
         flash("Parcela atualizada.", "sucesso")
         return redirect(f"/financeiro?aluno_id={parcela.aluno_id}")
     return render_template("editar_parcela.html", parcela=parcela)
+
 
 @financeiro_bp.route("/excluir_parcela/<int:id>/<int:aluno_id>", methods=["POST"])
 @login_required
@@ -66,6 +78,7 @@ def excluir_parcela(id, aluno_id):
     flash("Parcela excluída.", "sucesso")
     return redirect(f"/financeiro?aluno_id={aluno_id}")
 
+
 @financeiro_bp.route("/recibo/<int:mensalidade_id>")
 @login_required
 def recibo(mensalidade_id):
@@ -76,6 +89,7 @@ def recibo(mensalidade_id):
     resp.headers["Content-Disposition"] = "inline; filename=recibo.pdf"
     return resp
 
+
 @financeiro_bp.route("/carne/<int:aluno_id>")
 @login_required
 def carne(aluno_id):
@@ -83,15 +97,25 @@ def carne(aluno_id):
     parcelas = Mensalidade.query.filter_by(aluno_id=aluno_id).order_by(Mensalidade.vencimento).all()
     return send_file(gerar_carne(aluno, parcelas), mimetype="application/pdf")
 
+
 @financeiro_bp.route("/movimentacao")
 @login_required
 def movimentacao():
     alunos = Aluno.query.filter(Aluno.status.in_(["Ativo","Pré-Matrícula"])).order_by(Aluno.nome).all()
     cursos = Curso.query.order_by(Curso.nome).all()
-    aluno_id   = request.args.get("aluno_id")
+    tipos  = _tipos_curso()
+    aluno_id     = request.args.get("aluno_id")
     matricula_id = request.args.get("matricula_id")
-    return render_template("movimentacao.html", alunos=alunos, cursos=cursos,
-                           aluno_id=aluno_id, matricula_id=matricula_id)
+    # mapa curso_id -> tipo para preenchimento automático
+    curso_tipo = {c.id: (c.tipo or "") for c in cursos}
+    return render_template("movimentacao.html",
+                           alunos=alunos,
+                           cursos=cursos,
+                           tipos=tipos,
+                           curso_tipo=curso_tipo,
+                           aluno_id=aluno_id,
+                           matricula_id=matricula_id)
+
 
 @financeiro_bp.route("/salvar_matricula", methods=["POST"])
 @login_required
@@ -103,4 +127,3 @@ def salvar_matricula():
     except ValueError as e:
         flash(str(e), "erro")
         return redirect("/movimentacao")
-

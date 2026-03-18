@@ -2,6 +2,18 @@
 {% block title %}Matrículas{% endblock %}
 {% block content %}
 
+{# mapa JS: curso_id -> tipo #}
+<script>
+const CURSO_TIPO = {{ curso_tipo | tojson }};
+function preencherTipo(selectCurso, selectTipo) {
+    const tipo = CURSO_TIPO[parseInt(selectCurso.value)] || "";
+    for (let opt of selectTipo.options) {
+        if (opt.value === tipo) { opt.selected = true; return; }
+    }
+    selectTipo.value = "";
+}
+</script>
+
 <div class="grid-2" style="max-width:1400px; margin:0 auto;">
 
     <!-- Matrícula normal -->
@@ -25,7 +37,8 @@
 
             <div class="campo">
                 <label for="curso_id_mat">Curso</label>
-                <select id="curso_id_mat" name="curso_id" required>
+                <select id="curso_id_mat" name="curso_id" required
+                        onchange="preencherTipo(this, document.getElementById('tipo_curso_mat'))">
                     <option value="">Selecione o curso</option>
                     {% for c in cursos %}
                     <option value="{{ c.id }}">{{ c.nome }}</option>
@@ -34,11 +47,11 @@
             </div>
 
             <div class="campo">
-                <label for="tipo_curso">Tipo do Curso</label>
-                <select id="tipo_curso" name="tipo_curso" required>
+                <label for="tipo_curso_mat">Tipo do Curso</label>
+                <select id="tipo_curso_mat" name="tipo_curso" required>
                     <option value="">Selecione</option>
-                    {% for t in ['Profissionalizante','Técnico','Graduação','NR','Pós-graduação','EJA','Livre','Capacitação'] %}
-                    <option>{{ t }}</option>
+                    {% for t in tipos %}
+                    <option value="{{ t }}">{{ t }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -137,10 +150,21 @@
 
             <div class="campo">
                 <label for="curso_id_pre">Curso</label>
-                <select id="curso_id_pre" name="curso_id" required>
+                <select id="curso_id_pre" name="curso_id" required
+                        onchange="preencherTipo(this, document.getElementById('tipo_curso_pre'))">
                     <option value="">Selecione o curso</option>
                     {% for c in cursos %}
                     <option value="{{ c.id }}">{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="campo">
+                <label for="tipo_curso_pre">Tipo do Curso</label>
+                <select id="tipo_curso_pre" name="tipo_curso">
+                    <option value="">Selecione</option>
+                    {% for t in tipos %}
+                    <option value="{{ t }}">{{ t }}</option>
                     {% endfor %}
                 </select>
             </div>

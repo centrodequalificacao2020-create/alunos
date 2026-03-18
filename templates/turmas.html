@@ -1,38 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Turmas{% endblock %}
-
 {% block content %}
+
 <div class="card">
     <div class="card-header">
         <span>🏫</span>
-        <h2>Nova Turma</h2>
+        <h2>Turmas</h2>
     </div>
+    <p class="card-subtitle">Crie e gerencie as turmas</p>
+
     <form method="POST" action="/turmas/criar">
         <div class="grid-4">
             <div class="campo">
-                <label for="nome">Nome</label>
-                <input type="text" id="nome" name="nome" required placeholder="Nome da turma">
+                <label for="nome">Nome da turma</label>
+                <input type="text" id="nome" name="nome" required placeholder="Ex: Turma A">
             </div>
             <div class="campo">
                 <label for="modalidade">Modalidade</label>
                 <select id="modalidade" name="modalidade" required>
-                    <option value="">Selecione</option>
-                    <option value="presencial">Presencial</option>
-                    <option value="EAD">EAD</option>
-                    <option value="flex">Flex</option>
+                    {% for op in ["presencial","EAD","flex"] %}
+                    <option value="{{ op }}">{{ op|capitalize }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="campo">
                 <label for="tipo">Tipo</label>
                 <select id="tipo" name="tipo" required>
                     <option value="">Selecione</option>
-                    <option value="graduacao">Graduação</option>
-                    <option value="tecnico">Técnico</option>
-                    <option value="ingles">Inglês</option>
+                    {% for t in tipos %}
+                    <option value="{{ t }}">{{ t }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="campo">
-                <label for="curso_id">Curso (opcional)</label>
+                <label for="curso_id">Curso</label>
                 <select id="curso_id" name="curso_id">
                     <option value="">Nenhum</option>
                     {% for c in cursos %}
@@ -42,45 +43,46 @@
             </div>
         </div>
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">💾 Criar Turma</button>
+            <button type="submit" class="btn btn-azul">➕ Criar Turma</button>
         </div>
     </form>
 </div>
 
-{% if turmas %}
-<div class="tabela-container">
-    <table class="tabela-excel">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Modalidade</th>
-                <th>Tipo</th>
-                <th>Curso</th>
-                <th>Alunos</th>
-                <th class="acoes">Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for t in turmas %}
-            <tr>
-                <td>{{ t.nome }}</td>
-                <td>{{ t.modalidade|capitalize }}</td>
-                <td>{{ t.tipo|capitalize }}</td>
-                <td>{{ t.curso.nome if t.curso else "—" }}</td>
-                <td>{{ t.alunos|length }}</td>
-                <td class="acoes">
-                    <a href="/turmas/{{ t.id }}/editar" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
-                    <form method="POST" action="/turmas/{{ t.id }}/excluir" style="display:inline"
-                          onsubmit="return confirm('Excluir turma {{ t.nome }}?')">
-                        <button class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card">
+    <h3>Turmas Cadastradas</h3>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Modalidade</th>
+                    <th>Tipo</th>
+                    <th>Curso</th>
+                    <th>Alunos</th>
+                    <th class="acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in turmas %}
+                <tr>
+                    <td>{{ t.nome }}</td>
+                    <td>{{ t.modalidade|capitalize }}</td>
+                    <td>{{ t.tipo }}</td>
+                    <td>{{ t.curso.nome if t.curso else '—' }}</td>
+                    <td>{{ t.alunos|length }}</td>
+                    <td class="acoes">
+                        <a href="/turmas/{{ t.id }}/editar" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                        <form method="POST" action="/turmas/{{ t.id }}/excluir" style="display:inline"
+                              onsubmit="return confirm('Excluir turma {{ t.nome }}?')">
+                            <button type="submit" class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty-state">Nenhuma turma cadastrada.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
-{% else %}
-<p class="empty-state">Nenhuma turma cadastrada ainda.</p>
-{% endif %}
 {% endblock %}

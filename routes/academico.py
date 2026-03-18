@@ -7,8 +7,17 @@ from models import (Aluno, Curso, Materia, CursoMateria,
 from security import login_required
 from services.pdf_service import gerar_boletim_notas, gerar_historico_frequencia
 from datetime import date
+from sqlalchemy import distinct
 
 academico_bp = Blueprint("academico", __name__)
+
+
+def _tipos_curso():
+    """Retorna lista de tipos únicos cadastrados nos cursos (sem None/vazio)."""
+    rows = db.session.query(distinct(Curso.tipo)).filter(
+        Curso.tipo != None, Curso.tipo != ""
+    ).order_by(Curso.tipo).all()
+    return [r[0] for r in rows]
 
 
 # ─────────────────────────── TURMAS ───────────────────────────
@@ -18,7 +27,8 @@ academico_bp = Blueprint("academico", __name__)
 def turmas():
     lista  = Turma.query.order_by(Turma.nome).all()
     cursos = Curso.query.order_by(Curso.nome).all()
-    return render_template("turmas.html", turmas=lista, cursos=cursos)
+    tipos  = _tipos_curso()
+    return render_template("turmas.html", turmas=lista, cursos=cursos, tipos=tipos)
 
 
 @academico_bp.route("/turmas/criar", methods=["POST"])
@@ -43,6 +53,7 @@ def criar_turma():
 def editar_turma(turma_id):
     turma  = Turma.query.get_or_404(turma_id)
     cursos = Curso.query.order_by(Curso.nome).all()
+    tipos  = _tipos_curso()
     if request.method == "POST":
         turma.nome       = request.form["nome"].strip()
         turma.modalidade = request.form["modalidade"]
@@ -51,7 +62,20 @@ def editar_turma(turma_id):
         db.session.commit()
         flash("Turma atualizada!", "sucesso")
         return redirect("/turmas")
-    return render_template("editar_turma.html", turma=turma, cursos=cursos)
+    # alunos já na turma
+    ids_na_turma = {ta.aluno_id for ta in turma.alunos}
+    # alunos disponíveis = todos menos os que já estão
+    alunos_disponiveis = (
+        Aluno.query
+        .filter(Aluno.status == "Ativo")
+        .filter(~Aluno.id.in_(ids_na_turma))
+        .order_by(Aluno.nome).all()
+    )
+    return render_template("editar_turma.html",
+                           turma=turma,
+                           cursos=cursos,
+                           tipos=tipos,
+                           alunos_disponiveis=alunos_disponiveis)
 
 
 @academico_bp.route("/turmas/<int:turma_id>/excluir", methods=["POST"])
@@ -297,7 +321,7 @@ def frequencia_historico():
                            aluno=aluno, curso=curso, historico=historico)
 
 
-# ─────────────────────────── PDFs — delega ao pdf_service ───────────────────────────
+# ─────────────────────────── PDFs ───────────────────────────
 
 @academico_bp.route("/notas_pdf/<int:aluno_id>/<int:curso_id>")
 @login_required
@@ -348,7 +372,6 @@ def backup():
     if not os.path.exists(src_path):
         flash("Banco de dados não encontrado.", "erro")
         return redirect("/")
-    # Usa sqlite3.backup() para copia consistente (sem risco de corrupção)
     buf = io.BytesIO()
     with sqlite3.connect(src_path) as src_conn:
         dst = sqlite3.connect(":memory:")
