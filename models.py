@@ -35,8 +35,8 @@ class Turma(db.Model):
     __tablename__ = "turmas"
     id         = db.Column(db.Integer, primary_key=True)
     nome       = db.Column(db.String(120), nullable=False)
-    modalidade = db.Column(db.String(20), nullable=False)  # presencial, EAD, flex
-    tipo       = db.Column(db.String(20), nullable=False)  # graduacao, tecnico, ingles
+    modalidade = db.Column(db.String(20), nullable=False)
+    tipo       = db.Column(db.String(20), nullable=False)
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     curso      = db.relationship("Curso", backref="turmas")
     alunos     = db.relationship("TurmaAluno", backref="turma", lazy=True,
@@ -54,27 +54,32 @@ class TurmaAluno(db.Model):
 
 class Aluno(db.Model):
     __tablename__ = "alunos"
-    id                    = db.Column(db.Integer, primary_key=True)
-    nome                  = db.Column(db.String(120), nullable=False)
-    cpf                   = db.Column(db.String(14))
-    rg                    = db.Column(db.String(20))
-    data_nascimento       = db.Column(db.String(10))
-    telefone              = db.Column(db.String(20))
-    whatsapp              = db.Column(db.String(20))
-    telefone_contato      = db.Column(db.String(20))
-    email                 = db.Column(db.String(120))
-    endereco              = db.Column(db.String(200))
-    status                = db.Column(db.String(40), default="Ativo")
-    curso_id              = db.Column(db.Integer, db.ForeignKey("cursos.id"))
-    responsavel_nome      = db.Column(db.String(120))
-    responsavel_cpf       = db.Column(db.String(14))
-    responsavel_telefone  = db.Column(db.String(20))
-    responsavel_parentesco= db.Column(db.String(40))
-    senha                 = db.Column(db.String(256))
-    mensalidades          = db.relationship("Mensalidade", backref="aluno", lazy=True)
-    matriculas            = db.relationship("Matricula",   backref="aluno", lazy=True)
-    frequencias           = db.relationship("Frequencia",  backref="aluno", lazy=True)
-    notas                 = db.relationship("Nota",        backref="aluno", lazy=True)
+    id                     = db.Column(db.Integer, primary_key=True)
+    nome                   = db.Column(db.String(120), nullable=False)
+    cpf                    = db.Column(db.String(14))
+    rg                     = db.Column(db.String(20))
+    data_nascimento        = db.Column(db.String(10))
+    telefone               = db.Column(db.String(20))
+    whatsapp               = db.Column(db.String(20))
+    telefone_contato       = db.Column(db.String(20))
+    email                  = db.Column(db.String(120))
+    endereco               = db.Column(db.String(200))
+    complemento            = db.Column(db.String(100))   # ← novo
+    bairro                 = db.Column(db.String(100))   # ← novo
+    cidade                 = db.Column(db.String(100))   # ← novo
+    estado                 = db.Column(db.String(2))     # ← novo
+    cep                    = db.Column(db.String(9))     # ← novo
+    status                 = db.Column(db.String(40), default="Ativo")
+    curso_id               = db.Column(db.Integer, db.ForeignKey("cursos.id"))
+    responsavel_nome       = db.Column(db.String(120))
+    responsavel_cpf        = db.Column(db.String(14))
+    responsavel_telefone   = db.Column(db.String(20))
+    responsavel_parentesco = db.Column(db.String(40))
+    senha                  = db.Column(db.String(256))
+    mensalidades           = db.relationship("Mensalidade", backref="aluno", lazy=True)
+    matriculas             = db.relationship("Matricula",   backref="aluno", lazy=True)
+    frequencias            = db.relationship("Frequencia",  backref="aluno", lazy=True)
+    notas                  = db.relationship("Nota",        backref="aluno", lazy=True)
 
 
 class Matricula(db.Model):
@@ -100,16 +105,16 @@ class Mensalidade(db.Model):
         db.Index("ix_mensalidades_vencimento", "vencimento"),
         db.Index("ix_mensalidades_status",     "status"),
     )
-    id               = db.Column(db.Integer, primary_key=True)
-    aluno_id         = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    valor            = db.Column(db.Float, nullable=False)
-    vencimento       = db.Column(db.String(10), nullable=False)
-    status           = db.Column(db.String(20), default="Pendente")
-    tipo             = db.Column(db.String(40))
-    parcela_ref      = db.Column(db.String(20))
-    data_pagamento   = db.Column(db.String(10))
-    forma_pagamento  = db.Column(db.String(40))
-    usuario_pagamento= db.Column(db.String(80))
+    id                = db.Column(db.Integer, primary_key=True)
+    aluno_id          = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    valor             = db.Column(db.Float, nullable=False)
+    vencimento        = db.Column(db.String(10), nullable=False)
+    status            = db.Column(db.String(20), default="Pendente")
+    tipo              = db.Column(db.String(40))
+    parcela_ref       = db.Column(db.String(20))
+    data_pagamento    = db.Column(db.String(10))
+    forma_pagamento   = db.Column(db.String(40))
+    usuario_pagamento = db.Column(db.String(80))
 
 
 class Despesa(db.Model):
@@ -149,13 +154,12 @@ class Frequencia(db.Model):
     status   = db.Column(db.String(20))
 
 
-
 class Materia(db.Model):
     __tablename__ = "materias"
-    id       = db.Column(db.Integer, primary_key=True)
-    nome     = db.Column(db.String(120), nullable=False)
-    ativa    = db.Column(db.Integer, default=1)
-    curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"))
+    id        = db.Column(db.Integer, primary_key=True)
+    nome      = db.Column(db.String(120), nullable=False)
+    ativa     = db.Column(db.Integer, default=1)
+    curso_id  = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     conteudos = db.relationship("Conteudo", backref="materia", lazy=True,
                                 cascade="all, delete-orphan")
     notas     = db.relationship("Nota", backref="materia", lazy=True)
