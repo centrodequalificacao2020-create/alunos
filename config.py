@@ -9,10 +9,8 @@ DB_PATH = os.path.join(BASEDIR, "cqp.db")
 
 
 def _secret_key() -> str:
-    """Retorna a chave do .env ou aborta com instrucão clara."""
     key = os.getenv("FLASK_SECRET_KEY")
     if not key:
-        # Em dev gera automaticamente e avisa; em prod exige a var.
         if os.getenv("FLASK_DEBUG", "False") == "True":
             key = secrets.token_hex(32)
         else:
@@ -25,16 +23,16 @@ def _secret_key() -> str:
 
 
 class Config:
-    SECRET_KEY                   = _secret_key()
-    # URI única de banco — config.py é a fonte de verdade
-    SQLALCHEMY_DATABASE_URI      = os.getenv(
-        "DATABASE_URL", "sqlite:///" + DB_PATH.replace("\\", "/")
+    SECRET_KEY                     = _secret_key()
+    SQLALCHEMY_DATABASE_URI        = os.getenv(
+        "DATABASE_URL",
+        "sqlite:////" + DB_PATH.replace("\\", "/")
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS    = {
+    SQLALCHEMY_ENGINE_OPTIONS      = {
         "connect_args": {"check_same_thread": False, "timeout": 30},
     }
-    UPLOAD_FOLDER                = os.path.join("static", "uploads")
-    MAX_CONTENT_LENGTH           = 10 * 1024 * 1024
-    EXTENSOES_PERMITIDAS         = {"pdf", "png", "jpg", "jpeg", "docx", "mp4"}
-    DEBUG                        = os.getenv("FLASK_DEBUG", "False") == "True"
+    UPLOAD_FOLDER                  = os.path.join("static", "uploads")
+    MAX_CONTENT_LENGTH             = 10 * 1024 * 1024
+    EXTENSOES_PERMITIDAS           = {"pdf", "png", "jpg", "jpeg", "docx", "mp4"}
+    DEBUG                          = os.getenv("FLASK_DEBUG", "False") == "True"
