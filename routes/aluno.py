@@ -1,46 +1,57 @@
-from flask import Blueprint, render_template, request, redirect, flash, session
+from datetime import date
+from flask import Blueprint, render_template, request, redirect, flash
 from db import db
 from models import Aluno, Curso, Mensalidade
 from security import login_required, admin_required
+from sqlalchemy import func
 
 aluno_bp = Blueprint("aluno", __name__)
 
 
-# ─────────────────────────── CADASTRO ───────────────────────────
-
-@aluno_bp.route("/cadastro")
+@aluno_bp.route("/cadastro", methods=["GET", "POST"])
 @login_required
 def cadastro():
+    if request.method == "POST":
+        f = request.form
+        a = Aluno(
+            nome                   = f.get("nome"),
+            cpf                    = f.get("cpf"),
+            rg                     = f.get("rg"),
+            data_nascimento        = f.get("data_nascimento") or None,
+            telefone               = f.get("telefone"),
+            whatsapp               = f.get("whatsapp"),
+            telefone_contato       = f.get("telefone_contato"),
+            email                  = f.get("email"),
+            endereco               = f.get("endereco"),
+            status                 = f.get("status", "Ativo"),
+            curso_id               = f.get("curso_id") or None,
+            responsavel_nome       = f.get("responsavel_nome"),
+            responsavel_cpf        = f.get("responsavel_cpf"),
+            responsavel_telefone   = f.get("responsavel_telefone"),
+            responsavel_parentesco = f.get("responsavel_parentesco"),
+        )
+        db.session.add(a)
+        db.session.commit()
+        flash("Aluno cadastrado com sucesso.", "sucesso")
+        return redirect("/cadastro")
+
     alunos = Aluno.query.order_by(Aluno.nome).all()
     cursos = Curso.query.order_by(Curso.nome).all()
-    return render_template("cadastro.html", alunos=alunos, cursos=cursos)
 
+    # IDs de alunos com mensalidade pendente vencida = inadimplentes
+    hoje = date.today().isoformat()
+    inadimplentes_ids = {
+        r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
+        .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje)
+        .all()
+    }
+    # Marca cada aluno com atributo dinamico
+    for a in alunos:
+        a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
 
-@aluno_bp.route("/salvar_aluno", methods=["POST"])
-@login_required
-def salvar_aluno():
-    f = request.form
-    a = Aluno(
-        nome                  = f.get("nome"),
-        cpf                   = f.get("cpf"),
-        rg                    = f.get("rg"),
-        data_nascimento       = f.get("data_nascimento") or None,
-        telefone              = f.get("telefone"),
-        whatsapp              = f.get("whatsapp"),
-        telefone_contato      = f.get("telefone_contato"),
-        email                 = f.get("email"),
-        endereco              = f.get("endereco"),
-        status                = f.get("status", "Ativo"),
-        curso_id              = f.get("curso_id") or None,
-        responsavel_nome      = f.get("responsavel_nome"),
-        responsavel_cpf       = f.get("responsavel_cpf"),
-        responsavel_telefone  = f.get("responsavel_telefone"),
-        responsavel_parentesco= f.get("responsavel_parentesco"),
-    )
-    db.session.add(a)
-    db.session.commit()
-    flash("Aluno cadastrado com sucesso.", "sucesso")
-    return redirect("/cadastro")
+    inadimplentes = len(inadimplentes_ids)
+    return render_template("cadastro.html", alunos=alunos, cursos=cursos,
+                           inadimplentes=inadimplentes)
 
 
 @aluno_bp.route("/editar_aluno/<int:id>", methods=["GET", "POST"])
@@ -74,8 +85,7 @@ def editar_aluno(id):
 @login_required
 def excluir_aluno(id):
     a = Aluno.query.get_or_404(id)
-    total = Mensalidade.query.filter_by(aluno_id=id).count()
-    if total > 0:
+    if Mensalidade.query.filter_by(aluno_id=id).count() > 0:
         flash("Não é possível excluir: aluno possui registros financeiros.", "erro")
         return redirect("/cadastro")
     db.session.delete(a)
