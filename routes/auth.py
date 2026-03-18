@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, session, flash
-from models import Usuario
+from models import Usuario, Aluno
 from security import verificar_senha
 
 auth_bp = Blueprint("auth", __name__)
@@ -27,4 +27,5 @@ def logout():
 def home():
     if "usuario_id" not in session:
         return redirect("/login")
-    return render_template("home.html")
+    total_alunos = Aluno.query.filter_by(status="Ativo").count()
+    return render_template("home.html", total_alunos=total_alunos)

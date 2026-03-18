@@ -18,7 +18,7 @@
                 <select id="aluno_id_mat" name="aluno_id" required>
                     <option value="">Selecione o aluno</option>
                     {% for a in alunos %}
-                    <option value="{{ a[0] }}" {% if aluno_id == a[0]|string %}selected{% endif %}>{{ a[1] }}</option>
+                    <option value="{{ a.id }}" {% if aluno_id == a.id|string %}selected{% endif %}>{{ a.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -28,7 +28,7 @@
                 <select id="curso_id_mat" name="curso_id" required>
                     <option value="">Selecione o curso</option>
                     {% for c in cursos %}
-                    <option value="{{ c[0] }}">{{ c[1] }}</option>
+                    <option value="{{ c.id }}">{{ c.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -122,14 +122,15 @@
             <h2>Confirmação de Pré-Matrícula</h2>
         </div>
 
-        <form method="POST" action="/pre_matricula" target="_blank">
+        <form method="POST" action="/salvar_matricula">
+            <input type="hidden" name="is_pre_matricula" value="1">
 
             <div class="campo">
                 <label for="aluno_id_pre">Aluno</label>
                 <select id="aluno_id_pre" name="aluno_id" required>
                     <option value="">Selecione o aluno</option>
                     {% for a in alunos %}
-                    <option value="{{ a[0] }}">{{ a[1] }}</option>
+                    <option value="{{ a.id }}">{{ a.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -139,7 +140,7 @@
                 <select id="curso_id_pre" name="curso_id" required>
                     <option value="">Selecione o curso</option>
                     {% for c in cursos %}
-                    <option value="{{ c[0] }}">{{ c[1] }}</option>
+                    <option value="{{ c.id }}">{{ c.nome }}</option>
                     {% endfor %}
                 </select>
             </div>

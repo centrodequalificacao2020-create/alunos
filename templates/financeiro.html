@@ -118,7 +118,7 @@
                 <td>{{ p.usuario_pagamento or 'Sistema' }}</td>
                 <td class="acoes">
                     <a href="/recibo/{{ p.id }}" target="_blank" class="btn btn-recibo tooltip" data-tooltip="Ver recibo">🧾</a>
-                    <form method="POST" action="/excluir_parcela_segura/{{ p.id }}/{{ aluno_id }}"
+                    <form method="POST" action="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
                           onsubmit="return confirmarExclusao(this)" style="display:inline">
                         <input type="hidden" name="senha">
                         <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</button>
