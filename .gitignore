@@ -1,47 +1,40 @@
-# Ambiente virtual
-venv/
-.venv/
-env/
-
-# Cache Python
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# Banco de dados
+# Ambientes virtuais
+venv/
+.venv/
+env/
+.env/
+
+# Flask / SQLite
+instance/
 *.db
+*.sqlite
 *.sqlite3
 
-# Variáveis de ambiente — NUNCA versionar
+# Segredos
 .env
-.env.*
-!.env.example
+*.env
 
-# Logs
-logs/
-*.log
-
-# Uploads
+# Uploads gerados em runtime
 static/uploads/
 
-# Azure
-.azure/
-*.zip
-
-# IDEs
+# IDEs e OS
 .vscode/
 .idea/
 *.swp
-*.swo
-
-# OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# Instância Flask
-instance/
-
-# Migrações geradas automaticamente (manter só o essencial)
-migrations/versions/
+# Logs
+*.log
+logs/
