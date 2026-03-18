@@ -50,6 +50,16 @@ def editar_funcionario(id):
     return render_template("editar_funcionario.html", funcionario=u)
 
 
+@funcionario_bp.route("/excluir_funcionario/<int:id>", methods=["POST"])
+@admin_required
+def excluir_funcionario(id):
+    u = Usuario.query.get_or_404(id)
+    db.session.delete(u)
+    db.session.commit()
+    flash("Funcionário excluído.", "sucesso")
+    return redirect("/funcionarios")
+
+
 @funcionario_bp.route("/ver_funcionario/<int:id>")
 @login_required
 def ver_funcionario(id):
