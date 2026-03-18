@@ -3,10 +3,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASEDIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH = os.path.join(BASEDIR, "cqp.db")
+
 
 class Config:
     SECRET_KEY = os.getenv("FLASK_SECRET_KEY", os.urandom(32))
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///cqp.db")
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "connect_args": {"check_same_thread": False, "timeout": 30},
