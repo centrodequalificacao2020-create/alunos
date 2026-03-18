@@ -7,7 +7,7 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = request.form.get("usuario", "").strip()
+        u = request.form.get("login", "").strip()
         s = request.form.get("senha", "")
         user = Usuario.query.filter_by(usuario=u).first()
         if user and verificar_senha(s, user.senha):
