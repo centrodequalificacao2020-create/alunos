@@ -64,11 +64,11 @@ class Aluno(db.Model):
     telefone_contato       = db.Column(db.String(20))
     email                  = db.Column(db.String(120))
     endereco               = db.Column(db.String(200))
-    complemento            = db.Column(db.String(100))   # ← novo
-    bairro                 = db.Column(db.String(100))   # ← novo
-    cidade                 = db.Column(db.String(100))   # ← novo
-    estado                 = db.Column(db.String(2))     # ← novo
-    cep                    = db.Column(db.String(9))     # ← novo
+    complemento            = db.Column(db.String(100))
+    bairro                 = db.Column(db.String(100))
+    cidade                 = db.Column(db.String(100))
+    estado                 = db.Column(db.String(2))
+    cep                    = db.Column(db.String(9))
     status                 = db.Column(db.String(40), default="Ativo")
     curso_id               = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     responsavel_nome       = db.Column(db.String(120))
