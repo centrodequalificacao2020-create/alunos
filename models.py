@@ -1,6 +1,7 @@
 from db import db
 from datetime import datetime, date
 
+
 class Usuario(db.Model):
     __tablename__ = "usuarios"
     id              = db.Column(db.Integer, primary_key=True)
@@ -15,6 +16,7 @@ class Usuario(db.Model):
     email           = db.Column(db.String(120))
     endereco        = db.Column(db.String(200))
 
+
 class Curso(db.Model):
     __tablename__ = "cursos"
     id              = db.Column(db.Integer, primary_key=True)
@@ -23,8 +25,32 @@ class Curso(db.Model):
     valor_matricula = db.Column(db.Float, default=0)
     parcelas        = db.Column(db.Integer, default=1)
     tipo            = db.Column(db.String(60))
-    alunos          = db.relationship("Aluno",     backref="curso",    lazy=True)
-    matriculas      = db.relationship("Matricula", backref="curso",    lazy=True)
+    duracao         = db.Column(db.String(60))
+    alunos          = db.relationship("Aluno",     backref="curso",  lazy=True)
+    matriculas      = db.relationship("Matricula", backref="curso",  lazy=True)
+    materias        = db.relationship("Materia",   backref="curso",  lazy=True)
+
+
+class Turma(db.Model):
+    __tablename__ = "turmas"
+    id         = db.Column(db.Integer, primary_key=True)
+    nome       = db.Column(db.String(120), nullable=False)
+    modalidade = db.Column(db.String(20), nullable=False)  # presencial, EAD, flex
+    tipo       = db.Column(db.String(20), nullable=False)  # graduacao, tecnico, ingles
+    curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
+    curso      = db.relationship("Curso", backref="turmas")
+    alunos     = db.relationship("TurmaAluno", backref="turma", lazy=True,
+                                 cascade="all, delete-orphan")
+
+
+class TurmaAluno(db.Model):
+    __tablename__ = "turma_alunos"
+    __table_args__ = (db.UniqueConstraint("turma_id", "aluno_id"),)
+    id       = db.Column(db.Integer, primary_key=True)
+    turma_id = db.Column(db.Integer, db.ForeignKey("turmas.id"), nullable=False)
+    aluno_id = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    aluno    = db.relationship("Aluno", backref="turmas")
+
 
 class Aluno(db.Model):
     __tablename__ = "alunos"
@@ -48,6 +74,8 @@ class Aluno(db.Model):
     mensalidades          = db.relationship("Mensalidade", backref="aluno", lazy=True)
     matriculas            = db.relationship("Matricula",   backref="aluno", lazy=True)
     frequencias           = db.relationship("Frequencia",  backref="aluno", lazy=True)
+    notas                 = db.relationship("Nota",        backref="aluno", lazy=True)
+
 
 class Matricula(db.Model):
     __tablename__ = "matriculas"
@@ -63,6 +91,7 @@ class Matricula(db.Model):
     material_didatico   = db.Column(db.String(20))
     valor_material      = db.Column(db.Float, default=0)
     observacao          = db.Column(db.Text)
+
 
 class Mensalidade(db.Model):
     __tablename__ = "mensalidades"
@@ -82,6 +111,7 @@ class Mensalidade(db.Model):
     forma_pagamento  = db.Column(db.String(40))
     usuario_pagamento= db.Column(db.String(80))
 
+
 class Despesa(db.Model):
     __tablename__ = "despesas"
     id             = db.Column(db.Integer, primary_key=True)
@@ -94,6 +124,7 @@ class Despesa(db.Model):
     recorrente     = db.Column(db.Integer, default=0)
     dia_vencimento = db.Column(db.Integer)
 
+
 class Relatorio(db.Model):
     __tablename__ = "relatorios"
     id               = db.Column(db.Integer, primary_key=True)
@@ -103,26 +134,39 @@ class Relatorio(db.Model):
     matriculas       = db.Column(db.Integer, default=0)
     matriculas_venda = db.Column(db.Integer, default=0)
 
+
 class Frequencia(db.Model):
     __tablename__ = "frequencias"
-    __table_args__ = (db.Index("ix_frequencias_aluno_id", "aluno_id"),)
+    __table_args__ = (
+        db.Index("ix_frequencias_aluno_id", "aluno_id"),
+        db.UniqueConstraint("aluno_id", "curso_id", "data",
+                            name="uq_frequencias_aluno_curso_data"),
+    )
     id       = db.Column(db.Integer, primary_key=True)
     aluno_id = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     data     = db.Column(db.String(10))
-    status   = db.Column(db.String(20))  # Presente / Falta
+    status   = db.Column(db.String(20))
+
+
 
 class Materia(db.Model):
     __tablename__ = "materias"
     id       = db.Column(db.Integer, primary_key=True)
-    nome     = db.Column(db.String(120))
+    nome     = db.Column(db.String(120), nullable=False)
+    ativa    = db.Column(db.Integer, default=1)
     curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"))
-    conteudos = db.relationship("Conteudo", backref="materia", lazy=True)
+    conteudos = db.relationship("Conteudo", backref="materia", lazy=True,
+                                cascade="all, delete-orphan")
+    notas     = db.relationship("Nota", backref="materia", lazy=True)
+
 
 class CursoMateria(db.Model):
     __tablename__ = "cursos_materias"
     id         = db.Column(db.Integer, primary_key=True)
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"))
+
 
 class Conteudo(db.Model):
     __tablename__ = "conteudos"
@@ -131,13 +175,27 @@ class Conteudo(db.Model):
     materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"))
     modulo     = db.Column(db.String(60))
     arquivo    = db.Column(db.String(300))
-    video      = db.Column(db.String(300))  # URL de vídeo externo (YouTube etc.)
+    video      = db.Column(db.String(300))
     data       = db.Column(db.String(10))
+
+
+class Nota(db.Model):
+    __tablename__ = "notas"
+    __table_args__ = (
+        db.UniqueConstraint("aluno_id", "materia_id", "curso_id"),
+    )
+    id         = db.Column(db.Integer, primary_key=True)
+    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"),   nullable=False, index=True)
+    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"),   nullable=False)
+    nota       = db.Column(db.Float)
+    resultado  = db.Column(db.String(40))
+
 
 class ProgressoAula(db.Model):
     __tablename__ = "progresso_aulas"
+    __table_args__ = (db.UniqueConstraint("aluno_id", "conteudo_id"),)
     id          = db.Column(db.Integer, primary_key=True)
     aluno_id    = db.Column(db.Integer, db.ForeignKey("alunos.id"))
     conteudo_id = db.Column(db.Integer, db.ForeignKey("conteudos.id"))
     concluido   = db.Column(db.Integer, default=0)
-    __table_args__ = (db.UniqueConstraint("aluno_id", "conteudo_id"),)

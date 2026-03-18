@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Editar Turma — {{ turma.nome }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Editar Turma: {{ turma.nome }}</h2>
+
+  <!-- Dados da turma -->
+  <div class="card mb-4">
+    <div class="card-header">Dados</div>
+    <div class="card-body">
+      <form method="POST" action="/turmas/{{ turma.id }}/editar">
+        <div class="row g-2">
+          <div class="col-md-3">
+            <label for="nome" class="form-label">Nome</label>
+            <input type="text" id="nome" name="nome"
+                   class="form-control" value="{{ turma.nome }}" required>
+          </div>
+          <div class="col-md-3">
+            <label for="modalidade" class="form-label">Modalidade</label>
+            <select id="modalidade" name="modalidade" class="form-select" required>
+              {% for op in ["presencial","EAD","flex"] %}
+              <option value="{{ op }}"
+                {% if turma.modalidade == op %}selected{% endif %}>
+                {{ op|capitalize }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="tipo" class="form-label">Tipo</label>
+            <select id="tipo" name="tipo" class="form-select" required>
+              {% for op, label in [("graduacao","Graduação"),("tecnico","Técnico"),("ingles","Inglês")] %}
+              <option value="{{ op }}"
+                {% if turma.tipo == op %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="curso_id" class="form-label">Curso</label>
+            <select id="curso_id" name="curso_id" class="form-select">
+              <option value="">Nenhum</option>
+              {% for c in cursos %}
+              <option value="{{ c.id }}"
+                {% if turma.curso_id == c.id %}selected{% endif %}>
+                {{ c.nome }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary mt-3">Salvar</button>
+        <a href="/turmas" class="btn btn-secondary mt-3">Cancelar</a>
+      </form>
+    </div>
+  </div>
+
+  <!-- Alunos da turma -->
+  <div class="card mb-4">
+    <div class="card-header">Alunos na Turma</div>
+    <div class="card-body">
+      {% if turma.alunos %}
+      <table class="table table-sm">
+        <thead><tr><th>Aluno</th><th>Remover</th></tr></thead>
+        <tbody>
+          {% for ta in turma.alunos %}
+          <tr>
+            <td>{{ ta.aluno.nome }}</td>
+            <td>
+              <form method="POST"
+                    action="/turmas/{{ turma.id }}/alunos/{{ ta.aluno_id }}/remover">
+                <button class="btn btn-sm btn-outline-danger">Remover</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted">Nenhum aluno nesta turma.</p>
+      {% endif %}
+
+      <!-- Adicionar aluno -->
+      <form method="POST" action="/turmas/{{ turma.id }}/alunos/adicionar"
+            class="row g-2 mt-2">
+        <div class="col-md-6">
+          <label for="aluno_id" class="form-label">Adicionar Aluno</label>
+          <select id="aluno_id" name="aluno_id" class="form-select" required>
+            <option value="">Selecione o aluno</option>
+            {% for a in alunos_disponiveis %}
+            <option value="{{ a.id }}">{{ a.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-success w-100">Adicionar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
