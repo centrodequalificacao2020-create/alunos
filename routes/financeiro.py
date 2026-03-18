@@ -96,6 +96,11 @@ def movimentacao():
 @financeiro_bp.route("/salvar_matricula", methods=["POST"])
 @login_required
 def salvar_matricula():
-    matricula_id = criar_matricula(request.form)   # lógica no service
-    flash("Matrícula realizada com sucesso.", "sucesso")
-    return redirect(f"/movimentacao?matricula_id={matricula_id}")
+    try:
+        matricula_id = criar_matricula(request.form)
+        flash("Matrícula realizada com sucesso.", "sucesso")
+        return redirect(f"/movimentacao?matricula_id={matricula_id}")
+    except ValueError as e:
+        flash(str(e), "erro")
+        return redirect("/movimentacao")
+

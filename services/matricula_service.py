@@ -7,6 +7,7 @@ def criar_matricula(form):
     """
     Cria matrícula + mensalidades numa única transação.
     Retorna o id da matrícula criada.
+    Lança ValueError se já existe matrícula ATIVA para o mesmo aluno/curso.
     """
     aluno_id         = int(form.get("aluno_id"))
     curso_id         = int(form.get("curso_id"))
@@ -20,9 +21,19 @@ def criar_matricula(form):
     observacao       = form.get("observacao")
 
     hoje = date.today()
-    d_matricula  = _parse_date(form.get("data_matricula"))    or hoje
-    d_mensalidade= _parse_date(form.get("data_primeira_mensalidade")) or hoje
-    d_material   = _parse_date(form.get("data_material"))     or hoje
+    d_matricula   = _parse_date(form.get("data_matricula"))             or hoje
+    d_mensalidade = _parse_date(form.get("data_primeira_mensalidade"))  or hoje
+    d_material    = _parse_date(form.get("data_material"))              or hoje
+
+    # ── GUARD: dupla matrícula ──────────────────────────────────────────
+    duplicada = Matricula.query.filter_by(
+        aluno_id=aluno_id, curso_id=curso_id, status="ATIVA"
+    ).first()
+    if duplicada:
+        raise ValueError(
+            f"Aluno já possui matrícula ATIVA neste curso (id={duplicada.id})."
+        )
+    # ───────────────────────────────────────────────────────────────────
 
     try:
         matricula = Matricula(
@@ -33,16 +44,14 @@ def criar_matricula(form):
             valor_material=valor_material, observacao=observacao,
         )
         db.session.add(matricula)
-        db.session.flush()   # pega o id sem commitar ainda
+        db.session.flush()
 
-        # Taxa de matrícula
         if valor_matricula > 0:
             db.session.add(Mensalidade(
                 aluno_id=aluno_id, valor=valor_matricula,
                 vencimento=d_matricula.strftime("%Y-%m-%d"),
                 status="Pendente", tipo="Matrícula", parcela_ref="1/1"))
 
-        # Mensalidades
         for i in range(parcelas):
             venc = d_mensalidade + relativedelta(months=i)
             db.session.add(Mensalidade(
@@ -51,7 +60,6 @@ def criar_matricula(form):
                 status="Pendente", tipo="Mensalidade",
                 parcela_ref=f"{i+1}/{parcelas}"))
 
-        # Material
         if valor_material > 0:
             val_parc = round(valor_material / parc_material, 2)
             for i in range(parc_material):
@@ -68,6 +76,7 @@ def criar_matricula(form):
     except Exception as e:
         db.session.rollback()
         raise e
+
 
 def _parse_date(s):
     if not s:

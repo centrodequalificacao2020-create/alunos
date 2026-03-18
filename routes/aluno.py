@@ -35,23 +35,33 @@ def cadastro():
         flash("Aluno cadastrado com sucesso.", "sucesso")
         return redirect("/cadastro")
 
-    alunos = Aluno.query.order_by(Aluno.nome).all()
+    page   = request.args.get("page", 1, type=int)
+    busca  = request.args.get("q", "").strip()
+    query  = Aluno.query.order_by(Aluno.nome)
+    if busca:
+        query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
+    paginacao = query.paginate(page=page, per_page=20, error_out=False)
+    alunos    = paginacao.items
+
     cursos = Curso.query.order_by(Curso.nome).all()
 
-    # IDs de alunos com mensalidade pendente vencida = inadimplentes
     hoje = date.today().isoformat()
     inadimplentes_ids = {
         r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
         .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje)
         .all()
     }
-    # Marca cada aluno com atributo dinamico
     for a in alunos:
         a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
 
     inadimplentes = len(inadimplentes_ids)
-    return render_template("cadastro.html", alunos=alunos, cursos=cursos,
-                           inadimplentes=inadimplentes)
+    return render_template("cadastro.html",
+                           alunos=alunos,
+                           cursos=cursos,
+                           inadimplentes=inadimplentes,
+                           paginacao=paginacao,
+                           busca=busca)
+
 
 
 @aluno_bp.route("/editar_aluno/<int:id>", methods=["GET", "POST"])

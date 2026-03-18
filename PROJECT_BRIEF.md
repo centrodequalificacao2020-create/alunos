@@ -1,5 +1,11 @@
+
+***
+
+## PROJECT_BRIEF.md
+
+```markdown
 # PROJECT_BRIEF.md
-> Leia este arquivo no início de QUALQUER nova thread ou conversa com IA.
+> Leia este arquivo **no início de QUALQUER nova thread ou conversa com IA**.
 > Ele evita re-explicação e garante continuidade entre sessões.
 
 ## Projeto
@@ -9,51 +15,78 @@
 - **URL de produção:** https://cqp-escola-fjb5hhcfe0aaf0a2.brazilsouth-01.azurewebsites.net
 
 ## Stack
-- **Backend:** Python 3.11 + Flask 3.0.3 + Flask-SQLAlchemy 3.1.1 + Flask-Migrate 4.0.7
+- **Backend:** Python 3.12 + Flask 3.0 + Flask-SQLAlchemy 2.0 + Flask-Migrate
 - **Banco:** SQLite (`cqp.db`) — futuro: PostgreSQL
-- **PDF:** ReportLab 4.2.2
+- **PDF:** ReportLab
+- **Extras:** python-dateutil (`relativedelta` para cálculo de parcelas)
 - **Auth:** Werkzeug hash de senha + decorators em `security.py`
-- **Servidor:** Gunicorn 22.0.0
+- **Servidor:** Gunicorn via `startup.sh`
 - **Hospedagem:** Azure App Service — Brazil South
+- **CI/CD:** `.github/workflows/azure-deploy.yml`
 
 ## Arquitetura
-- `app.py` — factory pattern `create_app()`
-- `db.py` — SQLAlchemy init, WAL mode, `get_db()`
-- `security.py` — hash senha, `@login_required`, `@admin_required`, `@aluno_login_required`
-- `config.py` — `SECRET_KEY` via `.env`, sem hardcode
-- `models.py` — todos os modelos ORM
-- `routes/` — 10 blueprints: `auth`, `aluno`, `cursos`, `financeiro`, `dashboard`, `despesas`, `funcionario`, `conteudos`, `academico`, `portal_aluno`
-- `services/` — lógica de negócio separada das rotas
-- `templates/` — Jinja2, base.html + subpasta `aluno/` (portal do aluno)
+- `app.py` — `create_app()` factory; registra 10 blueprints; cria `uploads/`
+- `db.py` — SQLAlchemy init, WAL mode
+- `security.py` — `hash_senha`, `verificar_senha`, `@login_required`, `@admin_required`, `@aluno_login_required`, `extensao_permitida`
+- `config.py` — `SECRET_KEY` e `UPLOAD_FOLDER` via `.env`; `MAX_CONTENT_LENGTH = 10 MB`
+- `models.py` — 15 modelos ORM (ver tabela no README)
+- `routes/` — 10 blueprints (ver abaixo)
+- `services/matricula_service.py` — `criar_matricula(form)`: cria `Matricula` + `Mensalidade` (taxa, parcelas mensais, material) numa única transação com rollback
+- `services/pdf_service.py` — `gerar_recibo`, `gerar_carne`, `gerar_boletim_notas`, `gerar_historico_frequencia`
+- `templates/` — Jinja2; `base.html` + subpasta `aluno/` (portal do aluno)
 - `migrations/` — Flask-Migrate + Alembic
-- `scripts/` — utilitários (ver tabelas, matrículas etc.)
 
-## Módulos do sistema
-Alunos, Matrículas, Mensalidades, Frequência, Notas, Conteúdos,
-Funcionários, Dashboard, Relatórios financeiros (PDF), Portal do Aluno
+## Blueprints e rotas principais
 
-## Histórico de refatoração
+| Blueprint | Arquivo | Rotas principais |
+|---|---|---|
+| `auth_bp` | `routes/auth.py` | `GET/POST /login`, `GET /logout`, `GET /` |
+| `aluno_bp` | `routes/aluno.py` | `GET/POST /cadastro`, `/editar_aluno/<id>`, `/excluir_aluno/<id>`, `/aluno/<id>` |
+| `cursos_bp` | `routes/cursos.py` | `GET /cursos`, `/salvar_curso`, `/editar_curso/<id>`, `/excluir_curso/<id>` |
+| `financeiro_bp` | `routes/financeiro.py` | `GET /financeiro`, `/pagar/<id>`, `/editar_parcela/<id>`, `/excluir_parcela/<id>/<aluno_id>`, `/recibo/<id>`, `/carne/<aluno_id>`, `/movimentacao`, `/salvar_matricula` |
+| `dashboard_bp` | `routes/dashboard.py` | `GET /dashboard`, `/salvar_relatorio`, `/carregar_relatorio/<mes>`, `/relatorio_trimestre/<ano>/<tri>` |
+| `despesas_bp` | `routes/despesas.py` | `GET/POST /despesas`, `/editar_despesa/<id>`, `/excluir_despesa/<id>` |
+| `funcionario_bp` | `routes/funcionario.py` | `GET /funcionarios`, `/salvar_funcionario`, `/editar_funcionario/<id>`, `/excluir_funcionario/<id>`, `/ver_funcionario/<id>` |
+| `conteudos_bp` | `routes/conteudos.py` | `GET/POST /conteudos`, `/conteudos/excluir/<id>` |
+| `academico_bp` | `routes/academico.py` | `/turmas`, `/materias`, `/notas`, `/frequencia`, `/frequencia_historico`, PDFs, `/backup` |
+| `portal_aluno_bp` | `routes/portal_aluno.py` | `/aluno/login`, `/aluno/logout`, `/aluno/dashboard`, `/aluno/frequencia`, `/aluno/conteudo`, `/aluno/concluir/<id>` |
+
+## Modelos críticos
+
+**Matricula** — campos: `aluno_id`, `curso_id`, `tipo_curso`, `data_matricula`, `status` (`"ATIVA"`), `valor_matricula`, `valor_mensalidade`, `quantidade_parcelas`, `material_didatico`, `valor_material`, `observacao`
+
+**Mensalidade** — campos: `aluno_id`, `valor`, `vencimento`, `status` (`"Pendente"/"Pago"`), `tipo` (`"Mensalidade"/"Matrícula"/"Material"`), `parcela_ref`, `data_pagamento`, `forma_pagamento`, `usuario_pagamento`; índices em `aluno_id`, `vencimento`, `status`
+
+**Aluno** — `status` pode ser `"Ativo"`, `"Pré-Matrícula"`, `"Cancelado"`; campo `senha` para acesso ao portal do aluno
+
+## Histórico de commits relevantes
+
 | Commit | O que foi feito |
 |---|---|
 | Commits 1-2 | Separação em blueprints, `security.py`, `db.py`, hash de senha, `.env` |
 | Commit 3 | `portal_aluno.py` corrigido (`alunos/` → `aluno/`), scripts movidos para `scripts/` |
-| Commit 4 (135cd99) | Dashboard, relatórios, templates refatorados, `models.py` corrigido |
+| 135cd99 | Dashboard, relatórios, templates refatorados, `models.py` corrigido |
 | 9f38547 | `startup.sh` adicionado para Azure factory pattern |
 | a1b51d6 | `.github/workflows/azure-deploy.yml` adicionado |
+| Sessão 18/03 | Migration `turmas`, `turma_alunos`, `notas` aplicada |
 
-## Pendências abertas
-- [ ] Cadastrar `AZURE_WEBAPP_PUBLISH_PROFILE` nos secrets do GitHub (fazer com o cliente em 18/03)
-- [ ] Executar `git rm --cached -r venv/` localmente para remover venv do git
-- [ ] Rodar `flask db upgrade` após primeiro deploy no Azure
+## Pendências abertas (18/03/2026)
+
+- [ ] **CRÍTICO:** Cadastrar `AZURE_WEBAPP_PUBLISH_PROFILE` nos secrets do GitHub (fazer com o cliente presencialmente)
+- [ ] **BUG:** Paginação na listagem de alunos (`GET /cadastro`) — `Aluno.query.order_by().all()` retorna todos sem limite; implementar `paginate(page, per_page=20)`
+- [ ] **BUG:** Validação de dupla matrícula ativa — `criar_matricula()` em `matricula_service.py` não verifica se já existe `Matricula` com `aluno_id` + `curso_id` + `status="ATIVA"`; adicionar guard antes do `db.session.add(matricula)`
+- [ ] Executar `git rm --cached -r venv/` localmente (venv ainda rastreada no git)
+- [ ] Rodar `flask db upgrade` no Azure após primeiro deploy
 - [ ] Rodar `criar_admin.py` no servidor após deploy
-- [ ] Testes com o cliente (19/03)
+- [ ] Testes com o cliente — **19/03/2026**
 
 ## Regras inegociáveis de código
 - **NUNCA** usar `sqlite3` direto — sempre SQLAlchemy via `db.py`
+  - **Exceção documentada:** `academico.py /backup` usa `sqlite3.backup()` propositalmente para cópia consistente do banco — não alterar
 - **SEMPRE** `@login_required` em rotas que alteram dados
 - **NUNCA** hardcode de senhas ou chaves — sempre via `.env`
-- Blueprints para novos módulos — nunca adicionar rotas no `app.py`
-- Docstring em toda função nova
+- Blueprints para novos módulos — nunca adicionar rotas em `app.py`
+- Paginação obrigatória em listagens com potencial de crescimento
 
 ## Prazo
 **20/03/2026 às 17h (Brasília)** — sistema funcionando em produção para o cliente
