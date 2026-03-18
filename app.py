@@ -44,6 +44,17 @@ def create_app(config_class=Config):
     app.register_blueprint(academico_bp)
     app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
 
+    @app.template_filter("moeda")
+    def filtro_moeda(valor):
+        """R$ 1.234,56"""
+        try:
+            v = float(valor or 0)
+        except (TypeError, ValueError):
+            v = 0.0
+        inteiro = int(v)
+        decimal = int(round((v - inteiro) * 100))
+        return f"R$ {inteiro:,d},{decimal:02d}".replace(",", ".")
+
     # Gera pasta de uploads
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 

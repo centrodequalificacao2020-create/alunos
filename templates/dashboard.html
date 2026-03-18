@@ -39,15 +39,15 @@
 <div class="grid-4">
     <div class="card dashboard-card card--success">
         <h4>Recebido no mês</h4>
-        <p class="valor-success">R$ {{ "{:,.2f}".format(recebido_mes).replace(",","X").replace(".",",").replace("X",".") }}</p>
+        <p class="valor-success">{{ recebido_mes|moeda }}</p>
     </div>
     <div class="card dashboard-card card--info">
         <h4>A receber</h4>
-        <p class="valor-info">R$ {{ "{:,.2f}".format(a_receber_mes).replace(",","X").replace(".",",").replace("X",".") }}</p>
+        <p class="valor-info">{{ a_receber_mes|moeda }}</p>
     </div>
     <div class="card dashboard-card card--danger">
         <h4>Total em atraso</h4>
-        <p class="valor-danger">R$ {{ "%.2f"|format(total_atraso) }}</p>
+        <p class="valor-danger">{{ total_atraso|moeda }}</p>
     </div>
     <div class="card dashboard-card card--teal">
         <h4>Alunos ativos</h4>
@@ -59,7 +59,7 @@
 <div class="grid-4">
     <div class="card dashboard-card card--teal">
         <h4>Recebimento de Matrícula</h4>
-        <p class="valor-teal">R$ {{ "{:,.2f}".format(recebimento_matricula).replace(",","X").replace(".",",").replace("X",".") }}</p>
+        <p class="valor-teal">{{ recebimento_matricula|moeda }}</p>
     </div>
     <div class="card dashboard-card card--purple">
         <h4>Matrículas no mês</h4>
@@ -71,7 +71,7 @@
     </div>
     <div class="card dashboard-card card--dark">
         <h4>Matrículas Futuras</h4>
-        <p>R$ {{ "{:,.2f}".format(matriculas_futuras).replace(",","X").replace(".",",").replace("X",".") }}</p>
+        <p>{{ matriculas_futuras|moeda }}</p>
     </div>
 </div>
 
@@ -79,12 +79,12 @@
 <div class="grid-4">
     <div class="card dashboard-card card--danger">
         <h4>Despesas do mês</h4>
-        <p class="valor-danger">R$ {{ "{:,.2f}".format(despesas_mes).replace(",","X").replace(".",",").replace("X",".") }}</p>
+        <p class="valor-danger">{{ despesas_mes|moeda }}</p>
     </div>
     <div class="card dashboard-card {{ 'card--danger' if lucro_liquido < 0 else 'card--success' }}">
         <h4>EBITDA (Lucro Operacional)</h4>
         <p class="{{ 'valor-danger' if lucro_liquido < 0 else 'valor-success' }} valor-xl">
-            R$ {{ "{:,.2f}".format(lucro_liquido).replace(",","X").replace(".",",").replace("X",".") }}
+            {{ lucro_liquido|moeda }}
         </p>
     </div>
     <div class="card dashboard-card card--info">
@@ -101,11 +101,11 @@
 <div class="grid-4">
     <div class="card dashboard-card card--success">
         <h4>Receita projetada</h4>
-        <p class="valor-success">R$ {{ "{:,.2f}".format(receita_projetada).replace(",","X").replace(".",",").replace("X",".") }}</p>
+        <p class="valor-success">{{ receita_projetada|moeda }}</p>
     </div>
     <div class="card dashboard-card card--info">
         <h4>Ticket médio</h4>
-        <p class="valor-info">R$ {{ "{:,.2f}".format(ticket_medio).replace(",","X").replace(".",",").replace("X",".") }}</p>
+        <p class="valor-info">{{ ticket_medio|moeda }}</p>
     </div>
     <div class="card dashboard-card card--danger">
         <h4>Taxa de inadimplência</h4>
