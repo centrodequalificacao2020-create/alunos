@@ -11,16 +11,15 @@
     <form method="POST">
         <div class="grid-2">
             <div class="campo">
-                <label for="descricao">Descrição</label>
-                <input type="text" id="descricao" name="descricao"
+                <label for="nome">Nome</label>
+                <input type="text" id="nome" name="nome"
                        value="{{ despesa.descricao }}" required>
             </div>
             <div class="campo">
-                <label for="categoria">Categoria</label>
-                <select id="categoria" name="categoria">
-                    {% for cat in ['Aluguel','Salário','Marketing','Material','Outros'] %}
-                    <option value="{{ cat }}" {% if despesa.categoria == cat %}selected{% endif %}>{{ cat }}</option>
-                    {% endfor %}
+                <label for="tipo">Tipo</label>
+                <select id="tipo" name="tipo" required>
+                    <option value="fixa"  {% if despesa.tipo == 'fixa'  %}selected{% endif %}>Fixa</option>
+                    <option value="unica" {% if despesa.tipo == 'unica' %}selected{% endif %}>Única</option>
                 </select>
             </div>
         </div>
@@ -36,6 +35,11 @@
                 <input type="date" id="data" name="data"
                        value="{{ despesa.data }}" required>
             </div>
+        </div>
+        <div class="campo">
+            <label for="observacao">Observação</label>
+            <input type="text" id="observacao" name="observacao"
+                   value="{{ despesa.observacao or '' }}">
         </div>
         <div class="acoes-form">
             <button type="submit" class="btn btn-azul">💾 Salvar</button>
