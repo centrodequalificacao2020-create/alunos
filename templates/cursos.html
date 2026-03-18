@@ -2,6 +2,8 @@
 {% block title %}Cursos{% endblock %}
 {% block content %}
 
+{% set TIPOS_CURSO = ['Profissionalizante','Técnico','Graduação','NR','Pós-graduação','EJA','Livre','Capacitação'] %}
+
 <div class="card">
     <div class="card-header">
         <span>📚</span>
@@ -17,7 +19,12 @@
             </div>
             <div class="campo">
                 <label for="tipo">Tipo</label>
-                <input type="text" id="tipo" name="tipo" placeholder="Ex: Profissionalizante">
+                <select id="tipo" name="tipo" required>
+                    <option value="">Selecione</option>
+                    {% for t in TIPOS_CURSO %}
+                    <option value="{{ t }}">{{ t }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="campo">
                 <label for="valor_mensal">Valor Mensal (R$)</label>
