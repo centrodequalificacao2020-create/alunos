@@ -9,33 +9,43 @@
     </div>
     <p class="card-subtitle">Cadastre e gerencie a equipe</p>
 
-    <form method="POST">
+    <form method="POST" action="/salvar_funcionario">
         <div class="grid-4">
             <div class="campo">
                 <label for="nome_func">Nome</label>
                 <input type="text" id="nome_func" name="nome" required placeholder="Nome completo">
             </div>
             <div class="campo">
-                <label for="cargo">Cargo</label>
-                <input type="text" id="cargo" name="cargo" placeholder="Ex: Recepcionista">
+                <label for="cpf">CPF</label>
+                <input type="text" id="cpf" name="cpf" inputmode="numeric" placeholder="000.000.000-00">
             </div>
             <div class="campo">
-                <label for="login">Login</label>
-                <input type="text" id="login" name="login" autocomplete="off">
+                <label for="usuario">Login (usuário)</label>
+                <input type="text" id="usuario" name="usuario" autocomplete="off" required>
             </div>
             <div class="campo">
                 <label for="perfil">Perfil</label>
                 <select id="perfil" name="perfil">
-                    {% for p in ['Administrador','Financeiro','Usuario','Instrutor'] %}
-                    <option>{{ p }}</option>
+                    {% for p in ['administrador', 'financeiro', 'secretaria', 'instrutor'] %}
+                    <option value="{{ p }}">{{ p | capitalize }}</option>
                     {% endfor %}
                 </select>
             </div>
         </div>
         <div class="grid-2">
             <div class="campo">
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email" placeholder="func@email.com">
+            </div>
+            <div class="campo">
+                <label for="telefone">Telefone</label>
+                <input type="text" id="telefone" name="telefone" inputmode="numeric" placeholder="(00) 00000-0000">
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="campo">
                 <label for="senha">Senha</label>
-                <input type="password" id="senha" name="senha" autocomplete="new-password">
+                <input type="password" id="senha" name="senha" autocomplete="new-password" required>
             </div>
         </div>
         <div class="acoes-form">
@@ -51,9 +61,9 @@
             <thead>
                 <tr>
                     <th>Nome</th>
-                    <th>Cargo</th>
                     <th>Login</th>
                     <th>Perfil</th>
+                    <th>E-mail</th>
                     <th class="acoes">Ações</th>
                 </tr>
             </thead>
@@ -61,14 +71,16 @@
                 {% for f in funcionarios %}
                 <tr>
                     <td>{{ f.nome }}</td>
-                    <td>{{ f.cargo or '-' }}</td>
-                    <td>{{ f.login or '-' }}</td>
-                    <td>{{ f.perfil }}</td>
+                    <td>{{ f.usuario }}</td>
+                    <td>{{ f.perfil | capitalize }}</td>
+                    <td>{{ f.email or '-' }}</td>
                     <td class="acoes">
-                        <a href="/ver_funcionario/{{ f.id }}"     class="btn btn-info    tooltip" data-tooltip="Ver">🔍</a>
-                        <a href="/editar_funcionario/{{ f.id }}"  class="btn btn-editar  tooltip" data-tooltip="Editar">✏️</a>
-                        <a href="/excluir_funcionario/{{ f.id }}" class="btn btn-lixeira tooltip" data-tooltip="Excluir"
-                           onclick="return confirm('Excluir funcionário?')">🗑️</a>
+                        <a href="/ver_funcionario/{{ f.id }}"    class="btn btn-info    tooltip" data-tooltip="Ver">🔍</a>
+                        <a href="/editar_funcionario/{{ f.id }}" class="btn btn-editar  tooltip" data-tooltip="Editar">✏️</a>
+                        <form method="POST" action="/excluir_funcionario/{{ f.id }}"
+                              onsubmit="return confirm('Excluir funcionário?')" style="display:inline">
+                            <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</button>
+                        </form>
                     </td>
                 </tr>
                 {% else %}
