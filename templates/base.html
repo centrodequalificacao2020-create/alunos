@@ -11,34 +11,34 @@
 <header>
     <h1>Sistema Escolar</h1>
     <nav>
-        {# ── HOME — todos veem ── #}
         <a href="/" class="{{ 'active' if request.path == '/' }}">Home</a>
 
-        {# ── ADMIN E FINANCEIRO ── #}
-        {% if session.perfil in ["Administrador", "Financeiro"] %}
+        {% if session.perfil in ["admin", "financeiro"] %}
             <a href="/dashboard"  class="{{ 'active' if request.path == '/dashboard'  }}">Dashboard</a>
             <a href="/financeiro" class="{{ 'active' if request.path == '/financeiro' }}">Financeiro</a>
             <a href="/despesas"   class="{{ 'active' if request.path == '/despesas'   }}">Despesas</a>
             <a href="/relatorio"  class="{{ 'active' if request.path == '/relatorio'  }}">Relatórios</a>
         {% endif %}
 
-        {# ── ADMIN, FINANCEIRO E USUÁRIO ── #}
-        {% if session.perfil in ["Administrador", "Financeiro", "Usuario"] %}
+        {% if session.perfil in ["admin", "financeiro", "secretaria"] %}
             <a href="/cadastro"     class="{{ 'active' if request.path == '/cadastro'     }}">Alunos</a>
             <a href="/cursos"       class="{{ 'active' if request.path == '/cursos'       }}">Cursos</a>
             <a href="/movimentacao" class="{{ 'active' if request.path == '/movimentacao' }}">Matrículas</a>
         {% endif %}
 
-        {# ── USUÁRIO, INSTRUTOR E ADMIN ── #}
-        {% if session.perfil in ["Administrador", "Usuario", "Instrutor"] %}
+        {% if session.perfil in ["admin", "secretaria", "instrutor"] %}
+            <a href="/turmas"     class="{{ 'active' if request.path == '/turmas'     }}">Turmas</a>
             <a href="/materias"   class="{{ 'active' if request.path == '/materias'   }}">Matérias</a>
             <a href="/notas"      class="{{ 'active' if request.path == '/notas'      }}">Notas</a>
             <a href="/frequencia" class="{{ 'active' if request.path == '/frequencia' }}">Frequência</a>
         {% endif %}
 
-        {# ── BACKUP — somente Admin ── #}
-        {% if session.perfil == "Administrador" %}
-            <a href="/backup_banco">Backup</a>
+        {% if session.perfil in ["admin", "financeiro", "secretaria"] %}
+            <a href="/funcionario" class="{{ 'active' if request.path == '/funcionario' }}">Funcionários</a>
+        {% endif %}
+
+        {% if session.perfil == "admin" %}
+            <a href="/backup">Backup</a>
         {% endif %}
 
         <a href="/logout">Sair</a>
