@@ -28,6 +28,7 @@
             <tr>
                 <th>ID</th>
                 <th>Curso</th>
+                <th class="acoes">Ações</th>
             </tr>
         </thead>
         <tbody>
@@ -35,6 +36,12 @@
             <tr>
                 <td>{{ c[0] }}</td>
                 <td>{{ c[1] }}</td>
+                <td class="acoes">
+                    <form method="POST" action="/excluir_curso/{{ c[0] }}" style="display:inline"
+                          onsubmit="return confirm('Excluir este curso?')">
+                        <button class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
+                    </form>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
