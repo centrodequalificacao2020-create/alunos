@@ -1,21 +1,21 @@
 import calendar
-from flask import Blueprint, render_template, request, redirect, session, jsonify
+from flask import Blueprint, render_template, request, jsonify
 from datetime import datetime
 from db import db
-from models import Mensalidade, Aluno, Matricula, Despesa, Relatorio
+from models import Mensalidade, Aluno, Matricula, Despesa, Relatorio, Curso
 from security import login_required
-from sqlalchemy import func, and_
+from sqlalchemy import func
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
-def _fim_mes(mes_str):
+def _fim_mes(mes_str: str) -> str:
     ano, mes = int(mes_str[:4]), int(mes_str[5:7])
     ultimo = calendar.monthrange(ano, mes)[1]
     return f"{mes_str}-{ultimo:02d}"
 
 
-def _buscar_relatorio_mes(mes):
+def _buscar_relatorio_mes(mes: str) -> dict:
     r = Relatorio.query.filter_by(mes=mes).first()
     if r:
         return {"meta": r.meta or 0, "realizado": r.realizado or 0,
@@ -26,12 +26,13 @@ def _buscar_relatorio_mes(mes):
 @dashboard_bp.route("/dashboard")
 @login_required
 def dashboard():
-    hoje = datetime.today()
+    hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
-    mes = request.args.get("mes") or mes_atual
-    inicio = f"{mes}-01"
-    fim    = _fim_mes(mes)
+    mes       = request.args.get("mes") or mes_atual
+    inicio    = f"{mes}-01"
+    fim       = _fim_mes(mes)
 
+    # ── RECEITAS ──
     recebido_mes = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pago",
         Mensalidade.data_pagamento.between(inicio, fim)
@@ -47,7 +48,9 @@ def dashboard():
         Mensalidade.vencimento < inicio
     ).scalar() or 0
 
-    inadimplentes = db.session.query(func.count(Mensalidade.aluno_id.distinct())).filter(
+    inadimplentes = db.session.query(
+        func.count(Mensalidade.aluno_id.distinct())
+    ).filter(
         Mensalidade.status == "Pendente",
         Mensalidade.vencimento < inicio
     ).scalar() or 0
@@ -75,6 +78,7 @@ def dashboard():
         Mensalidade.data_pagamento.between(inicio, fim)
     ).scalar() or 0
 
+    # ── DESPESAS ──
     variaveis = db.session.query(func.sum(Despesa.valor)).filter(
         Despesa.recorrente == 0,
         Despesa.data.between(inicio, fim)
@@ -88,9 +92,9 @@ def dashboard():
     )
     despesas_mes = variaveis + fixas
 
-    lucro_liquido = recebido_mes - despesas_mes
-    margem_lucro  = (lucro_liquido / recebido_mes * 100) if recebido_mes > 0 else 0
-
+    # ── INDICADORES ──
+    lucro_liquido      = recebido_mes - despesas_mes
+    margem_lucro       = (lucro_liquido / recebido_mes * 100) if recebido_mes > 0 else 0
     receita_projetada  = recebido_mes + a_receber_mes
     ticket_medio       = recebido_mes / alunos_ativos if alunos_ativos > 0 else 0
     total_carteira     = a_receber_mes + total_atraso
@@ -111,39 +115,43 @@ def dashboard():
         ("Lucro",    lucro_liquido if lucro_liquido > 0 else 0),
     ]
 
+    # ── GRÁFICO RECEITA MENSAL ──
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
                 "Jul","Ago","Set","Out","Nov","Dez"]
     meses_label, valores = [], []
     for m in range(1, hoje.month + 1):
         mes_str = f"{hoje.year}-{m:02d}"
-        ini_m   = f"{mes_str}-01"
-        fim_m   = _fim_mes(mes_str)
         total = db.session.query(func.sum(Mensalidade.valor)).filter(
             Mensalidade.status == "Pago",
-            Mensalidade.data_pagamento.between(ini_m, fim_m)
+            Mensalidade.data_pagamento.between(f"{mes_str}-01", _fim_mes(mes_str))
         ).scalar() or 0
         meses_label.append(f"{meses_pt[m-1]}/{str(hoje.year)[2:]}")
         valores.append(total)
 
-    ranking_cursos = db.session.query(
-        db.func.coalesce(db.literal_column("cursos.nome"), "N/A"),
-        func.sum(Mensalidade.valor)
-    ).select_from(Mensalidade)\
-     .join(Matricula, Matricula.aluno_id == Mensalidade.aluno_id)\
-     .join(db.Model.metadata.tables["cursos"],
-           db.literal_column("cursos.id") == Matricula.curso_id)\
-     .filter(
-         Mensalidade.status == "Pago",
-         Mensalidade.data_pagamento.between(inicio, fim)
-     ).group_by(db.literal_column("cursos.nome"))\
-      .order_by(func.sum(Mensalidade.valor).desc())\
-      .limit(5).all()
+    # ── RANKING DE CURSOS — join limpo via ORM ──
+    ranking_cursos = (
+        db.session.query(Curso.nome, func.sum(Mensalidade.valor))
+        .join(Matricula, Matricula.curso_id == Curso.id)
+        .join(Mensalidade, Mensalidade.aluno_id == Matricula.aluno_id)
+        .filter(
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento.between(inicio, fim)
+        )
+        .group_by(Curso.nome)
+        .order_by(func.sum(Mensalidade.valor).desc())
+        .limit(5)
+        .all()
+    )
 
-    vendas_tipo = db.session.query(
-        func.coalesce(Matricula.tipo_curso, "Não definido"),
-        func.count()
-    ).filter(Matricula.status == "ATIVA")\
-     .group_by(Matricula.tipo_curso).all()
+    vendas_tipo = (
+        db.session.query(
+            func.coalesce(Matricula.tipo_curso, "Não definido"),
+            func.count()
+        )
+        .filter(Matricula.status == "ATIVA")
+        .group_by(Matricula.tipo_curso)
+        .all()
+    )
 
     rel = _buscar_relatorio_mes(mes)
 
