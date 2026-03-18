@@ -1,17 +1,14 @@
-import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import text
 
+# Instancias globais — URI definida exclusivamente em config.py
 db = SQLAlchemy()
 migrate = Migrate()
 
-BASEDIR = os.path.abspath(os.path.dirname(__file__))
-DB_PATH = os.path.join(BASEDIR, "cqp.db")
-
 
 def init_db(app):
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + DB_PATH.replace("\\", "/")
+    """Inicializa SQLAlchemy e Migrate com o app Flask."""
     db.init_app(app)
     migrate.init_app(app, db)
     with app.app_context():
