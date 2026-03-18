@@ -9,51 +9,95 @@
     </div>
     <p class="card-subtitle">Lançamento de notas por matéria</p>
 
-    <form method="GET">
+    <form method="GET" action="/notas">
         <div class="grid-2">
             <div class="campo">
-                <label for="materia_id">Matéria</label>
-                <select id="materia_id" name="materia_id" onchange="this.form.submit()">
-                    <option value="">Selecione</option>
-                    {% for m in materias %}
-                    <option value="{{ m.id }}" {% if materia_id == m.id %}selected{% endif %}>{{ m.nome }}</option>
-                    {% endfor %}
-                </select>
+                <label for="q">Buscar aluno</label>
+                <input type="text" id="q" name="q" value="{{ termo }}" placeholder="Nome do aluno...">
+            </div>
+            <div class="campo">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-azul">🔍 Buscar</button>
             </div>
         </div>
     </form>
+
+    {% if alunos %}
+    <div class="tabela-planilha" style="margin-top:16px">
+        <table class="tabela-excel">
+            <thead><tr><th>Aluno</th><th class="acoes">Selecionar</th></tr></thead>
+            <tbody>
+            {% for a in alunos %}
+            <tr>
+                <td>{{ a.nome }}</td>
+                <td class="acoes">
+                    <a href="/notas?aluno_id={{ a.id }}" class="btn btn-azul">Selecionar</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 </div>
 
-{% if alunos_materia %}
+{% if aluno_id and aluno_nome %}
 <div class="card">
-    <form method="POST">
-        <input type="hidden" name="materia_id" value="{{ materia_id }}">
+    <h3>📌 {{ aluno_nome }}</h3>
+
+    {% if cursos_matriculados %}
+    <form method="GET" action="/notas">
+        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+        <div class="campo">
+            <label for="curso_id">Curso</label>
+            <select id="curso_id" name="curso_id" onchange="this.form.submit()">
+                <option value="">Selecione o curso</option>
+                {% for c in cursos_matriculados %}
+                <option value="{{ c.id }}" {% if curso_id == c.id %}selected{% endif %}>{{ c.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+    {% else %}
+    <p class="empty-state">Aluno sem matrículas.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if aluno_id and curso_id and materias %}
+<div class="card">
+    <form method="POST" action="/notas">
+        <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
+        <input type="hidden" name="curso_id" value="{{ curso_id }}">
         <h3>Lançar Notas</h3>
         <div class="tabela-planilha">
             <table class="tabela-excel">
                 <thead>
                     <tr>
-                        <th>Aluno</th>
-                        <th>Nota 1</th>
-                        <th>Nota 2</th>
-                        <th>Nota 3</th>
-                        <th>Média</th>
+                        <th>Matéria</th>
+                        <th>Nota</th>
+                        <th>Resultado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for a in alunos_materia %}
+                    {% for m in materias %}
+                    {% set n = notas_existentes.get(m.id) %}
                     <tr>
-                        <td>{{ a.nome }}</td>
-                        <td><input type="number" step="0.1" min="0" max="10"
-                            name="nota1_{{ a.id }}" value="{{ a.nota1 or '' }}"
-                            aria-label="Nota 1 {{ a.nome }}" class="input-pequeno"></td>
-                        <td><input type="number" step="0.1" min="0" max="10"
-                            name="nota2_{{ a.id }}" value="{{ a.nota2 or '' }}"
-                            aria-label="Nota 2 {{ a.nome }}" class="input-pequeno"></td>
-                        <td><input type="number" step="0.1" min="0" max="10"
-                            name="nota3_{{ a.id }}" value="{{ a.nota3 or '' }}"
-                            aria-label="Nota 3 {{ a.nome }}" class="input-pequeno"></td>
-                        <td>{{ a.media or '-' }}</td>
+                        <td>{{ m.nome }}</td>
+                        <td>
+                            <input type="number" step="0.1" min="0" max="10"
+                                name="nota_{{ m.id }}"
+                                value="{{ n.nota if n else '' }}"
+                                class="input-pequeno">
+                        </td>
+                        <td>
+                            <select name="resultado_{{ m.id }}" class="input-pequeno">
+                                <option value="">—</option>
+                                <option value="Aprovado"   {% if n and n.resultado == 'Aprovado'   %}selected{% endif %}>Aprovado</option>
+                                <option value="Reprovado"  {% if n and n.resultado == 'Reprovado'  %}selected{% endif %}>Reprovado</option>
+                                <option value="Recuperação"{% if n and n.resultado == 'Recuperação'%}selected{% endif %}>Recuperação</option>
+                            </select>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -61,8 +105,10 @@
         </div>
         <div class="acoes-form">
             <button type="submit" class="btn btn-azul">💾 Salvar Notas</button>
+            <a href="/notas_visualizar/{{ aluno_id }}?curso_id={{ curso_id }}" class="btn btn-editar">👁 Visualizar Boletim</a>
         </div>
     </form>
 </div>
 {% endif %}
+
 {% endblock %}

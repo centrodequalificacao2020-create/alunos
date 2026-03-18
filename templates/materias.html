@@ -9,27 +9,19 @@
     </div>
     <p class="card-subtitle">Gerencie as matérias e vincule-as a cursos</p>
 
-    <form method="POST">
-        <div class="grid-3">
+    <form method="POST" action="/materias">
+        <input type="hidden" name="acao" value="criar">
+        <div class="grid-2">
             <div class="campo">
                 <label for="nome_materia">Nome da matéria</label>
                 <input type="text" id="nome_materia" name="nome" required placeholder="Ex: Matemática Básica">
             </div>
             <div class="campo">
                 <label for="curso_id">Curso</label>
-                <select id="curso_id" name="curso_id">
+                <select id="curso_id" name="curso_id" required>
                     <option value="">Selecione</option>
                     {% for c in cursos %}
                     <option value="{{ c.id }}">{{ c.nome }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="campo">
-                <label for="instrutor_id">Instrutor</label>
-                <select id="instrutor_id" name="instrutor_id">
-                    <option value="">Selecione</option>
-                    {% for f in instrutores %}
-                    <option value="{{ f.id }}">{{ f.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -41,33 +33,45 @@
 </div>
 
 <div class="card">
-    <h3>Matérias Cadastradas</h3>
+    <h3>Matérias por Curso</h3>
+    {% for (curso_id, curso_nome), lista in materias_por_curso.items() %}
+    <h4 style="margin: 16px 0 8px">📚 {{ curso_nome }}</h4>
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
                 <tr>
                     <th>Matéria</th>
-                    <th>Curso</th>
-                    <th>Instrutor</th>
                     <th class="acoes">Ações</th>
                 </tr>
             </thead>
             <tbody>
-                {% for m in materias %}
+                {% for m in lista %}
                 <tr>
-                    <td>{{ m.nome }}</td>
-                    <td>{{ m.curso_nome or '-' }}</td>
-                    <td>{{ m.instrutor_nome or '-' }}</td>
+                    <td>
+                        <form method="POST" action="/materias" style="display:inline">
+                            <input type="hidden" name="acao" value="editar">
+                            <input type="hidden" name="materia_id" value="{{ m.id }}">
+                            <input type="text" name="novo_nome" value="{{ m.nome }}" class="input-inline">
+                            <button type="submit" class="btn btn-editar tooltip" data-tooltip="Renomear">✏️</button>
+                        </form>
+                    </td>
                     <td class="acoes">
-                        <a href="/excluir_materia/{{ m.id }}" class="btn btn-lixeira tooltip" data-tooltip="Excluir"
-                           onclick="return confirm('Excluir matéria?')">🗑️</a>
+                        <form method="POST" action="/materias" style="display:inline"
+                              onsubmit="return confirm('Excluir matéria {{ m.nome }}?')">
+                            <input type="hidden" name="acao" value="excluir">
+                            <input type="hidden" name="materia_id" value="{{ m.id }}">
+                            <button type="submit" class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
+                        </form>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4" class="empty-state">Nenhuma matéria cadastrada.</td></tr>
+                <tr><td colspan="2" class="empty-state">Nenhuma matéria neste curso.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    {% else %}
+    <p class="empty-state">Nenhuma matéria cadastrada.</p>
+    {% endfor %}
 </div>
 {% endblock %}

@@ -9,19 +9,27 @@
     </div>
     <p class="card-subtitle">Cadastre e gerencie os cursos oferecidos</p>
 
-    <form method="POST">
+    <form method="POST" action="/salvar_curso">
         <div class="grid-3">
             <div class="campo">
-                <label for="nome_curso">Nome do curso</label>
-                <input type="text" id="nome_curso" name="nome" required placeholder="Ex: Excel Avançado">
+                <label for="nome">Nome do curso</label>
+                <input type="text" id="nome" name="nome" required placeholder="Ex: Excel Avançado">
             </div>
             <div class="campo">
-                <label for="carga_horaria">Carga Horária</label>
-                <input type="text" id="carga_horaria" name="carga_horaria" placeholder="Ex: 40h">
+                <label for="tipo">Tipo</label>
+                <input type="text" id="tipo" name="tipo" placeholder="Ex: Informática">
             </div>
             <div class="campo">
-                <label for="valor_curso">Valor (R$)</label>
-                <input type="number" id="valor_curso" name="valor" step="0.01" min="0">
+                <label for="valor_mensal">Valor Mensal (R$)</label>
+                <input type="number" id="valor_mensal" name="valor_mensal" step="0.01" min="0" value="0">
+            </div>
+            <div class="campo">
+                <label for="valor_matricula">Valor Matrícula (R$)</label>
+                <input type="number" id="valor_matricula" name="valor_matricula" step="0.01" min="0" value="0">
+            </div>
+            <div class="campo">
+                <label for="parcelas">Parcelas</label>
+                <input type="number" id="parcelas" name="parcelas" min="1" value="1">
             </div>
         </div>
         <div class="acoes-form">
@@ -37,8 +45,10 @@
             <thead>
                 <tr>
                     <th>Nome</th>
-                    <th>Carga Horária</th>
-                    <th>Valor</th>
+                    <th>Tipo</th>
+                    <th>Valor Mensal</th>
+                    <th>Valor Matrícula</th>
+                    <th>Parcelas</th>
                     <th class="acoes">Ações</th>
                 </tr>
             </thead>
@@ -46,18 +56,20 @@
                 {% for c in cursos %}
                 <tr>
                     <td>{{ c.nome }}</td>
-                    <td>{{ c.carga_horaria or '-' }}</td>
-                    <td>R$ {{ "%.2f"|format(c.valor or 0) }}</td>
+                    <td>{{ c.tipo or '-' }}</td>
+                    <td>R$ {{ "%.2f"|format(c.valor_mensal or 0) }}</td>
+                    <td>R$ {{ "%.2f"|format(c.valor_matricula or 0) }}</td>
+                    <td>{{ c.parcelas }}</td>
                     <td class="acoes">
                         <a href="/editar_curso/{{ c.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
                         <form method="POST" action="/excluir_curso/{{ c.id }}" style="display:inline"
                               onsubmit="return confirm('Excluir este curso?')">
-                            <button class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
+                            <button type="submit" class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
                         </form>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4" class="empty-state">Nenhum curso cadastrado.</td></tr>
+                <tr><td colspan="6" class="empty-state">Nenhum curso cadastrado.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
