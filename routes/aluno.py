@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, flash, session
-from db import conectar
+from db import db
+from models import Aluno, Curso, Mensalidade
 from security import login_required, admin_required
 
 aluno_bp = Blueprint("aluno", __name__)
@@ -10,14 +11,8 @@ aluno_bp = Blueprint("aluno", __name__)
 @aluno_bp.route("/cadastro")
 @login_required
 def cadastro():
-    conn = conectar()
-    conn.row_factory = __import__('sqlite3').Row
-    c = conn.cursor()
-    c.execute("SELECT id, nome, status FROM alunos ORDER BY nome")
-    alunos = c.fetchall()
-    c.execute("SELECT id, nome FROM cursos ORDER BY nome")
-    cursos = c.fetchall()
-    conn.close()
+    alunos = Aluno.query.order_by(Aluno.nome).all()
+    cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("cadastro.html", alunos=alunos, cursos=cursos)
 
 
@@ -25,27 +20,25 @@ def cadastro():
 @login_required
 def salvar_aluno():
     f = request.form
-    conn = conectar()
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO alunos
-            (nome, cpf, rg, data_nascimento, telefone, whatsapp,
-             telefone_contato, email, endereco, status, curso_id,
-             responsavel_nome, responsavel_cpf,
-             responsavel_telefone, responsavel_parentesco)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (
-        f.get("nome"), f.get("cpf"), f.get("rg"),
-        f.get("data_nascimento"), f.get("telefone"),
-        f.get("whatsapp"), f.get("telefone_contato"),
-        f.get("email"), f.get("endereco"),
-        f.get("status", "Ativo"),
-        f.get("curso_id") or None,
-        f.get("responsavel_nome"), f.get("responsavel_cpf"),
-        f.get("responsavel_telefone"), f.get("responsavel_parentesco"),
-    ))
-    conn.commit()
-    conn.close()
+    a = Aluno(
+        nome                  = f.get("nome"),
+        cpf                   = f.get("cpf"),
+        rg                    = f.get("rg"),
+        data_nascimento       = f.get("data_nascimento") or None,
+        telefone              = f.get("telefone"),
+        whatsapp              = f.get("whatsapp"),
+        telefone_contato      = f.get("telefone_contato"),
+        email                 = f.get("email"),
+        endereco              = f.get("endereco"),
+        status                = f.get("status", "Ativo"),
+        curso_id              = f.get("curso_id") or None,
+        responsavel_nome      = f.get("responsavel_nome"),
+        responsavel_cpf       = f.get("responsavel_cpf"),
+        responsavel_telefone  = f.get("responsavel_telefone"),
+        responsavel_parentesco= f.get("responsavel_parentesco"),
+    )
+    db.session.add(a)
+    db.session.commit()
     flash("Aluno cadastrado com sucesso.", "sucesso")
     return redirect("/cadastro")
 
@@ -53,57 +46,40 @@ def salvar_aluno():
 @aluno_bp.route("/editar_aluno/<int:id>", methods=["GET", "POST"])
 @login_required
 def editar_aluno(id):
-    conn = conectar()
-    conn.row_factory = __import__('sqlite3').Row
-    c = conn.cursor()
+    a = Aluno.query.get_or_404(id)
     if request.method == "POST":
         f = request.form
-        c.execute("""
-            UPDATE alunos SET
-                nome=?, cpf=?, rg=?, data_nascimento=?,
-                telefone=?, whatsapp=?, email=?, endereco=?,
-                status=?, curso_id=?,
-                responsavel_nome=?, responsavel_cpf=?,
-                responsavel_telefone=?, responsavel_parentesco=?
-            WHERE id=?
-        """, (
-            f.get("nome"), f.get("cpf"), f.get("rg"),
-            f.get("data_nascimento"), f.get("telefone"),
-            f.get("whatsapp"), f.get("email"), f.get("endereco"),
-            f.get("status"), f.get("curso_id") or None,
-            f.get("responsavel_nome"), f.get("responsavel_cpf"),
-            f.get("responsavel_telefone"), f.get("responsavel_parentesco"),
-            id,
-        ))
-        conn.commit()
-        conn.close()
+        a.nome                   = f.get("nome")
+        a.cpf                    = f.get("cpf")
+        a.rg                     = f.get("rg")
+        a.data_nascimento        = f.get("data_nascimento") or None
+        a.telefone               = f.get("telefone")
+        a.whatsapp               = f.get("whatsapp")
+        a.email                  = f.get("email")
+        a.endereco               = f.get("endereco")
+        a.status                 = f.get("status")
+        a.curso_id               = f.get("curso_id") or None
+        a.responsavel_nome       = f.get("responsavel_nome")
+        a.responsavel_cpf        = f.get("responsavel_cpf")
+        a.responsavel_telefone   = f.get("responsavel_telefone")
+        a.responsavel_parentesco = f.get("responsavel_parentesco")
+        db.session.commit()
         flash("Aluno atualizado.", "sucesso")
         return redirect("/cadastro")
-    c.execute("SELECT * FROM alunos WHERE id=?", (id,))
-    aluno = c.fetchone()
-    c.execute("SELECT id, nome FROM cursos ORDER BY nome")
-    cursos = c.fetchall()
-    conn.close()
-    if not aluno:
-        flash("Aluno não encontrado.", "erro")
-        return redirect("/cadastro")
-    return render_template("editar_aluno.html", aluno=aluno, cursos=cursos)
+    cursos = Curso.query.order_by(Curso.nome).all()
+    return render_template("editar_aluno.html", aluno=a, cursos=cursos)
 
 
 @aluno_bp.route("/excluir_aluno/<int:id>", methods=["POST"])
 @login_required
 def excluir_aluno(id):
-    conn = conectar()
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM mensalidades WHERE aluno_id=?", (id,))
-    total = c.fetchone()[0]
+    a = Aluno.query.get_or_404(id)
+    total = Mensalidade.query.filter_by(aluno_id=id).count()
     if total > 0:
-        conn.close()
         flash("Não é possível excluir: aluno possui registros financeiros.", "erro")
         return redirect("/cadastro")
-    c.execute("DELETE FROM alunos WHERE id=?", (id,))
-    conn.commit()
-    conn.close()
+    db.session.delete(a)
+    db.session.commit()
     flash("Aluno excluído.", "sucesso")
     return redirect("/cadastro")
 
@@ -111,13 +87,5 @@ def excluir_aluno(id):
 @aluno_bp.route("/aluno/<int:aluno_id>")
 @login_required
 def ficha_aluno(aluno_id):
-    conn = conectar()
-    conn.row_factory = __import__('sqlite3').Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM alunos WHERE id=?", (aluno_id,))
-    aluno = c.fetchone()
-    conn.close()
-    if not aluno:
-        flash("Aluno não encontrado.", "erro")
-        return redirect("/cadastro")
-    return render_template("ficha_aluno.html", aluno=aluno)
+    a = Aluno.query.get_or_404(aluno_id)
+    return render_template("ficha_aluno.html", aluno=a)
