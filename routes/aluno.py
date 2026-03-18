@@ -1,9 +1,10 @@
 from datetime import date
 from flask import Blueprint, render_template, request, redirect, flash
 from db import db
-from models import Aluno, Curso, Mensalidade
+from models import Aluno, Curso, Mensalidade, Matricula
 from security import login_required, admin_required
 from sqlalchemy import func
+
 
 aluno_bp = Blueprint("aluno", __name__)
 
@@ -35,9 +36,9 @@ def cadastro():
         flash("Aluno cadastrado com sucesso.", "sucesso")
         return redirect("/cadastro")
 
-    page   = request.args.get("page", 1, type=int)
-    busca  = request.args.get("q", "").strip()
-    query  = Aluno.query.order_by(Aluno.nome)
+    page      = request.args.get("page", 1, type=int)
+    busca     = request.args.get("q", "").strip()
+    query     = Aluno.query.order_by(Aluno.nome)
     if busca:
         query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
     paginacao = query.paginate(page=page, per_page=20, error_out=False)
@@ -61,7 +62,6 @@ def cadastro():
                            inadimplentes=inadimplentes,
                            paginacao=paginacao,
                            busca=busca)
-
 
 
 @aluno_bp.route("/editar_aluno/<int:id>", methods=["GET", "POST"])
@@ -107,5 +107,9 @@ def excluir_aluno(id):
 @aluno_bp.route("/aluno/<int:aluno_id>")
 @login_required
 def ficha_aluno(aluno_id):
-    a = Aluno.query.get_or_404(aluno_id)
-    return render_template("ficha_aluno.html", aluno=a)
+    aluno      = Aluno.query.get_or_404(aluno_id)
+    matriculas = Matricula.query.filter_by(aluno_id=aluno_id).all()
+    for m in matriculas:
+        curso        = Curso.query.get(m.curso_id)
+        m.curso_nome = curso.nome if curso else "—"
+    return render_template("ficha_aluno.html", aluno=aluno, matriculas=matriculas)
