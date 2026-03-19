@@ -41,22 +41,22 @@ def financeiro():
                            saldo=saldo)
 
 
-@financeiro_bp.route("/pagar/<int:id>", methods=["GET","POST"])
+@financeiro_bp.route("/pagar/<int:id>", methods=["GET", "POST"])
 @login_required
 def pagar(id):
-    mensalidade = Mensalidade.query.get_or_404(id)
+    parcela = Mensalidade.query.get_or_404(id)
     if request.method == "POST":
-        mensalidade.forma_pagamento   = request.form.get("forma")
-        mensalidade.data_pagamento    = date.today().isoformat()
-        mensalidade.status            = "Pago"
-        mensalidade.usuario_pagamento = session.get("usuario_nome", "Sistema")
+        parcela.forma_pagamento   = request.form.get("forma")
+        parcela.data_pagamento    = request.form.get("data_pagamento") or date.today().isoformat()
+        parcela.status            = "Pago"
+        parcela.usuario_pagamento = session.get("usuario_nome", "Sistema")
         db.session.commit()
         flash("Pagamento registrado com sucesso.", "sucesso")
-        return redirect(f"/financeiro?aluno_id={mensalidade.aluno_id}")
-    return render_template("pagar.html", id=id, aluno_id=mensalidade.aluno_id)
+        return redirect(f"/financeiro?aluno_id={parcela.aluno_id}")
+    return render_template("pagar.html", parcela=parcela, aluno_id=parcela.aluno_id)
 
 
-@financeiro_bp.route("/editar_parcela/<int:id>", methods=["GET","POST"])
+@financeiro_bp.route("/editar_parcela/<int:id>", methods=["GET", "POST"])
 @login_required
 def editar_parcela(id):
     parcela = Mensalidade.query.get_or_404(id)
@@ -89,8 +89,8 @@ def excluir_parcela(id, aluno_id):
 @financeiro_bp.route("/recibo/<int:mensalidade_id>")
 @login_required
 def recibo(mensalidade_id):
-    m = Mensalidade.query.get_or_404(mensalidade_id)
-    buf = gerar_recibo(m)
+    m    = Mensalidade.query.get_or_404(mensalidade_id)
+    buf  = gerar_recibo(m)
     resp = make_response(buf.read())
     resp.headers["Content-Type"]        = "application/pdf"
     resp.headers["Content-Disposition"] = "inline; filename=recibo.pdf"
@@ -108,7 +108,7 @@ def carne(aluno_id):
 @financeiro_bp.route("/movimentacao")
 @login_required
 def movimentacao():
-    alunos = Aluno.query.filter(Aluno.status.in_(["Ativo","Pré-Matrícula"])).order_by(Aluno.nome).all()
+    alunos = Aluno.query.filter(Aluno.status.in_(["Ativo", "Pré-Matrícula"])).order_by(Aluno.nome).all()
     cursos = Curso.query.order_by(Curso.nome).all()
     tipos  = _tipos_curso()
     aluno_id     = request.args.get("aluno_id")

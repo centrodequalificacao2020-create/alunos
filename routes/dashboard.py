@@ -32,7 +32,6 @@ def dashboard():
     inicio    = f"{mes}-01"
     fim       = _fim_mes(mes)
 
-    # ── RECEITAS ──
     recebido_mes = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pago",
         Mensalidade.data_pagamento.between(inicio, fim)
@@ -78,7 +77,6 @@ def dashboard():
         Mensalidade.data_pagamento.between(inicio, fim)
     ).scalar() or 0
 
-    # ── DESPESAS ──
     variaveis = db.session.query(func.sum(Despesa.valor)).filter(
         Despesa.recorrente == 0,
         Despesa.data.between(inicio, fim)
@@ -92,7 +90,6 @@ def dashboard():
     )
     despesas_mes = variaveis + fixas
 
-    # ── INDICADORES ──
     lucro_liquido      = recebido_mes - despesas_mes
     margem_lucro       = (lucro_liquido / recebido_mes * 100) if recebido_mes > 0 else 0
     receita_projetada  = recebido_mes + a_receber_mes
@@ -115,7 +112,6 @@ def dashboard():
         ("Lucro",    lucro_liquido if lucro_liquido > 0 else 0),
     ]
 
-    # ── GRÁFICO RECEITA MENSAL ──
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
                 "Jul","Ago","Set","Out","Nov","Dez"]
     meses_label, valores = [], []
@@ -126,10 +122,10 @@ def dashboard():
             Mensalidade.data_pagamento.between(f"{mes_str}-01", _fim_mes(mes_str))
         ).scalar() or 0
         meses_label.append(f"{meses_pt[m-1]}/{str(hoje.year)[2:]}")
-        valores.append(total)
+        valores.append(float(total))
 
-    # ── RANKING DE CURSOS — join limpo via ORM ──
-    ranking_cursos = (
+    # Converte Row para listas simples (JSON-serializáveis)
+    ranking_cursos = [[nome, float(valor or 0)] for nome, valor in (
         db.session.query(Curso.nome, func.sum(Mensalidade.valor))
         .join(Matricula, Matricula.curso_id == Curso.id)
         .join(Mensalidade, Mensalidade.aluno_id == Matricula.aluno_id)
@@ -141,9 +137,9 @@ def dashboard():
         .order_by(func.sum(Mensalidade.valor).desc())
         .limit(5)
         .all()
-    )
+    )]
 
-    vendas_tipo = (
+    vendas_tipo = [[tipo or "Não definido", int(qtd)] for tipo, qtd in (
         db.session.query(
             func.coalesce(Matricula.tipo_curso, "Não definido"),
             func.count()
@@ -151,7 +147,7 @@ def dashboard():
         .filter(Matricula.status == "ATIVA")
         .group_by(Matricula.tipo_curso)
         .all()
-    )
+    )]
 
     rel = _buscar_relatorio_mes(mes)
 
