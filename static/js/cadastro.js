@@ -120,10 +120,10 @@ function confirmarExclusao(url, nome, alunoId) {
         .then(r => r.json())
         .then(data => {
             if (data.total_parcelas > 0) {
-                aviso.textContent = 'Atencao: este aluno possui ' + data.total_parcelas +
+                aviso.textContent = 'Atenção: este aluno possui ' + data.total_parcelas +
                     ' parcela(s) pendente(s) totalizando R$ ' +
                     data.total_valor.toFixed(2).replace('.', ',') +
-                    '. Ao excluir, todos os registros financeiros serao removidos.';
+                    '. Ao excluir, todos os registros financeiros serão removidos.';
                 aviso.style.display = 'block';
             }
         });
