@@ -59,7 +59,6 @@ function mascara(campo, padrao) {
 function cpfValido(cpf) {
     const d = cpf.replace(/\D/g, '');
     if (d.length !== 11) return false;
-    // Rejeita sequencias iguais (111.111.111-11 etc.)
     if (/^(\d)\1{10}$/.test(d)) return false;
 
     function calcDV(base, pesoInicial) {
@@ -79,28 +78,25 @@ function cpfValido(cpf) {
 
 function aplicarValidacaoCPF(campo) {
     if (!campo) return;
-    // Cria elemento de feedback abaixo do campo
     const feedback = document.createElement('span');
-    feedback.id = campo.id + '_feedback';
+    feedback.id        = campo.id + '_feedback';
     feedback.className = 'campo-feedback';
     campo.parentNode.appendChild(feedback);
 
     campo.addEventListener('input', () => {
         const digitos = campo.value.replace(/\D/g, '');
-        if (digitos.length === 0) {
+        if (digitos.length < 11) {
             feedback.textContent = '';
-            campo.classList.remove('campo-valido', 'campo-invalido');
-        } else if (digitos.length < 11) {
-            feedback.textContent = '';
+            feedback.className   = 'campo-feedback';
             campo.classList.remove('campo-valido', 'campo-invalido');
         } else {
             if (cpfValido(campo.value)) {
-                feedback.textContent = '✅ CPF válido';
+                feedback.textContent = 'CPF válido';
                 feedback.className   = 'campo-feedback campo-feedback--ok';
                 campo.classList.add('campo-valido');
                 campo.classList.remove('campo-invalido');
             } else {
-                feedback.textContent = '❌ CPF inválido';
+                feedback.textContent = 'CPF inválido';
                 feedback.className   = 'campo-feedback campo-feedback--erro';
                 campo.classList.add('campo-invalido');
                 campo.classList.remove('campo-valido');
@@ -124,10 +120,10 @@ function confirmarExclusao(url, nome, alunoId) {
         .then(r => r.json())
         .then(data => {
             if (data.total_parcelas > 0) {
-                aviso.textContent = '⚠️ Este aluno possui ' + data.total_parcelas +
+                aviso.textContent = 'Atencao: este aluno possui ' + data.total_parcelas +
                     ' parcela(s) pendente(s) totalizando R$ ' +
                     data.total_valor.toFixed(2).replace('.', ',') +
-                    '. Ao excluir, todos os registros financeiros serão removidos.';
+                    '. Ao excluir, todos os registros financeiros serao removidos.';
                 aviso.style.display = 'block';
             }
         });
