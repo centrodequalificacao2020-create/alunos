@@ -37,27 +37,75 @@ function verificarIdade() {
     bloco.classList.toggle('bloco-oculto', idade >= 18);
 }
 
-/* ── Máscaras ──
-   padrao: string com '#' para dígito e qualquer outro char como literal
-   Ex: '###.###.###-##', '#####-###', '(##) #####-####'
-*/
+/* ── Máscaras ── */
 function mascara(campo, padrao) {
     if (!campo) return;
     campo.addEventListener('input', () => {
         const digitos = campo.value.replace(/\D/g, '');
         let resultado = '';
-        let di = 0; // índice nos dígitos
-
+        let di = 0;
         for (let pi = 0; pi < padrao.length && di < digitos.length; pi++) {
-            if (padrao[pi] === '#') {
-                resultado += digitos[di++];
-            } else {
-                resultado += padrao[pi];
-                // se o próximo char do padrão é literal e ainda há dígitos,
-                // continua inserindo o literal automaticamente
-            }
+            if (padrao[pi] === '#') resultado += digitos[di++];
+            else                   resultado += padrao[pi];
         }
         campo.value = resultado;
+    });
+}
+
+/* ── Validação de CPF ──
+   Algoritmo: módulo 11 com pesos decrescentes (10→2 e 11→2)
+   Fonte: https://www.campuscode.com.br/conteudos/o-calculo-do-digito-verificador-do-cpf-e-do-cnpj
+*/
+function cpfValido(cpf) {
+    const d = cpf.replace(/\D/g, '');
+    if (d.length !== 11) return false;
+    // Rejeita sequencias iguais (111.111.111-11 etc.)
+    if (/^(\d)\1{10}$/.test(d)) return false;
+
+    function calcDV(base, pesoInicial) {
+        let soma = 0;
+        for (let i = 0; i < base.length; i++)
+            soma += parseInt(base[i]) * (pesoInicial - i);
+        const resto = soma % 11;
+        return resto < 2 ? 0 : 11 - resto;
+    }
+
+    const dv1 = calcDV(d.slice(0, 9), 10);
+    if (dv1 !== parseInt(d[9])) return false;
+
+    const dv2 = calcDV(d.slice(0, 10), 11);
+    return dv2 === parseInt(d[10]);
+}
+
+function aplicarValidacaoCPF(campo) {
+    if (!campo) return;
+    // Cria elemento de feedback abaixo do campo
+    const feedback = document.createElement('span');
+    feedback.id = campo.id + '_feedback';
+    feedback.className = 'campo-feedback';
+    campo.parentNode.appendChild(feedback);
+
+    campo.addEventListener('input', () => {
+        const digitos = campo.value.replace(/\D/g, '');
+        if (digitos.length === 0) {
+            feedback.textContent = '';
+            campo.classList.remove('campo-valido', 'campo-invalido');
+        } else if (digitos.length < 11) {
+            feedback.textContent = '';
+            campo.classList.remove('campo-valido', 'campo-invalido');
+        } else {
+            if (cpfValido(campo.value)) {
+                feedback.textContent = '✅ CPF válido';
+                feedback.className   = 'campo-feedback campo-feedback--ok';
+                campo.classList.add('campo-valido');
+                campo.classList.remove('campo-invalido');
+            } else {
+                feedback.textContent = '❌ CPF inválido';
+                feedback.className   = 'campo-feedback campo-feedback--erro';
+                campo.classList.add('campo-invalido');
+                campo.classList.remove('campo-valido');
+            }
+        }
     });
 }
 
@@ -119,6 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mascara(document.getElementById('telefone'),        '(##) #####-####');
     mascara(document.getElementById('cep'),             '#####-###');
     mascara(document.getElementById('responsavel_cpf'), '###.###.###-##');
+
+    aplicarValidacaoCPF(document.getElementById('cpf'));
+    aplicarValidacaoCPF(document.getElementById('responsavel_cpf'));
 
     const busca  = document.getElementById('buscaAluno');
     const filtro = document.getElementById('filtroStatus');
