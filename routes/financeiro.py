@@ -21,18 +21,24 @@ def _tipos_curso():
 @financeiro_bp.route("/financeiro")
 @login_required
 def financeiro():
-    # Retorna TODOS os alunos independente do status
     alunos   = Aluno.query.order_by(Aluno.nome).all()
     aluno_id = request.args.get("aluno_id", type=int)
-    pendentes, pagas, totais = [], [], {}
+    pendentes, pagas = [], []
+    total_pago = total_pagar = saldo = 0
     if aluno_id:
-        pendentes = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
-        pagas     = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
+        pendentes    = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
+        pagas        = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
         total_pago   = sum(m.valor for m in pagas)
         total_pagar  = sum(m.valor for m in pendentes)
-        totais = dict(total_pago=total_pago, total_pagar=total_pagar, saldo=total_pago-total_pagar)
-    return render_template("financeiro.html", alunos=alunos, aluno_id=aluno_id,
-                           pendentes=pendentes, pagas=pagas, **totais)
+        saldo        = total_pago - total_pagar
+    return render_template("financeiro.html",
+                           alunos=alunos,
+                           aluno_id=aluno_id,
+                           pendentes=pendentes,
+                           pagas=pagas,
+                           total_pago=total_pago,
+                           total_pagar=total_pagar,
+                           saldo=saldo)
 
 
 @financeiro_bp.route("/pagar/<int:id>", methods=["GET","POST"])
@@ -40,10 +46,10 @@ def financeiro():
 def pagar(id):
     mensalidade = Mensalidade.query.get_or_404(id)
     if request.method == "POST":
-        mensalidade.forma_pagamento  = request.form.get("forma")
-        mensalidade.data_pagamento   = date.today().isoformat()
-        mensalidade.status           = "Pago"
-        mensalidade.usuario_pagamento= session.get("usuario_nome", "Sistema")
+        mensalidade.forma_pagamento   = request.form.get("forma")
+        mensalidade.data_pagamento    = date.today().isoformat()
+        mensalidade.status            = "Pago"
+        mensalidade.usuario_pagamento = session.get("usuario_nome", "Sistema")
         db.session.commit()
         flash("Pagamento registrado com sucesso.", "sucesso")
         return redirect(f"/financeiro?aluno_id={mensalidade.aluno_id}")
@@ -55,9 +61,9 @@ def pagar(id):
 def editar_parcela(id):
     parcela = Mensalidade.query.get_or_404(id)
     if request.method == "POST":
-        parcela.valor     = float(request.form.get("valor") or 0)
-        parcela.vencimento= request.form.get("vencimento")
-        parcela.tipo      = request.form.get("tipo")
+        parcela.valor      = float(request.form.get("valor") or 0)
+        parcela.vencimento = request.form.get("vencimento")
+        parcela.tipo       = request.form.get("tipo")
         db.session.commit()
         flash("Parcela atualizada.", "sucesso")
         return redirect(f"/financeiro?aluno_id={parcela.aluno_id}")
@@ -107,14 +113,11 @@ def movimentacao():
     tipos  = _tipos_curso()
     aluno_id     = request.args.get("aluno_id")
     matricula_id = request.args.get("matricula_id")
-    curso_tipo = {c.id: (c.tipo or "") for c in cursos}
+    curso_tipo   = {c.id: (c.tipo or "") for c in cursos}
     return render_template("movimentacao.html",
-                           alunos=alunos,
-                           cursos=cursos,
-                           tipos=tipos,
+                           alunos=alunos, cursos=cursos, tipos=tipos,
                            curso_tipo=curso_tipo,
-                           aluno_id=aluno_id,
-                           matricula_id=matricula_id)
+                           aluno_id=aluno_id, matricula_id=matricula_id)
 
 
 @financeiro_bp.route("/salvar_matricula", methods=["POST"])
