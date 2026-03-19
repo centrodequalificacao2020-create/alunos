@@ -37,13 +37,27 @@ function verificarIdade() {
     bloco.classList.toggle('bloco-oculto', idade >= 18);
 }
 
-/* ── Máscaras simples (sem dependência) ── */
+/* ── Máscaras ──
+   padrao: string com '#' para dígito e qualquer outro char como literal
+   Ex: '###.###.###-##', '#####-###', '(##) #####-####'
+*/
 function mascara(campo, padrao) {
     if (!campo) return;
     campo.addEventListener('input', () => {
-        let v = campo.value.replace(/\D/g, '').slice(0, padrao.replace(/\D/g,'').length);
-        let i = 0;
-        campo.value = padrao.replace(/#/g, () => v[i++] || '');
+        const digitos = campo.value.replace(/\D/g, '');
+        let resultado = '';
+        let di = 0; // índice nos dígitos
+
+        for (let pi = 0; pi < padrao.length && di < digitos.length; pi++) {
+            if (padrao[pi] === '#') {
+                resultado += digitos[di++];
+            } else {
+                resultado += padrao[pi];
+                // se o próximo char do padrão é literal e ainda há dígitos,
+                // continua inserindo o literal automaticamente
+            }
+        }
+        campo.value = resultado;
     });
 }
 
@@ -58,12 +72,11 @@ function confirmarExclusao(url, nome, alunoId) {
     aviso.style.display = 'none';
     aviso.textContent   = '';
 
-    // Consulta pendências financeiras
     fetch('/aluno/' + alunoId + '/pendencias')
         .then(r => r.json())
         .then(data => {
             if (data.total_parcelas > 0) {
-                aviso.textContent  = '⚠️ Este aluno possui ' + data.total_parcelas +
+                aviso.textContent = '⚠️ Este aluno possui ' + data.total_parcelas +
                     ' parcela(s) pendente(s) totalizando R$ ' +
                     data.total_valor.toFixed(2).replace('.', ',') +
                     '. Ao excluir, todos os registros financeiros serão removidos.';
@@ -81,7 +94,7 @@ function fecharModal() {
 function executarExclusao() {
     const senha = document.getElementById('senhaExclusao').value;
     if (!senha) { alert('Digite a senha do administrador.'); return; }
-    const form = document.createElement('form');
+    const form  = document.createElement('form');
     form.method = 'POST';
     form.action = urlExclusaoAtual;
     const input = document.createElement('input');
@@ -101,10 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
         verificarIdade();
     }
 
-    mascara(document.getElementById('cpf'),      '###.###.###-##');
-    mascara(document.getElementById('rg'),       '#########');
-    mascara(document.getElementById('telefone'), '(##) #####-####');
-    mascara(document.getElementById('cep'),      '#####-###');
+    mascara(document.getElementById('cpf'),             '###.###.###-##');
+    mascara(document.getElementById('rg'),              '#########');
+    mascara(document.getElementById('telefone'),        '(##) #####-####');
+    mascara(document.getElementById('cep'),             '#####-###');
     mascara(document.getElementById('responsavel_cpf'), '###.###.###-##');
 
     const busca  = document.getElementById('buscaAluno');
