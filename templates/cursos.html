@@ -79,13 +79,14 @@ function calcularTotal() {
             </thead>
             <tbody>
                 {% for c in cursos %}
+                {% set total = (c.valor_mensal or 0) * (c.parcelas or 0) %}
                 <tr>
                     <td>{{ c.nome }}</td>
                     <td>{{ c.tipo or '-' }}</td>
                     <td>R$ {{ "%.2f"|format(c.valor_mensal or 0) }}</td>
                     <td>R$ {{ "%.2f"|format(c.valor_matricula or 0) }}</td>
                     <td>{{ c.parcelas }}</td>
-                    <td>{{ (c.valor_mensal or 0) * (c.parcelas or 0) | "R$ %.2f"|format }}</td>
+                    <td>R$ {{ "%.2f"|format(total) }}</td>
                     <td class="acoes">
                         <a href="/editar_curso/{{ c.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
                         <form method="POST" action="/excluir_curso/{{ c.id }}" style="display:inline"
