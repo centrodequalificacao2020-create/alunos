@@ -46,14 +46,14 @@
             </div>
         </div>
 
-        <div class="grid-4">
+        <div class="grid-3">
             <div class="campo">
                 <label for="telefone">WhatsApp</label>
                 <input type="text" id="telefone" name="telefone" inputmode="numeric" placeholder="(00) 00000-0000">
             </div>
             <div class="campo">
-                <label for="telefone_contato">Telefone do responsável</label>
-                <input type="text" id="telefone_contato" name="telefone_contato" inputmode="numeric">
+                <label for="whatsapp">Telefone alternativo</label>
+                <input type="text" id="whatsapp" name="whatsapp" inputmode="numeric" placeholder="(00) 00000-0000">
             </div>
             <div class="campo">
                 <label for="email">E-mail</label>
@@ -154,7 +154,7 @@
     <ul class="pagination justify-content-center">
         {% if paginacao.has_prev %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ paginacao.prev_num }}&q={{ busca }}">‹ Anterior</a>
+            <a class="page-link" href="?page={{ paginacao.prev_num }}&q={{ busca }}">&#8249; Anterior</a>
         </li>
         {% endif %}
         {% for p in paginacao.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
@@ -168,7 +168,7 @@
         {% endfor %}
         {% if paginacao.has_next %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ paginacao.next_num }}&q={{ busca }}">Próxima ›</a>
+            <a class="page-link" href="?page={{ paginacao.next_num }}&q={{ busca }}">Próxima &#8250;</a>
         </li>
         {% endif %}
     </ul>
@@ -184,11 +184,11 @@
     {% set trancados   = alunos | selectattr('status','equalto','Trancado')  | list | length %}
     {% set cancelados  = alunos | selectattr('status','equalto','Cancelado') | list | length %}
     {% set finalizados = alunos | selectattr('status','equalto','Finalizado')| list | length %}
-    <span class="contagem-ativo">✅ Ativos (pág.): {{ ativos }}</span>
-    <span class="contagem-trancado">⏸ Trancados (pág.): {{ trancados }}</span>
-    <span class="contagem-cancelado">🚫 Cancelados (pág.): {{ cancelados }}</span>
-    <span class="contagem-finalizado">🏁 Finalizados (pág.): {{ finalizados }}</span>
-    <span class="contagem-inadimplente">⚠️ Inadimplentes: {{ inadimplentes }}</span>
+    <span class="contagem-ativo">Ativos (pág.): {{ ativos }}</span>
+    <span class="contagem-trancado">Trancados (pág.): {{ trancados }}</span>
+    <span class="contagem-cancelado">Cancelados (pág.): {{ cancelados }}</span>
+    <span class="contagem-finalizado">Finalizados (pág.): {{ finalizados }}</span>
+    <span class="contagem-inadimplente">Inadimplentes: {{ inadimplentes }}</span>
 </div>
 
 {# Modal de exclusão com senha e aviso de pendências #}
