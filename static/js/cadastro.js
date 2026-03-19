@@ -63,7 +63,12 @@ function fecharModal() {
 }
 
 function executarExclusao() {
-    if (urlExclusaoAtual) window.location.href = urlExclusaoAtual;
+    if (!urlExclusaoAtual) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = urlExclusaoAtual;
+    document.body.appendChild(form);
+    form.submit();
 }
 
 /* ── Init ── */
