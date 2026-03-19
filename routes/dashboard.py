@@ -200,6 +200,12 @@ def salvar_relatorio():
     db.session.commit()
     return jsonify({"status": "ok"})
 
+@dashboard_bp.route("/relatorio")
+@login_required
+def relatorio():
+    return render_template("relatorio.html")
+
+
 
 @dashboard_bp.route("/carregar_relatorio/<mes>")
 @login_required
