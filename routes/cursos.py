@@ -6,8 +6,10 @@ from security import login_required, admin_required
 cursos_bp = Blueprint("cursos", __name__)
 
 
-def _calcular_total(valor_mensal, parcelas):
-    return round(float(valor_mensal or 0) * int(parcelas or 1), 2)
+def _calcular_total(valor_mensal, parcelas, valor_matricula):
+    return round(
+        float(valor_matricula or 0) + float(valor_mensal or 0) * int(parcelas or 1), 2
+    )
 
 
 @cursos_bp.route("/cursos")
@@ -21,14 +23,15 @@ def listar_cursos():
 @login_required
 def salvar_curso():
     f = request.form
-    valor_mensal = float(f.get("valor_mensal") or 0)
-    parcelas     = int(f.get("parcelas") or 1)
+    valor_mensal    = float(f.get("valor_mensal")    or 0)
+    valor_matricula = float(f.get("valor_matricula") or 0)
+    parcelas        = int(f.get("parcelas")          or 1)
     curso = Curso(
         nome            = f["nome"],
         valor_mensal    = valor_mensal,
-        valor_matricula = float(f.get("valor_matricula") or 0),
+        valor_matricula = valor_matricula,
         parcelas        = parcelas,
-        valor_total     = _calcular_total(valor_mensal, parcelas),
+        valor_total     = _calcular_total(valor_mensal, parcelas, valor_matricula),
         tipo            = f.get("tipo", ""),
     )
     db.session.add(curso)
@@ -44,11 +47,13 @@ def editar_curso(id):
     if request.method == "POST":
         f = request.form
         curso.nome            = f["nome"]
-        curso.valor_mensal    = float(f.get("valor_mensal") or 0)
+        curso.valor_mensal    = float(f.get("valor_mensal")    or 0)
         curso.valor_matricula = float(f.get("valor_matricula") or 0)
-        curso.parcelas        = int(f.get("parcelas") or 1)
+        curso.parcelas        = int(f.get("parcelas")          or 1)
         curso.tipo            = f.get("tipo", curso.tipo or "")
-        curso.valor_total     = _calcular_total(curso.valor_mensal, curso.parcelas)
+        curso.valor_total     = _calcular_total(
+            curso.valor_mensal, curso.parcelas, curso.valor_matricula
+        )
         db.session.commit()
         flash("Curso atualizado.", "sucesso")
         return redirect("/cursos")
