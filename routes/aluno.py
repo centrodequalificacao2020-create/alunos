@@ -1,8 +1,8 @@
 from datetime import date
-from flask import Blueprint, render_template, request, redirect, flash
+from flask import Blueprint, render_template, request, redirect, flash, jsonify
 from db import db
 from models import Aluno, Curso, Mensalidade, Matricula
-from security import login_required, admin_required
+from security import login_required, verificar_senha
 from sqlalchemy import func
 
 
@@ -64,6 +64,38 @@ def cadastro():
                            busca=busca)
 
 
+@aluno_bp.route("/aluno/<int:id>/pendencias")
+@login_required
+def pendencias_aluno(id):
+    """Retorna JSON com pendências financeiras do aluno para o modal."""
+    pendentes = Mensalidade.query.filter_by(aluno_id=id, status="Pendente").all()
+    total     = sum(m.valor or 0 for m in pendentes)
+    return jsonify({
+        "total_parcelas": len(pendentes),
+        "total_valor":    float(total)
+    })
+
+
+@aluno_bp.route("/excluir_aluno/<int:id>", methods=["POST"])
+@login_required
+def excluir_aluno(id):
+    from models import Usuario
+    from flask import session
+    senha = request.form.get("senha", "")
+    user  = Usuario.query.get(session.get("usuario_id"))
+    if not user or not verificar_senha(senha, user.senha):
+        flash("Senha incorreta. Exclusão cancelada.", "erro")
+        return redirect("/cadastro")
+    a = Aluno.query.get_or_404(id)
+    # Remove todas as mensalidades e matrículas vinculadas antes de excluir
+    Mensalidade.query.filter_by(aluno_id=id).delete()
+    Matricula.query.filter_by(aluno_id=id).delete()
+    db.session.delete(a)
+    db.session.commit()
+    flash(f"Aluno \u201c{a.nome}\u201d excluído com sucesso.", "sucesso")
+    return redirect("/cadastro")
+
+
 @aluno_bp.route("/editar_aluno/<int:id>", methods=["GET", "POST"])
 @login_required
 def editar_aluno(id):
@@ -89,19 +121,6 @@ def editar_aluno(id):
         return redirect("/cadastro")
     cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("editar_aluno.html", aluno=a, cursos=cursos)
-
-
-@aluno_bp.route("/excluir_aluno/<int:id>", methods=["POST"])
-@login_required
-def excluir_aluno(id):
-    a = Aluno.query.get_or_404(id)
-    if Mensalidade.query.filter_by(aluno_id=id).count() > 0:
-        flash("Não é possível excluir: aluno possui registros financeiros.", "erro")
-        return redirect("/cadastro")
-    db.session.delete(a)
-    db.session.commit()
-    flash("Aluno excluído.", "sucesso")
-    return redirect("/cadastro")
 
 
 @aluno_bp.route("/aluno/<int:aluno_id>")

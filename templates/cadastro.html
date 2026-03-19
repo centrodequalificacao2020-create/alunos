@@ -138,7 +138,8 @@
                     <button type="button"
                             class="btn btn-lixeira tooltip"
                             data-tooltip="Excluir"
-                            onclick="confirmarExclusao('/excluir_aluno/{{ aluno.id }}', '{{ aluno.nome }}')">🗑️</button>
+                            onclick="confirmarExclusao('/excluir_aluno/{{ aluno.id }}', '{{ aluno.nome }}', {{ aluno.id }})"
+                    >🗑️</button>
                 </td>
             </tr>
             {% else %}
@@ -190,10 +191,17 @@
     <span class="contagem-inadimplente">⚠️ Inadimplentes: {{ inadimplentes }}</span>
 </div>
 
+{# Modal de exclusão com senha e aviso de pendências #}
 <div id="modalExclusao" class="modal-overlay">
     <div class="modal">
         <h3>⚠️ Confirmar exclusão</h3>
-        <p>Deseja realmente excluir o aluno <strong id="modalExclusaoNome"></strong>? Esta ação não pode ser desfeita.</p>
+        <p>Deseja realmente excluir o aluno <strong id="modalExclusaoNome"></strong>?<br>
+           <span id="modalExclusaoAviso" class="alerta erro" style="display:none;"></span>
+        </p>
+        <div class="campo">
+            <label for="senhaExclusao">Senha do administrador</label>
+            <input type="password" id="senhaExclusao" placeholder="Digite a senha">
+        </div>
         <div class="acoes-form">
             <button type="button" class="btn btn-vermelho" onclick="executarExclusao()">Excluir</button>
             <button type="button" class="btn btn-azul"     onclick="fecharModal()">Cancelar</button>

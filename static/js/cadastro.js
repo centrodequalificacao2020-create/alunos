@@ -50,12 +50,28 @@ function mascara(campo, padrao) {
 /* ── Modal de confirmação de exclusão ── */
 let urlExclusaoAtual = '';
 
-function confirmarExclusao(url, nome) {
+function confirmarExclusao(url, nome, alunoId) {
     urlExclusaoAtual = url;
-    const modal = document.getElementById('modalExclusao');
-    const msg   = document.getElementById('modalExclusaoNome');
-    if (msg) msg.textContent = nome || 'este aluno';
-    if (modal) modal.classList.add('aberto');
+    document.getElementById('modalExclusaoNome').textContent = nome || 'este aluno';
+    document.getElementById('senhaExclusao').value = '';
+    const aviso = document.getElementById('modalExclusaoAviso');
+    aviso.style.display = 'none';
+    aviso.textContent   = '';
+
+    // Consulta pendências financeiras
+    fetch('/aluno/' + alunoId + '/pendencias')
+        .then(r => r.json())
+        .then(data => {
+            if (data.total_parcelas > 0) {
+                aviso.textContent  = '⚠️ Este aluno possui ' + data.total_parcelas +
+                    ' parcela(s) pendente(s) totalizando R$ ' +
+                    data.total_valor.toFixed(2).replace('.', ',') +
+                    '. Ao excluir, todos os registros financeiros serão removidos.';
+                aviso.style.display = 'block';
+            }
+        });
+
+    document.getElementById('modalExclusao').classList.add('aberto');
 }
 
 function fecharModal() {
@@ -63,37 +79,39 @@ function fecharModal() {
 }
 
 function executarExclusao() {
-    if (!urlExclusaoAtual) return;
+    const senha = document.getElementById('senhaExclusao').value;
+    if (!senha) { alert('Digite a senha do administrador.'); return; }
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = urlExclusaoAtual;
+    const input = document.createElement('input');
+    input.type  = 'hidden';
+    input.name  = 'senha';
+    input.value = senha;
+    form.appendChild(input);
     document.body.appendChild(form);
     form.submit();
 }
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
-    // idade / responsável
     const campoNasc = document.getElementById('data_nascimento');
     if (campoNasc) {
         campoNasc.addEventListener('change', verificarIdade);
         verificarIdade();
     }
 
-    // máscaras
     mascara(document.getElementById('cpf'),      '###.###.###-##');
     mascara(document.getElementById('rg'),       '#########');
     mascara(document.getElementById('telefone'), '(##) #####-####');
     mascara(document.getElementById('cep'),      '#####-###');
     mascara(document.getElementById('responsavel_cpf'), '###.###.###-##');
 
-    // filtros (evento)
     const busca  = document.getElementById('buscaAluno');
     const filtro = document.getElementById('filtroStatus');
     if (busca)  busca.addEventListener('keyup', filtrarAlunos);
     if (filtro) filtro.addEventListener('change', filtrarAlunos);
 
-    // fechar modal clicando fora
     const overlay = document.getElementById('modalExclusao');
     if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) fecharModal(); });
 });
