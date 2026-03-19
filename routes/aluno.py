@@ -150,6 +150,17 @@ def editar_aluno(id):
         a.responsavel_cpf        = f.get("responsavel_cpf")
         a.responsavel_telefone   = f.get("responsavel_telefone")
         a.responsavel_parentesco = f.get("responsavel_parentesco")
+
+        nova_senha = f.get("senha_portal", "").strip()
+        confirm    = f.get("senha_portal_confirm", "").strip()
+        if nova_senha:
+            if nova_senha != confirm:
+                flash("As senhas do portal não conferem.", "erro")
+                cursos = Curso.query.order_by(Curso.nome).all()
+                return render_template("editar_aluno.html", aluno=a, cursos=cursos)
+            from security import hash_senha
+            a.senha = hash_senha(nova_senha)
+
         db.session.commit()
         flash("Aluno atualizado.", "sucesso")
         return redirect("/cadastro")

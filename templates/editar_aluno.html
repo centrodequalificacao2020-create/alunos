@@ -102,6 +102,20 @@
 
         {% include 'partials/form_endereco.html' %}
 
+        <h3 class="secao">🔐 Acesso ao Portal do Aluno</h3>
+        <div class="grid-4">
+            <div class="campo">
+                <label for="senha_portal">Nova senha do portal</label>
+                <input type="password" id="senha_portal" name="senha_portal"
+                       placeholder="Deixe em branco para não alterar">
+            </div>
+            <div class="campo">
+                <label for="senha_portal_confirm">Confirmar senha</label>
+                <input type="password" id="senha_portal_confirm" name="senha_portal_confirm"
+                       placeholder="Repita a senha">
+            </div>
+        </div>
+
         <div class="acoes-form">
             <button type="submit" class="btn btn-azul">💾 Salvar Alterações</button>
             <a href="/cadastro" class="btn btn-vermelho">✖ Cancelar</a>
