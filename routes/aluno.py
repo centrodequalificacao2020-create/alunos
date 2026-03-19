@@ -1,5 +1,5 @@
 from datetime import date
-from flask import Blueprint, render_template, request, redirect, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, flash, jsonify, session
 from db import db
 from models import Aluno, Curso, Mensalidade, Matricula
 from security import login_required, verificar_senha
@@ -9,11 +9,39 @@ from sqlalchemy import func
 aluno_bp = Blueprint("aluno", __name__)
 
 
+def _cpf_limpo(cpf: str) -> str:
+    return (cpf or "").replace(".", "").replace("-", "").replace(" ", "").strip()
+
+
 @aluno_bp.route("/cadastro", methods=["GET", "POST"])
 @login_required
 def cadastro():
     if request.method == "POST":
-        f = request.form
+        f   = request.form
+        cpf = _cpf_limpo(f.get("cpf", ""))
+
+        if cpf:
+            existente = Aluno.query.filter(
+                func.replace(func.replace(func.replace(Aluno.cpf, ".", ""), "-", ""), " ", "") == cpf
+            ).first()
+            if existente:
+                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                cursos    = Curso.query.order_by(Curso.nome).all()
+                paginacao = Aluno.query.order_by(Aluno.nome).paginate(page=1, per_page=20, error_out=False)
+                hoje = date.today().isoformat()
+                inadimplentes_ids = {
+                    r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
+                    .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje).all()
+                }
+                for a in paginacao.items:
+                    a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
+                return render_template("cadastro.html",
+                                       alunos=paginacao.items,
+                                       cursos=cursos,
+                                       inadimplentes=len(inadimplentes_ids),
+                                       paginacao=paginacao,
+                                       busca="")
+
         a = Aluno(
             nome                   = f.get("nome"),
             cpf                    = f.get("cpf"),
@@ -55,11 +83,10 @@ def cadastro():
     for a in alunos:
         a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
 
-    inadimplentes = len(inadimplentes_ids)
     return render_template("cadastro.html",
                            alunos=alunos,
                            cursos=cursos,
-                           inadimplentes=inadimplentes,
+                           inadimplentes=len(inadimplentes_ids),
                            paginacao=paginacao,
                            busca=busca)
 
@@ -67,32 +94,27 @@ def cadastro():
 @aluno_bp.route("/aluno/<int:id>/pendencias")
 @login_required
 def pendencias_aluno(id):
-    """Retorna JSON com pendências financeiras do aluno para o modal."""
     pendentes = Mensalidade.query.filter_by(aluno_id=id, status="Pendente").all()
     total     = sum(m.valor or 0 for m in pendentes)
-    return jsonify({
-        "total_parcelas": len(pendentes),
-        "total_valor":    float(total)
-    })
+    return jsonify({"total_parcelas": len(pendentes), "total_valor": float(total)})
 
 
 @aluno_bp.route("/excluir_aluno/<int:id>", methods=["POST"])
 @login_required
 def excluir_aluno(id):
     from models import Usuario
-    from flask import session
     senha = request.form.get("senha", "")
     user  = Usuario.query.get(session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
         flash("Senha incorreta. Exclusão cancelada.", "erro")
         return redirect("/cadastro")
     a = Aluno.query.get_or_404(id)
-    # Remove todas as mensalidades e matrículas vinculadas antes de excluir
+    nome = a.nome
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
     db.session.delete(a)
     db.session.commit()
-    flash(f"Aluno \u201c{a.nome}\u201d excluído com sucesso.", "sucesso")
+    flash(f"Aluno \u201c{nome}\u201d excluído com sucesso.", "sucesso")
     return redirect("/cadastro")
 
 
@@ -101,7 +123,19 @@ def excluir_aluno(id):
 def editar_aluno(id):
     a = Aluno.query.get_or_404(id)
     if request.method == "POST":
-        f = request.form
+        f   = request.form
+        cpf = _cpf_limpo(f.get("cpf", ""))
+
+        if cpf:
+            existente = Aluno.query.filter(
+                func.replace(func.replace(func.replace(Aluno.cpf, ".", ""), "-", ""), " ", "") == cpf,
+                Aluno.id != id
+            ).first()
+            if existente:
+                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                cursos = Curso.query.order_by(Curso.nome).all()
+                return render_template("editar_aluno.html", aluno=a, cursos=cursos)
+
         a.nome                   = f.get("nome")
         a.cpf                    = f.get("cpf")
         a.rg                     = f.get("rg")
