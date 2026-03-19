@@ -345,3 +345,30 @@ td.acoes { text-align: center; white-space: nowrap; }
     nav a { margin: 0; padding: 10px 32px; border-bottom: none; }
     nav a:hover { background: rgba(255,255,255,.1); }
 }
+
+/* ── 27. AUTOCOMPLETE ───────────────────────────────────────── */
+.autocomplete-wrap { position: relative; }
+.autocomplete-lista {
+    display: none;
+    position: absolute;
+    z-index: 999;
+    width: 100%;
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    box-shadow: var(--shadow-md);
+}
+.autocomplete-lista li {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.autocomplete-lista li:hover { background: var(--color-primary-light); }
+.autocomplete-lista li.vazio { color: var(--color-text-muted); cursor: default; }
+.autocomplete-label { font-size: 12px; font-weight: 600; color: var(--color-primary); margin-top: 4px; display: block; }
+.autocomplete-status { font-size: 11px; color: var(--color-text-muted); }

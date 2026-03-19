@@ -13,26 +13,16 @@
         <h2>Financeiro</h2>
     </div>
 
-    <div id="fin-form-busca" style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">
-        <div class="campo" style="flex:1;min-width:240px;">
-            <label for="fin-busca">Aluno</label>
-            <div style="position:relative">
-                <input type="text" id="fin-busca" autocomplete="off"
-                       placeholder="Digite o nome do aluno..."
-                       oninput="filtrarAlunosFin(this.value)"
-                       value="{% for a in alunos %}{% if a.id == aluno_id %}{{ a.nome }}{% endif %}{% endfor %}">
-                <ul id="fin-sugestoes"
-                    style="display:none;position:absolute;z-index:999;width:100%;
-                           background:#fff;border:1px solid #ccc;border-radius:4px;
-                           max-height:220px;overflow-y:auto;margin:0;padding:0;
-                           list-style:none;box-shadow:0 4px 12px rgba(0,0,0,.12);"></ul>
-            </div>
-            <input type="hidden" id="fin-aluno-id" value="{{ aluno_id or '' }}">
-            <small id="fin-label" style="color:#1a56db;font-weight:600;"></small>
+    <div class="campo">
+        <label for="fin-busca">Aluno</label>
+        <div class="autocomplete-wrap" id="fin-wrap">
+            <input type="text" id="fin-busca" autocomplete="off"
+                   placeholder="Digite o nome do aluno..."
+                   oninput="filtrarAlunosFin(this.value)"
+                   value="{% for a in alunos %}{% if a.id == aluno_id %}{{ a.nome }}{% endif %}{% endfor %}">
+            <ul class="autocomplete-lista" id="fin-lista"></ul>
         </div>
-        <div>
-            <button type="button" class="btn btn-azul" onclick="submeterFinanceiro()">🔍 Buscar</button>
-        </div>
+        <small class="autocomplete-label" id="fin-label"></small>
     </div>
 </div>
 
@@ -44,47 +34,26 @@ const ALUNOS_FIN = [
 ];
 
 function filtrarAlunosFin(termo) {
-    const lista  = document.getElementById('fin-sugestoes');
-    const hidden = document.getElementById('fin-aluno-id');
-    const label  = document.getElementById('fin-label');
-    hidden.value = '';
-    label.textContent = '';
+    const lista = document.getElementById('fin-lista');
     if (!termo.trim()) { lista.style.display = 'none'; lista.innerHTML = ''; return; }
     const t = termo.toLowerCase();
     const res = ALUNOS_FIN.filter(a => a.nome.toLowerCase().includes(t)).slice(0, 10);
     if (!res.length) {
-        lista.innerHTML = '<li style="padding:8px 12px;color:#888;">Nenhum aluno encontrado</li>';
+        lista.innerHTML = '<li class="vazio">Nenhum aluno encontrado</li>';
         lista.style.display = 'block';
         return;
     }
     lista.innerHTML = res.map(a =>
-        `<li data-id="${a.id}"
-             style="padding:8px 12px;cursor:pointer;"
-             onmouseenter="this.style.background='#f0f4ff'"
-             onmouseleave="this.style.background=''"
-             onclick="selecionarAlunoFin(${a.id}, ${JSON.stringify(a.nome)})">
-           ${a.nome} <small style="color:#888;">(${a.status})</small>
+        `<li onclick="window.location.href='/financeiro?aluno_id=${a.id}'">
+           ${a.nome} <span class="autocomplete-status">(${a.status})</span>
          </li>`
     ).join('');
     lista.style.display = 'block';
 }
 
-function selecionarAlunoFin(id, nome) {
-    document.getElementById('fin-busca').value    = nome;
-    document.getElementById('fin-aluno-id').value = id;
-    document.getElementById('fin-label').textContent = '✔ ' + nome + ' selecionado';
-    document.getElementById('fin-sugestoes').style.display = 'none';
-}
-
-function submeterFinanceiro() {
-    const id = document.getElementById('fin-aluno-id').value;
-    if (!id) { alert('Selecione um aluno da lista de sugestões.'); return; }
-    window.location.href = '/financeiro?aluno_id=' + id;
-}
-
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('#fin-form-busca')) {
-        document.getElementById('fin-sugestoes').style.display = 'none';
+    if (!e.target.closest('#fin-wrap')) {
+        document.getElementById('fin-lista').style.display = 'none';
     }
 });
 </script>
