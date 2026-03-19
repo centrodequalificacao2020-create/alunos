@@ -4,6 +4,17 @@
 
 {% set TIPOS_CURSO = ['Profissionalizante','Técnico','Graduação','NR','Pós-graduação','EJA','Livre','Capacitação'] %}
 
+<script>
+function calcularTotal() {
+    const mensal   = parseFloat(document.getElementById('valor_mensal').value)   || 0;
+    const parcelas = parseFloat(document.getElementById('parcelas').value)        || 0;
+    const total    = mensal * parcelas;
+    document.getElementById('valor_total').value = total > 0
+        ? 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+        : '';
+}
+</script>
+
 <div class="card">
     <div class="card-header">
         <span>📚</span>
@@ -28,7 +39,8 @@
             </div>
             <div class="campo">
                 <label for="valor_mensal">Valor Mensal (R$)</label>
-                <input type="number" id="valor_mensal" name="valor_mensal" step="0.01" min="0" value="0">
+                <input type="number" id="valor_mensal" name="valor_mensal"
+                       step="0.01" min="0" value="0" oninput="calcularTotal()">
             </div>
             <div class="campo">
                 <label for="valor_matricula">Valor Matrícula (R$)</label>
@@ -36,7 +48,12 @@
             </div>
             <div class="campo">
                 <label for="parcelas">Parcelas</label>
-                <input type="number" id="parcelas" name="parcelas" min="1" value="1">
+                <input type="number" id="parcelas" name="parcelas" min="1" value="1" oninput="calcularTotal()">
+            </div>
+            <div class="campo">
+                <label for="valor_total">Valor Total</label>
+                <input type="text" id="valor_total" readonly placeholder="Calculado automaticamente"
+                       style="background:#f0f4ff; font-weight:600; color:#1a56db;">
             </div>
         </div>
         <div class="acoes-form">
@@ -56,6 +73,7 @@
                     <th>Valor Mensal</th>
                     <th>Valor Matrícula</th>
                     <th>Parcelas</th>
+                    <th>Valor Total</th>
                     <th class="acoes">Ações</th>
                 </tr>
             </thead>
@@ -67,6 +85,7 @@
                     <td>R$ {{ "%.2f"|format(c.valor_mensal or 0) }}</td>
                     <td>R$ {{ "%.2f"|format(c.valor_matricula or 0) }}</td>
                     <td>{{ c.parcelas }}</td>
+                    <td>{{ (c.valor_mensal or 0) * (c.parcelas or 0) | "R$ %.2f"|format }}</td>
                     <td class="acoes">
                         <a href="/editar_curso/{{ c.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
                         <form method="POST" action="/excluir_curso/{{ c.id }}" style="display:inline"
@@ -76,7 +95,7 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" class="empty-state">Nenhum curso cadastrado.</td></tr>
+                <tr><td colspan="7" class="empty-state">Nenhum curso cadastrado.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
