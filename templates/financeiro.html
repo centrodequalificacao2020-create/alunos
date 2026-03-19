@@ -13,65 +13,13 @@
         <h2>Financeiro</h2>
     </div>
 
-    {# Lista de todos os alunos para o autocomplete #}
-    <script>
-    const ALUNOS_FIN = [
-      {% for a in alunos %}
-      { id: {{ a.id }}, nome: {{ a.nome | tojson }}, status: {{ (a.status or '') | tojson }} }{% if not loop.last %},{% endif %}
-      {% endfor %}
-    ];
-
-    function filtrarAlunosFin(termo) {
-        const lista  = document.getElementById('fin-sugestoes');
-        const hidden = document.getElementById('fin-aluno-id');
-        const label  = document.getElementById('fin-aluno-selecionado');
-        hidden.value = ''; label.textContent = '';
-        if (!termo.trim()) { lista.style.display = 'none'; lista.innerHTML = ''; return; }
-        const t = termo.toLowerCase();
-        const res = ALUNOS_FIN.filter(a => a.nome.toLowerCase().includes(t)).slice(0, 10);
-        if (!res.length) {
-            lista.innerHTML = '<li style="padding:8px 12px;color:#888">Nenhum aluno encontrado</li>';
-            lista.style.display = 'block'; return;
-        }
-        lista.innerHTML = res.map(a =>
-            `<li data-id="${a.id}"
-                 style="padding:8px 12px;cursor:pointer;"
-                 onmouseenter="this.style.background='#f0f4ff'"
-                 onmouseleave="this.style.background=''"
-                 onclick="selecionarAlunoFin(${a.id}, ${JSON.stringify(a.nome)})">
-               ${a.nome} <small style="color:#888">(${a.status})</small>
-             </li>`
-        ).join('');
-        lista.style.display = 'block';
-    }
-
-    function selecionarAlunoFin(id, nome) {
-        document.getElementById('fin-busca').value           = nome;
-        document.getElementById('fin-aluno-id').value        = id;
-        document.getElementById('fin-aluno-selecionado').textContent = '✔ ' + nome;
-        document.getElementById('fin-sugestoes').style.display = 'none';
-    }
-
-    function submeterFinanceiro() {
-        const id = document.getElementById('fin-aluno-id').value;
-        if (!id) { alert('Selecione um aluno da lista.'); return; }
-        window.location.href = '/financeiro?aluno_id=' + id;
-    }
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('#fin-form-busca')) {
-            const l = document.getElementById('fin-sugestoes');
-            if (l) l.style.display = 'none';
-        }
-    });
-    </script>
-
     <div id="fin-form-busca" style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">
         <div class="campo" style="flex:1;min-width:240px;position:relative;">
             <label for="fin-busca">Aluno</label>
             <input type="text" id="fin-busca" autocomplete="off"
-                   class="" placeholder="Digite o nome do aluno..."
+                   placeholder="Digite o nome do aluno..."
                    oninput="filtrarAlunosFin(this.value)"
+                   onblur="setTimeout(()=>{ document.getElementById('fin-sugestoes').style.display='none'; }, 150)"
                    value="{% for a in alunos %}{% if a.id == aluno_id %}{{ a.nome }}{% endif %}{% endfor %}">
             <input type="hidden" id="fin-aluno-id" value="{{ aluno_id or '' }}">
             <ul id="fin-sugestoes"
@@ -86,6 +34,48 @@
     </div>
     <small id="fin-aluno-selecionado" style="color:#1a56db;font-weight:600;"></small>
 </div>
+
+<script>
+const ALUNOS_FIN = [
+  {% for a in alunos %}
+  { id: {{ a.id }}, nome: {{ a.nome | tojson }}, status: {{ (a.status or '') | tojson }} }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+function filtrarAlunosFin(termo) {
+    const lista = document.getElementById('fin-sugestoes');
+    if (!termo.trim()) { lista.style.display = 'none'; lista.innerHTML = ''; return; }
+    const t = termo.toLowerCase();
+    const res = ALUNOS_FIN.filter(a => a.nome.toLowerCase().includes(t)).slice(0, 10);
+    if (!res.length) {
+        lista.innerHTML = '<li style="padding:8px 12px;color:#888">Nenhum aluno encontrado</li>';
+        lista.style.display = 'block';
+        return;
+    }
+    lista.innerHTML = res.map(a =>
+        `<li style="padding:8px 12px;cursor:pointer;"
+             onmouseenter="this.style.background='#f0f4ff'"
+             onmouseleave="this.style.background=''"
+             onmousedown="selecionarAlunoFin(${a.id}, ${JSON.stringify(a.nome)})">
+           ${a.nome} <small style="color:#888">(${a.status})</small>
+         </li>`
+    ).join('');
+    lista.style.display = 'block';
+}
+
+function selecionarAlunoFin(id, nome) {
+    document.getElementById('fin-busca').value  = nome;
+    document.getElementById('fin-aluno-id').value = id;
+    document.getElementById('fin-aluno-selecionado').textContent = '✔ ' + nome;
+    document.getElementById('fin-sugestoes').style.display = 'none';
+}
+
+function submeterFinanceiro() {
+    const id = document.getElementById('fin-aluno-id').value;
+    if (!id) { alert('Selecione um aluno da lista.'); return; }
+    window.location.href = '/financeiro?aluno_id=' + id;
+}
+</script>
 
 {% if aluno_id %}
 
@@ -111,7 +101,6 @@
         <h3>🗓 A PAGAR</h3>
         <a href="/movimentacao?aluno_id={{ aluno_id }}" class="btn btn-verde">➕ Nova Mensalidade</a>
     </div>
-
     {% if pendentes %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
@@ -132,9 +121,9 @@
                 <td>{% include 'partials/badge_tipo.html' %}</td>
                 <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
                 <td class="acoes">
-                    <a href="/pagar/{{ p.id }}"             class="btn btn-pagar    tooltip" data-tooltip="Registrar pagamento">✔️</a>
-                    <a href="/editar_parcela/{{ p.id }}"    class="btn btn-editar   tooltip" data-tooltip="Editar">✏️</a>
-                    <a href="/carne/{{ aluno_id }}"         class="btn btn-imprimir tooltip" data-tooltip="Imprimir carnê" target="_blank">🖨️</a>
+                    <a href="/pagar/{{ p.id }}"          class="btn btn-pagar    tooltip" data-tooltip="Registrar pagamento">✔️</a>
+                    <a href="/editar_parcela/{{ p.id }}" class="btn btn-editar   tooltip" data-tooltip="Editar">✏️</a>
+                    <a href="/carne/{{ aluno_id }}"      class="btn btn-imprimir tooltip" data-tooltip="Imprimir carnê" target="_blank">🖨️</a>
                     <a href="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
                        class="btn btn-lixeira tooltip" data-tooltip="Excluir"
                        onclick="return confirm('Excluir esta parcela pendente?')">🗑️</a>
