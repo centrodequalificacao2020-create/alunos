@@ -24,6 +24,7 @@ class Curso(db.Model):
     valor_mensal    = db.Column(db.Float, default=0)
     valor_matricula = db.Column(db.Float, default=0)
     parcelas        = db.Column(db.Integer, default=1)
+    valor_total     = db.Column(db.Float, default=0)
     tipo            = db.Column(db.String(60))
     duracao         = db.Column(db.String(60))
     alunos          = db.relationship("Aluno",     backref="curso",  lazy=True)

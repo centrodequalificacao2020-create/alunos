@@ -5,27 +5,37 @@ from security import login_required, admin_required
 
 cursos_bp = Blueprint("cursos", __name__)
 
+
+def _calcular_total(valor_mensal, parcelas):
+    return round(float(valor_mensal or 0) * int(parcelas or 1), 2)
+
+
 @cursos_bp.route("/cursos")
 @login_required
 def listar_cursos():
     cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("cursos.html", cursos=cursos)
 
+
 @cursos_bp.route("/salvar_curso", methods=["POST"])
 @login_required
 def salvar_curso():
     f = request.form
+    valor_mensal = float(f.get("valor_mensal") or 0)
+    parcelas     = int(f.get("parcelas") or 1)
     curso = Curso(
         nome            = f["nome"],
-        valor_mensal    = float(f.get("valor_mensal") or 0),
+        valor_mensal    = valor_mensal,
         valor_matricula = float(f.get("valor_matricula") or 0),
-        parcelas        = int(f.get("parcelas") or 1),
+        parcelas        = parcelas,
+        valor_total     = _calcular_total(valor_mensal, parcelas),
         tipo            = f.get("tipo", ""),
     )
     db.session.add(curso)
     db.session.commit()
     flash("Curso salvo com sucesso.", "sucesso")
     return redirect("/cursos")
+
 
 @cursos_bp.route("/editar_curso/<int:id>", methods=["GET", "POST"])
 @login_required
@@ -37,10 +47,13 @@ def editar_curso(id):
         curso.valor_mensal    = float(f.get("valor_mensal") or 0)
         curso.valor_matricula = float(f.get("valor_matricula") or 0)
         curso.parcelas        = int(f.get("parcelas") or 1)
+        curso.tipo            = f.get("tipo", curso.tipo or "")
+        curso.valor_total     = _calcular_total(curso.valor_mensal, curso.parcelas)
         db.session.commit()
         flash("Curso atualizado.", "sucesso")
         return redirect("/cursos")
     return render_template("editar_curso.html", curso=curso)
+
 
 @cursos_bp.route("/excluir_curso/<int:id>", methods=["POST"])
 @admin_required
