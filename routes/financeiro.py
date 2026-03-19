@@ -21,7 +21,8 @@ def _tipos_curso():
 @financeiro_bp.route("/financeiro")
 @login_required
 def financeiro():
-    alunos   = Aluno.query.filter(Aluno.status.in_(["Ativo","Pré-Matrícula"])).order_by(Aluno.nome).all()
+    # Retorna TODOS os alunos independente do status
+    alunos   = Aluno.query.order_by(Aluno.nome).all()
     aluno_id = request.args.get("aluno_id", type=int)
     pendentes, pagas, totais = [], [], {}
     if aluno_id:
@@ -106,7 +107,6 @@ def movimentacao():
     tipos  = _tipos_curso()
     aluno_id     = request.args.get("aluno_id")
     matricula_id = request.args.get("matricula_id")
-    # mapa curso_id -> tipo para preenchimento automático
     curso_tipo = {c.id: (c.tipo or "") for c in cursos}
     return render_template("movimentacao.html",
                            alunos=alunos,

@@ -13,17 +13,78 @@
         <h2>Financeiro</h2>
     </div>
 
-    <form method="GET" action="/financeiro">
-        <div class="campo">
-            <label for="aluno_id">Aluno</label>
-            <select id="aluno_id" name="aluno_id" onchange="this.form.submit()">
-                <option value="">Selecione o aluno…</option>
-                {% for a in alunos %}
-                <option value="{{ a.id }}" {% if aluno_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
-                {% endfor %}
-            </select>
+    {# Lista de todos os alunos para o autocomplete #}
+    <script>
+    const ALUNOS_FIN = [
+      {% for a in alunos %}
+      { id: {{ a.id }}, nome: {{ a.nome | tojson }}, status: {{ (a.status or '') | tojson }} }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    function filtrarAlunosFin(termo) {
+        const lista  = document.getElementById('fin-sugestoes');
+        const hidden = document.getElementById('fin-aluno-id');
+        const label  = document.getElementById('fin-aluno-selecionado');
+        hidden.value = ''; label.textContent = '';
+        if (!termo.trim()) { lista.style.display = 'none'; lista.innerHTML = ''; return; }
+        const t = termo.toLowerCase();
+        const res = ALUNOS_FIN.filter(a => a.nome.toLowerCase().includes(t)).slice(0, 10);
+        if (!res.length) {
+            lista.innerHTML = '<li style="padding:8px 12px;color:#888">Nenhum aluno encontrado</li>';
+            lista.style.display = 'block'; return;
+        }
+        lista.innerHTML = res.map(a =>
+            `<li data-id="${a.id}"
+                 style="padding:8px 12px;cursor:pointer;"
+                 onmouseenter="this.style.background='#f0f4ff'"
+                 onmouseleave="this.style.background=''"
+                 onclick="selecionarAlunoFin(${a.id}, ${JSON.stringify(a.nome)})">
+               ${a.nome} <small style="color:#888">(${a.status})</small>
+             </li>`
+        ).join('');
+        lista.style.display = 'block';
+    }
+
+    function selecionarAlunoFin(id, nome) {
+        document.getElementById('fin-busca').value           = nome;
+        document.getElementById('fin-aluno-id').value        = id;
+        document.getElementById('fin-aluno-selecionado').textContent = '✔ ' + nome;
+        document.getElementById('fin-sugestoes').style.display = 'none';
+    }
+
+    function submeterFinanceiro() {
+        const id = document.getElementById('fin-aluno-id').value;
+        if (!id) { alert('Selecione um aluno da lista.'); return; }
+        window.location.href = '/financeiro?aluno_id=' + id;
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#fin-form-busca')) {
+            const l = document.getElementById('fin-sugestoes');
+            if (l) l.style.display = 'none';
+        }
+    });
+    </script>
+
+    <div id="fin-form-busca" style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">
+        <div class="campo" style="flex:1;min-width:240px;position:relative;">
+            <label for="fin-busca">Aluno</label>
+            <input type="text" id="fin-busca" autocomplete="off"
+                   class="" placeholder="Digite o nome do aluno..."
+                   oninput="filtrarAlunosFin(this.value)"
+                   value="{% for a in alunos %}{% if a.id == aluno_id %}{{ a.nome }}{% endif %}{% endfor %}">
+            <input type="hidden" id="fin-aluno-id" value="{{ aluno_id or '' }}">
+            <ul id="fin-sugestoes"
+                style="display:none;position:absolute;z-index:999;width:100%;
+                       background:#fff;border:1px solid #ccc;border-radius:4px;
+                       max-height:220px;overflow-y:auto;margin:0;padding:0;
+                       list-style:none;box-shadow:0 4px 12px rgba(0,0,0,.12);"></ul>
         </div>
-    </form>
+        <div>
+            <button type="button" class="btn btn-azul" onclick="submeterFinanceiro()">🔍 Buscar</button>
+        </div>
+    </div>
+    <small id="fin-aluno-selecionado" style="color:#1a56db;font-weight:600;"></small>
 </div>
 
 {% if aluno_id %}
@@ -83,7 +144,7 @@
             </tbody>
         </table>
     </div>
-    <div class="totais">TOTAL A PAGAR: R$ {{ "%.2f"|format(total_pagar or 0) }}</div>
+    <div class="totais">TOTAL A PAGAR: R$ {{ "%.2f"|format(total_pagar or 0) }}</div>
     {% else %}
     <p class="empty-state">✅ Nenhuma cobrança pendente</p>
     {% endif %}
@@ -129,7 +190,7 @@
             </tbody>
         </table>
     </div>
-    <div class="totais">TOTAL PAGO: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
+    <div class="totais">TOTAL PAGO: R$ {{ "%.2f"|format(total_pago or 0) }}</div>
     {% else %}
     <p class="empty-state">Nenhuma cobrança paga</p>
     {% endif %}
