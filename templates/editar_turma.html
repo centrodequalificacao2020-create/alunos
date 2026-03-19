@@ -80,23 +80,98 @@
       <p class="text-muted">Nenhum aluno nesta turma.</p>
       {% endif %}
 
-      <!-- Adicionar aluno -->
+      <!-- Adicionar aluno com busca -->
       <form method="POST" action="/turmas/{{ turma.id }}/alunos/adicionar"
-            class="row g-2 mt-2">
+            class="row g-2 mt-2" id="form-adicionar-aluno">
+
         <div class="col-md-6">
-          <label for="aluno_id" class="form-label">Adicionar Aluno</label>
-          <select id="aluno_id" name="aluno_id" class="form-select" required>
-            <option value="">Selecione o aluno</option>
-            {% for a in alunos_disponiveis %}
-            <option value="{{ a.id }}">{{ a.nome }}</option>
-            {% endfor %}
-          </select>
+          <label class="form-label">Buscar Aluno Ativo</label>
+          <div style="position:relative">
+            <input type="text" id="busca-aluno" autocomplete="off"
+                   class="form-control"
+                   placeholder="Digite o nome do aluno..."
+                   oninput="filtrarAlunos(this.value)">
+            <ul id="lista-sugestoes"
+                style="display:none; position:absolute; z-index:999; width:100%;
+                       background:#fff; border:1px solid #ccc; border-radius:4px;
+                       max-height:220px; overflow-y:auto; margin:0; padding:0;
+                       list-style:none; box-shadow:0 4px 12px rgba(0,0,0,.12);">
+            </ul>
+          </div>
+          <!-- campo oculto que envia o id selecionado -->
+          <input type="hidden" id="aluno_id" name="aluno_id">
+          <small id="aluno-selecionado" style="color:#1a56db; font-weight:600;"></small>
         </div>
+
         <div class="col-md-2 d-flex align-items-end">
-          <button type="submit" class="btn btn-success w-100">Adicionar</button>
+          <button type="submit" class="btn btn-success w-100"
+                  onclick="return validarSelecao()">Adicionar</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+// Lista de alunos ativos disponíveis vinda do servidor
+const ALUNOS = [
+  {% for a in alunos_disponiveis %}
+  { id: {{ a.id }}, nome: {{ a.nome | tojson }} }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+function filtrarAlunos(termo) {
+  const lista  = document.getElementById('lista-sugestoes');
+  const hidden = document.getElementById('aluno_id');
+  const label  = document.getElementById('aluno-selecionado');
+
+  // Limpa seleção ao digitar novamente
+  hidden.value = '';
+  label.textContent = '';
+
+  if (!termo.trim()) { lista.style.display = 'none'; lista.innerHTML = ''; return; }
+
+  const termoLower = termo.toLowerCase();
+  const resultados = ALUNOS.filter(a => a.nome.toLowerCase().includes(termoLower)).slice(0, 10);
+
+  if (!resultados.length) {
+    lista.innerHTML = '<li style="padding:8px 12px; color:#888;">Nenhum aluno encontrado</li>';
+    lista.style.display = 'block';
+    return;
+  }
+
+  lista.innerHTML = resultados.map(a =>
+    `<li data-id="${a.id}" data-nome="${a.nome}"
+         style="padding:8px 12px; cursor:pointer;"
+         onmouseenter="this.style.background='#f0f4ff'"
+         onmouseleave="this.style.background=''"
+         onclick="selecionarAluno(${a.id}, '${a.nome.replace(/'/g, "\'")}')">
+       ${a.nome}
+     </li>`
+  ).join('');
+  lista.style.display = 'block';
+}
+
+function selecionarAluno(id, nome) {
+  document.getElementById('busca-aluno').value  = nome;
+  document.getElementById('aluno_id').value     = id;
+  document.getElementById('aluno-selecionado').textContent = '✔ ' + nome + ' selecionado';
+  document.getElementById('lista-sugestoes').style.display = 'none';
+}
+
+function validarSelecao() {
+  if (!document.getElementById('aluno_id').value) {
+    alert('Selecione um aluno da lista de sugestões.');
+    return false;
+  }
+  return true;
+}
+
+// Fecha sugestoes ao clicar fora
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#form-adicionar-aluno')) {
+    document.getElementById('lista-sugestoes').style.display = 'none';
+  }
+});
+</script>
 {% endblock %}
