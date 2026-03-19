@@ -48,19 +48,23 @@
                 {% for m in lista %}
                 <tr>
                     <td>
-                        <form method="POST" action="/materias" style="display:inline">
+                        <form method="POST" action="/materias"
+                              style="display:flex; align-items:center; gap:8px;">
                             <input type="hidden" name="acao" value="editar">
                             <input type="hidden" name="materia_id" value="{{ m.id }}">
-                            <input type="text" name="novo_nome" value="{{ m.nome }}" class="input-inline">
-                            <button type="submit" class="btn btn-editar tooltip" data-tooltip="Renomear">✏️</button>
+                            <input type="text" name="novo_nome" value="{{ m.nome }}"
+                                   class="input-inline" style="flex:1; min-width:0;">
+                            <button type="submit" class="btn btn-editar tooltip"
+                                    data-tooltip="Renomear">✏️</button>
                         </form>
                     </td>
                     <td class="acoes">
-                        <form method="POST" action="/materias" style="display:inline"
+                        <form method="POST" action="/materias" style="display:inline;"
                               onsubmit="return confirm('Excluir matéria {{ m.nome }}?')">
                             <input type="hidden" name="acao" value="excluir">
                             <input type="hidden" name="materia_id" value="{{ m.id }}">
-                            <button type="submit" class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
+                            <button type="submit" class="btn btn-vermelho tooltip"
+                                    data-tooltip="Excluir">🗑️</button>
                         </form>
                     </td>
                 </tr>
