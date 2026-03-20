@@ -85,10 +85,10 @@ function calcularTotal() {
                 <tr>
                     <td>{{ c.nome }}</td>
                     <td>{{ c.tipo or '-' }}</td>
-                    <td>R$ {{ "%.2f"|format(c.valor_mensal or 0) }}</td>
-                    <td>R$ {{ "%.2f"|format(c.valor_matricula or 0) }}</td>
+                    <td>{{ c.valor_mensal | moeda }}</td>
+                    <td>{{ c.valor_matricula | moeda }}</td>
                     <td>{{ c.parcelas }}</td>
-                    <td>R$ {{ "%.2f"|format(c.valor_total or total) }}</td>
+                    <td>{{ (c.valor_total or total) | moeda }}</td>
                     <td class="acoes">
                         <a href="/editar_curso/{{ c.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
                         <form method="POST" action="/excluir_curso/{{ c.id }}" style="display:inline"
