@@ -1,13 +1,54 @@
-<h2>Portal do Aluno</h2>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal do Aluno — CQP</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-page">
 
-<form method="POST">
+<div class="login-container">
+    <div class="login-card">
 
-    <label>Email</label>
-    <input type="email" name="email" required>
+        <div class="login-logo">
+            <span style="font-size:48px;">&#127891;</span>
+        </div>
+        <h2 class="login-title">Portal do Aluno</h2>
+        <p class="login-subtitle">Centro de Qualificação Profissional</p>
 
-    <label>Senha</label>
-    <input type="password" name="senha" required>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
 
-    <button type="submit">Entrar</button>
+        <form method="POST" class="login-form">
 
-</form>
+            <div class="campo">
+                <label>E-mail</label>
+                <input type="email" name="email" required
+                       placeholder="seu@email.com" autofocus>
+            </div>
+
+            <div class="campo">
+                <label>Senha</label>
+                <input type="password" name="senha" required
+                       placeholder="CPF sem pontos na 1ª vez">
+            </div>
+
+            <button type="submit" class="btn btn-azul login-btn">Entrar</button>
+
+        </form>
+
+        <p style="margin-top:20px; font-size:12px; color:var(--color-text-muted);">
+            Esqueceu a senha? Fale com a secretaria.
+        </p>
+
+    </div>
+</div>
+
+</body>
+</html>
