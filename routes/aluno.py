@@ -2,7 +2,7 @@ from datetime import date
 from flask import Blueprint, render_template, request, redirect, flash, jsonify, session
 from db import db
 from models import Aluno, Curso, Mensalidade, Matricula
-from security import login_required, verificar_senha
+from security import login_required, verificar_senha, hash_senha
 from sqlalchemy import func
 
 
@@ -25,7 +25,7 @@ def cadastro():
                 func.replace(func.replace(func.replace(Aluno.cpf, ".", ""), "-", ""), " ", "") == cpf
             ).first()
             if existente:
-                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 cursos    = Curso.query.order_by(Curso.nome).all()
                 paginacao = Aluno.query.order_by(Aluno.nome).paginate(page=1, per_page=20, error_out=False)
                 hoje = date.today().isoformat()
@@ -41,6 +41,12 @@ def cadastro():
                                        inadimplentes=len(inadimplentes_ids),
                                        paginacao=paginacao,
                                        busca="")
+
+        # Senha inicial = CPF limpo; se não tiver CPF, usa email; se nenhum, bloqueia
+        senha_inicial = cpf or _cpf_limpo(f.get("email", ""))
+        if not senha_inicial:
+            flash("Informe ao menos o CPF ou e-mail para gerar o acesso ao portal.", "erro")
+            return redirect("/cadastro")
 
         a = Aluno(
             nome                   = f.get("nome"),
@@ -58,10 +64,15 @@ def cadastro():
             responsavel_cpf        = f.get("responsavel_cpf"),
             responsavel_telefone   = f.get("responsavel_telefone"),
             responsavel_parentesco = f.get("responsavel_parentesco"),
+            senha                  = hash_senha(senha_inicial),
         )
         db.session.add(a)
         db.session.commit()
-        flash("Aluno cadastrado com sucesso.", "sucesso")
+        flash(
+            f"Aluno cadastrado! Acesso ao portal liberado — "
+            f"senha inicial: {senha_inicial} (CPF sem pontos).",
+            "sucesso"
+        )
         return redirect("/cadastro")
 
     page      = request.args.get("page", 1, type=int)
@@ -106,7 +117,7 @@ def excluir_aluno(id):
     senha = request.form.get("senha", "")
     user  = Usuario.query.get(session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
-        flash("Senha incorreta. Exclusão cancelada.", "erro")
+        flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
         return redirect("/cadastro")
     a = Aluno.query.get_or_404(id)
     nome = a.nome
@@ -114,7 +125,7 @@ def excluir_aluno(id):
     Matricula.query.filter_by(aluno_id=id).delete()
     db.session.delete(a)
     db.session.commit()
-    flash(f"Aluno \u201c{nome}\u201d excluído com sucesso.", "sucesso")
+    flash(f"Aluno \u201c{nome}\u201d exclu\u00eddo com sucesso.", "sucesso")
     return redirect("/cadastro")
 
 
@@ -132,7 +143,7 @@ def editar_aluno(id):
                 Aluno.id != id
             ).first()
             if existente:
-                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
 
@@ -155,11 +166,16 @@ def editar_aluno(id):
         confirm    = f.get("senha_portal_confirm", "").strip()
         if nova_senha:
             if nova_senha != confirm:
-                flash("As senhas do portal não conferem.", "erro")
+                flash("As senhas do portal n\u00e3o conferem.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
-            from security import hash_senha
             a.senha = hash_senha(nova_senha)
+
+        # Se aluno ainda não tem senha, gera pelo CPF agora
+        if not a.senha:
+            fallback = cpf or _cpf_limpo(a.email or "")
+            if fallback:
+                a.senha = hash_senha(fallback)
 
         db.session.commit()
         flash("Aluno atualizado.", "sucesso")
@@ -175,5 +191,5 @@ def ficha_aluno(aluno_id):
     matriculas = Matricula.query.filter_by(aluno_id=aluno_id).all()
     for m in matriculas:
         curso        = Curso.query.get(m.curso_id)
-        m.curso_nome = curso.nome if curso else "—"
+        m.curso_nome = curso.nome if curso else "\u2014"
     return render_template("ficha_aluno.html", aluno=aluno, matriculas=matriculas)

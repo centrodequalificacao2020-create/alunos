@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, session, flash
 from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria
-from security import verificar_senha, aluno_login_required
+from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
@@ -9,8 +9,8 @@ portal_aluno_bp = Blueprint("portal_aluno", __name__)
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 def login_aluno():
     if request.method == "POST":
-        email = request.form.get("email")
-        senha = request.form.get("senha")
+        email = request.form.get("email", "").strip()
+        senha = request.form.get("senha", "")
         aluno = Aluno.query.filter_by(email=email).first()
         if aluno and aluno.senha and verificar_senha(senha, aluno.senha):
             session["aluno_id"] = aluno.id
@@ -61,7 +61,7 @@ def conteudo_aluno():
                 (ProgressoAula.conteudo_id == Conteudo.id) &
                 (ProgressoAula.aluno_id    == aluno.id)
             )
-            .join(Materia,     Materia.id     == Conteudo.materia_id)
+            .join(Materia,      Materia.id      == Conteudo.materia_id)
             .join(CursoMateria, CursoMateria.materia_id == Materia.id)
             .filter(CursoMateria.curso_id == matricula.curso_id)
             .order_by(Materia.nome, Conteudo.data)
@@ -87,3 +87,32 @@ def concluir_aula(conteudo_id):
         p.concluido = 1
     db.session.commit()
     return redirect("/aluno/conteudo")
+
+
+@portal_aluno_bp.route("/senha", methods=["GET", "POST"])
+@aluno_login_required
+def trocar_senha():
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    if request.method == "POST":
+        atual    = request.form.get("senha_atual", "")
+        nova     = request.form.get("nova_senha", "").strip()
+        confirma = request.form.get("confirma_senha", "").strip()
+
+        if not aluno.senha or not verificar_senha(atual, aluno.senha):
+            flash("Senha atual incorreta.", "erro")
+            return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+        if len(nova) < 6:
+            flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
+            return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+        if nova != confirma:
+            flash("As senhas n\u00e3o conferem.", "erro")
+            return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+        aluno.senha = hash_senha(nova)
+        db.session.commit()
+        flash("Senha alterada com sucesso!", "sucesso")
+        return redirect("/aluno/dashboard")
+
+    return render_template("aluno/trocar_senha.html", aluno=aluno)

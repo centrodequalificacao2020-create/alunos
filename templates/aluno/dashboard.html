@@ -8,7 +8,7 @@
         <h2>Bem-vindo, {{ aluno.nome.split()[0] }}!</h2>
     </div>
     {% if matricula %}
-    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
+    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '\u2014' }}</strong></p>
     {% endif %}
 </div>
 
@@ -30,13 +30,15 @@
         <p style="font-size:13px; color:var(--color-text-muted);">Aulas e materiais do curso</p>
     </a>
 
-    <a href="/logout" class="card" style="text-align:center; text-decoration:none; color:inherit;">
-        <div style="font-size:2rem;">🚪</div>
-        <h3>Sair</h3>
-        <p style="font-size:13px; color:var(--color-text-muted);">Encerrar sessão</p>
+    <a href="/aluno/senha" class="card" style="text-align:center; text-decoration:none; color:inherit;">
+        <div style="font-size:2rem;">🔒</div>
+        <h3>Alterar Senha</h3>
+        <p style="font-size:13px; color:var(--color-text-muted);">Trocar a senha do portal</p>
     </a>
 
 </div>
+
+<a href="/aluno/logout" style="display:block; text-align:center; margin:8px auto; font-size:13px; color:var(--color-text-muted);">Sair</a>
 
 {% if mensalidades %}
 <div class="card" style="max-width:900px; margin:16px auto;">
@@ -55,9 +57,9 @@
             <tbody>
             {% for m in mensalidades %}
             <tr {% if m.status != 'Pago' %}style="background:#fff0f0"{% endif %}>
-                <td>{{ m.parcela_ref or '—' }}</td>
+                <td>{{ m.parcela_ref or '\u2014' }}</td>
                 <td>{{ m.vencimento }}</td>
-                <td>{{ m.tipo or '—' }}</td>
+                <td>{{ m.tipo or '\u2014' }}</td>
                 <td>R$ {{ '%.2f'|format(m.valor) }}</td>
                 <td>
                     {% if m.status == 'Pago' %}
