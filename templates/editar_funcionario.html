@@ -14,27 +14,31 @@
                 <input type="text" id="nome" name="nome" value="{{ funcionario.nome }}" required>
             </div>
             <div class="campo">
-                <label for="cargo">Cargo</label>
-                <input type="text" id="cargo" name="cargo" value="{{ funcionario.cargo or '' }}">
+                <label for="usuario">Login (usuário)</label>
+                <input type="text" id="usuario" name="usuario" value="{{ funcionario.usuario or '' }}" required autocomplete="off">
             </div>
         </div>
         <div class="grid-2">
             <div class="campo">
-                <label for="login">Login</label>
-                <input type="text" id="login" name="login" value="{{ funcionario.login or '' }}" autocomplete="off">
-            </div>
-            <div class="campo">
                 <label for="perfil">Perfil</label>
                 <select id="perfil" name="perfil">
-                    {% for p in ['Administrador','Financeiro','Usuario','Instrutor'] %}
-                    <option value="{{ p }}" {% if funcionario.perfil == p %}selected{% endif %}>{{ p }}</option>
+                    {% for p in ['admin', 'financeiro', 'secretaria', 'instrutor'] %}
+                    <option value="{{ p }}" {% if funcionario.perfil == p %}selected{% endif %}>{{ p | capitalize }}</option>
                     {% endfor %}
                 </select>
             </div>
+            <div class="campo">
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email" value="{{ funcionario.email or '' }}">
+            </div>
+        </div>
+        <div class="campo">
+            <label for="senha">Nova senha <small>(deixe em branco para não alterar)</small></label>
+            <input type="password" id="senha" name="senha" autocomplete="new-password">
         </div>
         <div class="acoes-form">
             <button type="submit" class="btn btn-azul">💾 Salvar</button>
-            <a href="/funcionario" class="btn btn-vermelho">✖ Cancelar</a>
+            <a href="/funcionarios" class="btn btn-vermelho">✖ Cancelar</a>
         </div>
     </form>
 </div>

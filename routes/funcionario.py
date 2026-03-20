@@ -39,11 +39,13 @@ def editar_funcionario(id):
     u = Usuario.query.get_or_404(id)
     if request.method == "POST":
         f = request.form
-        u.nome   = f.get("nome")
-        u.perfil = f.get("perfil")
-        u.email  = f.get("email")
-        if f.get("senha"):
-            u.senha = hash_senha(f.get("senha"))
+        u.nome    = f.get("nome")
+        u.usuario = f.get("usuario")   # fix: preserva o login do usuário
+        u.perfil  = f.get("perfil")
+        u.email   = f.get("email")
+        nova_senha = f.get("senha", "").strip()
+        if nova_senha:
+            u.senha = hash_senha(nova_senha)  # fix: aplica hash correto
         db.session.commit()
         flash("Funcionário atualizado.", "sucesso")
         return redirect("/funcionarios")
