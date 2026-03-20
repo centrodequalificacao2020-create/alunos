@@ -73,17 +73,29 @@
 
     {% if curso_id %}
     <hr style="margin:24px 0; border-color:var(--color-border);">
-    <h4>📊 Histórico de Frequência</h4>
+
     {% set freqs = [] %}
     {% for f in aluno_frequencias if f.curso_id == curso_id %}
         {% set _ = freqs.append(f) %}
     {% endfor %}
+
+    <div class="card-header--between" style="margin-bottom:12px;">
+        <h4 style="margin:0;">📊 Histórico de Frequência</h4>
+        {% if freqs %}
+        <button type="button" class="btn btn-vermelho"
+                onclick="abrirModalExcluirTudo({{ aluno_id }}, {{ curso_id }}, {{ freqs|length }})">
+            🗑️ Remover todas ({{ freqs|length }})
+        </button>
+        {% endif %}
+    </div>
+
     {% if freqs %}
-    <table style="width:100%; border-collapse:collapse; margin-top:12px;">
+    <table style="width:100%; border-collapse:collapse; margin-top:4px;">
         <thead>
             <tr>
                 <th style="text-align:left; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Data</th>
                 <th style="text-align:left; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Presença</th>
+                <th style="text-align:center; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Ação</th>
             </tr>
         </thead>
         <tbody>
@@ -96,6 +108,12 @@
                 {% else %}
                 <span class="status-inativo">❌ Falta</span>
                 {% endif %}
+            </td>
+            <td style="padding:12px; border-bottom:1px solid var(--color-border); text-align:center;">
+                <form method="POST" action="/frequencia/{{ f.id }}/excluir"
+                      onsubmit="return confirm('Remover o registro de {{ f.data }}?')">
+                    <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Remover">🗑️</button>
+                </form>
             </td>
         </tr>
         {% endfor %}
@@ -112,4 +130,33 @@
 </div>
 {% endif %}
 
+{# Modal: remover todas as frequências do curso #}
+<div id="modalExcluirTudo" class="modal-overlay">
+    <div class="modal">
+        <h3>⚠️ Remover todas as frequências</h3>
+        <p id="modalExcluirTudoTexto"></p>
+        <form method="POST" action="/frequencia/excluir_tudo" id="formExcluirTudo">
+            <input type="hidden" name="aluno_id" id="etAluno">
+            <input type="hidden" name="curso_id" id="etCurso">
+            <div class="acoes-form" style="justify-content:center;">
+                <button type="submit" class="btn btn-vermelho">Sim, remover tudo</button>
+                <button type="button" class="btn btn-azul"
+                        onclick="document.getElementById('modalExcluirTudo').classList.remove('aberto')">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirModalExcluirTudo(alunoId, cursoId, total) {
+    document.getElementById('etAluno').value = alunoId;
+    document.getElementById('etCurso').value = cursoId;
+    document.getElementById('modalExcluirTudoTexto').textContent =
+        'Isso irá remover ' + total + ' registro(s) de frequência deste aluno neste curso. Esta ação não pode ser desfeita.';
+    document.getElementById('modalExcluirTudo').classList.add('aberto');
+}
+</script>
 {% endblock %}

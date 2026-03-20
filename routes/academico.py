@@ -1,6 +1,6 @@
 import os
 from flask import (Blueprint, render_template, request,
-                   redirect, flash, send_file, current_app)
+                   redirect, flash, send_file, current_app, jsonify)
 from db import db
 from models import (Aluno, Curso, Materia, CursoMateria,
                     Nota, Frequencia, Turma, TurmaAluno)
@@ -280,7 +280,6 @@ def frequencia():
                 .order_by(Frequencia.id.desc()).first())
         if last:
             curso_id = last.curso_id
-        # Busca todas as frequências do aluno para exibir no histórico inline
         aluno_frequencias = (
             Frequencia.query
             .filter_by(aluno_id=aluno_id)
@@ -312,6 +311,34 @@ def frequencia():
                            cursos_matriculados=cursos_matriculados,
                            curso_id=curso_id, termo=termo,
                            aluno_frequencias=aluno_frequencias)
+
+
+@academico_bp.route("/frequencia/<int:freq_id>/excluir", methods=["POST"])
+@login_required
+def excluir_frequencia(freq_id):
+    """Exclui um registro individual de frequência."""
+    f        = Frequencia.query.get_or_404(freq_id)
+    aluno_id = f.aluno_id
+    curso_id = f.curso_id
+    db.session.delete(f)
+    db.session.commit()
+    flash("Registro de frequência removido.", "sucesso")
+    return redirect(f"/frequencia?aluno_id={aluno_id}&curso_id={curso_id}")
+
+
+@academico_bp.route("/frequencia/excluir_tudo", methods=["POST"])
+@login_required
+def excluir_frequencia_tudo():
+    """Exclui TODAS as frequências de um aluno em um curso específico."""
+    aluno_id = request.form.get("aluno_id", type=int)
+    curso_id = request.form.get("curso_id", type=int)
+    if not aluno_id or not curso_id:
+        flash("Dados inválidos.", "erro")
+        return redirect("/frequencia")
+    total = Frequencia.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).delete()
+    db.session.commit()
+    flash(f"{total} registro(s) de frequência removido(s).", "sucesso")
+    return redirect(f"/frequencia?aluno_id={aluno_id}")
 
 
 @academico_bp.route("/frequencia_historico")
