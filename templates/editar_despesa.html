@@ -18,8 +18,8 @@
             <div class="campo">
                 <label for="tipo">Tipo</label>
                 <select id="tipo" name="tipo" required>
-                    <option value="fixa"  {% if despesa.tipo == 'fixa'  %}selected{% endif %}>Fixa</option>
-                    <option value="unica" {% if despesa.tipo == 'unica' %}selected{% endif %}>Única</option>
+                    <option value="fixa"     {% if despesa.tipo == 'fixa'     %}selected{% endif %}>Fixa</option>
+                    <option value="variavel" {% if despesa.tipo in ('variavel','unica') %}selected{% endif %}>Variável</option>
                 </select>
             </div>
         </div>
