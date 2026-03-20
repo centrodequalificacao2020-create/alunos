@@ -13,14 +13,13 @@ academico_bp = Blueprint("academico", __name__)
 
 
 def _tipos_curso():
-    """Retorna lista de tipos únicos cadastrados nos cursos (sem None/vazio)."""
     rows = db.session.query(distinct(Curso.tipo)).filter(
         Curso.tipo != None, Curso.tipo != ""
     ).order_by(Curso.tipo).all()
     return [r[0] for r in rows]
 
 
-# ─────────────────────────── TURMAS ───────────────────────────
+# ───────────────────────────── TURMAS ─────────────────────────────
 
 @academico_bp.route("/turmas")
 @login_required
@@ -62,9 +61,7 @@ def editar_turma(turma_id):
         db.session.commit()
         flash("Turma atualizada!", "sucesso")
         return redirect("/turmas")
-    # alunos já na turma
     ids_na_turma = {ta.aluno_id for ta in turma.alunos}
-    # alunos disponíveis = todos menos os que já estão
     alunos_disponiveis = (
         Aluno.query
         .filter(Aluno.status == "Ativo")
@@ -84,7 +81,7 @@ def excluir_turma(turma_id):
     turma = Turma.query.get_or_404(turma_id)
     db.session.delete(turma)
     db.session.commit()
-    flash("Turma excluída.", "sucesso")
+    flash("Turma exluída.", "sucesso")
     return redirect("/turmas")
 
 
@@ -117,7 +114,7 @@ def remover_aluno_turma(turma_id, aluno_id):
     return redirect(f"/turmas/{turma_id}/editar")
 
 
-# ─────────────────────────── MATÉRIAS ───────────────────────────
+# ───────────────────────────── MATÉRIAS ─────────────────────────────
 
 @academico_bp.route("/materias", methods=["GET", "POST"])
 @login_required
@@ -151,7 +148,7 @@ def materias():
             m.ativa = 0
             CursoMateria.query.filter_by(materia_id=mid).delete()
             db.session.commit()
-            flash("Matéria excluída!", "sucesso")
+            flash("Matéria exluída!", "sucesso")
         return redirect("/materias")
     materias_por_curso = {
         (c.id, c.nome): Materia.query.filter_by(curso_id=c.id, ativa=1)
@@ -162,7 +159,7 @@ def materias():
                            materias_por_curso=materias_por_curso)
 
 
-# ─────────────────────────── NOTAS ───────────────────────────
+# ───────────────────────────── NOTAS ─────────────────────────────
 
 @academico_bp.route("/notas", methods=["GET", "POST"])
 @login_required
@@ -255,7 +252,7 @@ def notas_visualizar(aluno_id):
                            boletim=boletim)
 
 
-# ─────────────────────────── FREQUÊNCIA ───────────────────────────
+# ───────────────────────────── FREQUÊNCIA ─────────────────────────────
 
 @academico_bp.route("/frequencia", methods=["GET", "POST"])
 @login_required
@@ -263,10 +260,13 @@ def frequencia():
     termo    = request.args.get("q", "")
     aluno_id = request.args.get("aluno_id", type=int)
     alunos = cursos_matriculados = []
-    aluno_nome = None
-    curso_id   = None
+    aluno_nome        = None
+    curso_id          = None
+    aluno_frequencias = []
+
     if termo:
         alunos = Aluno.query.filter(Aluno.nome.ilike(f"%{termo}%")).order_by(Aluno.nome).all()
+
     if aluno_id:
         aluno = Aluno.query.get(aluno_id)
         if aluno:
@@ -280,6 +280,14 @@ def frequencia():
                 .order_by(Frequencia.id.desc()).first())
         if last:
             curso_id = last.curso_id
+        # Busca todas as frequências do aluno para exibir no histórico inline
+        aluno_frequencias = (
+            Frequencia.query
+            .filter_by(aluno_id=aluno_id)
+            .order_by(Frequencia.data.desc())
+            .all()
+        )
+
     if request.method == "POST":
         aluno_id  = request.form.get("aluno_id", type=int)
         curso_id  = request.form.get("curso_id",  type=int)
@@ -297,11 +305,13 @@ def frequencia():
             flash("Frequência salva!", "sucesso")
             return redirect(
                 f"/frequencia?aluno_id={aluno_id}&curso_id={curso_id}&data={data_aula}")
+
     return render_template("frequencia.html",
                            alunos=alunos, aluno_id=aluno_id,
                            aluno_nome=aluno_nome,
                            cursos_matriculados=cursos_matriculados,
-                           curso_id=curso_id, termo=termo)
+                           curso_id=curso_id, termo=termo,
+                           aluno_frequencias=aluno_frequencias)
 
 
 @academico_bp.route("/frequencia_historico")
@@ -312,8 +322,8 @@ def frequencia_historico():
     aluno = curso = None
     historico = []
     if aluno_id and curso_id:
-        aluno    = Aluno.query.get(aluno_id)
-        curso    = Curso.query.get(curso_id)
+        aluno     = Aluno.query.get(aluno_id)
+        curso     = Curso.query.get(curso_id)
         historico = (Frequencia.query
                      .filter_by(aluno_id=aluno_id, curso_id=curso_id)
                      .order_by(Frequencia.data).all())
@@ -321,7 +331,7 @@ def frequencia_historico():
                            aluno=aluno, curso=curso, historico=historico)
 
 
-# ─────────────────────────── PDFs ───────────────────────────
+# ───────────────────────────── PDFs ─────────────────────────────
 
 @academico_bp.route("/notas_pdf/<int:aluno_id>/<int:curso_id>")
 @login_required
@@ -347,8 +357,8 @@ def notas_pdf(aluno_id, curso_id):
 @academico_bp.route("/frequencia_historico_pdf/<int:aluno_id>/<int:curso_id>")
 @login_required
 def frequencia_historico_pdf(aluno_id, curso_id):
-    aluno    = Aluno.query.get_or_404(aluno_id)
-    curso    = Curso.query.get_or_404(curso_id)
+    aluno     = Aluno.query.get_or_404(aluno_id)
+    curso     = Curso.query.get_or_404(curso_id)
     historico = (Frequencia.query
                  .filter_by(aluno_id=aluno_id, curso_id=curso_id)
                  .order_by(Frequencia.data).all())
@@ -359,7 +369,7 @@ def frequencia_historico_pdf(aluno_id, curso_id):
                      mimetype="application/pdf")
 
 
-# ─────────────────────────── BACKUP ───────────────────────────
+# ───────────────────────────── BACKUP ─────────────────────────────
 
 @academico_bp.route("/backup")
 @login_required
