@@ -23,16 +23,12 @@
     </form>
 
     {% if alunos %}
-    <div class="tabela-planilha" style="margin-top:16px">
-        <table class="tabela-excel">
-            <thead><tr><th>Aluno</th><th class="acoes">Selecionar</th></tr></thead>
+    <div style="margin-top:16px">
+        <table style="width:100%; border-collapse:collapse;">
             <tbody>
             {% for a in alunos %}
-            <tr>
-                <td>{{ a.nome }}</td>
-                <td class="acoes">
-                    <a href="/frequencia?aluno_id={{ a.id }}" class="btn btn-azul">Selecionar</a>
-                </td>
+            <tr onclick="location.href='/frequencia?aluno_id={{ a.id }}'" style="cursor:pointer;">
+                <td style="padding:14px; border-bottom:1px solid var(--color-border); font-size:14px;">{{ a.nome }}</td>
             </tr>
             {% endfor %}
             </tbody>
@@ -72,9 +68,44 @@
         </div>
         <div class="acoes-form">
             <button type="submit" class="btn btn-azul">💾 Salvar Frequência</button>
-            <a href="/frequencia_historico?aluno_id={{ aluno_id }}&curso_id={{ curso_id or '' }}" class="btn btn-editar">📊 Ver Histórico</a>
         </div>
     </form>
+
+    {% if curso_id %}
+    <hr style="margin:24px 0; border-color:var(--color-border);">
+    <h4>📊 Histórico de Frequência</h4>
+    {% set freqs = [] %}
+    {% for f in aluno_frequencias if f.curso_id == curso_id %}
+        {% set _ = freqs.append(f) %}
+    {% endfor %}
+    {% if freqs %}
+    <table style="width:100%; border-collapse:collapse; margin-top:12px;">
+        <thead>
+            <tr>
+                <th style="text-align:left; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Data</th>
+                <th style="text-align:left; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Presença</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for f in freqs|sort(attribute='data', reverse=true) %}
+        <tr>
+            <td style="padding:12px; border-bottom:1px solid var(--color-border); font-size:14px;">{{ f.data }}</td>
+            <td style="padding:12px; border-bottom:1px solid var(--color-border); font-size:14px;">
+                {% if f.status == 'P' %}
+                <span class="status-ativo">✅ Presente</span>
+                {% else %}
+                <span class="status-inativo">❌ Falta</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">Nenhuma frequência registrada para este curso.</p>
+    {% endif %}
+    {% endif %}
+
     {% else %}
     <p class="empty-state">Aluno não possui matrícula ativa em nenhum curso.</p>
     {% endif %}
