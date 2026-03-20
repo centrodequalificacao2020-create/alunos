@@ -3,50 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal do Aluno — CQP</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Portal do Aluno — Sistema Escolar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .login-page {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364) !important;
+        }
+        .login-card {
+            background: linear-gradient(145deg, rgba(0, 198, 255, 0.25), rgba(0, 120, 255, 0.15)) !important;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+        .login-title, .login-subtitle {
+            color: #ffffff;
+        }
+        .login-subtitle {
+            opacity: 0.75;
+        }
+        .login-form .campo label {
+            color: rgba(255, 255, 255, 0.85);
+        }
+        .login-form input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+        }
+        .login-form input::placeholder {
+            color: rgba(255, 255, 255, 0.45);
+        }
+        .login-form input:focus {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: #00c6ff;
+            box-shadow: 0 0 0 3px rgba(0, 198, 255, 0.25);
+            outline: none;
+        }
+        .login-rodape {
+            margin-top: 20px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+        }
+    </style>
 </head>
 <body class="login-page">
 
 <div class="login-container">
     <div class="login-card">
-
         <div class="login-logo">
-            <span style="font-size:48px;">&#127891;</span>
+            <img src="{{ url_for('static', filename='logo_escola.png') }}" alt="Logo CQP" class="login-logo__img">
         </div>
         <h2 class="login-title">Portal do Aluno</h2>
-        <p class="login-subtitle">Centro de Qualificação Profissional</p>
+        <p class="login-subtitle">Acesse com seu e-mail e senha</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
-            {% for category, message in messages %}
-              <div class="flash {{ category }}">{{ message }}</div>
+            {% for cat, msg in messages %}
+            <div class="flash {{ cat }}">{{ msg }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
 
         <form method="POST" class="login-form">
-
             <div class="campo">
-                <label>E-mail</label>
-                <input type="email" name="email" required
-                       placeholder="seu@email.com" autofocus>
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email"
+                       required autofocus autocomplete="email"
+                       placeholder="seu@email.com">
             </div>
-
             <div class="campo">
-                <label>Senha</label>
-                <input type="password" name="senha" required
+                <label for="senha">Senha</label>
+                <input type="password" id="senha" name="senha"
+                       required autocomplete="current-password"
                        placeholder="CPF sem pontos na 1ª vez">
             </div>
-
             <button type="submit" class="btn btn-azul login-btn">Entrar</button>
-
         </form>
 
-        <p style="margin-top:20px; font-size:12px; color:var(--color-text-muted);">
-            Esqueceu a senha? Fale com a secretaria.
-        </p>
-
+        <p class="login-rodape">Esqueceu a senha? Fale com a secretaria.</p>
     </div>
 </div>
 
