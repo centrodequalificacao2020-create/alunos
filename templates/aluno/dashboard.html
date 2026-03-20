@@ -1,59 +1,77 @@
 {% extends "base.html" %}
-
+{% block title %}Portal do Aluno{% endblock %}
 {% block content %}
 
-<h2>Portal do Aluno</h2>
+<div class="card">
+    <div class="card-header">
+        <span>🎓</span>
+        <h2>Bem-vindo, {{ aluno.nome.split()[0] }}!</h2>
+    </div>
+    {% if matricula %}
+    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
+    {% endif %}
+</div>
 
-<h3>Bem vindo {{ aluno.nome }}</h3>
-<p><b>Curso:</b> {{ curso }}</p>
+<div class="grid-3" style="max-width:900px; margin:0 auto;">
 
-<h3>Resumo</h3>
+    <a href="/aluno/dashboard" class="card" style="text-align:center; text-decoration:none; color:inherit;">
+        <div style="font-size:2rem;">💰</div>
+        <h3>Financeiro</h3>
+        {% if pendentes > 0 %}
+        <span class="badge badge-erro">{{ pendentes }} pendente{{ 's' if pendentes > 1 }}</span>
+        {% else %}
+        <span class="badge badge-sucesso">Em dia</span>
+        {% endif %}
+    </a>
 
-<p>Mensalidades em aberto: {{ pendentes }}</p>
+    <a href="/aluno/conteudo" class="card" style="text-align:center; text-decoration:none; color:inherit;">
+        <div style="font-size:2rem;">📚</div>
+        <h3>Conteúdos</h3>
+        <p style="font-size:13px; color:var(--color-text-muted);">Aulas e materiais do curso</p>
+    </a>
 
-<p>Total em aberto: R$ {{ valor_pendente }}</p>
-
-<br>
-
-<a href="/aluno/logout">Sair</a>
-
-<br><br>
-
-<div style="display:flex; gap:20px; margin-bottom:20px;">
-
-    <a href="/aluno/dashboard">💰 Financeiro</a>
-
-    <a href="#">📚 Notas</a>
-
-    <a href="/aluno/frequencia">📅 Frequência</a>
-    <a href="/aluno/conteudo">📥 Conteúdo</a>
-
-    <a href="#">📥 Material</a>
+    <a href="/logout" class="card" style="text-align:center; text-decoration:none; color:inherit;">
+        <div style="font-size:2rem;">🚪</div>
+        <h3>Sair</h3>
+        <p style="font-size:13px; color:var(--color-text-muted);">Encerrar sessão</p>
+    </a>
 
 </div>
 
-<h3>Financeiro</h3>
-
-<table class="tabela-excel">
-
-<tr>
-    <th>Parcela</th>
-    <th>Vencimento</th>
-    <th>Tipo</th>
-    <th>Valor</th>
-    <th>Status</th>
-</tr>
-
-{% for m in mensalidades %}
-<tr {% if m.status != 'Pago' %}style="background:#ffe5e5"{% endif %}>
-    <td>{{ m.parcela_ref }}</td>
-    <td>{{ m.vencimento }}</td>
-    <td>{{ m.tipo }}</td>
-    <td>R$ {{ m.valor }}</td>
-    <td>{{ m.situacao }}</td>
-</tr>
-{% endfor %}
-
-</table>
+{% if mensalidades %}
+<div class="card" style="max-width:900px; margin:16px auto;">
+    <h3>💳 Mensalidades</h3>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Parcela</th>
+                    <th>Vencimento</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for m in mensalidades %}
+            <tr {% if m.status != 'Pago' %}style="background:#fff0f0"{% endif %}>
+                <td>{{ m.parcela_ref or '—' }}</td>
+                <td>{{ m.vencimento }}</td>
+                <td>{{ m.tipo or '—' }}</td>
+                <td>R$ {{ '%.2f'|format(m.valor) }}</td>
+                <td>
+                    {% if m.status == 'Pago' %}
+                    <span class="status-ativo">✅ Pago</span>
+                    {% else %}
+                    <span class="status-inativo">⏳ Pendente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 {% endblock %}
