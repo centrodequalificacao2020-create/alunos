@@ -12,6 +12,16 @@ function preencherTipo(selectCurso, selectTipo) {
     }
     selectTipo.value = "";
 }
+// Preenche tipo ao carregar a página (caso curso já esteja selecionado)
+document.addEventListener("DOMContentLoaded", function() {
+    const sCursoMat = document.getElementById("curso_id_mat");
+    const sTipoMat  = document.getElementById("tipo_curso_mat");
+    if (sCursoMat && sCursoMat.value) preencherTipo(sCursoMat, sTipoMat);
+
+    const sCursoPre = document.getElementById("curso_id_pre");
+    const sTipoPre  = document.getElementById("tipo_curso_pre");
+    if (sCursoPre && sCursoPre.value) preencherTipo(sCursoPre, sTipoPre);
+});
 </script>
 
 <div class="grid-2" style="max-width:1400px; margin:0 auto;">
