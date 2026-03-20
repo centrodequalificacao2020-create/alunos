@@ -8,7 +8,7 @@
         <h2>Bem-vindo, {{ aluno.nome.split()[0] }}!</h2>
     </div>
     {% if matricula %}
-    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '\u2014' }}</strong></p>
+    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
     {% endif %}
 </div>
 
@@ -24,10 +24,22 @@
         {% endif %}
     </a>
 
+    <a href="/aluno/notas" class="card" style="text-align:center; text-decoration:none; color:inherit;">
+        <div style="font-size:2rem;">📊</div>
+        <h3>Minhas Notas</h3>
+        <p style="font-size:13px; color:var(--color-text-muted);">Notas e resultados por matéria</p>
+    </a>
+
     <a href="/aluno/conteudo" class="card" style="text-align:center; text-decoration:none; color:inherit;">
         <div style="font-size:2rem;">📚</div>
         <h3>Conteúdos</h3>
         <p style="font-size:13px; color:var(--color-text-muted);">Aulas e materiais do curso</p>
+    </a>
+
+    <a href="/aluno/frequencia" class="card" style="text-align:center; text-decoration:none; color:inherit;">
+        <div style="font-size:2rem;">📅</div>
+        <h3>Frequência</h3>
+        <p style="font-size:13px; color:var(--color-text-muted);">Histórico de presença</p>
     </a>
 
     <a href="/aluno/senha" class="card" style="text-align:center; text-decoration:none; color:inherit;">
@@ -57,9 +69,9 @@
             <tbody>
             {% for m in mensalidades %}
             <tr {% if m.status != 'Pago' %}style="background:#fff0f0"{% endif %}>
-                <td>{{ m.parcela_ref or '\u2014' }}</td>
+                <td>{{ m.parcela_ref or '—' }}</td>
                 <td>{{ m.vencimento }}</td>
-                <td>{{ m.tipo or '\u2014' }}</td>
+                <td>{{ m.tipo or '—' }}</td>
                 <td>R$ {{ '%.2f'|format(m.valor) }}</td>
                 <td>
                     {% if m.status == 'Pago' %}

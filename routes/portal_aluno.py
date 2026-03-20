@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, session, flash
-from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria
+from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria, Nota
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
 
@@ -44,6 +44,31 @@ def frequencia_aluno():
     aluno       = db.get_or_404(Aluno, session["aluno_id"])
     frequencias = Frequencia.query.filter_by(aluno_id=aluno.id).order_by(Frequencia.data.desc()).all()
     return render_template("aluno/frequencia.html", aluno=aluno, frequencias=frequencias)
+
+
+@portal_aluno_bp.route("/notas")
+@aluno_login_required
+def notas_aluno():
+    aluno     = db.get_or_404(Aluno, session["aluno_id"])
+    matricula = Matricula.query.filter_by(aluno_id=aluno.id, status="ATIVA").first()
+    notas     = []
+    media     = None
+
+    if matricula:
+        notas = (
+            db.session.query(Nota, Materia)
+            .join(Materia, Materia.id == Nota.materia_id)
+            .filter(Nota.aluno_id == aluno.id, Nota.curso_id == matricula.curso_id)
+            .order_by(Materia.nome)
+            .all()
+        )
+        if notas:
+            valores = [n.nota for n, m in notas if n.nota is not None]
+            if valores:
+                media = round(sum(valores) / len(valores), 1)
+
+    return render_template("aluno/notas.html", aluno=aluno,
+                           matricula=matricula, notas=notas, media=media)
 
 
 @portal_aluno_bp.route("/conteudo")
@@ -107,7 +132,7 @@ def trocar_senha():
             return render_template("aluno/trocar_senha.html", aluno=aluno)
 
         if nova != confirma:
-            flash("As senhas n\u00e3o conferem.", "erro")
+            flash("As senhas não conferem.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
 
         aluno.senha = hash_senha(nova)

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Minhas Notas{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:900px; margin:0 auto 16px;">
+    <div class="card-header">
+        <span>📊</span>
+        <h2>Minhas Notas</h2>
+    </div>
+    {% if matricula %}
+    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
+    {% endif %}
+</div>
+
+{% if not matricula %}
+<div class="card" style="max-width:900px; margin:0 auto; text-align:center;">
+    <p style="color:var(--color-text-muted);">Você não possui matrícula ativa no momento.</p>
+    <a href="/aluno/dashboard" class="btn">Voltar ao início</a>
+</div>
+
+{% elif not notas %}
+<div class="card" style="max-width:900px; margin:0 auto; text-align:center;">
+    <p style="color:var(--color-text-muted);">Nenhuma nota lançada ainda para o seu curso.</p>
+    <a href="/aluno/dashboard" class="btn">Voltar ao início</a>
+</div>
+
+{% else %}
+
+{% if media is not none %}
+<div class="card" style="max-width:900px; margin:0 auto 16px; text-align:center;">
+    <p style="font-size:13px; color:var(--color-text-muted); margin-bottom:4px;">Média Geral</p>
+    <p style="font-size:2.2rem; font-weight:700;
+        color:{% if media >= 7 %}#22c55e{% elif media >= 5 %}#f59e0b{% else %}#ef4444{% endif %}">
+        {{ media }}
+    </p>
+    <p style="font-size:13px; color:var(--color-text-muted);">
+        {% if media >= 7 %}Aprovado{% elif media >= 5 %}Em recuperação{% else %}Reprovado{% endif %}
+    </p>
+</div>
+{% endif %}
+
+<div class="card" style="max-width:900px; margin:0 auto;">
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Matéria</th>
+                    <th style="text-align:center;">Nota</th>
+                    <th style="text-align:center;">Resultado</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for nota, materia in notas %}
+            <tr>
+                <td>{{ materia.nome }}</td>
+                <td style="text-align:center; font-weight:600;
+                    color:{% if nota.nota is not none %}{% if nota.nota >= 7 %}#22c55e{% elif nota.nota >= 5 %}#f59e0b{% else %}#ef4444{% endif %}{% else %}inherit{% endif %}">
+                    {{ '%.1f'|format(nota.nota) if nota.nota is not none else '—' }}
+                </td>
+                <td style="text-align:center;">
+                    {% if nota.resultado %}
+                        {% if nota.resultado|lower in ['aprovado', 'aprovada'] %}
+                        <span class="status-ativo">✅ {{ nota.resultado }}</span>
+                        {% elif nota.resultado|lower in ['reprovado', 'reprovada'] %}
+                        <span class="status-inativo">❌ {{ nota.resultado }}</span>
+                        {% else %}
+                        <span>{{ nota.resultado }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:var(--color-text-muted);">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div style="text-align:center; margin-top:16px;">
+    <a href="/aluno/dashboard" class="btn btn-secondary">Voltar ao início</a>
+</div>
+
+{% endblock %}
