@@ -14,6 +14,9 @@ def login():
             session["usuario_id"]   = user.id
             session["usuario_nome"] = user.nome
             session["perfil"]       = user.perfil
+            # Aluno não usa o sistema interno — redireciona para o portal do aluno
+            if user.perfil == "aluno":
+                return redirect("/aluno/dashboard")
             return redirect("/")
         flash("Usuário ou senha inválidos.", "erro")
     return render_template("login.html")
@@ -27,5 +30,8 @@ def logout():
 def home():
     if "usuario_id" not in session:
         return redirect("/login")
+    # Aluno não deve acessar a home interna
+    if session.get("perfil") == "aluno":
+        return redirect("/aluno/dashboard")
     total_alunos = Aluno.query.filter_by(status="Ativo").count()
     return render_template("home.html", total_alunos=total_alunos)

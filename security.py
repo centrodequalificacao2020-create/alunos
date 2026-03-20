@@ -28,6 +28,9 @@ def login_required(f):
         if "usuario_id" not in session:
             flash("Faça login para continuar.", "erro")
             return redirect("/login")
+        # Perfil aluno não tem acesso às rotas internas
+        if session.get("perfil") == "aluno":
+            return redirect("/aluno/dashboard")
         return f(*args, **kwargs)
     return decorated
 
