@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, session, flash
+import os
+from flask import Blueprint, render_template, request, redirect, session, flash, abort, send_file, make_response
 from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria, Nota
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
+
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
@@ -94,6 +96,44 @@ def conteudo_aluno():
         )
 
     return render_template("aluno/conteudo.html", aluno=aluno, conteudos=conteudos)
+
+
+@portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
+@aluno_login_required
+def abrir_arquivo_conteudo(conteudo_id):
+    """Serve arquivos locais de forma segura via Flask, sem permitir download."""
+    import mimetypes
+
+    conteudo = db.get_or_404(Conteudo, conteudo_id)
+
+    if not conteudo.arquivo:
+        abort(404)
+
+    arquivo = conteudo.arquivo.strip()
+
+    if arquivo.startswith("http://") or arquivo.startswith("https://"):
+        return redirect(arquivo)
+
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    caminho  = arquivo.lstrip("/")
+
+    candidatos = [
+        os.path.join(base_dir, caminho),
+        os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
+        os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
+        os.path.join(base_dir, "uploads", os.path.basename(caminho)),
+    ]
+
+    for candidato in candidatos:
+        if os.path.isfile(candidato):
+            mime, _ = mimetypes.guess_type(candidato)
+            mime = mime or "application/octet-stream"
+            response = make_response(send_file(candidato, mimetype=mime))
+            response.headers["Content-Disposition"] = "inline"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
+
+    abort(404)
 
 
 @portal_aluno_bp.route("/concluir/<int:conteudo_id>")

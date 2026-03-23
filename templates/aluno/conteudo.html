@@ -10,7 +10,7 @@
 .aula.ativa      { background:#d9edf7; font-weight:bold; }
 .materia-titulo  { margin:14px 0 4px; font-size:12px; text-transform:uppercase; color:var(--color-text-muted,#888); letter-spacing:.5px; }
 .player          { flex:1; min-width:0; }
-.video-frame     { width:100%; height:450px; border-radius:8px; border:none; }
+.video-frame     { width:100%; height:500px; border-radius:8px; border:none; }
 .progresso-barra { background:var(--color-border,#ddd); height:14px; border-radius:8px; overflow:hidden; margin:6px 0 4px; }
 .progresso-fill  { background:#4CAF50; height:100%; transition:width .3s; }
 @media(max-width:768px){
@@ -80,23 +80,36 @@
 const aulas = document.querySelectorAll('.aula');
 
 function ehVideo(src) {
-    return src && (src.includes('youtube') || src.includes('youtu.be') ||
-                  src.includes('vimeo') || src.match(/\.(mp4|webm|ogg)$/i));
+    return src && (
+        src.includes('youtube.com') ||
+        src.includes('youtu.be') ||
+        src.includes('vimeo.com') ||
+        /\.(mp4|webm|ogg)$/i.test(src)
+    );
 }
 
 function embedUrl(src) {
-    if (src.includes('youtu.be/'))
-        return src.replace('youtu.be/', 'youtube.com/embed/');
-    if (src.includes('youtube.com/watch'))
-        return src.replace('watch?v=', 'embed/');
-    if (src.includes('vimeo.com/'))
-        return src.replace('vimeo.com/', 'player.vimeo.com/video/');
-    return src.startsWith('http') ? src : '/' + src;
+    if (src.includes('youtu.be/')) {
+        const id = src.split('youtu.be/')[1].split('?')[0];
+        return `https://www.youtube.com/embed/${id}`;
+    }
+    if (src.includes('youtube.com/watch')) {
+        try {
+            const url = new URL(src);
+            const id  = url.searchParams.get('v');
+            return id ? `https://www.youtube.com/embed/${id}` : src;
+        } catch { return src; }
+    }
+    if (src.includes('vimeo.com/')) {
+        const id = src.split('vimeo.com/')[1].split('?')[0];
+        return `https://player.vimeo.com/video/${id}`;
+    }
+    return src;
 }
 
 function abrirAula(el) {
-    const arquivo   = el.dataset.arquivo;
-    const titulo    = el.dataset.titulo;
+    const arquivo   = el.dataset.arquivo || '';
+    const titulo    = el.dataset.titulo  || 'Aula';
     const id        = el.dataset.id;
     const concluido = el.dataset.concluido;
 
@@ -109,14 +122,39 @@ function abrirAula(el) {
 
     if (!arquivo) {
         area.innerHTML = '<p class="empty-state">Nenhum conteúdo disponível para esta aula.</p>';
-    } else if (arquivo.match(/\.(pdf)$/i)) {
-        const src = arquivo.startsWith('http') ? arquivo : '/' + arquivo;
-        area.innerHTML = `<iframe class="video-frame" src="${src}"></iframe>`;
+
+    } else if (/\.pdf$/i.test(arquivo)) {
+        const src = (arquivo.startsWith('http://') || arquivo.startsWith('https://'))
+            ? arquivo
+            : `/aluno/arquivo/${id}`;
+        area.innerHTML = `
+            <iframe class="video-frame"
+                    src="${src}"
+                    style="height:650px;"
+                    oncontextmenu="return false;">
+            </iframe>`;
+
+    } else if (/\.(mp4|webm|ogg)$/i.test(arquivo)) {
+        const src = `/aluno/arquivo/${id}`;
+        area.innerHTML = `
+            <video class="video-frame" controls style="background:#000;"
+                   oncontextmenu="return false;">
+                <source src="${src}">
+                Seu navegador não suporta vídeo HTML5.
+            </video>`;
+
     } else if (ehVideo(arquivo)) {
-        area.innerHTML = `<iframe class="video-frame" src="${embedUrl(arquivo)}" allowfullscreen></iframe>`;
+        const src = embedUrl(arquivo);
+        area.innerHTML = `
+            <iframe class="video-frame" src="${src}" allowfullscreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+            </iframe>`;
+
     } else {
-        const src = arquivo.startsWith('http') ? arquivo : '/' + arquivo;
-        area.innerHTML = `<iframe class="video-frame" src="${src}"></iframe>`;
+        const src = `/aluno/arquivo/${id}`;
+        area.innerHTML = `
+            <p><a href="${src}" target="_blank" class="btn btn-azul">Abrir arquivo</a></p>
+            <iframe class="video-frame" src="${src}"></iframe>`;
     }
 
     botao.innerHTML = concluido === '1'
@@ -126,12 +164,15 @@ function abrirAula(el) {
     localStorage.setItem('ultimaAula', id);
 }
 
-aulas.forEach(a => a.addEventListener('click', function(){ abrirAula(this); }));
+aulas.forEach(a => a.addEventListener('click', function () { abrirAula(this); }));
 
 const ultima = localStorage.getItem('ultimaAula');
 if (ultima) {
     const aula = document.querySelector(`[data-id="${ultima}"]`);
-    if (aula) abrirAula(aula);
+    if (aula) { abrirAula(aula); }
+    else if (aulas.length) { abrirAula(aulas[0]); }
+} else if (aulas.length) {
+    abrirAula(aulas[0]);
 }
 </script>
 {% endblock %}
