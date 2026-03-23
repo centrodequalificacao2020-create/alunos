@@ -33,7 +33,7 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS      = {
         "connect_args": {"check_same_thread": False, "timeout": 30},
     }
-    UPLOAD_FOLDER                  = os.path.join("static", "uploads")
+    UPLOAD_FOLDER = os.path.join(BASEDIR, "static", "uploads")
     MAX_CONTENT_LENGTH             = 10 * 1024 * 1024
     EXTENSOES_PERMITIDAS           = {"pdf", "png", "jpg", "jpeg", "docx", "mp4"}
     DEBUG                          = os.getenv("FLASK_DEBUG", "False") == "True"
