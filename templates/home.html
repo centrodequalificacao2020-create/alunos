@@ -5,229 +5,145 @@
 {% endblock %}
 
 {% block content %}
+{% set perfil = (session.perfil or '') | lower %}
+{% set is_admin      = perfil in ['admin', 'administrador'] %}
+{% set is_financeiro = perfil == 'financeiro' %}
+{% set is_secretaria = perfil == 'secretaria' %}
+{% set is_instrutor  = perfil == 'instrutor' %}
+{% set full_access   = is_admin or is_financeiro or is_secretaria %}
 
 <style>
-
-/* FUNDO PROFISSIONAL */
 body{
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
     min-height:100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-
-/* INDICADOR SUPERIOR (ALUNOS) */
 .indicador-topo{
-    position:fixed;
-    top:15px;
-    left:20px;
-    background:rgba(0,0,0,0.4);
-    backdrop-filter: blur(10px);
-    padding:8px 15px;
-    border-radius:20px;
-    color:#fff;
-    font-size:13px;
-    border:1px solid rgba(255,255,255,0.2);
-    z-index:999;
-    opacity:0.8;
+    position:fixed; top:15px; left:20px;
+    background:rgba(0,0,0,0.4); backdrop-filter:blur(10px);
+    padding:8px 15px; border-radius:20px; color:#fff; font-size:13px;
+    border:1px solid rgba(255,255,255,0.2); z-index:999; opacity:0.8;
 }
-
-.indicador-topo strong{
-    color:#00ff9d;
-}
-
-/* HEADER */
-.home-header{
-    max-width:1200px;
-    margin:auto;
-    padding:30px 20px 10px;
-    color:#fff;
-}
-
-.home-header h1{
-    font-size:28px;
-    font-weight:600;
-}
-
-.home-header p{
-    opacity:0.7;
-    margin-top:5px;
-}
-
-/* GRID */
+.indicador-topo strong{ color:#00ff9d; }
+.home-header{ max-width:1200px; margin:auto; padding:30px 20px 10px; color:#fff; }
+.home-header h1{ font-size:28px; font-weight:600; }
+.home-header p{ opacity:0.7; margin-top:5px; }
 .home-grid{
-    display:grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap:25px;
-    max-width:1200px;
-    margin:auto;
-    padding:30px 20px 50px;
+    display:grid; grid-template-columns:repeat(4,1fr);
+    gap:25px; max-width:1200px; margin:auto; padding:30px 20px 50px;
 }
-
-/* RESPONSIVO */
-@media (max-width:1024px){
-    .home-grid{
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width:600px){
-    .home-grid{
-        grid-template-columns: 1fr;
-    }
-}
-
-/* CARD (AGORA COM COR MELHORADA) */
+@media(max-width:1024px){ .home-grid{ grid-template-columns:repeat(2,1fr); } }
+@media(max-width:600px) { .home-grid{ grid-template-columns:1fr; } }
 .home-card{
-    background: linear-gradient(145deg, rgba(0, 198, 255, 0.25), rgba(0, 120, 255, 0.15));
-    backdrop-filter: blur(15px);
-    border-radius:20px;
-    padding:30px;
-    text-align:center;
-    cursor:pointer;
-    transition:0.35s;
-    border:1px solid rgba(255,255,255,0.15);
-    box-shadow:0 5px 20px rgba(0,0,0,0.3);
-    position:relative;
-    overflow:hidden;
+    background:linear-gradient(145deg,rgba(0,198,255,.25),rgba(0,120,255,.15));
+    backdrop-filter:blur(15px); border-radius:20px; padding:30px;
+    text-align:center; cursor:pointer; transition:.35s;
+    border:1px solid rgba(255,255,255,.15); box-shadow:0 5px 20px rgba(0,0,0,.3);
+    position:relative; overflow:hidden;
 }
-
-/* EFEITO DE LUZ */
 .home-card::before{
-    content:'';
-    position:absolute;
-    width:150%;
-    height:150%;
-    top:-50%;
-    left:-50%;
-    background: radial-gradient(circle, rgba(255,255,255,0.15), transparent 60%);
-    opacity:0;
-    transition:0.4s;
+    content:''; position:absolute; width:150%; height:150%; top:-50%; left:-50%;
+    background:radial-gradient(circle,rgba(255,255,255,.15),transparent 60%);
+    opacity:0; transition:.4s;
 }
-
-.home-card:hover::before{
-    opacity:1;
-}
-
-/* HOVER (MAIS VIVO) */
+.home-card:hover::before{ opacity:1; }
 .home-card:hover{
-    transform: translateY(-8px) scale(1.04);
-    box-shadow:0 20px 40px rgba(0,0,0,0.6);
-    background: linear-gradient(145deg, rgba(0, 198, 255, 0.45), rgba(0, 120, 255, 0.25));
+    transform:translateY(-8px) scale(1.04);
+    box-shadow:0 20px 40px rgba(0,0,0,.6);
+    background:linear-gradient(145deg,rgba(0,198,255,.45),rgba(0,120,255,.25));
 }
-
-/* ÍCONE */
-.home-card i{
-    font-size:42px;
-    margin-bottom:15px;
-    display:block;
-    transition:0.3s;
-}
-
-/* ANIMAÇÃO ÍCONE */
-.home-card:hover i{
-    transform: scale(1.2) rotate(5deg);
-}
-
-/* TEXTO */
-.home-card span{
-    font-weight:600;
-    font-size:17px;
-    color:#ffffff;
-    letter-spacing:0.5px;
-}
-
-/* CORES DOS ÍCONES */
-.c1{color:#00c6ff;}
-.c2{color:#00ff9d;}
-.c3{color:#ffd700;}
-.c4{color:#ff4d4d;}
-.c5{color:#c77dff;}
-.c6{color:#00e5ff;}
-.c7{color:#ff9f43;}
-.c8{color:#ffffff;}
-.c9{color:#1dd1a1;}
-.c10{color:#ff6b6b;}
-.c11{color:#54a0ff;}
-.c12{color:#a29bfe;}
-
+.home-card i{ font-size:42px; margin-bottom:15px; display:block; transition:.3s; }
+.home-card:hover i{ transform:scale(1.2) rotate(5deg); }
+.home-card span{ font-weight:600; font-size:17px; color:#fff; letter-spacing:.5px; }
+.c1{color:#00c6ff;} .c2{color:#00ff9d;} .c3{color:#ffd700;} .c4{color:#ff4d4d;}
+.c5{color:#c77dff;} .c6{color:#00e5ff;} .c7{color:#ff9f43;} .c8{color:#fff;}
+.c9{color:#1dd1a1;} .c10{color:#ff6b6b;} .c11{color:#54a0ff;} .c12{color:#a29bfe;}
 </style>
 
-<!-- INDICADOR -->
 <div class="indicador-topo">
-    👥 {{ total_alunos or 0 }} alunos ativos
+    &#128101; <strong>{{ total_alunos or 0 }}</strong> alunos ativos
 </div>
 
-<!-- HEADER -->
 <div class="home-header">
-    <h1>Centro de Qualificação Prossional</h1>
-    <p>
-        Olá, {{ session.get('usuario_nome', 'Usuário') }} 👋<br>
-    </p>
+    <h1>Centro de Qualifica&#231;&#227;o Profissional</h1>
+    <p>Ol&#225;, {{ session.get('usuario_nome', 'Usu&#225;rio') }} &#128075;<br></p>
 </div>
 
-<!-- GRID -->
 <div class="home-grid">
 
+    {# ── Vis&#237;vel para todos (exceto instrutor) ── #}
+    {% if full_access %}
     <div class="home-card" onclick="location.href='/cadastro'">
-        <i class="fas fa-user-graduate c1"></i>
-        <span>Alunos</span>
+        <i class="fas fa-user-graduate c1"></i><span>Alunos</span>
     </div>
-
     <div class="home-card" onclick="location.href='/movimentacao'">
-        <i class="fas fa-file-signature c2"></i>
-        <span>Matrícula</span>
+        <i class="fas fa-file-signature c2"></i><span>Matr&#237;cula</span>
     </div>
+    {% endif %}
 
+    {# ── Financeiro e dashboard: admin, financeiro, secretaria ── #}
+    {% if full_access %}
     <div class="home-card" onclick="location.href='/financeiro'">
-        <i class="fas fa-dollar-sign c3"></i>
-        <span>Financeiro</span>
+        <i class="fas fa-dollar-sign c3"></i><span>Financeiro</span>
     </div>
-
     <div class="home-card" onclick="location.href='/dashboard'">
-        <i class="fas fa-chart-line c4"></i>
-        <span>Dashboard</span>
+        <i class="fas fa-chart-line c4"></i><span>Dashboard</span>
     </div>
+    {% endif %}
 
+    {# ── Notas e frequ&#234;ncia: todos (inclusive instrutor) ── #}
     <div class="home-card" onclick="location.href='/notas'">
-        <i class="fas fa-clipboard-list c5"></i>
-        <span>Notas</span>
+        <i class="fas fa-clipboard-list c5"></i><span>Notas</span>
     </div>
-
     <div class="home-card" onclick="location.href='/frequencia'">
-        <i class="fas fa-calendar-check c6"></i>
-        <span>Frequência</span>
+        <i class="fas fa-calendar-check c6"></i><span>Frequ&#234;ncia</span>
     </div>
 
+    {# ── Acad&#234;mico: admin, secretaria, instrutor ── #}
+    {% if is_admin or is_secretaria or is_instrutor %}
     <div class="home-card" onclick="location.href='/materias'">
-        <i class="fas fa-book c7"></i>
-        <span>Matérias</span>
+        <i class="fas fa-book c7"></i><span>Mat&#233;rias</span>
     </div>
+    {% endif %}
 
+    {# ── Cursos: admin, financeiro, secretaria ── #}
+    {% if full_access %}
     <div class="home-card" onclick="location.href='/cursos'">
-        <i class="fas fa-graduation-cap c8"></i>
-        <span>Cursos</span>
+        <i class="fas fa-graduation-cap c8"></i><span>Cursos</span>
     </div>
-
     <div class="home-card" onclick="location.href='/despesas'">
-        <i class="fas fa-receipt c9"></i>
-        <span>Despesas</span>
+        <i class="fas fa-receipt c9"></i><span>Despesas</span>
     </div>
+    {% endif %}
 
-    <div class="home-card" onclick="location.href='/funcionarios'">
-        <i class="fas fa-users c10"></i>
-        <span>Funcionários</span>
+    {# ── Funcionários: admin e financeiro e secretaria ── #}
+    {% if full_access %}
+    <div class="home-card" onclick="location.href='/funcionario'">
+        <i class="fas fa-users c10"></i><span>Funcion&#225;rios</span>
     </div>
-
     <div class="home-card" onclick="location.href='/relatorio'">
-        <i class="fas fa-chart-pie c11"></i>
-        <span>Relatórios</span>
+        <i class="fas fa-chart-pie c11"></i><span>Relat&#243;rios</span>
     </div>
+    {% endif %}
 
+    {# ── Conte&#250;dos: admin, secretaria, instrutor ── #}
+    {% if is_admin or is_secretaria or is_instrutor %}
+    <div class="home-card" onclick="location.href='/conteudos'">
+        <i class="fas fa-book-open c6"></i><span>Conte&#250;dos</span>
+    </div>
+    {% endif %}
+
+    {# ── Backup: somente admin ── #}
+    {% if is_admin %}
+    <div class="home-card" onclick="location.href='/backup'">
+        <i class="fas fa-database c3"></i><span>Backup</span>
+    </div>
+    {% endif %}
+
+    {# ── Sair: sempre ── #}
     <div class="home-card" onclick="location.href='/logout'">
-        <i class="fas fa-sign-out-alt c12"></i>
-        <span>Sair</span>
+        <i class="fas fa-sign-out-alt c12"></i><span>Sair</span>
     </div>
 
 </div>
-
 {% endblock %}
