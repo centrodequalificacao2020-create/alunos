@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, session, flash,
 from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria, Nota
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
+from app import limiter
 
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
@@ -22,6 +23,7 @@ def _matricula_ativa(aluno_id):
 
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login_aluno():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
@@ -85,7 +87,6 @@ def notas_aluno():
     media     = None
 
     if matricula:
-        # LEFT JOIN: mostra todas as matérias mesmo sem nota lançada
         rows = (
             db.session.query(Materia, Nota)
             .join(CursoMateria, CursoMateria.materia_id == Materia.id)
@@ -102,9 +103,7 @@ def notas_aluno():
             .order_by(Materia.nome)
             .all()
         )
-        # reordena para (Nota|None, Materia) — compatível com o template
         notas = [(nota, materia) for materia, nota in rows]
-
         valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
         if valores:
             media = round(sum(valores) / len(valores), 1)
