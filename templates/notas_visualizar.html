@@ -8,7 +8,7 @@
             <h2>📄 Visualização de Notas</h2>
             <p class="card-subtitle">
                 <strong>Aluno:</strong> {{ aluno_nome }}
-                &nbsp;•&nbsp;
+                &nbsp;&bull;&nbsp;
                 <strong>Curso:</strong> {{ curso_nome }}
             </p>
         </div>
@@ -31,15 +31,18 @@
             <tbody>
                 {% for b in boletim %}
                 <tr>
-                    <td>{{ b[0] }}</td>
-                    <td>{{ b[1] if b[1] is not none else '-' }}</td>
+                    <td>{{ b.materia }}</td>
+                    <td>{{ b.nota if b.nota is not none else '-' }}</td>
                     <td>
-                        {% if b[2] == 'APROVADO' %}
+                        {% set res = (b.resultado or '')|upper %}
+                        {% if res == 'APROVADO' %}
                             <span class="status-ativo">✅ Aprovado</span>
-                        {% elif b[2] == 'REPROVADO' %}
+                        {% elif res == 'REPROVADO' %}
                             <span class="status-inativo">❌ Reprovado</span>
-                        {% elif b[2] == 'NAO_CURSOU' %}
+                        {% elif res == 'NAO_CURSOU' or res == 'NÃO CURSOU' %}
                             <span class="status-finalizado">Não cursou</span>
+                        {% elif b.resultado %}
+                            {{ b.resultado }}
                         {% else %}
                             -
                         {% endif %}
