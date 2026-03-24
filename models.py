@@ -1,10 +1,16 @@
 from db import db
 from datetime import datetime, date
+from enums import (
+    PerfilUsuario, StatusMatricula, StatusAluno,
+    StatusMensalidade, StatusFrequencia, ResultadoNota
+)
 
 
-# ─── Constantes de domínio ────────────────────────────────────────────────────
-PERFIS_VALIDOS  = {"admin", "administrador", "secretaria", "financeiro", "instrutor"}
-STATUS_MATRICULA = {"ATIVA", "INATIVA", "TRANCADA", "CONCLUIDA"}
+# ─── Constantes de domínio (retrocompat) ─────────────────────────────────────
+# Mantidos para não quebrar código legado que importe daqui.
+# Prefira usar as classes de enums.py diretamente.
+PERFIS_VALIDOS   = PerfilUsuario.valores()
+STATUS_MATRICULA = StatusMatricula.valores()
 
 
 class Usuario(db.Model):
@@ -14,10 +20,10 @@ class Usuario(db.Model):
     senha           = db.Column(db.String(256), nullable=False)
     nome            = db.Column(db.String(120))
     # perfil: admin | administrador | secretaria | financeiro | instrutor
-    perfil          = db.Column(db.String(40), default="secretaria")
+    perfil          = db.Column(db.String(40), default=PerfilUsuario.SECRETARIA.value)
     cpf             = db.Column(db.String(14))
     data_nascimento = db.Column(db.String(10))
-    status          = db.Column(db.String(20), default="Ativo")
+    status          = db.Column(db.String(20), default=StatusAluno.ATIVO.value)
     telefone        = db.Column(db.String(20))
     email           = db.Column(db.String(120))
     endereco        = db.Column(db.String(200))
@@ -77,7 +83,7 @@ class Aluno(db.Model):
     cidade                 = db.Column(db.String(100))
     estado                 = db.Column(db.String(2))
     cep                    = db.Column(db.String(9))
-    status                 = db.Column(db.String(40), default="Ativo")
+    status                 = db.Column(db.String(40), default=StatusAluno.ATIVO.value)
     # curso_id mantido por compatibilidade; fonte da verdade é matriculas
     curso_id               = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     responsavel_nome       = db.Column(db.String(120))
@@ -94,7 +100,8 @@ class Aluno(db.Model):
     def matricula_ativa(self):
         """Retorna a matrícula ativa do aluno ou None."""
         return next(
-            (m for m in self.matriculas if m.status.upper() == "ATIVA"), None
+            (m for m in self.matriculas
+             if m.status.upper() == StatusMatricula.ATIVA.value), None
         )
 
     @property
@@ -107,12 +114,15 @@ class Aluno(db.Model):
 class Matricula(db.Model):
     __tablename__ = "matriculas"
     id                  = db.Column(db.Integer, primary_key=True)
-    aluno_id            = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False, index=True)
-    curso_id            = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
+    aluno_id            = db.Column(db.Integer, db.ForeignKey("alunos.id"),
+                                    nullable=False, index=True)
+    curso_id            = db.Column(db.Integer, db.ForeignKey("cursos.id"),
+                                    nullable=False)
     tipo_curso          = db.Column(db.String(60))
     data_matricula      = db.Column(db.String(10))
     # status: ATIVA | INATIVA | TRANCADA | CONCLUIDA  (sempre maiúsculo)
-    status              = db.Column(db.String(20), default="ATIVA")
+    status              = db.Column(db.String(20),
+                                    default=StatusMatricula.ATIVA.value)
     valor_matricula     = db.Column(db.Float, default=0)
     valor_mensalidade   = db.Column(db.Float, default=0)
     quantidade_parcelas = db.Column(db.Integer, default=1)
@@ -121,8 +131,11 @@ class Matricula(db.Model):
     observacao          = db.Column(db.Text)
 
     def save(self, session):
-        """Garante que status é sempre salvo em maiúsculo."""
-        self.status = (self.status or "ATIVA").upper()
+        """Garante que status é sempre salvo em maiúsculo e válido."""
+        valor = (self.status or StatusMatricula.ATIVA.value).upper().strip()
+        if valor not in StatusMatricula.valores():
+            valor = StatusMatricula.ATIVA.value
+        self.status = valor
         session.add(self)
 
 
@@ -134,10 +147,12 @@ class Mensalidade(db.Model):
         db.Index("ix_mensalidades_status",     "status"),
     )
     id                = db.Column(db.Integer, primary_key=True)
-    aluno_id          = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    aluno_id          = db.Column(db.Integer, db.ForeignKey("alunos.id"),
+                                   nullable=False)
     valor             = db.Column(db.Float, nullable=False)
     vencimento        = db.Column(db.String(10), nullable=False)
-    status            = db.Column(db.String(20), default="Pendente")
+    status            = db.Column(db.String(20),
+                                   default=StatusMensalidade.PENDENTE.value)
     tipo              = db.Column(db.String(40))
     parcela_ref       = db.Column(db.String(20))
     data_pagamento    = db.Column(db.String(10))
@@ -179,7 +194,8 @@ class Frequencia(db.Model):
     aluno_id = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
     curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     data     = db.Column(db.String(10))
-    status   = db.Column(db.String(20))
+    status   = db.Column(db.String(20),
+                          default=StatusFrequencia.PRESENTE.value)
 
 
 class Materia(db.Model):
@@ -196,6 +212,10 @@ class Materia(db.Model):
 
 class CursoMateria(db.Model):
     __tablename__ = "cursos_materias"
+    __table_args__ = (
+        db.UniqueConstraint("curso_id", "materia_id",
+                            name="uq_cursos_materias"),
+    )
     id         = db.Column(db.Integer, primary_key=True)
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"))
@@ -219,10 +239,13 @@ class Nota(db.Model):
         db.UniqueConstraint("aluno_id", "materia_id", "curso_id"),
     )
     id         = db.Column(db.Integer, primary_key=True)
-    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"),   nullable=False, index=True)
-    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"),
+                            nullable=False, index=True)
+    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"),
+                            nullable=False)
     # curso_id mantido para não quebrar queries de lançamento admin
-    curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"),   nullable=False)
+    curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"),
+                            nullable=False)
     nota       = db.Column(db.Float)
     resultado  = db.Column(db.String(40))
 
