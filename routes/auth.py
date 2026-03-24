@@ -23,6 +23,7 @@ def login():
         s = request.form.get("senha", "")
         user = Usuario.query.filter_by(usuario=u).first()
         if user and verificar_senha(s, user.senha):
+            session.permanent = True  # S5: respeita PERMANENT_SESSION_LIFETIME
             session["usuario_id"]   = user.id
             session["usuario_nome"] = user.nome
             session["perfil"]       = user.perfil
