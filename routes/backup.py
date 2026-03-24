@@ -1,18 +1,9 @@
 import os
-from functools import wraps
 from datetime import datetime
-from flask import Blueprint, send_file, session
+from flask import Blueprint, send_file
+from security import admin_required
 
 backup_bp = Blueprint('backup', __name__)
-
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if session.get('perfil') != 'admin':
-            return 'Acesso negado', 403
-        return f(*args, **kwargs)
-    return decorated
 
 
 @backup_bp.route('/backup')
