@@ -22,6 +22,25 @@ def _matricula_ativa(aluno_id):
     )
 
 
+def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
+    """
+    S3: Verifica se o aluno tem matrícula ativa no curso da matéria do conteúdo.
+    Retorna True se o acesso for permitido, False caso contrário.
+    """
+    matricula = _matricula_ativa(aluno_id)
+    if not matricula:
+        return False
+    vinculo = (
+        db.session.query(CursoMateria)
+        .filter(
+            CursoMateria.materia_id == conteudo.materia_id,
+            CursoMateria.curso_id   == matricula.curso_id,
+        )
+        .first()
+    )
+    return vinculo is not None
+
+
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def login_aluno():
@@ -140,10 +159,14 @@ def conteudo_aluno():
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
 def abrir_arquivo_conteudo(conteudo_id):
-    """Serve arquivos locais de forma segura via Flask, sem permitir download."""
+    """Serve arquivos do curso do aluno. S3: verifica ownership antes de servir."""
     import mimetypes
 
     conteudo = db.get_or_404(Conteudo, conteudo_id)
+
+    # S3: IDOR fix — garante que o conteúdo pertence ao curso do aluno logado
+    if not _aluno_pode_acessar_conteudo(session["aluno_id"], conteudo):
+        abort(403)
 
     if not conteudo.arquivo:
         abort(404)
