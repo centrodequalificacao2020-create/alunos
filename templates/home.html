@@ -10,7 +10,8 @@
 {% set is_financeiro = perfil == 'financeiro' %}
 {% set is_secretaria = perfil == 'secretaria' %}
 {% set is_instrutor  = perfil == 'instrutor' %}
-{% set full_access   = is_admin or is_financeiro or is_secretaria %}
+{% set full_access   = is_admin or is_financeiro %}
+{% set meio_access   = is_secretaria %}
 
 <style>
 body{
@@ -71,18 +72,14 @@ body{
 
 <div class="home-grid">
 
-    {# ── Vis&#237;vel para todos (exceto instrutor) ── #}
-    {% if full_access %}
+    {# Admin e Financeiro veem TUDO #}
+    {% if full_access or meio_access %}
     <div class="home-card" onclick="location.href='/cadastro'">
         <i class="fas fa-user-graduate c1"></i><span>Alunos</span>
     </div>
     <div class="home-card" onclick="location.href='/movimentacao'">
         <i class="fas fa-file-signature c2"></i><span>Matr&#237;cula</span>
     </div>
-    {% endif %}
-
-    {# ── Financeiro e dashboard: admin, financeiro, secretaria ── #}
-    {% if full_access %}
     <div class="home-card" onclick="location.href='/financeiro'">
         <i class="fas fa-dollar-sign c3"></i><span>Financeiro</span>
     </div>
@@ -91,7 +88,7 @@ body{
     </div>
     {% endif %}
 
-    {# ── Notas e frequ&#234;ncia: todos (inclusive instrutor) ── #}
+    {# Notas e Frequ&#234;ncia: todos #}
     <div class="home-card" onclick="location.href='/notas'">
         <i class="fas fa-clipboard-list c5"></i><span>Notas</span>
     </div>
@@ -99,25 +96,26 @@ body{
         <i class="fas fa-calendar-check c6"></i><span>Frequ&#234;ncia</span>
     </div>
 
-    {# ── Acad&#234;mico: admin, secretaria, instrutor ── #}
-    {% if is_admin or is_secretaria or is_instrutor %}
+    {# Acad&#234;mico: admin, financeiro, secretaria, instrutor #}
+    {% if full_access or meio_access or is_instrutor %}
+    <div class="home-card" onclick="location.href='/turmas'">
+        <i class="fas fa-chalkboard-teacher c7"></i><span>Turmas</span>
+    </div>
     <div class="home-card" onclick="location.href='/materias'">
         <i class="fas fa-book c7"></i><span>Mat&#233;rias</span>
     </div>
+    <div class="home-card" onclick="location.href='/conteudos'">
+        <i class="fas fa-book-open c6"></i><span>Conte&#250;dos</span>
+    </div>
     {% endif %}
 
-    {# ── Cursos: admin, financeiro, secretaria ── #}
-    {% if full_access %}
+    {% if full_access or meio_access %}
     <div class="home-card" onclick="location.href='/cursos'">
         <i class="fas fa-graduation-cap c8"></i><span>Cursos</span>
     </div>
     <div class="home-card" onclick="location.href='/despesas'">
         <i class="fas fa-receipt c9"></i><span>Despesas</span>
     </div>
-    {% endif %}
-
-    {# ── Funcionários: admin e financeiro e secretaria ── #}
-    {% if full_access %}
     <div class="home-card" onclick="location.href='/funcionario'">
         <i class="fas fa-users c10"></i><span>Funcion&#225;rios</span>
     </div>
@@ -126,21 +124,13 @@ body{
     </div>
     {% endif %}
 
-    {# ── Conte&#250;dos: admin, secretaria, instrutor ── #}
-    {% if is_admin or is_secretaria or is_instrutor %}
-    <div class="home-card" onclick="location.href='/conteudos'">
-        <i class="fas fa-book-open c6"></i><span>Conte&#250;dos</span>
-    </div>
-    {% endif %}
-
-    {# ── Backup: somente admin ── #}
-    {% if is_admin %}
+    {# Backup: admin e financeiro (acesso total) #}
+    {% if full_access %}
     <div class="home-card" onclick="location.href='/backup'">
         <i class="fas fa-database c3"></i><span>Backup</span>
     </div>
     {% endif %}
 
-    {# ── Sair: sempre ── #}
     <div class="home-card" onclick="location.href='/logout'">
         <i class="fas fa-sign-out-alt c12"></i><span>Sair</span>
     </div>

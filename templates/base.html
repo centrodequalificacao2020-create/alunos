@@ -19,7 +19,8 @@
         {% set is_financeiro = perfil == 'financeiro' %}
         {% set is_secretaria = perfil == 'secretaria' %}
         {% set is_instrutor  = perfil == 'instrutor' %}
-        {% set full_access   = is_admin or is_financeiro or is_secretaria %}
+        {% set full_access   = is_admin or is_financeiro %}
+        {% set meio_access   = is_secretaria %}
 
         {% if perfil == "aluno" or session.aluno_id and not session.usuario_id %}
             <a href="/aluno/dashboard" class="{{ 'active' if request.path == '/aluno/dashboard' }}">In&#237;cio</a>
@@ -31,23 +32,23 @@
 
             <a href="/" class="{{ 'active' if request.path == '/' }}">Home</a>
 
-            {# ── Dashboard, Financeiro, Despesas, Relat&#243;rios: admin + financeiro + secretaria ── #}
-            {% if full_access %}
+            {# Dashboard, Financeiro, Despesas, Relat&#243;rios: admin + financeiro + secretaria #}
+            {% if full_access or meio_access %}
                 <a href="/dashboard"  class="{{ 'active' if request.path == '/dashboard'  }}">Dashboard</a>
                 <a href="/financeiro" class="{{ 'active' if request.path == '/financeiro' }}">Financeiro</a>
                 <a href="/despesas"   class="{{ 'active' if request.path == '/despesas'   }}">Despesas</a>
                 <a href="/relatorio"  class="{{ 'active' if request.path == '/relatorio'  }}">Relat&#243;rios</a>
             {% endif %}
 
-            {# ── Alunos, Cursos, Matr&#237;culas: admin + financeiro + secretaria ── #}
-            {% if full_access %}
+            {# Alunos, Cursos, Matr&#237;culas: admin + financeiro + secretaria #}
+            {% if full_access or meio_access %}
                 <a href="/cadastro"     class="{{ 'active' if request.path == '/cadastro'     }}">Alunos</a>
                 <a href="/cursos"       class="{{ 'active' if request.path == '/cursos'       }}">Cursos</a>
                 <a href="/movimentacao" class="{{ 'active' if request.path == '/movimentacao' }}">Matr&#237;culas</a>
             {% endif %}
 
-            {# ── Turmas, Mat&#233;rias, Conte&#250;dos, Notas, Frequ&#234;ncia: admin + secretaria + instrutor ── #}
-            {% if is_admin or is_secretaria or is_instrutor %}
+            {# Turmas, Mat&#233;rias, Conte&#250;dos, Notas, Frequ&#234;ncia: admin + financeiro + secretaria + instrutor #}
+            {% if full_access or meio_access or is_instrutor %}
                 <a href="/turmas"     class="{{ 'active' if request.path == '/turmas'     }}">Turmas</a>
                 <a href="/materias"   class="{{ 'active' if request.path == '/materias'   }}">Mat&#233;rias</a>
                 <a href="/conteudos"  class="{{ 'active' if request.path == '/conteudos'  }}">Conte&#250;dos</a>
@@ -55,19 +56,13 @@
                 <a href="/frequencia" class="{{ 'active' if request.path == '/frequencia' }}">Frequ&#234;ncia</a>
             {% endif %}
 
-            {# ── Notas e Frequ&#234;ncia para financeiro (n&#227;o tem acima) ── #}
-            {% if is_financeiro %}
-                <a href="/notas"      class="{{ 'active' if request.path == '/notas'      }}">Notas</a>
-                <a href="/frequencia" class="{{ 'active' if request.path == '/frequencia' }}">Frequ&#234;ncia</a>
-            {% endif %}
-
-            {# ── Funcion&#225;rios: admin + financeiro + secretaria ── #}
-            {% if full_access %}
+            {# Funcion&#225;rios: admin + financeiro + secretaria #}
+            {% if full_access or meio_access %}
                 <a href="/funcionario" class="{{ 'active' if request.path == '/funcionario' }}">Funcion&#225;rios</a>
             {% endif %}
 
-            {# ── Backup: somente admin ── #}
-            {% if is_admin %}
+            {# Backup: admin e financeiro (acesso total) #}
+            {% if full_access %}
                 <a href="/backup">Backup</a>
             {% endif %}
 
