@@ -5,7 +5,7 @@
 <div class="card">
     <div class="card-header">
         <span>🎓</span>
-        <h2>Bem-vindo, {{ aluno.nome.split()[0] }}!</h2>
+        <h2>Bem-vindo, {{ aluno.nome.strip().split()[0] }}!</h2>
     </div>
     {% if matricula %}
     <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
@@ -14,11 +14,11 @@
 
 <div class="grid-3" style="max-width:900px; margin:0 auto;">
 
-    <a href="/aluno/dashboard" class="card" style="text-align:center; text-decoration:none; color:inherit;">
+    <a href="/aluno/financeiro" class="card" style="text-align:center; text-decoration:none; color:inherit;">
         <div style="font-size:2rem;">💰</div>
         <h3>Financeiro</h3>
         {% if pendentes > 0 %}
-        <span class="badge badge-erro">{{ pendentes }} pendente{{ 's' if pendentes > 1 }}</span>
+        <span class="badge badge-erro">{{ pendentes }} PENDENTE{{ 'S' if pendentes > 1 }}</span>
         {% else %}
         <span class="badge badge-sucesso">Em dia</span>
         {% endif %}
@@ -51,41 +51,5 @@
 </div>
 
 <a href="/aluno/logout" style="display:block; text-align:center; margin:8px auto; font-size:13px; color:var(--color-text-muted);">Sair</a>
-
-{% if mensalidades %}
-<div class="card" style="max-width:900px; margin:16px auto;">
-    <h3>💳 Mensalidades</h3>
-    <div class="tabela-planilha">
-        <table class="tabela-excel">
-            <thead>
-                <tr>
-                    <th>Parcela</th>
-                    <th>Vencimento</th>
-                    <th>Tipo</th>
-                    <th>Valor</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for m in mensalidades %}
-            <tr {% if m.status != 'Pago' %}style="background:#fff0f0"{% endif %}>
-                <td>{{ m.parcela_ref or '—' }}</td>
-                <td>{{ m.vencimento }}</td>
-                <td>{{ m.tipo or '—' }}</td>
-                <td>R$ {{ '%.2f'|format(m.valor) }}</td>
-                <td>
-                    {% if m.status == 'Pago' %}
-                    <span class="status-ativo">✅ Pago</span>
-                    {% else %}
-                    <span class="status-inativo">⏳ Pendente</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
 
 {% endblock %}

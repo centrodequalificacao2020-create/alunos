@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Financeiro{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:900px; margin:0 auto 16px;">
+    <div class="card-header">
+        <span>💰</span>
+        <h2>Financeiro</h2>
+    </div>
+    {% if matricula %}
+    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
+    {% endif %}
+</div>
+
+{% if pendentes > 0 %}
+<div class="card" style="max-width:900px; margin:0 auto 16px; text-align:center; border-left:4px solid #ef4444;">
+    <p style="font-size:1.1rem; color:#ef4444; font-weight:600;">
+        ⚠️ {{ pendentes }} parcela{{ 's' if pendentes > 1 }} pendente{{ 's' if pendentes > 1 }}
+    </p>
+    <p style="font-size:1.4rem; font-weight:700; color:#ef4444;">R$ {{ '%.2f'|format(valor_pendente) }}</p>
+    <p style="font-size:13px; color:var(--color-text-muted);">Regularize com a secretaria</p>
+</div>
+{% else %}
+<div class="card" style="max-width:900px; margin:0 auto 16px; text-align:center; border-left:4px solid #22c55e;">
+    <p style="font-size:1.1rem; color:#22c55e; font-weight:600;">✅ Pagamentos em dia</p>
+</div>
+{% endif %}
+
+{% if mensalidades %}
+<div class="card" style="max-width:900px; margin:0 auto;">
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Parcela</th>
+                    <th>Vencimento</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for m in mensalidades %}
+            <tr {% if m.status != 'Pago' %}style="background:#fff0f0"{% endif %}>
+                <td>{{ m.parcela_ref or '—' }}</td>
+                <td>{{ m.vencimento }}</td>
+                <td>{{ m.tipo or '—' }}</td>
+                <td>R$ {{ '%.2f'|format(m.valor) }}</td>
+                <td>
+                    {% if m.status == 'Pago' %}
+                    <span class="status-ativo">✅ Pago</span>
+                    {% else %}
+                    <span class="status-inativo">⏳ Pendente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card" style="max-width:900px; margin:0 auto; text-align:center;">
+    <p style="color:var(--color-text-muted);">Nenhuma cobrança registrada.</p>
+</div>
+{% endif %}
+
+<div style="text-align:center; margin-top:16px;">
+    <a href="/aluno/dashboard" class="btn btn-secondary">Voltar ao início</a>
+</div>
+
+{% endblock %}
