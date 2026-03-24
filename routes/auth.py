@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, session, flash
 from models import Usuario, Aluno
 from security import verificar_senha
+from app import limiter
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -17,6 +18,7 @@ def _vincular_aluno(user):
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
     if request.method == "POST":
         u = request.form.get("login", "").strip()
