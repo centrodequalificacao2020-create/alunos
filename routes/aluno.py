@@ -69,13 +69,13 @@ def cadastro():
         db.session.add(a)
         db.session.commit()
         flash(
-            f"Aluno cadastrado! Acesso ao portal liberado — "
+            f"Aluno cadastrado! Acesso ao portal liberado \u2014 "
             f"senha inicial: {senha_inicial} (CPF sem pontos).",
             "sucesso"
         )
         return redirect("/cadastro")
 
-    # ── GET ──────────────────────────────────────────────────────────────
+    # ── GET ────────────────────────────────────────────────────────────────
     page   = request.args.get("page", 1, type=int)
     busca  = request.args.get("q", "").strip()
     status = request.args.get("status", "").strip()
@@ -125,7 +125,7 @@ def pendencias_aluno(id):
 @aluno_bp.route("/excluir_aluno/<int:id>", methods=["POST"])
 @login_required
 def excluir_aluno(id):
-    from models import Usuario
+    from models import Usuario, TurmaAluno, Nota, Frequencia, ProgressoAula
     senha = request.form.get("senha", "")
     user  = Usuario.query.get(session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
@@ -133,6 +133,11 @@ def excluir_aluno(id):
         return redirect("/cadastro")
     a = Aluno.query.get_or_404(id)
     nome = a.nome
+    # deletar dependentes antes do aluno para evitar violação de NOT NULL / FK
+    TurmaAluno.query.filter_by(aluno_id=id).delete()
+    Nota.query.filter_by(aluno_id=id).delete()
+    Frequencia.query.filter_by(aluno_id=id).delete()
+    ProgressoAula.query.filter_by(aluno_id=id).delete()
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
     db.session.delete(a)
