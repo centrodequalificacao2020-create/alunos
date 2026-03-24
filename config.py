@@ -1,5 +1,6 @@
 import os
 import secrets
+from datetime import timedelta
 from dotenv import load_dotenv
 
 # Caminho absoluto garante que o .env é encontrado independente de onde o CLI é chamado
@@ -33,7 +34,15 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS      = {
         "connect_args": {"check_same_thread": False, "timeout": 30},
     }
-    UPLOAD_FOLDER = os.path.join(BASEDIR, "static", "uploads")
+    UPLOAD_FOLDER                  = os.path.join(BASEDIR, "static", "uploads")
     MAX_CONTENT_LENGTH             = 10 * 1024 * 1024
     EXTENSOES_PERMITIDAS           = {"pdf", "png", "jpg", "jpeg", "docx", "mp4"}
     DEBUG                          = os.getenv("FLASK_DEBUG", "False") == "True"
+
+    # ── S1: Cookie de sessão seguro ───────────────────────────────
+    SESSION_COOKIE_HTTPONLY        = True   # JS não acessa o cookie
+    SESSION_COOKIE_SAMESITE        = "Lax"  # proteção básica contra CSRF
+    SESSION_COOKIE_SECURE          = os.getenv("FLASK_DEBUG", "False") != "True"
+
+    # ── S5: Expiração automática da sessão em 1 hora ──────────────
+    PERMANENT_SESSION_LIFETIME     = timedelta(hours=1)
