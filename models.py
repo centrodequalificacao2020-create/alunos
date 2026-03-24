@@ -6,9 +6,7 @@ from enums import (
 )
 
 
-# ─── Constantes de domínio (retrocompat) ─────────────────────────────────────
-# Mantidos para não quebrar código legado que importe daqui.
-# Prefira usar as classes de enums.py diretamente.
+# ─── Constantes de domínio (retrocompat) ───────────────────────────────────────────────
 PERFIS_VALIDOS   = PerfilUsuario.valores()
 STATUS_MATRICULA = StatusMatricula.valores()
 
@@ -19,7 +17,6 @@ class Usuario(db.Model):
     usuario         = db.Column(db.String(80), unique=True, nullable=False)
     senha           = db.Column(db.String(256), nullable=False)
     nome            = db.Column(db.String(120))
-    # perfil: admin | administrador | secretaria | financeiro | instrutor
     perfil          = db.Column(db.String(40), default=PerfilUsuario.SECRETARIA.value)
     cpf             = db.Column(db.String(14))
     data_nascimento = db.Column(db.String(10))
@@ -39,7 +36,6 @@ class Curso(db.Model):
     valor_total     = db.Column(db.Float, default=0)
     tipo            = db.Column(db.String(60))
     duracao         = db.Column(db.String(60))
-    # alunos via curso_id em Aluno é mantido apenas por compatibilidade legada
     alunos          = db.relationship("Aluno",     backref="curso",  lazy=True)
     matriculas      = db.relationship("Matricula", backref="curso",  lazy=True)
     materias        = db.relationship("Materia",   backref="curso",  lazy=True)
@@ -84,7 +80,6 @@ class Aluno(db.Model):
     estado                 = db.Column(db.String(2))
     cep                    = db.Column(db.String(9))
     status                 = db.Column(db.String(40), default=StatusAluno.ATIVO.value)
-    # curso_id mantido por compatibilidade; fonte da verdade é matriculas
     curso_id               = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     responsavel_nome       = db.Column(db.String(120))
     responsavel_cpf        = db.Column(db.String(14))
@@ -98,7 +93,6 @@ class Aluno(db.Model):
 
     @property
     def matricula_ativa(self):
-        """Retorna a matrícula ativa do aluno ou None."""
         return next(
             (m for m in self.matriculas
              if m.status.upper() == StatusMatricula.ATIVA.value), None
@@ -106,7 +100,6 @@ class Aluno(db.Model):
 
     @property
     def curso_ativo(self):
-        """Curso da matrícula ativa (fonte da verdade)."""
         m = self.matricula_ativa
         return m.curso if m else None
 
@@ -120,9 +113,7 @@ class Matricula(db.Model):
                                     nullable=False)
     tipo_curso          = db.Column(db.String(60))
     data_matricula      = db.Column(db.String(10))
-    # status: ATIVA | INATIVA | TRANCADA | CONCLUIDA  (sempre maiúsculo)
-    status              = db.Column(db.String(20),
-                                    default=StatusMatricula.ATIVA.value)
+    status              = db.Column(db.String(20), default=StatusMatricula.ATIVA.value)
     valor_matricula     = db.Column(db.Float, default=0)
     valor_mensalidade   = db.Column(db.Float, default=0)
     quantidade_parcelas = db.Column(db.Integer, default=1)
@@ -147,12 +138,10 @@ class Mensalidade(db.Model):
         db.Index("ix_mensalidades_status",     "status"),
     )
     id                = db.Column(db.Integer, primary_key=True)
-    aluno_id          = db.Column(db.Integer, db.ForeignKey("alunos.id"),
-                                   nullable=False)
+    aluno_id          = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
     valor             = db.Column(db.Float, nullable=False)
     vencimento        = db.Column(db.String(10), nullable=False)
-    status            = db.Column(db.String(20),
-                                   default=StatusMensalidade.PENDENTE.value)
+    status            = db.Column(db.String(20), default=StatusMensalidade.PENDENTE.value)
     tipo              = db.Column(db.String(40))
     parcela_ref       = db.Column(db.String(20))
     data_pagamento    = db.Column(db.String(10))
@@ -194,8 +183,7 @@ class Frequencia(db.Model):
     aluno_id = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
     curso_id = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     data     = db.Column(db.String(10))
-    status   = db.Column(db.String(20),
-                          default=StatusFrequencia.PRESENTE.value)
+    status   = db.Column(db.String(20), default=StatusFrequencia.PRESENTE.value)
 
 
 class Materia(db.Model):
@@ -203,7 +191,6 @@ class Materia(db.Model):
     id        = db.Column(db.Integer, primary_key=True)
     nome      = db.Column(db.String(120), nullable=False)
     ativa     = db.Column(db.Integer, default=1)
-    # curso_id direto mantido por compatibilidade; use CursoMateria para multi-curso
     curso_id  = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     conteudos = db.relationship("Conteudo", backref="materia", lazy=True,
                                 cascade="all, delete-orphan")
@@ -213,8 +200,9 @@ class Materia(db.Model):
 class CursoMateria(db.Model):
     __tablename__ = "cursos_materias"
     __table_args__ = (
-        db.UniqueConstraint("curso_id", "materia_id",
-                            name="uq_cursos_materias"),
+        db.UniqueConstraint("curso_id", "materia_id", name="uq_cursos_materias"),
+        db.Index("ix_cursos_materias_curso_id",   "curso_id"),
+        db.Index("ix_cursos_materias_materia_id", "materia_id"),
     )
     id         = db.Column(db.Integer, primary_key=True)
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
@@ -235,17 +223,12 @@ class Conteudo(db.Model):
 class Nota(db.Model):
     __tablename__ = "notas"
     __table_args__ = (
-        # curso_id mantido na constraint por compatibilidade com dados existentes
         db.UniqueConstraint("aluno_id", "materia_id", "curso_id"),
     )
     id         = db.Column(db.Integer, primary_key=True)
-    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"),
-                            nullable=False, index=True)
-    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"),
-                            nullable=False)
-    # curso_id mantido para não quebrar queries de lançamento admin
-    curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"),
-                            nullable=False)
+    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"),   nullable=False, index=True)
+    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"),   nullable=False)
     nota       = db.Column(db.Float)
     resultado  = db.Column(db.String(40))
 
