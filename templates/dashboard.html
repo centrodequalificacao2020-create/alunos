@@ -17,7 +17,18 @@
     gap: 8px;
 }
 .graficos-row { margin-top: 24px; }
-.grafico-card canvas { height: 220px !important; }
+.grafico-card canvas { height: 260px !important; }
+
+/* grid 2x2 para os blocos de gráficos */
+.grid-graficos {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 24px;
+}
+@media (max-width: 700px) {
+    .grid-graficos { grid-template-columns: 1fr; }
+}
 </style>
 {% endblock %}
 
@@ -27,18 +38,18 @@
 <div class="dashboard-toolbar">
     <h2>Dashboard</h2>
     <form method="get" class="dashboard-filtro">
-        <label for="mes">Período:</label>
+        <label for="mes">Per&#237;odo:</label>
         <input type="month" id="mes" name="mes" value="{{ mes }}">
         <button type="submit" class="btn btn-azul">Filtrar</button>
     </form>
 </div>
 
-<p class="card-subtitle">Visão Geral do Mês</p>
+<p class="card-subtitle">Vis&#227;o Geral do M&#234;s</p>
 
 <h3 class="section-title">Indicadores Financeiros Principais</h3>
 <div class="grid-4">
     <div class="card dashboard-card card--success">
-        <h4>Recebido no mês</h4>
+        <h4>Recebido no m&#234;s</h4>
         <p class="valor-success">{{ recebido_mes|moeda }}</p>
     </div>
     <div class="card dashboard-card card--info">
@@ -58,11 +69,11 @@
 <h3 class="section-title">Indicadores Comerciais</h3>
 <div class="grid-4">
     <div class="card dashboard-card card--teal">
-        <h4>Recebimento de Matrícula</h4>
+        <h4>Recebimento de Matr&#237;cula</h4>
         <p class="valor-teal">{{ recebimento_matricula|moeda }}</p>
     </div>
     <div class="card dashboard-card card--purple">
-        <h4>Matrículas no mês</h4>
+        <h4>Matr&#237;culas no m&#234;s</h4>
         <p class="valor-purple">{{ matriculas_mes }}</p>
     </div>
     <div class="card dashboard-card card--orange">
@@ -70,15 +81,15 @@
         <p class="valor-orange">{{ vencendo }}</p>
     </div>
     <div class="card dashboard-card card--dark">
-        <h4>Matrículas Futuras</h4>
+        <h4>Matr&#237;culas Futuras</h4>
         <p>{{ matriculas_futuras|moeda }}</p>
     </div>
 </div>
 
-<h3 class="section-title">Resultado do Negócio</h3>
+<h3 class="section-title">Resultado do Neg&#243;cio</h3>
 <div class="grid-4">
     <div class="card dashboard-card card--danger">
-        <h4>Despesas do mês</h4>
+        <h4>Despesas do m&#234;s</h4>
         <p class="valor-danger">{{ despesas_mes|moeda }}</p>
     </div>
     <div class="card dashboard-card {{ 'card--danger' if lucro_liquido < 0 else 'card--success' }}">
@@ -93,33 +104,35 @@
     </div>
     <div class="card dashboard-card">
         <h4>Resultado</h4>
-        <p>{% if lucro_liquido >= 0 %}Lucro{% else %}Prejuízo{% endif %}</p>
+        <p>{% if lucro_liquido >= 0 %}Lucro{% else %}Preju&#237;zo{% endif %}</p>
     </div>
 </div>
 
-<h3 class="section-title">Indicadores Financeiros Avançados</h3>
+<h3 class="section-title">Indicadores Financeiros Avan&#231;ados</h3>
 <div class="grid-4">
     <div class="card dashboard-card card--success">
         <h4>Receita projetada</h4>
         <p class="valor-success">{{ receita_projetada|moeda }}</p>
     </div>
     <div class="card dashboard-card card--info">
-        <h4>Ticket médio</h4>
+        <h4>Ticket m&#233;dio</h4>
         <p class="valor-info">{{ ticket_medio|moeda }}</p>
     </div>
     <div class="card dashboard-card card--danger">
-        <h4>Taxa de inadimplência</h4>
+        <h4>Taxa de inadimpl&#234;ncia</h4>
         <p class="valor-danger">{{ "%.1f"|format(taxa_inadimplencia) }}%</p>
     </div>
     <div class="card dashboard-card card--purple">
-        <h4>Taxa de evasão</h4>
+        <h4>Taxa de evas&#227;o</h4>
         <p class="valor-purple">{{ "%.1f"|format(taxa_evasao) }}%</p>
     </div>
 </div>
 
-<div class="grid-4 graficos-row">
+<!-- gr&#225;ficos: grid 2x2 -->
+<h3 class="section-title">Gr&#225;ficos Financeiros</h3>
+<div class="grid-graficos graficos-row">
     <div class="card grafico-card">
-        <h3>Receita (Últimos Meses)</h3>
+        <h3>Receita (&#218;ltimos Meses)</h3>
         <canvas id="graficoReceitaPizza"></canvas>
     </div>
     <div class="card grafico-card">
@@ -136,10 +149,10 @@
     </div>
 </div>
 
-<h3 class="section-title section-title--sep">📊 Análise Comercial (Leads x Matrículas)</h3>
-<div class="grid-3">
+<h3 class="section-title section-title--sep">&#128202; An&#225;lise Comercial (Leads x Matr&#237;culas)</h3>
+<div class="grid-graficos">
     <div class="card grafico-card"><h3>Leads</h3><canvas id="graficoLeads"></canvas></div>
-    <div class="card grafico-card"><h3>Conversão</h3><canvas id="graficoConversao"></canvas></div>
+    <div class="card grafico-card"><h3>Convers&#227;o</h3><canvas id="graficoConversao"></canvas></div>
     <div class="card grafico-card"><h3>Vendas</h3><canvas id="graficoVendas"></canvas></div>
 </div>
 
@@ -219,7 +232,7 @@ new Chart('graficoLeads',{ type:'doughnut',
     data:{ labels:['Meta','Realizado'], datasets:[{data:[meta,leads],backgroundColor:['#95a5a6','#3498db'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
 new Chart('graficoConversao',{ type:'doughnut',
-    data:{ labels:['Leads','Matrículas'], datasets:[{data:[leads,matriculas],backgroundColor:['#3498db','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
+    data:{ labels:['Leads','Matr&#237;culas'], datasets:[{data:[leads,matriculas],backgroundColor:['#3498db','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
 new Chart('graficoVendas',{ type:'doughnut',
     data:{ labels:['Meta','Vendas'], datasets:[{data:[metaVendas,vendasRel],backgroundColor:['#95a5a6','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
