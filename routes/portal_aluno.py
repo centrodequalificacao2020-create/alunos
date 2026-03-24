@@ -51,6 +51,18 @@ def dashboard_aluno():
     pendentes    = sum(1 for m in mensalidades if m.status != "Pago")
     val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
     return render_template("aluno/dashboard.html", aluno=aluno,
+        matricula=matricula, pendentes=pendentes, valor_pendente=val_pend)
+
+
+@portal_aluno_bp.route("/financeiro")
+@aluno_login_required
+def financeiro_aluno():
+    aluno        = db.get_or_404(Aluno, session["aluno_id"])
+    matricula    = _matricula_ativa(aluno.id)
+    mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
+    pendentes    = sum(1 for m in mensalidades if m.status != "Pago")
+    val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
+    return render_template("aluno/financeiro.html", aluno=aluno,
         matricula=matricula, mensalidades=mensalidades,
         pendentes=pendentes, valor_pendente=val_pend)
 
@@ -72,8 +84,7 @@ def notas_aluno():
     media     = None
 
     if matricula:
-        # Busca as matérias do curso via cursos_materias e faz LEFT JOIN com notas
-        # para mostrar TODAS as matérias mesmo sem nota lançada
+        # LEFT JOIN: mostra todas as matérias mesmo sem nota lançada
         rows = (
             db.session.query(Materia, Nota)
             .join(CursoMateria, CursoMateria.materia_id == Materia.id)
@@ -90,8 +101,7 @@ def notas_aluno():
             .order_by(Materia.nome)
             .all()
         )
-        # rows = lista de (Materia, Nota|None)
-        # reordena para manter compatibilidade com template que espera (Nota, Materia)
+        # reordena para (Nota|None, Materia) — compatível com o template
         notas = [(nota, materia) for materia, nota in rows]
 
         valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
