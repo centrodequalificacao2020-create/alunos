@@ -15,15 +15,18 @@ def login_aluno():
         senha = request.form.get("senha", "")
         aluno = Aluno.query.filter_by(email=email).first()
         if aluno and aluno.senha and verificar_senha(senha, aluno.senha):
+            session.clear()                        # ← limpa sessão admin anterior
             session["aluno_id"] = aluno.id
+            session["perfil"]   = "aluno"          # ← garante menu correto
             return redirect("/aluno/dashboard")
         flash("E-mail ou senha incorretos.", "erro")
     return render_template("aluno/login.html")
 
 
+
 @portal_aluno_bp.route("/logout")
 def logout_aluno():
-    session.pop("aluno_id", None)
+    session.clear()                                # ← era só pop("aluno_id")
     return redirect("/aluno/login")
 
 

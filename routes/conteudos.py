@@ -4,7 +4,9 @@ from db import db
 from models import Conteudo, Materia, CursoMateria, Curso
 from security import login_required, extensao_permitida
 
+
 conteudos_bp = Blueprint("conteudos", __name__)
+
 
 def _limpar(nome):
     import re
@@ -22,7 +24,7 @@ def conteudos():
         titulo     = request.form.get("titulo")
         materia_id = request.form.get("materia_id")
         modulo     = request.form.get("modulo")
-        video      = request.form.get("video")
+        video      = request.form.get("video", "").strip() or None
         arquivo    = request.files.get("arquivo")
         caminho_db = None
 
@@ -31,22 +33,19 @@ def conteudos():
                 flash("Tipo de arquivo não permitido.", "erro")
                 return redirect("/conteudos")
 
-            nome_seg = _limpar(arquivo.filename)
-
-            # Caminho absoluto para salvar fisicamente o arquivo
-            pasta_abs = os.path.join(current_app.root_path, "static", "uploads")
+            nome_seg    = _limpar(arquivo.filename)
+            pasta_abs   = os.path.join(current_app.root_path, "static", "uploads")
             os.makedirs(pasta_abs, exist_ok=True)
             caminho_abs = os.path.join(pasta_abs, nome_seg)
             arquivo.save(caminho_abs)
-
-            # Caminho relativo salvo no banco (sempre a partir da raiz do projeto)
-            caminho_db = os.path.join("static", "uploads", nome_seg)
+            caminho_db  = os.path.join("static", "uploads", nome_seg)
 
         c = Conteudo(
             titulo     = titulo,
             materia_id = materia_id,
-            modulo     = modulo,
-            arquivo    = caminho_db or video
+            modulo     = modulo or None,
+            arquivo    = caminho_db,   # ← campo separado para arquivo físico
+            video      = video,        # ← campo separado para link de vídeo
         )
         db.session.add(c)
         db.session.commit()
@@ -63,11 +62,46 @@ def conteudos():
 def excluir_conteudo(id):
     c = Conteudo.query.get_or_404(id)
     if c.arquivo and not c.arquivo.startswith("http"):
-        # Resolve caminho absoluto para deletar o arquivo físico
         caminho_abs = os.path.join(current_app.root_path, c.arquivo)
         if os.path.isfile(caminho_abs):
             os.remove(caminho_abs)
     db.session.delete(c)
     db.session.commit()
     flash("Conteúdo excluído.", "sucesso")
+    return redirect("/conteudos")
+
+
+@conteudos_bp.route("/conteudos/editar/<int:id>", methods=["POST"])
+@login_required
+def editar_conteudo(id):
+    c      = Conteudo.query.get_or_404(id)
+    f      = request.form
+    titulo = f.get("titulo", "").strip()
+    modulo = f.get("modulo", "").strip()
+    video  = f.get("video",  "").strip()
+
+    if titulo:
+        c.titulo = titulo
+    c.modulo = modulo or None
+    c.video  = video  or None
+
+    arquivo = request.files.get("arquivo")
+    if arquivo and arquivo.filename:
+        if not extensao_permitida(arquivo.filename):
+            flash("Tipo de arquivo não permitido.", "erro")
+            return redirect("/conteudos")
+        # Remove arquivo antigo se existir
+        if c.arquivo and not c.arquivo.startswith("http"):
+            antigo = os.path.join(current_app.root_path, c.arquivo)
+            if os.path.isfile(antigo):
+                os.remove(antigo)
+        nome_seg    = _limpar(arquivo.filename)
+        pasta_abs   = os.path.join(current_app.root_path, "static", "uploads")
+        os.makedirs(pasta_abs, exist_ok=True)
+        caminho_abs = os.path.join(pasta_abs, nome_seg)
+        arquivo.save(caminho_abs)
+        c.arquivo   = os.path.join("static", "uploads", nome_seg)
+
+    db.session.commit()
+    flash("Conteúdo atualizado.", "sucesso")
     return redirect("/conteudos")

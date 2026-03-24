@@ -25,7 +25,7 @@ def cadastro():
                 func.replace(func.replace(func.replace(Aluno.cpf, ".", ""), "-", ""), " ", "") == cpf
             ).first()
             if existente:
-                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 cursos    = Curso.query.order_by(Curso.nome).all()
                 paginacao = Aluno.query.order_by(Aluno.nome).paginate(page=1, per_page=20, error_out=False)
                 hoje = date.today().isoformat()
@@ -40,9 +40,9 @@ def cadastro():
                                        cursos=cursos,
                                        inadimplentes=len(inadimplentes_ids),
                                        paginacao=paginacao,
-                                       busca="")
+                                       busca="",
+                                       status="")
 
-        # Senha inicial = CPF limpo; se não tiver CPF, usa email; se nenhum, bloqueia
         senha_inicial = cpf or _cpf_limpo(f.get("email", ""))
         if not senha_inicial:
             flash("Informe ao menos o CPF ou e-mail para gerar o acesso ao portal.", "erro")
@@ -75,15 +75,10 @@ def cadastro():
         )
         return redirect("/cadastro")
 
-    page      = request.args.get("page", 1, type=int)
-    busca     = request.args.get("q", "").strip()
-    query     = Aluno.query.order_by(Aluno.nome)
-    if busca:
-        query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
-    paginacao = query.paginate(page=page, per_page=20, error_out=False)
-    alunos    = paginacao.items
-
-    cursos = Curso.query.order_by(Curso.nome).all()
+    # ── GET ──────────────────────────────────────────────────────────────
+    page   = request.args.get("page", 1, type=int)
+    busca  = request.args.get("q", "").strip()
+    status = request.args.get("status", "").strip()
 
     hoje = date.today().isoformat()
     inadimplentes_ids = {
@@ -91,15 +86,32 @@ def cadastro():
         .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje)
         .all()
     }
+
+    query = Aluno.query.order_by(Aluno.nome)
+
+    if busca:
+        query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
+
+    if status == "Inadimplente":
+        query = query.filter(Aluno.id.in_(inadimplentes_ids))
+    elif status:
+        query = query.filter(Aluno.status == status)
+
+    paginacao = query.paginate(page=page, per_page=20, error_out=False)
+    alunos    = paginacao.items
+
     for a in alunos:
         a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
+
+    cursos = Curso.query.order_by(Curso.nome).all()
 
     return render_template("cadastro.html",
                            alunos=alunos,
                            cursos=cursos,
                            inadimplentes=len(inadimplentes_ids),
                            paginacao=paginacao,
-                           busca=busca)
+                           busca=busca,
+                           status=status)
 
 
 @aluno_bp.route("/aluno/<int:id>/pendencias")
@@ -117,7 +129,7 @@ def excluir_aluno(id):
     senha = request.form.get("senha", "")
     user  = Usuario.query.get(session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
-        flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
+        flash("Senha incorreta. Exclusão cancelada.", "erro")
         return redirect("/cadastro")
     a = Aluno.query.get_or_404(id)
     nome = a.nome
@@ -125,7 +137,7 @@ def excluir_aluno(id):
     Matricula.query.filter_by(aluno_id=id).delete()
     db.session.delete(a)
     db.session.commit()
-    flash(f"Aluno \u201c{nome}\u201d exclu\u00eddo com sucesso.", "sucesso")
+    flash(f"Aluno \u201c{nome}\u201d excluído com sucesso.", "sucesso")
     return redirect("/cadastro")
 
 
@@ -143,7 +155,7 @@ def editar_aluno(id):
                 Aluno.id != id
             ).first()
             if existente:
-                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
 
@@ -166,12 +178,11 @@ def editar_aluno(id):
         confirm    = f.get("senha_portal_confirm", "").strip()
         if nova_senha:
             if nova_senha != confirm:
-                flash("As senhas do portal n\u00e3o conferem.", "erro")
+                flash("As senhas do portal não conferem.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
             a.senha = hash_senha(nova_senha)
 
-        # Se aluno ainda não tem senha, gera pelo CPF agora
         if not a.senha:
             fallback = cpf or _cpf_limpo(a.email or "")
             if fallback:
@@ -180,6 +191,7 @@ def editar_aluno(id):
         db.session.commit()
         flash("Aluno atualizado.", "sucesso")
         return redirect("/cadastro")
+
     cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("editar_aluno.html", aluno=a, cursos=cursos)
 

@@ -3,11 +3,15 @@
 
 {% block styles %}
 <style>
-.conteudos-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 24px; }
-.conteudo-materia { font-weight: bold; margin-top: 10px; margin-bottom: 4px; color: #555; }
-.conteudo-item { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
-.conteudo-item:last-child { border-bottom: none; }
-.curso-body { display: none; padding: 10px; }
+.conteudo-item       { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 0; border-bottom:1px solid #eee; }
+.conteudo-item:last-child { border-bottom:none; }
+.conteudo-item span  { flex:1; min-width:120px; font-weight:500; }
+.conteudo-acoes      { display:flex; gap:6px; align-items:center; }
+.preview-toggle      { background:none; border:1px solid #aaa; border-radius:4px; cursor:pointer; font-size:12px; padding:2px 8px; color:#444; }
+.preview-box         { width:100%; margin-top:8px; display:none; }
+.preview-box iframe,
+.preview-box video   { width:100%; height:320px; border:none; border-radius:6px; background:#000; }
+.preview-box.aberto  { display:block; }
 </style>
 {% endblock %}
 
@@ -48,7 +52,7 @@
             </div>
             <div class="campo">
                 <label for="video">Link do Vídeo</label>
-                <input type="text" id="video" name="video">
+                <input type="text" id="video" name="video" placeholder="YouTube, Vimeo ou URL direta">
             </div>
         </div>
         <div style="margin-top:16px">
@@ -75,15 +79,28 @@
     <ul style="padding-left:0;list-style:none">
 {% endif %}
 
-<li class="conteudo-item">
+<li class="conteudo-item" id="item-{{ c.id }}">
     <span>{{ c.titulo or "Sem título" }}</span>
     {% if c.modulo %}<small style="color:#888">{{ c.modulo }}</small>{% endif %}
-    {% if c.arquivo %}<a href="/{{ c.arquivo }}" target="_blank">📄 PDF</a>{% endif %}
-    {% if c.video %}<a href="{{ c.video }}" target="_blank">🎬 Vídeo</a>{% endif %}
-    <form method="POST" action="/conteudos/excluir/{{ c.id }}" style="display:inline"
-          onsubmit="return confirm('Excluir conteúdo?')">
-        <button class="btn btn-lixeira" style="padding:2px 6px;font-size:13px">🗑️</button>
-    </form>
+
+    <div class="conteudo-acoes">
+        {% if c.arquivo %}
+        <button class="preview-toggle" onclick="togglePreview({{ c.id }}, 'pdf', '/aluno/arquivo/{{ c.id }}')">📄 PDF</button>
+        {% endif %}
+        {% if c.video %}
+        <button class="preview-toggle" onclick="togglePreview({{ c.id }}, 'video', '{{ c.video }}')">🎬 Vídeo</button>
+        {% endif %}
+
+        <button class="btn btn-editar tooltip" data-tooltip="Editar"
+                onclick="abrirModalEditar({{ c.id }}, '{{ c.titulo|e }}', '{{ c.modulo or '' }}', '{{ c.video or '' }}')">✏️</button>
+
+        <form method="POST" action="/conteudos/excluir/{{ c.id }}" style="display:inline"
+              onsubmit="return confirm('Excluir conteúdo?')">
+            <button class="btn btn-lixeira" style="padding:2px 6px;font-size:13px">🗑️</button>
+        </form>
+    </div>
+
+    <div class="preview-box" id="preview-{{ c.id }}"></div>
 </li>
 
 {% if loop.last %}</ul></div>{% endif %}
@@ -92,10 +109,42 @@
 {% else %}
 <p class="empty-state">Nenhum conteúdo cadastrado ainda.</p>
 {% endif %}
+
+{# ── Modal de edição ── #}
+<div id="modalEditar" class="modal-overlay" style="display:none">
+    <div class="modal">
+        <h3>✏️ Editar Conteúdo</h3>
+        <form method="POST" id="formEditar" enctype="multipart/form-data">
+            <input type="hidden" name="_method" value="POST">
+            <div class="campo">
+                <label>Título</label>
+                <input type="text" name="titulo" id="editTitulo" required>
+            </div>
+            <div class="campo">
+                <label>Módulo</label>
+                <input type="text" name="modulo" id="editModulo" placeholder="Ex: Módulo 1">
+            </div>
+            <div class="campo">
+                <label>Substituir PDF <small style="color:#888">(deixe vazio para manter o atual)</small></label>
+                <input type="file" name="arquivo">
+            </div>
+            <div class="campo">
+                <label>Link do Vídeo</label>
+                <input type="text" name="video" id="editVideo" placeholder="YouTube, Vimeo ou URL direta">
+            </div>
+            <div class="acoes-form">
+                <button type="submit" class="btn btn-azul">💾 Salvar</button>
+                <button type="button" class="btn btn-cinza" onclick="fecharModalEditar()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ── Filtro de matérias por curso ──
 const materias = {{ materias_json | tojson }};
 document.getElementById('curso_id').addEventListener('change', function(){
     const cursoId = parseInt(this.value);
@@ -107,6 +156,62 @@ document.getElementById('curso_id').addEventListener('change', function(){
         opt.textContent = m.nome;
         sel.appendChild(opt);
     });
+});
+
+// ── Preview inline de vídeo/PDF ──
+function embedUrl(src) {
+    if (src.includes('youtu.be/')) {
+        const id = src.split('youtu.be/')[1].split('?')[0];
+        return `https://www.youtube.com/embed/${id}`;
+    }
+    if (src.includes('youtube.com/watch')) {
+        try {
+            const id = new URL(src).searchParams.get('v');
+            return id ? `https://www.youtube.com/embed/${id}` : src;
+        } catch { return src; }
+    }
+    if (src.includes('vimeo.com/')) {
+        const id = src.split('vimeo.com/')[1].split('?')[0];
+        return `https://player.vimeo.com/video/${id}`;
+    }
+    return src;
+}
+
+function togglePreview(id, tipo, src) {
+    const box = document.getElementById(`preview-${id}`);
+    if (box.classList.contains('aberto')) {
+        box.classList.remove('aberto');
+        box.innerHTML = '';
+        return;
+    }
+    box.classList.add('aberto');
+    if (tipo === 'pdf') {
+        box.innerHTML = `<iframe src="${src}"></iframe>`;
+    } else if (/\.(mp4|webm|ogg)$/i.test(src)) {
+        box.innerHTML = `<video controls><source src="${src}">Seu navegador não suporta vídeo.</video>`;
+    } else {
+        const url = embedUrl(src);
+        box.innerHTML = `<iframe src="${url}" allowfullscreen
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+        </iframe>`;
+    }
+}
+
+// ── Modal de edição ──
+function abrirModalEditar(id, titulo, modulo, video) {
+    document.getElementById('editTitulo').value = titulo;
+    document.getElementById('editModulo').value = modulo;
+    document.getElementById('editVideo').value  = video;
+    document.getElementById('formEditar').action = `/conteudos/editar/${id}`;
+    document.getElementById('modalEditar').style.display = 'flex';
+}
+
+function fecharModalEditar() {
+    document.getElementById('modalEditar').style.display = 'none';
+}
+
+document.getElementById('modalEditar').addEventListener('click', function(e){
+    if (e.target === this) fecharModalEditar();
 });
 </script>
 {% endblock %}
