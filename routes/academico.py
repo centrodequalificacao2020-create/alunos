@@ -6,6 +6,16 @@ from models import (Aluno, Curso, Materia, CursoMateria,
                     Nota, Frequencia, Turma, TurmaAluno)
 from security import login_required
 from services.pdf_service import gerar_boletim_notas, gerar_historico_frequencia
+from services.notas_service import (
+    get_materias_do_curso, get_notas_map, get_boletim,
+    salvar_notas, get_curso_ativo_do_aluno
+)
+from services.matricula_service import (
+    get_matricula_ativa, get_cursos_matriculados_ativos
+)
+from services.frequencia_service import (
+    registrar_frequencia, get_historico, calcular_percentual
+)
 from datetime import date
 from sqlalchemy import distinct
 
@@ -19,16 +29,7 @@ def _tipos_curso():
     return [r[0] for r in rows]
 
 
-def _matricula_ativa_query(aluno_id):
-    """Retorna a matrícula ativa do aluno (case-insensitive)."""
-    from models import Matricula
-    return Matricula.query.filter(
-        Matricula.aluno_id == aluno_id,
-        db.func.upper(Matricula.status) == "ATIVA"
-    ).first()
-
-
-# ───────────────────────────── TURMAS ─────────────────────────────
+# ────────────────────────────── TURMAS ──────────────────────────────
 
 @academico_bp.route("/turmas")
 @login_required
@@ -123,7 +124,7 @@ def remover_aluno_turma(turma_id, aluno_id):
     return redirect(f"/turmas/{turma_id}/editar")
 
 
-# ───────────────────────────── MATÉRIAS ─────────────────────────────
+# ────────────────────────────── MATÉRIAS ──────────────────────────────
 
 @academico_bp.route("/materias", methods=["GET", "POST"])
 @login_required
@@ -138,7 +139,11 @@ def materias():
                 m = Materia(nome=nome, curso_id=curso_id, ativa=1)
                 db.session.add(m)
                 db.session.flush()
-                db.session.add(CursoMateria(curso_id=curso_id, materia_id=m.id))
+                # Evita duplicata via UniqueConstraint
+                existe = CursoMateria.query.filter_by(
+                    curso_id=curso_id, materia_id=m.id).first()
+                if not existe:
+                    db.session.add(CursoMateria(curso_id=curso_id, materia_id=m.id))
                 db.session.commit()
                 flash("Matéria cadastrada!", "sucesso")
             else:
@@ -168,7 +173,7 @@ def materias():
                            materias_por_curso=materias_por_curso)
 
 
-# ───────────────────────────── NOTAS ─────────────────────────────
+# ────────────────────────────── NOTAS ──────────────────────────────
 
 @academico_bp.route("/notas", methods=["GET", "POST"])
 @login_required
@@ -179,8 +184,12 @@ def notas():
     alunos = cursos_matriculados = materias_lista = []
     notas_existentes = {}
     aluno_nome = ""
+
     if termo:
-        alunos = Aluno.query.filter(Aluno.nome.ilike(f"%{termo}%")).order_by(Aluno.nome).all()
+        alunos = Aluno.query.filter(
+            Aluno.nome.ilike(f"%{termo}%")
+        ).order_by(Aluno.nome).all()
+
     if aluno_id:
         aluno = Aluno.query.get(aluno_id)
         if aluno:
@@ -189,38 +198,18 @@ def notas():
             Curso.query.join(Curso.matriculas)
             .filter_by(aluno_id=aluno_id).order_by(Curso.nome).all()
         )
+
     if aluno_id and curso_id:
-        materias_lista = (
-            Materia.query.join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1)
-            .order_by(Materia.nome).all()
-        )
-        notas_existentes = {
-            n.materia_id: n
-            for n in Nota.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).all()
-        }
+        materias_lista   = get_materias_do_curso(curso_id)
+        notas_existentes = get_notas_map(aluno_id, curso_id)
+
     if request.method == "POST":
         aluno_id = request.form.get("aluno_id", type=int)
         curso_id = request.form.get("curso_id", type=int)
-        mats = (
-            Materia.query.join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1).all()
-        )
-        for m in mats:
-            nota_val  = request.form.get(f"nota_{m.id}") or None
-            resultado = request.form.get(f"resultado_{m.id}") or None
-            nota_obj  = Nota.query.filter_by(
-                aluno_id=aluno_id, materia_id=m.id, curso_id=curso_id).first()
-            if nota_obj:
-                nota_obj.nota      = nota_val
-                nota_obj.resultado = resultado
-            else:
-                db.session.add(Nota(aluno_id=aluno_id, materia_id=m.id,
-                                    curso_id=curso_id, nota=nota_val,
-                                    resultado=resultado))
-        db.session.commit()
+        salvar_notas(aluno_id, curso_id, request.form)
         flash("Notas salvas!", "sucesso")
         return redirect(f"/notas?aluno_id={aluno_id}&curso_id={curso_id}")
+
     return render_template("notas.html",
                            alunos=alunos, termo=termo,
                            aluno_id=aluno_id, aluno_nome=aluno_nome,
@@ -235,34 +224,17 @@ def notas_visualizar(aluno_id):
     curso_id = request.args.get("curso_id", type=int)
     aluno    = Aluno.query.get_or_404(aluno_id)
     if not curso_id:
-        # usa matrícula ativa como fonte da verdade
-        mat = _matricula_ativa_query(aluno_id)
-        if mat:
-            curso_id = mat.curso_id
+        curso_id = get_curso_ativo_do_aluno(aluno_id)
     curso      = Curso.query.get(curso_id) if curso_id else None
     curso_nome = curso.nome if curso else ""
-    boletim = []
-    if curso_id:
-        mats = (
-            Materia.query.join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1)
-            .order_by(Materia.nome).all()
-        )
-        for m in mats:
-            n = Nota.query.filter_by(aluno_id=aluno_id, materia_id=m.id,
-                                     curso_id=curso_id).first()
-            boletim.append({
-                "materia":   m.nome,
-                "nota":      n.nota      if n else None,
-                "resultado": n.resultado if n else None,
-            })
+    boletim    = get_boletim(aluno_id, curso_id) if curso_id else []
     return render_template("notas_visualizar.html",
                            aluno_nome=aluno.nome,
                            curso_nome=curso_nome,
                            boletim=boletim)
 
 
-# ───────────────────────────── FREQUÊNCIA ─────────────────────────────
+# ────────────────────────────── FREQUÊNCIA ───────────────────────────
 
 @academico_bp.route("/frequencia", methods=["GET", "POST"])
 @login_required
@@ -273,35 +245,22 @@ def frequencia():
     aluno_nome        = None
     curso_id          = None
     aluno_frequencias = []
+    percentual        = 0.0
 
     if termo:
-        alunos = Aluno.query.filter(Aluno.nome.ilike(f"%{termo}%")).order_by(Aluno.nome).all()
+        alunos = Aluno.query.filter(
+            Aluno.nome.ilike(f"%{termo}%")
+        ).order_by(Aluno.nome).all()
 
     if aluno_id:
         aluno = Aluno.query.get(aluno_id)
         if aluno:
             aluno_nome = aluno.nome
-        # usa func.upper para garantir compatibilidade com dados legados
-        from models import Matricula
-        cursos_matriculados = (
-            Curso.query
-            .join(Matricula, Matricula.curso_id == Curso.id)
-            .filter(
-                Matricula.aluno_id == aluno_id,
-                db.func.upper(Matricula.status) == "ATIVA"
-            )
-            .order_by(Curso.nome).all()
-        )
-        last = (Frequencia.query.filter_by(aluno_id=aluno_id)
-                .order_by(Frequencia.id.desc()).first())
-        if last:
-            curso_id = last.curso_id
-        aluno_frequencias = (
-            Frequencia.query
-            .filter_by(aluno_id=aluno_id)
-            .order_by(Frequencia.data.desc())
-            .all()
-        )
+        cursos_matriculados = get_cursos_matriculados_ativos(aluno_id)
+        aluno_frequencias   = get_historico(aluno_id)
+        if aluno_frequencias:
+            curso_id = aluno_frequencias[0].curso_id
+            percentual = calcular_percentual(aluno_id, curso_id)
 
     if request.method == "POST":
         aluno_id  = request.form.get("aluno_id", type=int)
@@ -309,14 +268,7 @@ def frequencia():
         data_aula = request.form.get("data")
         status    = request.form.get("status")
         if aluno_id and curso_id and data_aula and status:
-            freq = Frequencia.query.filter_by(
-                aluno_id=aluno_id, curso_id=curso_id, data=data_aula).first()
-            if freq:
-                freq.status = status
-            else:
-                db.session.add(Frequencia(aluno_id=aluno_id, curso_id=curso_id,
-                                          data=data_aula, status=status))
-            db.session.commit()
+            registrar_frequencia(aluno_id, curso_id, data_aula, status)
             flash("Frequência salva!", "sucesso")
             return redirect(
                 f"/frequencia?aluno_id={aluno_id}&curso_id={curso_id}&data={data_aula}")
@@ -326,7 +278,8 @@ def frequencia():
                            aluno_nome=aluno_nome,
                            cursos_matriculados=cursos_matriculados,
                            curso_id=curso_id, termo=termo,
-                           aluno_frequencias=aluno_frequencias)
+                           aluno_frequencias=aluno_frequencias,
+                           percentual=percentual)
 
 
 @academico_bp.route("/frequencia/<int:freq_id>/excluir", methods=["POST"])
@@ -361,33 +314,28 @@ def frequencia_historico():
     aluno_id = request.args.get("aluno_id", type=int)
     curso_id = request.args.get("curso_id", type=int)
     aluno = curso = None
-    historico = []
+    historico  = []
+    percentual = 0.0
     if aluno_id and curso_id:
-        aluno     = Aluno.query.get(aluno_id)
-        curso     = Curso.query.get(curso_id)
-        historico = (Frequencia.query
-                     .filter_by(aluno_id=aluno_id, curso_id=curso_id)
-                     .order_by(Frequencia.data).all())
+        aluno      = Aluno.query.get(aluno_id)
+        curso      = Curso.query.get(curso_id)
+        historico  = get_historico(aluno_id, curso_id)
+        percentual = calcular_percentual(aluno_id, curso_id)
     return render_template("frequencia_historico.html",
-                           aluno=aluno, curso=curso, historico=historico)
+                           aluno=aluno, curso=curso,
+                           historico=historico,
+                           percentual=percentual)
 
 
-# ───────────────────────────── PDFs ─────────────────────────────
+# ────────────────────────────── PDFs ──────────────────────────────
 
 @academico_bp.route("/notas_pdf/<int:aluno_id>/<int:curso_id>")
 @login_required
 def notas_pdf(aluno_id, curso_id):
-    aluno = Aluno.query.get_or_404(aluno_id)
-    curso = Curso.query.get_or_404(curso_id)
-    mats  = (
-        Materia.query.join(CursoMateria, CursoMateria.materia_id == Materia.id)
-        .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1)
-        .order_by(Materia.nome).all()
-    )
-    notas_map = {
-        n.materia_id: n
-        for n in Nota.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).all()
-    }
+    aluno     = Aluno.query.get_or_404(aluno_id)
+    curso     = Curso.query.get_or_404(curso_id)
+    mats      = get_materias_do_curso(curso_id)
+    notas_map = get_notas_map(aluno_id, curso_id)
     buf = gerar_boletim_notas(aluno, curso, mats, notas_map,
                                root_path=current_app.root_path)
     return send_file(buf, as_attachment=True,
@@ -400,9 +348,7 @@ def notas_pdf(aluno_id, curso_id):
 def frequencia_historico_pdf(aluno_id, curso_id):
     aluno     = Aluno.query.get_or_404(aluno_id)
     curso     = Curso.query.get_or_404(curso_id)
-    historico = (Frequencia.query
-                 .filter_by(aluno_id=aluno_id, curso_id=curso_id)
-                 .order_by(Frequencia.data).all())
+    historico = get_historico(aluno_id, curso_id)
     buf = gerar_historico_frequencia(aluno, curso, historico,
                                      root_path=current_app.root_path)
     return send_file(buf, as_attachment=True,
@@ -410,13 +356,12 @@ def frequencia_historico_pdf(aluno_id, curso_id):
                      mimetype="application/pdf")
 
 
-# ───────────────────────────── BACKUP ─────────────────────────────
+# ────────────────────────────── BACKUP ────────────────────────────
 
 @academico_bp.route("/backup")
 @login_required
 def backup():
-    import sqlite3
-    import io
+    import sqlite3, io
     src_path = os.path.join(current_app.root_path, "cqp.db")
     if not os.path.exists(src_path):
         src_path = "/home/site/wwwroot/cqp.db"
