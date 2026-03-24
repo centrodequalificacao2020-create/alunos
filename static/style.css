@@ -46,6 +46,16 @@
     --color-reprovado: var(--color-danger);
     --color-cursando:  var(--color-info);
 
+    /* --- Dashboard extras --- */
+    --color-teal:         #00897b;
+    --color-teal-light:   #e0f2f1;
+    --color-purple:       #7b1fa2;
+    --color-purple-light: #f3e5f5;
+    --color-orange:       #e65100;
+    --color-orange-light: #fff3e0;
+    --color-dark:         #37474f;
+    --color-dark-light:   #eceff1;
+
     /* --- Espaçamento e forma --- */
     --radius-sm:  4px;
     --radius-md:  8px;
@@ -164,7 +174,6 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
     text-decoration: none; display: inline-block; transition: opacity .15s;
 }
 .btn:hover { opacity: .88; }
-/* Foco visível para acessibilidade */
 .btn:focus-visible {
     outline: 3px solid var(--color-primary);
     outline-offset: 2px;
@@ -188,7 +197,6 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
 .botoes-matricula { display: flex; gap: 15px; margin-top: 20px; align-items: center; }
 
 /* ── 9. TABELAS + RESPONSIVIDADE ──────────────────────────────── */
-/* Wrapper obrigatório em todo <table> para responsividade */
 .table-responsive {
     width: 100%;
     overflow-x: auto;
@@ -218,14 +226,12 @@ td.acoes { text-align: center; white-space: nowrap; }
 .tabela-excel tbody tr:hover td { background: var(--color-primary-light); }
 
 /* ── 10. STATUS ──────────────────────────────────────────────── */
-/* Usam variáveis semânticas — nunca hardcode de cor aqui */
 .status-ativo      { color: var(--color-status-ativa);      font-weight: 600; }
 .status-inativo    { color: var(--color-status-inativa);    font-weight: 600; }
 .status-trancado   { color: var(--color-status-trancada);   font-weight: 600; }
 .status-cancelado  { color: var(--color-status-cancelado);  font-weight: 600; }
 .status-finalizado { color: var(--color-status-finalizado); font-weight: 600; }
 .status-ativa      { color: var(--color-status-ativa);      font-weight: 600; }
-/* Badge de resultado de nota */
 .nota-aprovado  { color: var(--color-aprovado);  font-weight: 600; }
 .nota-reprovado { color: var(--color-reprovado); font-weight: 600; }
 .nota-cursando  { color: var(--color-cursando);  font-weight: 600; }
@@ -247,7 +253,6 @@ td.acoes { text-align: center; white-space: nowrap; }
     font-size: var(--font-size-sm); white-space: nowrap;
     opacity: 0; pointer-events: none;
     transition: opacity .15s ease;
-    /* a11y: não é suficiente sozinho, preferência por aria-label */
 }
 .tooltip:hover::after { opacity: 1; }
 
@@ -283,6 +288,46 @@ td.acoes { text-align: center; white-space: nowrap; }
 .section-title { font-size: var(--font-size-sm); text-transform: uppercase; letter-spacing: .5px; color: var(--color-text-muted); margin: 20px 0 10px; }
 .section-title--sep { margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 24px; }
 .grafico-card canvas { max-width: 100%; height: 220px !important; }
+
+/* ── 14b. DASHBOARD — CARDS COLORIDOS ───────────────────────── */
+/* fundo colorido + borda esquerda + valor colorido */
+.card--success {
+    background: var(--color-success-light);
+    border-left: 4px solid var(--color-success);
+}
+.card--danger {
+    background: var(--color-danger-light);
+    border-left: 4px solid var(--color-danger);
+}
+.card--info {
+    background: var(--color-info-light);
+    border-left: 4px solid var(--color-info);
+}
+.card--teal {
+    background: var(--color-teal-light);
+    border-left: 4px solid var(--color-teal);
+}
+.card--purple {
+    background: var(--color-purple-light);
+    border-left: 4px solid var(--color-purple);
+}
+.card--orange {
+    background: var(--color-orange-light);
+    border-left: 4px solid var(--color-orange);
+}
+.card--dark {
+    background: var(--color-dark-light);
+    border-left: 4px solid var(--color-dark);
+}
+
+/* valores grandes coloridos */
+.valor-success { color: var(--color-success); }
+.valor-danger  { color: var(--color-danger); }
+.valor-info    { color: var(--color-info-dark); }
+.valor-teal    { color: var(--color-teal); }
+.valor-purple  { color: var(--color-purple); }
+.valor-orange  { color: var(--color-orange); }
+.valor-xl      { font-size: 24px !important; }
 
 /* ── 15. LINHA FINANCEIRO ─────────────────────────────────────── */
 .linha-financeiro { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
@@ -441,7 +486,7 @@ td.acoes { text-align: center; white-space: nowrap; }
 .autocomplete-label { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-primary); margin-top: 4px; display: block; }
 .autocomplete-status { font-size: 11px; color: var(--color-text-muted); }
 
-/* ── 28. BREADCRUMB (novo) ─────────────────────────────────────── */
+/* ── 28. BREADCRUMB ─────────────────────────────────────────────── */
 .breadcrumb {
     display: flex; align-items: center; gap: 6px;
     font-size: var(--font-size-sm); color: var(--color-text-muted);
@@ -452,7 +497,7 @@ td.acoes { text-align: center; white-space: nowrap; }
 .breadcrumb-sep { color: var(--color-border); user-select: none; }
 .breadcrumb-current { color: var(--color-text); font-weight: 600; }
 
-/* ── 29. LOADING SPINNER (novo) ──────────────────────────────── */
+/* ── 29. LOADING SPINNER ──────────────────────────────────────── */
 .spinner {
     display: inline-block;
     width: 24px; height: 24px;
@@ -483,7 +528,6 @@ td.acoes { text-align: center; white-space: nowrap; }
     .linha-financeiro .acao { flex: 1 1 100%; }
     .select-curso { width: 100%; }
     .acoes-form--between { flex-direction: column; align-items: flex-start; }
-    /* Tabelas: sempre com scroll horizontal em mobile */
     .table-responsive { border: 1px solid var(--color-border); }
     table th, table td { padding: 10px 8px; }
 }
@@ -494,7 +538,6 @@ td.acoes { text-align: center; white-space: nowrap; }
 }
 
 /* ── 31. ACESSIBILIDADE ───────────────────────────────────────── */
-/* Skip link para leitores de tela */
 .skip-link {
     position: absolute; left: -9999px; top: auto;
     width: 1px; height: 1px; overflow: hidden;
@@ -506,15 +549,13 @@ td.acoes { text-align: center; white-space: nowrap; }
     padding: 8px 16px; border-radius: var(--radius-md);
     z-index: 9999; font-weight: 600;
 }
-/* Foco visível em links */
 a:focus-visible {
     outline: 3px solid var(--color-primary);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
 }
-/* Textos de status não dependem só de cor */
 .status-label::before { margin-right: 4px; }
-.status-ativo::before      { content: "\25CF"; } /* bola sólida */
-.status-inativo::before    { content: "\25CB"; } /* bola vazia */
-.status-trancado::before   { content: "\25A0"; } /* quadrado */
-.status-cancelado::before  { content: "\00D7"; } /* x */
+.status-ativo::before      { content: "\25CF"; }
+.status-inativo::before    { content: "\25CB"; }
+.status-trancado::before   { content: "\25A0"; }
+.status-cancelado::before  { content: "\00D7"; }
