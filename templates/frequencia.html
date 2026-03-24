@@ -23,12 +23,12 @@
     </form>
 
     {% if alunos %}
-    <div style="margin-top:16px">
-        <table style="width:100%; border-collapse:collapse;">
+    <div class="tabela-planilha" style="margin-top:16px">
+        <table class="tabela-excel">
             <tbody>
             {% for a in alunos %}
             <tr onclick="location.href='/frequencia?aluno_id={{ a.id }}'" style="cursor:pointer;">
-                <td style="padding:14px; border-bottom:1px solid var(--color-border); font-size:14px;">{{ a.nome }}</td>
+                <td>{{ a.nome }}</td>
             </tr>
             {% endfor %}
             </tbody>
@@ -90,35 +90,37 @@
     </div>
 
     {% if freqs %}
-    <table style="width:100%; border-collapse:collapse; margin-top:4px;">
-        <thead>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Presença</th>
+                    <th class="acoes">Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for f in freqs|sort(attribute='data', reverse=true) %}
             <tr>
-                <th style="text-align:left; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Data</th>
-                <th style="text-align:left; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Presença</th>
-                <th style="text-align:center; padding:10px; background:var(--color-surface); font-size:12px; text-transform:uppercase; color:var(--color-text-head);">Ação</th>
+                <td>{{ f.data }}</td>
+                <td>
+                    {% if f.status == 'P' %}
+                    <span class="status-ativo">✅ Presente</span>
+                    {% else %}
+                    <span class="status-inativo">❌ Falta</span>
+                    {% endif %}
+                </td>
+                <td class="acoes">
+                    <form method="POST" action="/frequencia/{{ f.id }}/excluir"
+                          onsubmit="return confirm('Remover o registro de {{ f.data }}?')">
+                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Remover">🗑️</button>
+                    </form>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-        {% for f in freqs|sort(attribute='data', reverse=true) %}
-        <tr>
-            <td style="padding:12px; border-bottom:1px solid var(--color-border); font-size:14px;">{{ f.data }}</td>
-            <td style="padding:12px; border-bottom:1px solid var(--color-border); font-size:14px;">
-                {% if f.status == 'P' %}
-                <span class="status-ativo">✅ Presente</span>
-                {% else %}
-                <span class="status-inativo">❌ Falta</span>
-                {% endif %}
-            </td>
-            <td style="padding:12px; border-bottom:1px solid var(--color-border); text-align:center;">
-                <form method="POST" action="/frequencia/{{ f.id }}/excluir"
-                      onsubmit="return confirm('Remover o registro de {{ f.data }}?')">
-                    <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Remover">🗑️</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
     <p class="empty-state">Nenhuma frequência registrada para este curso.</p>
     {% endif %}
