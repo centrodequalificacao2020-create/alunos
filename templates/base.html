@@ -4,22 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Sistema Escolar{% endblock %} — CQP</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
     {% block styles %}{% endblock %}
 </head>
 <body>
 
 <header>
     <h1>Sistema Escolar</h1>
-    <button class="nav-toggle" onclick="document.querySelector('nav').classList.toggle('nav-open')" aria-label="Menu">☰</button>
+    <button class="nav-toggle" onclick="document.querySelector('nav').classList.toggle('nav-open')" aria-label="Menu">&#9776;</button>
     <nav>
 
         {% set perfil = (session.perfil or '') | lower %}
 
         {% if perfil == "aluno" or session.aluno_id and not session.usuario_id %}
-            <a href="/aluno/dashboard" class="{{ 'active' if request.path == '/aluno/dashboard' }}">Início</a>
-            <a href="/aluno/conteudo"  class="{{ 'active' if request.path == '/aluno/conteudo'  }}">Conteúdos</a>
-            <a href="/aluno/senha"     class="{{ 'active' if request.path == '/aluno/senha'     }}">🔒 Senha</a>
+            <a href="/aluno/dashboard" class="{{ 'active' if request.path == '/aluno/dashboard' }}">In&#237;cio</a>
+            <a href="/aluno/conteudo"  class="{{ 'active' if request.path == '/aluno/conteudo'  }}">Conte&#250;dos</a>
+            <a href="/aluno/senha"     class="{{ 'active' if request.path == '/aluno/senha'     }}">&#128274; Senha</a>
             <a href="/aluno/logout">Sair</a>
 
         {% elif session.usuario_id %}
@@ -31,25 +31,25 @@
                 <a href="/dashboard"  class="{{ 'active' if request.path == '/dashboard'  }}">Dashboard</a>
                 <a href="/financeiro" class="{{ 'active' if request.path == '/financeiro' }}">Financeiro</a>
                 <a href="/despesas"   class="{{ 'active' if request.path == '/despesas'   }}">Despesas</a>
-                <a href="/relatorio"  class="{{ 'active' if request.path == '/relatorio'  }}">Relatórios</a>
+                <a href="/relatorio"  class="{{ 'active' if request.path == '/relatorio'  }}">Relat&#243;rios</a>
             {% endif %}
 
             {% if is_admin or perfil in ["financeiro", "secretaria"] %}
                 <a href="/cadastro"     class="{{ 'active' if request.path == '/cadastro'     }}">Alunos</a>
                 <a href="/cursos"       class="{{ 'active' if request.path == '/cursos'       }}">Cursos</a>
-                <a href="/movimentacao" class="{{ 'active' if request.path == '/movimentacao' }}">Matrículas</a>
+                <a href="/movimentacao" class="{{ 'active' if request.path == '/movimentacao' }}">Matr&#237;culas</a>
             {% endif %}
 
             {% if is_admin or perfil in ["secretaria", "instrutor"] %}
                 <a href="/turmas"     class="{{ 'active' if request.path == '/turmas'     }}">Turmas</a>
-                <a href="/materias"   class="{{ 'active' if request.path == '/materias'   }}">Matérias</a>
-                <a href="/conteudos"  class="{{ 'active' if request.path == '/conteudos'  }}">Conteúdos</a>
+                <a href="/materias"   class="{{ 'active' if request.path == '/materias'   }}">Mat&#233;rias</a>
+                <a href="/conteudos"  class="{{ 'active' if request.path == '/conteudos'  }}">Conte&#250;dos</a>
                 <a href="/notas"      class="{{ 'active' if request.path == '/notas'      }}">Notas</a>
-                <a href="/frequencia" class="{{ 'active' if request.path == '/frequencia' }}">Frequência</a>
+                <a href="/frequencia" class="{{ 'active' if request.path == '/frequencia' }}">Frequ&#234;ncia</a>
             {% endif %}
 
             {% if is_admin or perfil in ["financeiro", "secretaria"] %}
-                <a href="/funcionario" class="{{ 'active' if request.path == '/funcionario' }}">Funcionários</a>
+                <a href="/funcionario" class="{{ 'active' if request.path == '/funcionario' }}">Funcion&#225;rios</a>
             {% endif %}
 
             {% if is_admin %}
