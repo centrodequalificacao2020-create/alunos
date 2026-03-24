@@ -2,7 +2,7 @@ from db import db
 from datetime import datetime, date
 
 
-# ─── Constantes de domínio ────────────────────────────────────────────────────
+# ─── Constantes de domínio ────────────────────────────────────────────────────────────────────────────────
 PERFIS_VALIDOS  = {"admin", "administrador", "secretaria", "financeiro", "instrutor"}
 STATUS_MATRICULA = {"ATIVA", "INATIVA", "TRANCADA", "CONCLUIDA"}
 
@@ -196,6 +196,12 @@ class Materia(db.Model):
 
 class CursoMateria(db.Model):
     __tablename__ = "cursos_materias"
+    __table_args__ = (
+        db.UniqueConstraint("curso_id", "materia_id",
+                            name="uq_cursos_materias_curso_materia"),
+        db.Index("ix_cursos_materias_curso_id",   "curso_id"),
+        db.Index("ix_cursos_materias_materia_id", "materia_id"),
+    )
     id         = db.Column(db.Integer, primary_key=True)
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"))
