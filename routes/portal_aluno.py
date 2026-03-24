@@ -9,11 +9,16 @@ portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 
 def _matricula_ativa(aluno_id):
-    """Busca matrícula ativa ignorando capitalização do status."""
-    return Matricula.query.filter(
-        Matricula.aluno_id == aluno_id,
-        db.func.upper(Matricula.status) == "ATIVA"
-    ).first()
+    """Retorna a matrícula ativa mais recente do aluno (maior id)."""
+    return (
+        Matricula.query
+        .filter(
+            Matricula.aluno_id == aluno_id,
+            db.func.upper(Matricula.status) == "ATIVA"
+        )
+        .order_by(Matricula.id.desc())
+        .first()
+    )
 
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
@@ -67,17 +72,31 @@ def notas_aluno():
     media     = None
 
     if matricula:
-        notas = (
-            db.session.query(Nota, Materia)
-            .join(Materia, Materia.id == Nota.materia_id)
-            .filter(Nota.aluno_id == aluno.id)
+        # Busca as matérias do curso via cursos_materias e faz LEFT JOIN com notas
+        # para mostrar TODAS as matérias mesmo sem nota lançada
+        rows = (
+            db.session.query(Materia, Nota)
+            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+            .outerjoin(
+                Nota,
+                (Nota.materia_id == Materia.id) &
+                (Nota.aluno_id   == aluno.id) &
+                (Nota.curso_id   == matricula.curso_id)
+            )
+            .filter(
+                CursoMateria.curso_id == matricula.curso_id,
+                Materia.ativa == 1
+            )
             .order_by(Materia.nome)
             .all()
         )
-        if notas:
-            valores = [n.nota for n, m in notas if n.nota is not None]
-            if valores:
-                media = round(sum(valores) / len(valores), 1)
+        # rows = lista de (Materia, Nota|None)
+        # reordena para manter compatibilidade com template que espera (Nota, Materia)
+        notas = [(nota, materia) for materia, nota in rows]
+
+        valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
+        if valores:
+            media = round(sum(valores) / len(valores), 1)
 
     return render_template("aluno/notas.html", aluno=aluno,
                            matricula=matricula, notas=notas, media=media)
