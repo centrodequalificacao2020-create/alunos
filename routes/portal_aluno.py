@@ -29,6 +29,7 @@ def login_aluno():
         aluno = Aluno.query.filter_by(email=email).first()
         if aluno and aluno.senha and verificar_senha(senha, aluno.senha):
             session.clear()
+            session.permanent = True  # S5: respeita PERMANENT_SESSION_LIFETIME
             session["aluno_id"] = aluno.id
             session["perfil"]   = "aluno"
             return redirect("/aluno/dashboard")
