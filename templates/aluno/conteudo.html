@@ -88,21 +88,44 @@ function ehVideo(src) {
     );
 }
 
+/**
+ * Converte qualquer URL do YouTube ou Vimeo para URL de embed
+ * com parâmetros que eliminam anúncios, sugestões e branding.
+ *
+ * Parâmetros YouTube usados:
+ *   rel=0              — não mostra vídeos sugeridos ao final
+ *   modestbranding=1   — remove logo do YouTube do player
+ *   iv_load_policy=3   — desativa anotações/cards
+ *   disablekb=0        — mantém atalhos de teclado
+ *   fs=1               — permite tela cheia
+ *
+ * Nota: anúncios no YouTube só são completamente eliminados
+ * em vídeos de canais que não ativaram monetização, ou quando
+ * o usuário tem YouTube Premium. Estes parâmetros removem o
+ * máximo possível via embed.
+ */
 function embedUrl(src) {
+    const YT_PARAMS = 'rel=0&modestbranding=1&iv_load_policy=3&fs=1';
+
     if (src.includes('youtu.be/')) {
         const id = src.split('youtu.be/')[1].split('?')[0];
-        return `https://www.youtube.com/embed/${id}`;
+        return `https://www.youtube-nocookie.com/embed/${id}?${YT_PARAMS}`;
     }
     if (src.includes('youtube.com/watch')) {
         try {
             const url = new URL(src);
             const id  = url.searchParams.get('v');
-            return id ? `https://www.youtube.com/embed/${id}` : src;
+            return id ? `https://www.youtube-nocookie.com/embed/${id}?${YT_PARAMS}` : src;
         } catch { return src; }
+    }
+    if (src.includes('youtube.com/embed/')) {
+        // já é embed — garante que os parâmetros estão presentes
+        const base = src.split('?')[0];
+        return `${base}?${YT_PARAMS}`;
     }
     if (src.includes('vimeo.com/')) {
         const id = src.split('vimeo.com/')[1].split('?')[0];
-        return `https://player.vimeo.com/video/${id}`;
+        return `https://player.vimeo.com/video/${id}?dnt=1`;
     }
     return src;
 }
@@ -146,8 +169,10 @@ function abrirAula(el) {
     } else if (ehVideo(arquivo)) {
         const src = embedUrl(arquivo);
         area.innerHTML = `
-            <iframe class="video-frame" src="${src}" allowfullscreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+            <iframe class="video-frame" src="${src}"
+                allowfullscreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                referrerpolicy="strict-origin-when-cross-origin">
             </iframe>`;
 
     } else {
