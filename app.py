@@ -1,9 +1,18 @@
 import os
 import re
 from flask import Flask
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import Config
 from db import init_db
 from logging_config import configure_logging
+
+# Instância global — blueprints importam este objeto para usar @limiter.limit()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[],          # sem limite global — só nas rotas explícitas
+    storage_uri="memory://",    # in-memory; trocar por Redis em produção
+)
 
 
 def limpar_nome_arquivo(nome):
@@ -17,6 +26,7 @@ def create_app(config_class=Config):
 
     # Extensões
     init_db(app)
+    limiter.init_app(app)
 
     # Logging
     configure_logging(app)
