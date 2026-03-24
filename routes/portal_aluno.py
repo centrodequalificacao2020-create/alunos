@@ -8,6 +8,14 @@ from db import db
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 
+def _matricula_ativa(aluno_id):
+    """Busca matrícula ativa ignorando capitalização do status."""
+    return Matricula.query.filter(
+        Matricula.aluno_id == aluno_id,
+        db.func.upper(Matricula.status) == "ATIVA"
+    ).first()
+
+
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 def login_aluno():
     if request.method == "POST":
@@ -15,18 +23,17 @@ def login_aluno():
         senha = request.form.get("senha", "")
         aluno = Aluno.query.filter_by(email=email).first()
         if aluno and aluno.senha and verificar_senha(senha, aluno.senha):
-            session.clear()                        # ← limpa sessão admin anterior
+            session.clear()
             session["aluno_id"] = aluno.id
-            session["perfil"]   = "aluno"          # ← garante menu correto
+            session["perfil"]   = "aluno"
             return redirect("/aluno/dashboard")
         flash("E-mail ou senha incorretos.", "erro")
     return render_template("aluno/login.html")
 
 
-
 @portal_aluno_bp.route("/logout")
 def logout_aluno():
-    session.clear()                                # ← era só pop("aluno_id")
+    session.clear()
     return redirect("/aluno/login")
 
 
@@ -34,7 +41,7 @@ def logout_aluno():
 @aluno_login_required
 def dashboard_aluno():
     aluno        = db.get_or_404(Aluno, session["aluno_id"])
-    matricula    = Matricula.query.filter_by(aluno_id=aluno.id, status="ATIVA").first()
+    matricula    = _matricula_ativa(aluno.id)
     mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
     pendentes    = sum(1 for m in mensalidades if m.status != "Pago")
     val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
@@ -55,7 +62,7 @@ def frequencia_aluno():
 @aluno_login_required
 def notas_aluno():
     aluno     = db.get_or_404(Aluno, session["aluno_id"])
-    matricula = Matricula.query.filter_by(aluno_id=aluno.id, status="ATIVA").first()
+    matricula = _matricula_ativa(aluno.id)
     notas     = []
     media     = None
 
@@ -63,7 +70,7 @@ def notas_aluno():
         notas = (
             db.session.query(Nota, Materia)
             .join(Materia, Materia.id == Nota.materia_id)
-            .filter(Nota.aluno_id == aluno.id, Nota.curso_id == matricula.curso_id)
+            .filter(Nota.aluno_id == aluno.id)
             .order_by(Materia.nome)
             .all()
         )
@@ -80,7 +87,7 @@ def notas_aluno():
 @aluno_login_required
 def conteudo_aluno():
     aluno     = db.get_or_404(Aluno, session["aluno_id"])
-    matricula = Matricula.query.filter_by(aluno_id=aluno.id, status="ATIVA").first()
+    matricula = _matricula_ativa(aluno.id)
     conteudos = []
 
     if matricula:
