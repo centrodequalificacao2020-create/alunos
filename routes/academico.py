@@ -19,6 +19,15 @@ def _tipos_curso():
     return [r[0] for r in rows]
 
 
+def _matricula_ativa_query(aluno_id):
+    """Retorna a matrícula ativa do aluno (case-insensitive)."""
+    from models import Matricula
+    return Matricula.query.filter(
+        Matricula.aluno_id == aluno_id,
+        db.func.upper(Matricula.status) == "ATIVA"
+    ).first()
+
+
 # ───────────────────────────── TURMAS ─────────────────────────────
 
 @academico_bp.route("/turmas")
@@ -81,7 +90,7 @@ def excluir_turma(turma_id):
     turma = Turma.query.get_or_404(turma_id)
     db.session.delete(turma)
     db.session.commit()
-    flash("Turma exluída.", "sucesso")
+    flash("Turma excluída.", "sucesso")
     return redirect("/turmas")
 
 
@@ -148,7 +157,7 @@ def materias():
             m.ativa = 0
             CursoMateria.query.filter_by(materia_id=mid).delete()
             db.session.commit()
-            flash("Matéria exluída!", "sucesso")
+            flash("Matéria excluída!", "sucesso")
         return redirect("/materias")
     materias_por_curso = {
         (c.id, c.nome): Materia.query.filter_by(curso_id=c.id, ativa=1)
@@ -226,7 +235,8 @@ def notas_visualizar(aluno_id):
     curso_id = request.args.get("curso_id", type=int)
     aluno    = Aluno.query.get_or_404(aluno_id)
     if not curso_id:
-        mat = aluno.matriculas[-1] if aluno.matriculas else None
+        # usa matrícula ativa como fonte da verdade
+        mat = _matricula_ativa_query(aluno_id)
         if mat:
             curso_id = mat.curso_id
     curso      = Curso.query.get(curso_id) if curso_id else None
@@ -271,9 +281,15 @@ def frequencia():
         aluno = Aluno.query.get(aluno_id)
         if aluno:
             aluno_nome = aluno.nome
+        # usa func.upper para garantir compatibilidade com dados legados
+        from models import Matricula
         cursos_matriculados = (
-            Curso.query.join(Curso.matriculas)
-            .filter_by(aluno_id=aluno_id, status="ATIVA")
+            Curso.query
+            .join(Matricula, Matricula.curso_id == Curso.id)
+            .filter(
+                Matricula.aluno_id == aluno_id,
+                db.func.upper(Matricula.status) == "ATIVA"
+            )
             .order_by(Curso.nome).all()
         )
         last = (Frequencia.query.filter_by(aluno_id=aluno_id)
@@ -316,7 +332,6 @@ def frequencia():
 @academico_bp.route("/frequencia/<int:freq_id>/excluir", methods=["POST"])
 @login_required
 def excluir_frequencia(freq_id):
-    """Exclui um registro individual de frequência."""
     f        = Frequencia.query.get_or_404(freq_id)
     aluno_id = f.aluno_id
     curso_id = f.curso_id
@@ -329,7 +344,6 @@ def excluir_frequencia(freq_id):
 @academico_bp.route("/frequencia/excluir_tudo", methods=["POST"])
 @login_required
 def excluir_frequencia_tudo():
-    """Exclui TODAS as frequências de um aluno em um curso específico."""
     aluno_id = request.form.get("aluno_id", type=int)
     curso_id = request.form.get("curso_id", type=int)
     if not aluno_id or not curso_id:

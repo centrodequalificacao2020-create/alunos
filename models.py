@@ -2,12 +2,18 @@ from db import db
 from datetime import datetime, date
 
 
+# ─── Constantes de domínio ────────────────────────────────────────────────────
+PERFIS_VALIDOS  = {"admin", "administrador", "secretaria", "financeiro", "instrutor"}
+STATUS_MATRICULA = {"ATIVA", "INATIVA", "TRANCADA", "CONCLUIDA"}
+
+
 class Usuario(db.Model):
     __tablename__ = "usuarios"
     id              = db.Column(db.Integer, primary_key=True)
     usuario         = db.Column(db.String(80), unique=True, nullable=False)
     senha           = db.Column(db.String(256), nullable=False)
     nome            = db.Column(db.String(120))
+    # perfil: admin | administrador | secretaria | financeiro | instrutor
     perfil          = db.Column(db.String(40), default="secretaria")
     cpf             = db.Column(db.String(14))
     data_nascimento = db.Column(db.String(10))
@@ -27,6 +33,7 @@ class Curso(db.Model):
     valor_total     = db.Column(db.Float, default=0)
     tipo            = db.Column(db.String(60))
     duracao         = db.Column(db.String(60))
+    # alunos via curso_id em Aluno é mantido apenas por compatibilidade legada
     alunos          = db.relationship("Aluno",     backref="curso",  lazy=True)
     matriculas      = db.relationship("Matricula", backref="curso",  lazy=True)
     materias        = db.relationship("Materia",   backref="curso",  lazy=True)
@@ -71,6 +78,7 @@ class Aluno(db.Model):
     estado                 = db.Column(db.String(2))
     cep                    = db.Column(db.String(9))
     status                 = db.Column(db.String(40), default="Ativo")
+    # curso_id mantido por compatibilidade; fonte da verdade é matriculas
     curso_id               = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     responsavel_nome       = db.Column(db.String(120))
     responsavel_cpf        = db.Column(db.String(14))
@@ -82,6 +90,19 @@ class Aluno(db.Model):
     frequencias            = db.relationship("Frequencia",  backref="aluno", lazy=True)
     notas                  = db.relationship("Nota",        backref="aluno", lazy=True)
 
+    @property
+    def matricula_ativa(self):
+        """Retorna a matrícula ativa do aluno ou None."""
+        return next(
+            (m for m in self.matriculas if m.status.upper() == "ATIVA"), None
+        )
+
+    @property
+    def curso_ativo(self):
+        """Curso da matrícula ativa (fonte da verdade)."""
+        m = self.matricula_ativa
+        return m.curso if m else None
+
 
 class Matricula(db.Model):
     __tablename__ = "matriculas"
@@ -90,6 +111,7 @@ class Matricula(db.Model):
     curso_id            = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
     tipo_curso          = db.Column(db.String(60))
     data_matricula      = db.Column(db.String(10))
+    # status: ATIVA | INATIVA | TRANCADA | CONCLUIDA  (sempre maiúsculo)
     status              = db.Column(db.String(20), default="ATIVA")
     valor_matricula     = db.Column(db.Float, default=0)
     valor_mensalidade   = db.Column(db.Float, default=0)
@@ -97,6 +119,11 @@ class Matricula(db.Model):
     material_didatico   = db.Column(db.String(20))
     valor_material      = db.Column(db.Float, default=0)
     observacao          = db.Column(db.Text)
+
+    def save(self, session):
+        """Garante que status é sempre salvo em maiúsculo."""
+        self.status = (self.status or "ATIVA").upper()
+        session.add(self)
 
 
 class Mensalidade(db.Model):
@@ -160,6 +187,7 @@ class Materia(db.Model):
     id        = db.Column(db.Integer, primary_key=True)
     nome      = db.Column(db.String(120), nullable=False)
     ativa     = db.Column(db.Integer, default=1)
+    # curso_id direto mantido por compatibilidade; use CursoMateria para multi-curso
     curso_id  = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     conteudos = db.relationship("Conteudo", backref="materia", lazy=True,
                                 cascade="all, delete-orphan")
@@ -187,11 +215,13 @@ class Conteudo(db.Model):
 class Nota(db.Model):
     __tablename__ = "notas"
     __table_args__ = (
+        # curso_id mantido na constraint por compatibilidade com dados existentes
         db.UniqueConstraint("aluno_id", "materia_id", "curso_id"),
     )
     id         = db.Column(db.Integer, primary_key=True)
     aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"),   nullable=False, index=True)
     materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    # curso_id mantido para não quebrar queries de lançamento admin
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"),   nullable=False)
     nota       = db.Column(db.Float)
     resultado  = db.Column(db.String(40))

@@ -2,8 +2,10 @@ from functools import wraps
 from flask import session, redirect, flash, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Perfis que têm acesso administrativo
-ADMIN_PERFIS = {"administrador", "admin"}
+# Perfis reconhecidos pelo sistema
+PERFIS_VALIDOS = {"admin", "administrador", "secretaria", "financeiro", "instrutor"}
+ADMIN_PERFIS   = {"administrador", "admin"}
+FINAN_PERFIS   = {"administrador", "admin", "financeiro"}
 
 
 def hash_senha(senha: str) -> str:
@@ -23,14 +25,27 @@ def extensao_permitida(filename: str) -> bool:
 
 
 def login_required(f):
+    """Exige sessão admin ativa. Bloqueia alunos."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if "usuario_id" not in session:
             flash("Faça login para continuar.", "erro")
             return redirect("/login")
-        # Perfil aluno não tem acesso às rotas internas
         if session.get("perfil") == "aluno":
             return redirect("/aluno/dashboard")
+        return f(*args, **kwargs)
+    return decorated
+
+
+def financeiro_required(f):
+    """Exige perfil admin ou financeiro."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "usuario_id" not in session:
+            return redirect("/login")
+        if session.get("perfil", "").lower() not in FINAN_PERFIS:
+            flash("Acesso restrito ao setor financeiro.", "erro")
+            return redirect("/")
         return f(*args, **kwargs)
     return decorated
 
@@ -49,9 +64,13 @@ def admin_required(f):
 
 
 def aluno_login_required(f):
+    """Exige sessão de aluno ativa."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if "aluno_id" not in session:
+            return redirect("/aluno/login")
+        # Garante que não é uma sessão admin infiltrada
+        if session.get("perfil") not in ("aluno", None):
             return redirect("/aluno/login")
         return f(*args, **kwargs)
     return decorated
