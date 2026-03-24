@@ -12,22 +12,24 @@
     <hr>
 
     {% if notas %}
-    <table class="tabela-excel">
-        <thead>
-            <tr>
-                <th>Matéria</th>
-                <th>Nota</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for m in notas %}
-            <tr>
-                <td>{{ m[0] }}</td>
-                <td>{{ m[1] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Matéria</th>
+                    <th>Nota</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in notas %}
+                <tr>
+                    <td>{{ m[0] }}</td>
+                    <td>{{ m[1] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
     <p class="empty-state">Nenhuma nota lançada para este boletim.</p>
     {% endif %}
