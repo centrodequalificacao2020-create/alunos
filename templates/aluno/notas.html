@@ -14,20 +14,19 @@
 
 {% if not matricula %}
 <div class="card" style="max-width:900px; margin:0 auto; text-align:center;">
-    <p style="color:var(--color-text-muted);">Você não possui matrícula ativa no momento.</p>
-    <a href="/aluno/dashboard" class="btn">Voltar ao início</a>
+    <p class="text-muted">Você não possui matrícula ativa no momento.</p>
+    <a href="/aluno/dashboard" class="btn btn-secondary">Voltar ao início</a>
 </div>
 
 {% else %}
 
 {% if media is not none %}
-<div class="card" style="max-width:900px; margin:0 auto 16px; text-align:center;">
-    <p style="font-size:13px; color:var(--color-text-muted); margin-bottom:4px;">Média Geral</p>
-    <p style="font-size:2.2rem; font-weight:700;
-        color:{% if media >= 7 %}#22c55e{% elif media >= 5 %}#f59e0b{% else %}#ef4444{% endif %}">
+<div class="card portal-card--media" style="max-width:900px; margin:0 auto 16px;">
+    <p class="portal-media-label">Média Geral</p>
+    <p class="portal-media-valor {% if media >= 7 %}aprovado{% elif media >= 5 %}recuperacao{% else %}reprovado{% endif %}">
         {{ media }}
     </p>
-    <p style="font-size:13px; color:var(--color-text-muted);">
+    <p class="portal-media-status">
         {% if media >= 7 %}Aprovado{% elif media >= 5 %}Em recuperação{% else %}Reprovado{% endif %}
     </p>
 </div>
@@ -47,8 +46,7 @@
             {% for nota, materia in notas %}
             <tr>
                 <td>{{ materia.nome }}</td>
-                <td style="text-align:center; font-weight:600;
-                    color:{% if nota and nota.nota is not none %}{% if nota.nota >= 7 %}#22c55e{% elif nota.nota >= 5 %}#f59e0b{% else %}#ef4444{% endif %}{% else %}inherit{% endif %}">
+                <td class="{% if nota and nota.nota is not none %}{% if nota.nota >= 7 %}nota-aprovado{% elif nota.nota >= 5 %}nota-cursando{% else %}nota-reprovado{% endif %}{% endif %}" style="text-align:center; font-weight:600;">
                     {{ '%.1f'|format(nota.nota) if nota and nota.nota is not none else '—' }}
                 </td>
                 <td style="text-align:center;">
@@ -61,7 +59,7 @@
                         <span>{{ nota.resultado }}</span>
                         {% endif %}
                     {% else %}
-                        <span style="color:var(--color-text-muted);">Aguardando</span>
+                        <span class="text-muted">Aguardando</span>
                     {% endif %}
                 </td>
             </tr>

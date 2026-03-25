@@ -44,10 +44,10 @@
     {% set presenca = frequencias | selectattr('status', 'in', ['P','Presente']) | list | length %}
     {% set pct      = (presenca / total * 100) | round(1) if total > 0 else 0 %}
 
-    <div style="margin-top:16px; display:flex; gap:24px; flex-wrap:wrap;">
-        <span class="status-ativo">&#x2714; Presenças: {{ presenca }}</span>
-        <span class="status-inativo">&#x2716; Faltas: {{ total - presenca }}</span>
-        <span style="font-weight:600;">&#x1F4CA; Frequência: {{ pct }}%</span>
+    <div class="portal-freq-rodape">
+        <span class="status-ativo portal-freq-total">&#x2714; Presenças: {{ presenca }}</span>
+        <span class="status-inativo portal-freq-total">&#x2716; Faltas: {{ total - presenca }}</span>
+        <span class="portal-freq-total">&#x1F4CA; Frequência: {{ pct }}%</span>
     </div>
 
     {% else %}
