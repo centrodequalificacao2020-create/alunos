@@ -1,55 +1,167 @@
 {% extends "base.html" %}
 {% block title %}Portal do Aluno{% endblock %}
-{% block content %}
 
-<div class="card">
-    <div class="card-header">
-        <span>🎓</span>
-        <h2>Bem-vindo, {{ aluno.nome.strip().split()[0] }}!</h2>
-    </div>
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<style>
+body {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.aluno-header {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px 10px;
+    color: #fff;
+}
+.aluno-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px;
+}
+.aluno-header p {
+    opacity: 0.65;
+    margin: 0;
+    font-size: 14px;
+}
+.aluno-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
+    max-width: 900px;
+    margin: auto;
+    padding: 20px 20px 50px;
+}
+@media (max-width: 700px) { .aluno-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px) { .aluno-grid { grid-template-columns: 1fr; } }
+.home-card {
+    background: linear-gradient(145deg, rgba(0,198,255,.25), rgba(0,120,255,.15));
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: .35s;
+    border: 1px solid rgba(255,255,255,.15);
+    box-shadow: 0 5px 20px rgba(0,0,0,.3);
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+    display: block;
+}
+.home-card::before {
+    content: '';
+    position: absolute;
+    width: 150%; height: 150%;
+    top: -50%; left: -50%;
+    background: radial-gradient(circle, rgba(255,255,255,.15), transparent 60%);
+    opacity: 0;
+    transition: .4s;
+}
+.home-card:hover::before { opacity: 1; }
+.home-card:hover {
+    transform: translateY(-8px) scale(1.04);
+    box-shadow: 0 20px 40px rgba(0,0,0,.6);
+    background: linear-gradient(145deg, rgba(0,198,255,.45), rgba(0,120,255,.25));
+}
+.home-card i {
+    font-size: 38px;
+    margin-bottom: 12px;
+    display: block;
+    transition: .3s;
+}
+.home-card:hover i { transform: scale(1.2) rotate(5deg); }
+.home-card span {
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+    letter-spacing: .5px;
+    display: block;
+}
+.home-card small {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: rgba(255,255,255,.6);
+}
+.badge-pendente {
+    display: inline-block;
+    margin-top: 6px;
+    background: #ff4d4d;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+    letter-spacing: .4px;
+}
+.badge-ok {
+    display: inline-block;
+    margin-top: 6px;
+    background: #00ff9d;
+    color: #0f2027;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+}
+.c1{color:#00c6ff;} .c2{color:#ffd700;} .c3{color:#00ff9d;}
+.c4{color:#c77dff;} .c5{color:#ff9f43;} .c6{color:#ff4d4d;}
+.c7{color:#a29bfe;}
+</style>
+
+<div class="aluno-header">
+    <h1>🎓 Bem-vindo, {{ aluno.nome.strip().split()[0] }}!</h1>
     {% if matricula %}
-    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
+    <p>{{ matricula.curso.nome if matricula.curso else '' }}</p>
     {% endif %}
 </div>
 
-<div class="grid-3" style="max-width:900px; margin:0 auto;">
+<div class="aluno-grid">
 
-    <a href="/aluno/financeiro" class="card" style="text-align:center; text-decoration:none; color:inherit;">
-        <div style="font-size:2rem;">💰</div>
-        <h3>Financeiro</h3>
+    <a href="/aluno/financeiro" class="home-card">
+        <i class="fas fa-dollar-sign c2"></i>
+        <span>Financeiro</span>
         {% if pendentes > 0 %}
-        <span class="badge badge-erro">{{ pendentes }} PENDENTE{{ 'S' if pendentes > 1 }}</span>
+        <span class="badge-pendente">{{ pendentes }} PENDENTE{{ 'S' if pendentes > 1 }}</span>
         {% else %}
-        <span class="badge badge-sucesso">Em dia</span>
+        <span class="badge-ok">Em dia ✔</span>
         {% endif %}
     </a>
 
-    <a href="/aluno/notas" class="card" style="text-align:center; text-decoration:none; color:inherit;">
-        <div style="font-size:2rem;">📊</div>
-        <h3>Minhas Notas</h3>
-        <p style="font-size:13px; color:var(--color-text-muted);">Notas e resultados por matéria</p>
+    <a href="/aluno/notas" class="home-card">
+        <i class="fas fa-clipboard-list c4"></i>
+        <span>Minhas Notas</span>
+        <small>Resultados por matéria</small>
     </a>
 
-    <a href="/aluno/conteudo" class="card" style="text-align:center; text-decoration:none; color:inherit;">
-        <div style="font-size:2rem;">📚</div>
-        <h3>Conteúdos</h3>
-        <p style="font-size:13px; color:var(--color-text-muted);">Aulas e materiais do curso</p>
+    <a href="/aluno/conteudo" class="home-card">
+        <i class="fas fa-play-circle c1"></i>
+        <span>Aulas</span>
+        <small>Materiais do curso</small>
     </a>
 
-    <a href="/aluno/frequencia" class="card" style="text-align:center; text-decoration:none; color:inherit;">
-        <div style="font-size:2rem;">📅</div>
-        <h3>Frequência</h3>
-        <p style="font-size:13px; color:var(--color-text-muted);">Histórico de presença</p>
+    <a href="/aluno/frequencia" class="home-card">
+        <i class="fas fa-calendar-check c3"></i>
+        <span>Frequência</span>
+        <small>Histórico de presença</small>
     </a>
 
-    <a href="/aluno/senha" class="card" style="text-align:center; text-decoration:none; color:inherit;">
-        <div style="font-size:2rem;">🔒</div>
-        <h3>Alterar Senha</h3>
-        <p style="font-size:13px; color:var(--color-text-muted);">Trocar a senha do portal</p>
+    <a href="/aluno/senha" class="home-card">
+        <i class="fas fa-lock c5"></i>
+        <span>Alterar Senha</span>
+        <small>Trocar senha do portal</small>
+    </a>
+
+    <a href="/aluno/logout" class="home-card">
+        <i class="fas fa-sign-out-alt c6"></i>
+        <span>Sair</span>
+        <small>Encerrar sessão</small>
     </a>
 
 </div>
-
-<a href="/aluno/logout" style="display:block; text-align:center; margin:8px auto; font-size:13px; color:var(--color-text-muted);">Sair</a>
-
 {% endblock %}
