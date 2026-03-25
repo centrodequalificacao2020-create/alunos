@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v6)
+   SISTEMA ESCOLAR — style.css  (v7)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ────────────────────────────────────────────────── */
@@ -444,7 +444,7 @@ td.acoes { text-align: center; white-space: nowrap; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-overlay { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 32px; color: var(--color-text-muted); font-size: var(--font-size-base); }
 
-/* ── 30. MEDIA QUERIES ───────────────────────────────────────── */
+/* ── 30. MEDIA QUERIES ───────────────────────────────────── */
 @media (max-width: 600px) {
     main { padding: 16px; }
     .card { padding: 16px; }
@@ -480,3 +480,32 @@ a:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; 
 .status-inativo::before    { content: "\25CB"; }
 .status-trancado::before   { content: "\25A0"; }
 .status-cancelado::before  { content: "\00D7"; }
+
+/* ════════════════════════════════════════════════════════════
+   32. TEMA PORTAL DO ALUNO — isolado em body.tema-aluno
+   Não afeta nenhuma página administrativa
+   ════════════════════════════════════════════════════════════ */
+body.tema-aluno {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    min-height: 100vh;
+}
+
+/* Header escuro petróleo com efeito glass */
+body.tema-aluno header {
+    background: rgba(13, 33, 59, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/* Nav mobile: fundo coerente com o tema escuro */
+@media (max-width: 900px) {
+    body.tema-aluno nav {
+        background: rgba(10, 25, 47, 0.97);
+    }
+}
+
+/* main sem padding extra — o dashboard do aluno gerencia o próprio espaçamento */
+body.tema-aluno main {
+    padding: 0;
+}
