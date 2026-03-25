@@ -23,7 +23,7 @@
 
 {% block content %}
 <div class="card-header" style="margin-bottom:16px;">
-    <span>📚</span>
+    <span>&#128218;</span>
     <h2>Conteúdo das Aulas</h2>
 </div>
 
@@ -47,9 +47,10 @@
             <div class="aula"
                  data-id="{{ c.id }}"
                  data-arquivo="{{ c.arquivo or '' }}"
+                 data-video="{{ c.video or '' }}"
                  data-titulo="{{ c.titulo }}"
                  data-concluido="{{ '1' if prog and prog.concluido == 1 else '0' }}">
-                {% if prog and prog.concluido == 1 %}✔{% else %}○{% endif %}
+                {% if prog and prog.concluido == 1 %}&#10004;{% else %}&#9675;{% endif %}
                 {{ c.titulo }}
             </div>
         {% endfor %}
@@ -88,25 +89,8 @@ function ehVideo(src) {
     );
 }
 
-/**
- * Converte qualquer URL do YouTube ou Vimeo para URL de embed
- * com parâmetros que eliminam anúncios, sugestões e branding.
- *
- * Parâmetros YouTube usados:
- *   rel=0              — não mostra vídeos sugeridos ao final
- *   modestbranding=1   — remove logo do YouTube do player
- *   iv_load_policy=3   — desativa anotações/cards
- *   disablekb=0        — mantém atalhos de teclado
- *   fs=1               — permite tela cheia
- *
- * Nota: anúncios no YouTube só são completamente eliminados
- * em vídeos de canais que não ativaram monetização, ou quando
- * o usuário tem YouTube Premium. Estes parâmetros removem o
- * máximo possível via embed.
- */
 function embedUrl(src) {
     const YT_PARAMS = 'rel=0&modestbranding=1&iv_load_policy=3&fs=1';
-
     if (src.includes('youtu.be/')) {
         const id = src.split('youtu.be/')[1].split('?')[0];
         return `https://www.youtube-nocookie.com/embed/${id}?${YT_PARAMS}`;
@@ -119,7 +103,6 @@ function embedUrl(src) {
         } catch { return src; }
     }
     if (src.includes('youtube.com/embed/')) {
-        // já é embed — garante que os parâmetros estão presentes
         const base = src.split('?')[0];
         return `${base}?${YT_PARAMS}`;
     }
@@ -132,6 +115,7 @@ function embedUrl(src) {
 
 function abrirAula(el) {
     const arquivo   = el.dataset.arquivo || '';
+    const video     = el.dataset.video   || '';
     const titulo    = el.dataset.titulo  || 'Aula';
     const id        = el.dataset.id;
     const concluido = el.dataset.concluido;
@@ -143,7 +127,34 @@ function abrirAula(el) {
     aulas.forEach(a => a.classList.remove('ativa'));
     el.classList.add('ativa');
 
-    if (!arquivo) {
+    /* ---- Renderização ---- */
+    if (video) {
+        /* Tem vídeo — prioridade máxima */
+        if (/\.(mp4|webm|ogg)$/i.test(video)) {
+            area.innerHTML = `
+                <video class="video-frame" controls style="background:#000;"
+                       oncontextmenu="return false;">
+                    <source src="${video}">
+                    Seu navegador não suporta vídeo HTML5.
+                </video>`;
+        } else {
+            const src = embedUrl(video);
+            area.innerHTML = `
+                <iframe class="video-frame" src="${src}"
+                    allowfullscreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    referrerpolicy="strict-origin-when-cross-origin">
+                </iframe>`;
+        }
+        /* Se também tiver PDF, mostra botão de download abaixo */
+        if (arquivo) {
+            area.innerHTML += `
+                <p style="margin-top:12px;">
+                    <a href="/aluno/arquivo/${id}" target="_blank" class="btn btn-azul">&#128196; Ver PDF da aula</a>
+                </p>`;
+        }
+
+    } else if (!arquivo) {
         area.innerHTML = '<p class="empty-state">Nenhum conteúdo disponível para esta aula.</p>';
 
     } else if (/\.pdf$/i.test(arquivo)) {
@@ -183,8 +194,8 @@ function abrirAula(el) {
     }
 
     botao.innerHTML = concluido === '1'
-        ? `<span style="color:#2ecc71;font-weight:bold">✔ Aula concluída</span>`
-        : `<a href="/aluno/concluir/${id}" class="btn btn-azul">✔ Marcar como concluída</a>`;
+        ? `<span style="color:#2ecc71;font-weight:bold">&#10004; Aula concluída</span>`
+        : `<a href="/aluno/concluir/${id}" class="btn btn-azul">&#10004; Marcar como concluída</a>`;
 
     localStorage.setItem('ultimaAula', id);
 }
