@@ -55,12 +55,18 @@
                     <td>{{ m.curso_nome }}</td>
                     <td>{{ m.data_matricula or '-' }}</td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
-                    <td>
+                    <td style="white-space:nowrap">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
                            class="btn btn-sm btn-pdf"
                            title="Baixar Declaração de Conclusão"
                            target="_blank">
                             📄 Declaração
+                        </a>
+                        <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
+                           class="btn btn-sm btn-verde"
+                           title="Baixar Histórico de Presença"
+                           target="_blank">
+                            📊 Presença
                         </a>
                     </td>
                 </tr>
