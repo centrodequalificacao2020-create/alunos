@@ -5,7 +5,10 @@ from db import db
 from models import (Aluno, Curso, Materia, CursoMateria,
                     Nota, Frequencia, Turma, TurmaAluno)
 from security import login_required
-from services.pdf_service import gerar_boletim_notas, gerar_historico_frequencia
+from services.pdf_service import (
+    gerar_boletim_notas, gerar_historico_frequencia,
+    gerar_declaracao_conclusao
+)
 from services.notas_service import (
     get_materias_do_curso, get_notas_map, get_boletim,
     salvar_notas, get_curso_ativo_do_aluno
@@ -29,7 +32,7 @@ def _tipos_curso():
     return [r[0] for r in rows]
 
 
-# ────────────────────────────── TURMAS ──────────────────────────────
+# ──────────────────────────── TURMAS ────────────────────────────
 
 @academico_bp.route("/turmas")
 @login_required
@@ -124,7 +127,7 @@ def remover_aluno_turma(turma_id, aluno_id):
     return redirect(f"/turmas/{turma_id}/editar")
 
 
-# ────────────────────────────── MATÉRIAS ──────────────────────────────
+# ──────────────────────────── MATÉRIAS ────────────────────────────
 
 @academico_bp.route("/materias", methods=["GET", "POST"])
 @login_required
@@ -139,7 +142,6 @@ def materias():
                 m = Materia(nome=nome, curso_id=curso_id, ativa=1)
                 db.session.add(m)
                 db.session.flush()
-                # Evita duplicata via UniqueConstraint
                 existe = CursoMateria.query.filter_by(
                     curso_id=curso_id, materia_id=m.id).first()
                 if not existe:
@@ -173,7 +175,7 @@ def materias():
                            materias_por_curso=materias_por_curso)
 
 
-# ────────────────────────────── NOTAS ──────────────────────────────
+# ──────────────────────────── NOTAS ────────────────────────────
 
 @academico_bp.route("/notas", methods=["GET", "POST"])
 @login_required
@@ -234,7 +236,7 @@ def notas_visualizar(aluno_id):
                            boletim=boletim)
 
 
-# ────────────────────────────── FREQUÊNCIA ───────────────────────────
+# ──────────────────────────── FREQUÊNCIA ────────────────────────────
 
 @academico_bp.route("/frequencia", methods=["GET", "POST"])
 @login_required
@@ -327,7 +329,7 @@ def frequencia_historico():
                            percentual=percentual)
 
 
-# ────────────────────────────── PDFs ──────────────────────────────
+# ──────────────────────────── PDFs ────────────────────────────
 
 @academico_bp.route("/notas_pdf/<int:aluno_id>/<int:curso_id>")
 @login_required
@@ -356,7 +358,34 @@ def frequencia_historico_pdf(aluno_id, curso_id):
                      mimetype="application/pdf")
 
 
-# ────────────────────────────── BACKUP ────────────────────────────
+@academico_bp.route("/declaracao_conclusao_pdf/<int:aluno_id>/<int:curso_id>")
+@login_required
+def declaracao_conclusao_pdf(aluno_id, curso_id):
+    """Gera declaração de conclusão.
+    Query params opcionais:
+      - modalidade: EAD (padrão) ou Presencial
+      - parceiro_nome: nome da instituição parceira
+      - parceiro_cnpj: CNPJ da instituição parceira
+    """
+    aluno          = Aluno.query.get_or_404(aluno_id)
+    curso          = Curso.query.get_or_404(curso_id)
+    modalidade     = request.args.get("modalidade", "EAD")
+    parceiro_nome  = request.args.get("parceiro_nome", "")
+    parceiro_cnpj  = request.args.get("parceiro_cnpj", "")
+    buf = gerar_declaracao_conclusao(
+        aluno, curso,
+        modalidade=modalidade,
+        parceiro_nome=parceiro_nome,
+        parceiro_cnpj=parceiro_cnpj,
+        root_path=current_app.root_path
+    )
+    nome_arquivo = f"declaracao_{aluno.nome.split()[0].lower()}_{aluno_id}.pdf"
+    return send_file(buf, as_attachment=True,
+                     download_name=nome_arquivo,
+                     mimetype="application/pdf")
+
+
+# ──────────────────────────── BACKUP ────────────────────────────
 
 @academico_bp.route("/backup")
 @login_required
