@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, request, redirect, session, flash, abort, send_file, make_response
+from flask import Blueprint, render_template, request, redirect, session, flash, abort, send_file, make_response, Response
 from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria, Nota
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
@@ -10,7 +10,6 @@ portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 
 def _matricula_ativa(aluno_id):
-    """Retorna a matrícula ativa mais recente do aluno (maior id)."""
     return (
         Matricula.query
         .filter(
@@ -23,10 +22,6 @@ def _matricula_ativa(aluno_id):
 
 
 def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
-    """
-    S3: Verifica se o aluno tem matrícula ativa no curso da matéria do conteúdo.
-    Retorna True se o acesso for permitido, False caso contrário.
-    """
     matricula = _matricula_ativa(aluno_id)
     if not matricula:
         return False
@@ -50,7 +45,7 @@ def login_aluno():
         aluno = Aluno.query.filter_by(email=email).first()
         if aluno and aluno.senha and verificar_senha(senha, aluno.senha):
             session.clear()
-            session.permanent = True  # S5: respeita PERMANENT_SESSION_LIFETIME
+            session.permanent = True
             session["aluno_id"] = aluno.id
             session["perfil"]   = "aluno"
             return redirect("/aluno/dashboard")
@@ -159,12 +154,18 @@ def conteudo_aluno():
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
 def abrir_arquivo_conteudo(conteudo_id):
-    """Serve arquivos do curso do aluno. S3: verifica ownership antes de servir."""
+    """
+    Serve o PDF em bytes para o PDF.js.
+    - Verifica ownership (IDOR fix)
+    - NAO expoe o caminho real do arquivo
+    - Bloqueia download via Content-Disposition: inline
+    - Bloqueia abertura em aba separada via X-Frame-Options: SAMEORIGIN
+    - Bloqueia cache no cliente via Cache-Control
+    """
     import mimetypes
 
     conteudo = db.get_or_404(Conteudo, conteudo_id)
 
-    # S3: IDOR fix — garante que o conteúdo pertence ao curso do aluno logado
     if not _aluno_pode_acessar_conteudo(session["aluno_id"], conteudo):
         abort(403)
 
@@ -173,6 +174,7 @@ def abrir_arquivo_conteudo(conteudo_id):
 
     arquivo = conteudo.arquivo.strip()
 
+    # URLs externas: redireciona normalmente (ex: Google Drive)
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
         return redirect(arquivo)
 
@@ -190,9 +192,20 @@ def abrir_arquivo_conteudo(conteudo_id):
         if os.path.isfile(candidato):
             mime, _ = mimetypes.guess_type(candidato)
             mime = mime or "application/octet-stream"
-            response = make_response(send_file(candidato, mimetype=mime))
+
+            # Le os bytes — nunca expoe o caminho real na resposta
+            with open(candidato, "rb") as f:
+                dados = f.read()
+
+            response = Response(dados, mimetype=mime)
+            # inline = exibe no browser; sem 'filename' evita dialogo de download
             response.headers["Content-Disposition"] = "inline"
+            # Impede que o PDF seja aberto em iframe de outro dominio
+            response.headers["X-Frame-Options"]     = "SAMEORIGIN"
             response.headers["X-Content-Type-Options"] = "nosniff"
+            # Sem cache no cliente (evita salvar via cache do browser)
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"]        = "no-cache"
             return response
 
     abort(404)
@@ -234,7 +247,7 @@ def trocar_senha():
             return render_template("aluno/trocar_senha.html", aluno=aluno)
 
         if nova != confirma:
-            flash("As senhas não conferem.", "erro")
+            flash("As senhas nao conferem.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
 
         aluno.senha = hash_senha(nova)

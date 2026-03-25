@@ -3,20 +3,55 @@
 
 {% block styles %}
 <style>
-.portal          { display:flex; gap:30px; }
-.sidebar         { width:280px; background:var(--color-surface,#f5f5f5); padding:20px; border-radius:8px; max-height:80vh; overflow-y:auto; flex-shrink:0; }
-.aula            { padding:10px 8px; border-bottom:1px solid var(--color-border,#ddd); cursor:pointer; border-radius:4px; font-size:14px; }
-.aula:hover      { background:var(--color-hover,#eee); }
-.aula.ativa      { background:#d9edf7; font-weight:bold; }
-.materia-titulo  { margin:14px 0 4px; font-size:12px; text-transform:uppercase; color:var(--color-text-muted,#888); letter-spacing:.5px; }
-.player          { flex:1; min-width:0; }
-.video-frame     { width:100%; height:500px; border-radius:8px; border:none; }
+/* ---------- layout ---------- */
+.portal         { display:flex; gap:30px; }
+.sidebar        { width:280px; background:var(--color-surface,#f5f5f5); padding:20px; border-radius:8px;
+                  max-height:80vh; overflow-y:auto; flex-shrink:0; }
+.aula           { padding:10px 8px; border-bottom:1px solid var(--color-border,#ddd); cursor:pointer;
+                  border-radius:4px; font-size:14px; }
+.aula:hover     { background:var(--color-hover,#eee); }
+.aula.ativa     { background:#d9edf7; font-weight:bold; }
+.materia-titulo { margin:14px 0 4px; font-size:12px; text-transform:uppercase;
+                  color:var(--color-text-muted,#888); letter-spacing:.5px; }
+.player         { flex:1; min-width:0; }
+
+/* ---------- progress ---------- */
 .progresso-barra { background:var(--color-border,#ddd); height:14px; border-radius:8px; overflow:hidden; margin:6px 0 4px; }
 .progresso-fill  { background:#4CAF50; height:100%; transition:width .3s; }
+
+/* ---------- PDF.js viewer ---------- */
+#pdf-container {
+    width:100%; background:#525659; border-radius:8px;
+    overflow-y:auto; max-height:75vh; padding:16px;
+    box-sizing:border-box; display:none;
+}
+#pdf-container canvas {
+    display:block; margin:0 auto 12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+    /* impede selecionar / arrastar o canvas */
+    -webkit-user-select:none; user-select:none;
+    pointer-events:none;
+}
+.pdf-toolbar {
+    display:none; align-items:center; gap:10px;
+    background:#3d3d3d; padding:8px 12px;
+    border-radius:8px 8px 0 0; color:#fff; font-size:13px;
+    /* sem botão de download — barra apenas de navegação */
+}
+.pdf-toolbar button {
+    background:#555; border:none; color:#fff; padding:4px 10px;
+    border-radius:4px; cursor:pointer; font-size:13px;
+}
+.pdf-toolbar button:hover { background:#777; }
+
+/* ---------- video ---------- */
+.video-frame { width:100%; height:500px; border-radius:8px; border:none; }
+
 @media(max-width:768px){
-    .portal      { flex-direction:column; }
-    .sidebar     { width:100%; max-height:none; }
-    .video-frame { height:220px; }
+    .portal          { flex-direction:column; }
+    .sidebar         { width:100%; max-height:none; }
+    .video-frame     { height:220px; }
+    #pdf-container   { max-height:60vh; }
 }
 </style>
 {% endblock %}
@@ -37,6 +72,7 @@
 {% if conteudos %}
 <div class="portal">
 
+    <!-- ===== SIDEBAR ===== -->
     <div class="sidebar">
         {% set ns_mat = namespace(atual="") %}
         {% for c, prog in conteudos %}
@@ -46,7 +82,7 @@
             {% endif %}
             <div class="aula"
                  data-id="{{ c.id }}"
-                 data-arquivo="{{ c.arquivo or '' }}"
+                 data-tipo="{{ 'pdf' if c.arquivo and c.arquivo.lower().endswith('.pdf') else ('video' if c.video else ('arquivo' if c.arquivo else 'vazio')) }}"
                  data-video="{{ c.video or '' }}"
                  data-titulo="{{ c.titulo }}"
                  data-concluido="{{ '1' if prog and prog.concluido == 1 else '0' }}">
@@ -62,9 +98,23 @@
         <p style="font-size:12px; color:var(--color-text-muted);">{{ ns.concluidas }} / {{ total }} aulas concluídas</p>
     </div>
 
+    <!-- ===== PLAYER ===== -->
     <div class="player">
-        <h3 id="tituloAula" style="margin-bottom:16px;">Selecione uma aula</h3>
+        <h3 id="tituloAula" style="margin-bottom:12px;">Selecione uma aula</h3>
+
+        <!-- Toolbar de navegação PDF (sem download) -->
+        <div class="pdf-toolbar" id="pdfToolbar">
+            <button onclick="pdfPaginaAnterior()">&#9664; Anterior</button>
+            <span id="pdfPagInfo">Pág 1 / 1</span>
+            <button onclick="pdfProximaPagina()">Próxima &#9654;</button>
+        </div>
+
+        <!-- Canvas do PDF.js -->
+        <div id="pdf-container"></div>
+
+        <!-- Player de vídeo / outros -->
         <div id="conteudoAula"></div>
+
         <div id="botaoConclusao" style="margin-top:20px;"></div>
     </div>
 
@@ -77,34 +127,107 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- PDF.js via CDN (sem worker externo — usa fake worker para simplicidade) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-const aulas = document.querySelectorAll('.aula');
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// -------- estado PDF --------
+let pdfDoc      = null;
+let paginaAtual = 1;
+let totalPaginas = 1;
+let renderizando = false;
+
+async function renderizarPagina(num) {
+    if (renderizando) return;
+    renderizando = true;
+    try {
+        const container = document.getElementById('pdf-container');
+        container.innerHTML = '';
+
+        const pagina  = await pdfDoc.getPage(num);
+        const escala  = Math.min(container.clientWidth / pagina.getViewport({scale:1}).width, 1.8);
+        const viewport = pagina.getViewport({scale: escala});
+
+        const canvas  = document.createElement('canvas');
+        canvas.height = viewport.height;
+        canvas.width  = viewport.width;
+        container.appendChild(canvas);
+
+        await pagina.render({
+            canvasContext: canvas.getContext('2d'),
+            viewport
+        }).promise;
+
+        document.getElementById('pdfPagInfo').textContent =
+            `Pág ${num} / ${totalPaginas}`;
+    } finally {
+        renderizando = false;
+    }
+}
+
+function pdfPaginaAnterior() {
+    if (paginaAtual > 1) { paginaAtual--; renderizarPagina(paginaAtual); }
+}
+function pdfProximaPagina() {
+    if (paginaAtual < totalPaginas) { paginaAtual++; renderizarPagina(paginaAtual); }
+}
+
+async function carregarPDF(conteudoId) {
+    const container = document.getElementById('pdf-container');
+    const toolbar   = document.getElementById('pdfToolbar');
+    const area      = document.getElementById('conteudoAula');
+
+    area.innerHTML      = '';
+    container.innerHTML = '<p style="color:#ccc;padding:20px;">Carregando PDF...</p>';
+    container.style.display = 'block';
+    toolbar.style.display   = 'flex';
+
+    try {
+        // Busca os bytes via fetch (com credenciais de sessão)
+        // A URL não é exposta como src de <iframe> nem como href de <a>
+        const resp = await fetch(`/aluno/arquivo/${conteudoId}`, {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const arrayBuffer = await resp.arrayBuffer();
+
+        // Carrega no PDF.js a partir dos bytes — sem criar URL de objeto
+        pdfDoc       = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        totalPaginas = pdfDoc.numPages;
+        paginaAtual  = 1;
+        await renderizarPagina(paginaAtual);
+
+    } catch (e) {
+        container.innerHTML = `<p style="color:#f88;padding:20px;">Erro ao carregar o PDF: ${e.message}</p>`;
+        toolbar.style.display = 'none';
+    }
+}
+
+// -------- utilidades de vídeo --------
 function ehVideo(src) {
     return src && (
-        src.includes('youtube.com') ||
-        src.includes('youtu.be') ||
-        src.includes('vimeo.com') ||
-        /\.(mp4|webm|ogg)$/i.test(src)
+        src.includes('youtube.com') || src.includes('youtu.be') ||
+        src.includes('vimeo.com')   || /\.(mp4|webm|ogg)$/i.test(src)
     );
 }
 
 function embedUrl(src) {
-    const YT_PARAMS = 'rel=0&modestbranding=1&iv_load_policy=3&fs=1';
+    const YT = 'rel=0&modestbranding=1&iv_load_policy=3&fs=1';
     if (src.includes('youtu.be/')) {
         const id = src.split('youtu.be/')[1].split('?')[0];
-        return `https://www.youtube-nocookie.com/embed/${id}?${YT_PARAMS}`;
+        return `https://www.youtube-nocookie.com/embed/${id}?${YT}`;
     }
     if (src.includes('youtube.com/watch')) {
-        try {
-            const url = new URL(src);
-            const id  = url.searchParams.get('v');
-            return id ? `https://www.youtube-nocookie.com/embed/${id}?${YT_PARAMS}` : src;
-        } catch { return src; }
+        try { const id = new URL(src).searchParams.get('v');
+              return id ? `https://www.youtube-nocookie.com/embed/${id}?${YT}` : src; }
+        catch { return src; }
     }
     if (src.includes('youtube.com/embed/')) {
-        const base = src.split('?')[0];
-        return `${base}?${YT_PARAMS}`;
+        return src.split('?')[0] + '?' + YT;
     }
     if (src.includes('vimeo.com/')) {
         const id = src.split('vimeo.com/')[1].split('?')[0];
@@ -113,10 +236,20 @@ function embedUrl(src) {
     return src;
 }
 
+// -------- abre uma aula --------
+const aulas = document.querySelectorAll('.aula');
+
+function ocultarPDF() {
+    document.getElementById('pdf-container').style.display = 'none';
+    document.getElementById('pdfToolbar').style.display    = 'none';
+    document.getElementById('pdf-container').innerHTML     = '';
+    pdfDoc = null;
+}
+
 function abrirAula(el) {
-    const arquivo   = el.dataset.arquivo || '';
-    const video     = el.dataset.video   || '';
-    const titulo    = el.dataset.titulo  || 'Aula';
+    const tipo      = el.dataset.tipo;
+    const video     = el.dataset.video || '';
+    const titulo    = el.dataset.titulo || 'Aula';
     const id        = el.dataset.id;
     const concluido = el.dataset.concluido;
 
@@ -127,9 +260,15 @@ function abrirAula(el) {
     aulas.forEach(a => a.classList.remove('ativa'));
     el.classList.add('ativa');
 
-    /* ---- Renderização ---- */
-    if (video) {
-        /* Tem vídeo — prioridade máxima */
+    ocultarPDF();
+    area.innerHTML = '';
+
+    if (tipo === 'pdf') {
+        // PDF renderizado pelo PDF.js — sem iframe, sem download
+        carregarPDF(id);
+
+    } else if (tipo === 'video' || (tipo !== 'pdf' && video)) {
+        // Vídeo externo (YouTube, Vimeo) ou arquivo de vídeo local
         if (/\.(mp4|webm|ogg)$/i.test(video)) {
             area.innerHTML = `
                 <video class="video-frame" controls style="background:#000;"
@@ -138,59 +277,21 @@ function abrirAula(el) {
                     Seu navegador não suporta vídeo HTML5.
                 </video>`;
         } else {
-            const src = embedUrl(video);
             area.innerHTML = `
-                <iframe class="video-frame" src="${src}"
+                <iframe class="video-frame" src="${embedUrl(video)}"
                     allowfullscreen
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     referrerpolicy="strict-origin-when-cross-origin">
                 </iframe>`;
         }
-        /* Se também tiver PDF, mostra botão de download abaixo */
-        if (arquivo) {
-            area.innerHTML += `
-                <p style="margin-top:12px;">
-                    <a href="/aluno/arquivo/${id}" target="_blank" class="btn btn-azul">&#128196; Ver PDF da aula</a>
-                </p>`;
-        }
 
-    } else if (!arquivo) {
-        area.innerHTML = '<p class="empty-state">Nenhum conteúdo disponível para esta aula.</p>';
-
-    } else if (/\.pdf$/i.test(arquivo)) {
-        const src = (arquivo.startsWith('http://') || arquivo.startsWith('https://'))
-            ? arquivo
-            : `/aluno/arquivo/${id}`;
+    } else if (tipo === 'arquivo') {
+        // Outros arquivos (ex: imagem, zip) — link simples
         area.innerHTML = `
-            <iframe class="video-frame"
-                    src="${src}"
-                    style="height:650px;"
-                    oncontextmenu="return false;">
-            </iframe>`;
-
-    } else if (/\.(mp4|webm|ogg)$/i.test(arquivo)) {
-        const src = `/aluno/arquivo/${id}`;
-        area.innerHTML = `
-            <video class="video-frame" controls style="background:#000;"
-                   oncontextmenu="return false;">
-                <source src="${src}">
-                Seu navegador não suporta vídeo HTML5.
-            </video>`;
-
-    } else if (ehVideo(arquivo)) {
-        const src = embedUrl(arquivo);
-        area.innerHTML = `
-            <iframe class="video-frame" src="${src}"
-                allowfullscreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                referrerpolicy="strict-origin-when-cross-origin">
-            </iframe>`;
+            <p><a href="/aluno/arquivo/${id}" target="_blank" class="btn btn-azul">&#128196; Abrir arquivo</a></p>`;
 
     } else {
-        const src = `/aluno/arquivo/${id}`;
-        area.innerHTML = `
-            <p><a href="${src}" target="_blank" class="btn btn-azul">Abrir arquivo</a></p>
-            <iframe class="video-frame" src="${src}"></iframe>`;
+        area.innerHTML = '<p class="empty-state">Nenhum conteúdo disponível para esta aula.</p>';
     }
 
     botao.innerHTML = concluido === '1'
@@ -205,10 +306,18 @@ aulas.forEach(a => a.addEventListener('click', function () { abrirAula(this); })
 const ultima = localStorage.getItem('ultimaAula');
 if (ultima) {
     const aula = document.querySelector(`[data-id="${ultima}"]`);
-    if (aula) { abrirAula(aula); }
-    else if (aulas.length) { abrirAula(aulas[0]); }
+    if (aula) abrirAula(aula);
+    else if (aulas.length) abrirAula(aulas[0]);
 } else if (aulas.length) {
     abrirAula(aulas[0]);
 }
+
+// Bloqueia atalho de teclado Ctrl+S / Cmd+S dentro do player
+document.addEventListener('keydown', e => {
+    const emPDF = document.getElementById('pdf-container').style.display === 'block';
+    if (emPDF && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+    }
+});
 </script>
 {% endblock %}
