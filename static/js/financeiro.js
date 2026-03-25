@@ -2,22 +2,27 @@
 
 let formAtual = null;
 
-/* Abre o modal de senha para confirmar exclusão de parcela paga */
+/* Abre o modal de senha para confirmar exclusão de parcela */
 function confirmarExclusao(form) {
     formAtual = form;
     document.getElementById('campo-senha').value = '';
     const modal = document.getElementById('modal-senha');
     modal.classList.add('aberto');
     setTimeout(() => document.getElementById('campo-senha').focus(), 100);
-    return false;
+    return false; // impede submit imediato
 }
 
 function confirmarSenha() {
     const senha = document.getElementById('campo-senha').value.trim();
     if (!senha) { document.getElementById('campo-senha').focus(); return; }
-    formAtual.querySelector('input[name="senha"]').value = senha;
-    fecharModalSenha();
-    formAtual.submit();
+
+    // Salva referência LOCAL antes de fechar o modal
+    // (fecharModalSenha faz formAtual = null, então precisamos da cópia)
+    const form = formAtual;
+    form.querySelector('input[name="senha"]').value = senha;
+
+    fecharModalSenha(); // zera formAtual — mas já temos a cópia em `form`
+    form.submit();      // envia o formulário correto
 }
 
 function fecharModalSenha() {
@@ -26,7 +31,6 @@ function fecharModalSenha() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    /* Enter / Escape no campo senha */
     const campo = document.getElementById('campo-senha');
     if (campo) {
         campo.addEventListener('keydown', e => {
@@ -35,7 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* fechar modal clicando no overlay */
     const overlay = document.getElementById('modal-senha');
-    if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) fecharModalSenha(); });
+    if (overlay) overlay.addEventListener('click', e => {
+        if (e.target === overlay) fecharModalSenha();
+    });
 });

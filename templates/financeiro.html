@@ -2,7 +2,7 @@
 {% block title %}Financeiro{% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/financeiro.js') }}"></script>
+<script src="{{ url_for('static', filename='js/financeiro.js') }}?v=3"></script>
 {% endblock %}
 
 {% block content %}
@@ -105,7 +105,6 @@ document.addEventListener('click', function(e) {
                     <a href="/pagar/{{ p.id }}"          class="btn btn-pagar    tooltip" data-tooltip="Registrar pagamento">✔️</a>
                     <a href="/editar_parcela/{{ p.id }}" class="btn btn-editar   tooltip" data-tooltip="Editar">✏️</a>
                     <a href="/carne/{{ aluno_id }}"      class="btn btn-imprimir tooltip" data-tooltip="Imprimir carnê" target="_blank">🖨️</a>
-                    {# CORRIGIDO: form POST com modal de senha — igual às parcelas pagas #}
                     <form method="POST" action="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
                           onsubmit="return confirmarExclusao(this)" style="display:inline">
                         <input type="hidden" name="senha">
