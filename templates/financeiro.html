@@ -105,9 +105,12 @@ document.addEventListener('click', function(e) {
                     <a href="/pagar/{{ p.id }}"          class="btn btn-pagar    tooltip" data-tooltip="Registrar pagamento">✔️</a>
                     <a href="/editar_parcela/{{ p.id }}" class="btn btn-editar   tooltip" data-tooltip="Editar">✏️</a>
                     <a href="/carne/{{ aluno_id }}"      class="btn btn-imprimir tooltip" data-tooltip="Imprimir carnê" target="_blank">🖨️</a>
-                    <a href="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
-                       class="btn btn-lixeira tooltip" data-tooltip="Excluir"
-                       onclick="return confirm('Excluir esta parcela pendente?')">🗑️</a>
+                    {# CORRIGIDO: form POST com modal de senha — igual às parcelas pagas #}
+                    <form method="POST" action="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
+                          onsubmit="return confirmarExclusao(this)" style="display:inline">
+                        <input type="hidden" name="senha">
+                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</button>
+                    </form>
                 </td>
             </tr>
             {% endfor %}
@@ -168,7 +171,7 @@ document.addEventListener('click', function(e) {
 
 {% endif %}
 
-{# Modal de senha para excluir parcela paga #}
+{# Modal de senha para excluir parcela #}
 <div id="modal-senha" class="modal-overlay">
     <div class="modal">
         <h3>🔒 Confirmar exclusão</h3>
