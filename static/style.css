@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v7)
+   SISTEMA ESCOLAR — style.css  (v8)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ────────────────────────────────────────────────── */
@@ -505,7 +505,68 @@ body.tema-aluno header {
     }
 }
 
-/* main sem padding extra — o dashboard do aluno gerencia o próprio espaçamento */
+/* main com padding adequado */
 body.tema-aluno main {
     padding: 0;
+}
+
+/* ── Cards glass escuro ── */
+body.tema-aluno .card {
+    background: rgba(15, 32, 55, 0.82);
+    border: 1px solid rgba(255, 255, 255, .12);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .40);
+    color: #f0f4f8;
+}
+
+body.tema-aluno .card h2,
+body.tema-aluno .card h3,
+body.tema-aluno .card h4 {
+    color: #e8f1fb;
+}
+
+body.tema-aluno .card p,
+body.tema-aluno .card-subtitle,
+body.tema-aluno .card .text-muted,
+body.tema-aluno .card label {
+    color: rgba(220, 232, 245, 0.72);
+}
+
+/* Separadores internos dos cards */
+body.tema-aluno .card .secao {
+    border-bottom-color: rgba(255, 255, 255, .12);
+    color: rgba(220, 232, 245, 0.80);
+}
+
+/* ── Tabelas dentro dos cards ── */
+body.tema-aluno .card table th {
+    background: rgba(10, 25, 47, 0.70);
+    color: rgba(180, 210, 240, 0.85);
+    border-bottom: 1px solid rgba(255, 255, 255, .10);
+}
+
+body.tema-aluno .card table td {
+    border-bottom-color: rgba(255, 255, 255, .08);
+    color: #dce8f5;
+}
+
+body.tema-aluno .card table tbody tr:hover td {
+    background: rgba(0, 198, 255, .08);
+}
+
+/* ── Inputs dentro dos cards do portal do aluno ── */
+body.tema-aluno .card form input,
+body.tema-aluno .card form select,
+body.tema-aluno .card .campo input,
+body.tema-aluno .card .campo select {
+    background: rgba(10, 25, 47, 0.60);
+    border-color: rgba(255, 255, 255, .18);
+    color: #f0f4f8;
+}
+
+body.tema-aluno .card form input:focus,
+body.tema-aluno .card form select:focus,
+body.tema-aluno .card .campo input:focus,
+body.tema-aluno .card .campo select:focus {
+    border-color: #00c6ff;
+    box-shadow: 0 0 0 3px rgba(0, 198, 255, .20);
 }
