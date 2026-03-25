@@ -173,6 +173,7 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
 .btn-info, .btn-recibo { background: var(--color-info); color: var(--color-white); }
 .btn-success { background: var(--color-success); color: var(--color-white); }
 .btn-purple  { background: #9b59b6; color: var(--color-white); }
+.btn-secondary { background: rgba(255,255,255,.15); color: var(--color-white); border: 1px solid rgba(255,255,255,.3); }
 .acoes .btn {
     display: inline-flex; align-items: center; justify-content: center;
     width: 36px; height: 32px; padding: 0; margin: 0 3px;
@@ -488,6 +489,7 @@ a:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; 
 body.tema-aluno {
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
     min-height: 100vh;
+    color: #f0f4f8;
 }
 
 /* Header escuro petróleo com efeito glass */
@@ -505,15 +507,15 @@ body.tema-aluno header {
     }
 }
 
-/* main com padding adequado */
+/* main com padding adequado para não colar no header */
 body.tema-aluno main {
-    padding: 0;
+    padding: 24px 32px;
 }
 
-/* ── Cards glass escuro ── */
+/* ── Cards glass escuro — cobre TODOS os .card no portal ── */
 body.tema-aluno .card {
-    background: rgba(15, 32, 55, 0.82);
-    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(15, 32, 55, 0.82) !important;
+    border: 1px solid rgba(255, 255, 255, .12) !important;
     box-shadow: 0 8px 28px rgba(0, 0, 0, .40);
     color: #f0f4f8;
 }
@@ -553,6 +555,59 @@ body.tema-aluno .card table tbody tr:hover td {
     background: rgba(0, 198, 255, .08);
 }
 
+/* Linha de parcela pendente no portal financeiro */
+body.tema-aluno .card table tbody tr.tr-pendente td {
+    background: rgba(239, 68, 68, .12);
+}
+
+/* ── Cards de alerta no portal (pendente/em dia) ── */
+body.tema-aluno .portal-card--pendente {
+    border-left: 4px solid #ef4444 !important;
+    text-align: center;
+}
+body.tema-aluno .portal-card--pendente .portal-alerta-titulo {
+    font-size: 1.1rem; color: #ff8a8a; font-weight: 600;
+}
+body.tema-aluno .portal-card--pendente .portal-alerta-valor {
+    font-size: 1.4rem; font-weight: 700; color: #ff8a8a;
+}
+body.tema-aluno .portal-card--pendente .portal-alerta-sub {
+    font-size: 13px; color: rgba(220, 232, 245, 0.60);
+}
+
+body.tema-aluno .portal-card--ok {
+    border-left: 4px solid #22c55e !important;
+    text-align: center;
+}
+body.tema-aluno .portal-card--ok .portal-alerta-titulo {
+    font-size: 1.1rem; color: #4ade80; font-weight: 600;
+}
+
+/* ── Card de média geral (notas) ── */
+body.tema-aluno .portal-card--media {
+    text-align: center;
+}
+body.tema-aluno .portal-card--media .portal-media-label {
+    font-size: 13px; color: rgba(220, 232, 245, 0.60); margin-bottom: 4px;
+}
+body.tema-aluno .portal-card--media .portal-media-valor {
+    font-size: 2.2rem; font-weight: 700;
+}
+body.tema-aluno .portal-card--media .portal-media-valor.aprovado  { color: #4ade80; }
+body.tema-aluno .portal-card--media .portal-media-valor.recuperacao { color: #fbbf24; }
+body.tema-aluno .portal-card--media .portal-media-valor.reprovado { color: #f87171; }
+body.tema-aluno .portal-card--media .portal-media-status {
+    font-size: 13px; color: rgba(220, 232, 245, 0.60);
+}
+
+/* ── Rodapé de frequência ── */
+body.tema-aluno .portal-freq-rodape {
+    margin-top: 16px; display: flex; gap: 24px; flex-wrap: wrap;
+}
+body.tema-aluno .portal-freq-rodape .portal-freq-total {
+    font-weight: 600; color: #f0f4f8;
+}
+
 /* ── Inputs dentro dos cards do portal do aluno ── */
 body.tema-aluno .card form input,
 body.tema-aluno .card form select,
@@ -570,3 +625,23 @@ body.tema-aluno .card .campo select:focus {
     border-color: #00c6ff;
     box-shadow: 0 0 0 3px rgba(0, 198, 255, .20);
 }
+
+/* ── Sidebar de conteúdo ── */
+body.tema-aluno .sidebar {
+    background: rgba(15, 32, 55, 0.82);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #f0f4f8;
+}
+body.tema-aluno .materia-titulo { color: rgba(180,210,240,0.7); }
+body.tema-aluno .aula { color: #dce8f5; border-bottom-color: rgba(255,255,255,.08); }
+body.tema-aluno .aula:hover { background: rgba(0,198,255,.10); }
+body.tema-aluno .aula.ativa  { background: rgba(0,198,255,.22); }
+body.tema-aluno .progresso-barra { background: rgba(255,255,255,.15); }
+
+/* ── btn-secondary no tema escuro ── */
+body.tema-aluno .btn-secondary {
+    background: rgba(255,255,255,.12);
+    color: #f0f4f8;
+    border: 1px solid rgba(255,255,255,.25);
+}
+body.tema-aluno .btn-secondary:hover { background: rgba(255,255,255,.20); opacity: 1; }
