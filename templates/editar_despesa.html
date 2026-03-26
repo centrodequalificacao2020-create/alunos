@@ -3,21 +3,22 @@
 
 {% block styles %}
 <style>
-.campos-periodo { display: none; }
-.campos-periodo.visivel { display: contents; }
-.campos-data-avulsa { display: contents; }
-.campos-data-avulsa.oculto { display: none; }
+.card-form-centered {
+    max-width: 640px;
+    margin: 0 auto;
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:640px">
+<div class="card card-form-centered">
     <div class="card-header">
         <span>✏️</span>
         <h2>Editar Despesa</h2>
     </div>
 
     <form method="POST">
+        {# Linha 1: Nome + Tipo #}
         <div class="grid-2">
             <div class="campo">
                 <label for="nome">Nome</label>
@@ -32,6 +33,8 @@
                 </select>
             </div>
         </div>
+
+        {# Linha 2: Valor + Data avulsa (variável) #}
         <div class="grid-2">
             <div class="campo">
                 <label for="valor">Valor (R$)</label>
@@ -39,28 +42,27 @@
                        step="0.01" min="0"
                        value="{{ despesa.valor }}" required>
             </div>
-
-            {# Data avulsa — variável #}
-            <div class="campo campos-data-avulsa" id="campoDataAvulsa">
+            <div class="campo" id="campoDataAvulsa">
                 <label for="data">Data do lançamento</label>
                 <input type="date" id="data" name="data"
                        value="{{ despesa.data or '' }}">
             </div>
+        </div>
 
-            {# Início — fixa #}
-            <div class="campo campos-periodo" id="campoInicio">
+        {# Linha 3: Período — só aparece quando tipo = fixa #}
+        <div class="grid-2" id="linhaFixa" style="display:none">
+            <div class="campo">
                 <label>Início da cobrança</label>
-                <input type="month" name="data_inicio"
+                <input type="month" name="data_inicio" id="inputInicio"
                        value="{{ despesa.data_inicio or '' }}">
             </div>
-
-            {# Fim — fixa #}
-            <div class="campo campos-periodo" id="campoFim">
+            <div class="campo">
                 <label>Fim da cobrança</label>
-                <input type="month" name="data_fim"
+                <input type="month" name="data_fim" id="inputFim"
                        value="{{ despesa.data_fim or '' }}">
             </div>
         </div>
+
         <div class="campo">
             <label for="observacao">Observação</label>
             <input type="text" id="observacao" name="observacao"
@@ -77,17 +79,17 @@
 {% block scripts %}
 <script>
 const tipoDespesa     = document.getElementById('tipoDespesa');
-const campoInicio     = document.getElementById('campoInicio');
-const campoFim        = document.getElementById('campoFim');
+const linhaFixa       = document.getElementById('linhaFixa');
 const campoDataAvulsa = document.getElementById('campoDataAvulsa');
+const inputInicio     = document.getElementById('inputInicio');
+const inputFim        = document.getElementById('inputFim');
 
 function atualizarCampos() {
     const isFixa = tipoDespesa.value === 'fixa';
-    campoInicio.classList.toggle('visivel', isFixa);
-    campoFim.classList.toggle('visivel', isFixa);
-    campoDataAvulsa.classList.toggle('oculto', isFixa);
-    campoInicio.querySelector('input').required = isFixa;
-    campoFim.querySelector('input').required    = isFixa;
+    linhaFixa.style.display       = isFixa ? '' : 'none';
+    campoDataAvulsa.style.display = isFixa ? 'none' : '';
+    inputInicio.required = isFixa;
+    inputFim.required    = isFixa;
 }
 
 tipoDespesa.addEventListener('change', atualizarCampos);
