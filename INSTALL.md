@@ -1,9 +1,8 @@
 # Guia de Instalação — Servidor CQP
 
-> **Para quem é este guia?**
-> Este documento foi escrito para você instalar o sistema CQP no seu servidor.
-> Você vai digitar comandos no terminal. Não é necessário saber programar.
-> Siga os passos **na ordem** e não pule nenhum.
+Este guia foi escrito para você instalar o sistema CQP no seu servidor sem precisar de conhecimento técnico. Você vai digitar alguns comandos no terminal — nada além disso. Siga os passos na ordem e não pule nenhum.
+
+Se algo não funcionar como descrito, anote o que apareceu na tela e entre em contato com o desenvolvedor antes de tentar qualquer outra coisa.
 
 ---
 
@@ -19,51 +18,47 @@
 
 ## Parte 1 — Conectar ao servidor pelo segundo computador
 
-Você não vai usar monitor ou teclado no servidor. O acesso é feito remotamente pelo
-computador normal, usando um programa chamado **SSH**.
+O servidor não precisa de monitor nem teclado para funcionar. Você vai acessá-lo remotamente a partir do seu computador normal, usando um recurso chamado SSH — pense nele como um controle remoto para o servidor.
 
 ### 1.1 Descobrir o IP do servidor
 
-No servidor (com monitor e teclado conectados *apenas desta vez*), digite:
+Na primeira vez, conecte um monitor e teclado diretamente no servidor. Ligue-o e, quando aparecer o prompt de comando, digite:
 
 ```
 ip a
 ```
 
-Procure uma linha parecida com `inet 192.168.1.XX/24`. O número `192.168.1.XX`
-é o IP do servidor. Anote esse número.
+Procure uma linha com `inet 192.168.1.XX/24`. O número `192.168.1.XX` é o endereço do servidor na sua rede. Anote esse número — você vai usar várias vezes.
+
+Depois disso, pode desconectar o monitor e o teclado. Não serão mais necessários.
 
 ### 1.2 Conectar pelo segundo computador
 
-**No Windows:** abra o terminal (pressione `Win + R`, digite `cmd`, pressione Enter).
+No Windows, abra o terminal: pressione `Win + R`, digite `cmd` e pressione Enter.
 
-Digite o comando abaixo, substituindo `192.168.1.XX` pelo IP anotado:
+Digite o comando abaixo, trocando `192.168.1.XX` pelo IP que você anotou:
 
 ```
 ssh usuario@192.168.1.XX
 ```
 
-Quando perguntar `Are you sure you want to continue connecting?`, digite `yes` e Enter.
-Depois digite a senha do servidor.
+Na primeira vez, vai aparecer uma pergunta sobre confiar no servidor. Digite `yes` e pressione Enter. Depois informe a senha do servidor. A senha não aparece na tela enquanto você digita — isso é normal.
 
-Se aparecer uma linha como `usuario@servidor:~$`, você está conectado. ✅
+Se aparecer uma linha como `usuario@servidor:~$`, você está dentro do servidor.
 
-> **A partir daqui, todos os comandos são digitados nesta janela.**
+A partir daqui, todos os comandos são digitados nesta janela.
 
 ---
 
 ## Parte 2 — Instalar o Docker
 
-O Docker é o programa que vai rodar o sistema CQP. Copie e cole os comandos abaixo:
+O Docker é o programa responsável por rodar o sistema CQP. Execute os três comandos abaixo, um de cada vez:
 
 ```bash
 curl -fsSL https://get.docker.com | sudo sh
 ```
 
-> Vai pedir a senha do servidor. Digite e pressione Enter.
-> (A senha não aparece enquanto você digita — isso é normal.)
-
-Depois, execute:
+Este primeiro comando baixa e instala o Docker. Pode demorar alguns minutos.
 
 ```bash
 sudo usermod -aG docker $USER
@@ -73,20 +68,19 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-Verifique se o Docker foi instalado corretamente:
+Para confirmar que tudo correu bem:
 
 ```bash
 docker --version
 ```
 
-Deve aparecer algo como `Docker version 26.x.x`. ✅
+Deve aparecer algo como `Docker version 26.x.x`. Se aparecer, pode seguir em frente.
 
 ---
 
 ## Parte 3 — Configurar acesso ao repositório privado
 
-O sistema fica em um repositório privado no GitHub. Você precisa criar uma
-"chave" para que o servidor possa baixar o sistema sem precisar de senha.
+O código do sistema fica em um repositório privado no GitHub. Para que o servidor consiga baixar esse código sem pedir senha toda vez, vamos criar uma chave de acesso dedicada.
 
 ### 3.1 Gerar a chave
 
@@ -94,20 +88,17 @@ O sistema fica em um repositório privado no GitHub. Você precisa criar uma
 ssh-keygen -t ed25519 -C "cqp-servidor" -f ~/.ssh/cqp_deploy
 ```
 
-Quando perguntar por uma senha (`Enter passphrase`), pressione **Enter duas vezes**
-sem digitar nada.
+Quando perguntar por uma senha (`Enter passphrase`), pressione Enter duas vezes sem digitar nada.
 
-### 3.2 Ver a chave pública
+### 3.2 Exibir a chave pública
 
 ```bash
 cat ~/.ssh/cqp_deploy.pub
 ```
 
-Vai aparecer uma linha longa começando com `ssh-ed25519 AAAA...`.
-Copie essa linha inteira e envie para o desenvolvedor.
+Vai aparecer uma linha longa começando com `ssh-ed25519 AAAA...`. Copie essa linha completa e envie para o desenvolvedor.
 
-> O desenvolvedor vai cadastrar essa chave no GitHub e avisar quando estiver pronto.
-> Aguarde a confirmação antes de continuar.
+Aguarde a confirmação do desenvolvedor antes de continuar. Ele precisa cadastrar essa chave no GitHub.
 
 ### 3.3 Configurar o SSH para usar a chave
 
@@ -115,7 +106,7 @@ Copie essa linha inteira e envie para o desenvolvedor.
 mkdir -p ~/.ssh && nano ~/.ssh/config
 ```
 
-Uma tela de editor vai abrir. Cole exatamente o texto abaixo:
+Um editor de texto simples vai abrir. Cole o texto abaixo exatamente como está:
 
 ```
 Host github-cqp
@@ -125,7 +116,7 @@ Host github-cqp
     IdentitiesOnly yes
 ```
 
-Para salvar: pressione `Ctrl + X`, depois `Y`, depois `Enter`.
+Para salvar e sair: pressione `Ctrl + X`, depois `Y`, depois `Enter`.
 
 ### 3.4 Testar a conexão
 
@@ -133,10 +124,10 @@ Para salvar: pressione `Ctrl + X`, depois `Y`, depois `Enter`.
 ssh -T github-cqp
 ```
 
-Deve aparecer uma mensagem como:
+Deve aparecer uma mensagem parecida com:
 `Hi centrodequalificacao2020-create! You've successfully authenticated...`
 
-Se aparecer essa mensagem, está funcionando. ✅
+Se apareceu, a conexão está funcionando.
 
 ---
 
@@ -166,7 +157,7 @@ Agora gere uma chave de segurança única para o sistema:
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Vai aparecer uma sequencia longa de letras e números. Copie esse valor.
+Vai aparecer uma sequência longa de letras e números. Copie esse valor.
 
 Abra o arquivo de configuração:
 
@@ -174,11 +165,10 @@ Abra o arquivo de configuração:
 nano .env
 ```
 
-Substitua o texto `substitua-por-uma-chave-gerada` pela sequencia copiada.
-A linha deve ficar assim (com o seu valor):
+Substitua o texto `substitua-por-uma-chave-gerada` pela sequência copiada. O arquivo deve ficar assim:
 
 ```
-FLASK_SECRET_KEY=a1b2c3d4e5f6...  (seu valor aqui)
+FLASK_SECRET_KEY=a1b2c3d4e5f6...  (o seu valor aqui)
 FLASK_DEBUG=False
 ```
 
@@ -186,23 +176,21 @@ Para salvar: `Ctrl + X`, depois `Y`, depois `Enter`.
 
 ### 5.2 Restaurar o banco de dados
 
-Crie a pasta do banco:
+Crie a pasta onde o banco vai ficar:
 
 ```bash
 mkdir -p data
 ```
 
-Agora transfira o arquivo `.sql` fornecido pelo desenvolvedor para o servidor.
-Do **segundo computador** (Windows), abra um **novo** terminal e execute:
+Abra um **segundo terminal** no Windows (deixe o primeiro aberto) e envie o arquivo `.sql` para o servidor:
 
 ```
 scp C:\caminho\para\backup.sql usuario@192.168.1.XX:/home/usuario/alunos/data/
 ```
 
-> Substitua `C:\caminho\para\backup.sql` pelo caminho real do arquivo no seu computador.
-> Substitua `192.168.1.XX` pelo IP do servidor.
+Troque o caminho pelo local real do arquivo no seu computador e `192.168.1.XX` pelo IP do servidor.
 
-Volte para o terminal conectado ao servidor e restaure o banco:
+Volte ao terminal conectado ao servidor e execute:
 
 ```bash
 sqlite3 data/cqp.db < data/backup_cqp.sql
@@ -210,7 +198,7 @@ sqlite3 data/cqp.db < data/backup_cqp.sql
 
 ### 5.3 Copiar as imagens institucionais
 
-Do **segundo computador**, envie os arquivos de imagem:
+Ainda no terminal do Windows, envie os arquivos de imagem:
 
 ```
 scp C:\caminho\para\logo_escola.png usuario@192.168.1.XX:/home/usuario/alunos/static/
@@ -225,50 +213,39 @@ scp C:\caminho\para\assinatura.png  usuario@192.168.1.XX:/home/usuario/alunos/st
 docker compose up -d
 ```
 
-Este comando vai baixar e preparar tudo automaticamente.
-Pode demorar alguns minutos na primeira vez — aguarde até voltar ao prompt `$`.
+Na primeira vez esse comando demora um pouco — ele baixa as imagens necessárias e monta tudo. Aguarde até o prompt `$` aparecer novamente.
 
-Verifique se está rodando:
+Para verificar se está tudo certo:
 
 ```bash
 docker compose ps
 ```
 
-Deve aparecer dois containers com o status `Up` ou `healthy`:
-- `cqp_web`
-- `cqp_nginx`
+Devem aparecer dois itens: `cqp_web` e `cqp_nginx`, ambos com status `Up` ou `healthy`. Se os dois estiverem assim, o sistema está no ar.
 
-Se os dois estiverem ativos, o sistema está no ar. ✅
-
-Acesse pelo navegador de qualquer computador da rede:
+Acesse pelo navegador de qualquer computador na mesma rede:
 
 ```
 http://192.168.1.XX
 ```
 
-(substitua pelo IP do servidor)
-
 ---
 
-## Parte 7 — Fazer o sistema iniciar automaticamente com o servidor
+## Parte 7 — Iniciar automaticamente com o servidor
 
-O Docker já está configurado para reiniciar os containers automaticamente
-(`restart: always` no docker-compose.yml). Mas é necessário garantir que o
-Docker em si inicie com o sistema operacional:
+O sistema já está configurado para reiniciar sozinho se o Docker cair. Mas é preciso garantir que o Docker em si também inicie junto com o sistema operacional:
 
 ```bash
 sudo systemctl enable docker
 ```
 
-Agora se o servidor for reiniciado (queda de energia, etc.), o sistema CQP
-volta automaticamente sem nenhuma intervenção. ✅
+Com isso, se o servidor for desligado por queda de energia ou qualquer outro motivo, o sistema CQP volta sozinho quando a máquina ligar de novo.
 
 ---
 
 ## Parte 8 — Atualizar o sistema no futuro
 
-Sempre que o desenvolvedor lançar uma atualização, execute os dois comandos abaixo
-a partir do segundo computador (conectado via SSH ao servidor):
+Quando o desenvolvedor lançar uma atualização, conecte ao servidor via SSH e execute:
 
 ```bash
 cd alunos
@@ -276,27 +253,21 @@ git pull
 docker compose up -d --build
 ```
 
-Pronto. O sistema é atualizado sem perder nenhum dado.
+O sistema é atualizado sem perder nenhum dado. O banco de dados fica separado do código justamente para garantir isso.
 
 ---
 
-## Parte 9 — Acesso externo com Cloudflare Tunnel (opcional)
+## Parte 9 — Acesso externo com Cloudflare Tunnel
 
-> **Para quê serve?**
-> Permite acessar o sistema de qualquer lugar — celular, casa, outros computadores fora
-> da escola — sem precisar abrir portas no roteador e com HTTPS automático.
-> É gratuito e fornecido pela Cloudflare.
+Esta parte é opcional. Ela permite acessar o sistema de qualquer lugar — celular, casa, outros computadores fora da escola — sem precisar mexer no roteador e com HTTPS automático. O serviço é gratuito.
 
-### Pré-requisitos
+Antes de começar, você precisa ter:
+- Um domínio registrado (ex: `suaescola.com.br`) com o DNS gerenciado pela Cloudflare
+- Uma conta na Cloudflare: https://dash.cloudflare.com/sign-up
 
-- Ter um domínio registrado (ex: `suaescola.com.br`) com o DNS gerenciado pela Cloudflare
-- Ter uma conta na Cloudflare (gratuita): https://dash.cloudflare.com/sign-up
+Se ainda não tem um domínio, fale com o desenvolvedor antes de continuar.
 
-> Se ainda não tem um domínio, converse com o desenvolvedor antes de continuar.
-
----
-
-### 9.1 Instalar o cloudflared no servidor
+### 9.1 Instalar o cloudflared
 
 ```bash
 curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
@@ -304,20 +275,15 @@ sudo dpkg -i cloudflared.deb
 rm cloudflared.deb
 ```
 
-Verifique a instalação:
+Confirme a instalação:
 
 ```bash
 cloudflared --version
 ```
 
-Deve aparecer algo como `cloudflared version 2024.x.x`. ✅
+### 9.2 Autenticar na Cloudflare
 
----
-
-### 9.2 Autenticar na Cloudflare (sem navegador no servidor)
-
-Este passo conecta o servidor à sua conta Cloudflare.
-Como o servidor não tem interface gráfica, a autenticação é feita pelo segundo computador.
+Como o servidor não tem navegador, a autenticação funciona assim: o servidor gera um link, você copia e abre no seu computador normal.
 
 No servidor, execute:
 
@@ -325,32 +291,11 @@ No servidor, execute:
 cloudflared tunnel login
 ```
 
-Vai aparecer uma mensagem como:
+Vai aparecer um link longo começando com `https://dash.cloudflare.com/argotunnel?...`
 
-```
-Please open the following URL and log in with your Cloudflare account:
+Não feche esse terminal. Copie o link, abra no navegador do segundo computador e faça login na sua conta Cloudflare. Selecione o domínio e clique em Authorize.
 
-https://dash.cloudflare.com/argotunnel?callback=...
-
-Leave cloudflared running to download the cert automatically.
-```
-
-**Não feche o terminal do servidor.**
-
-No **segundo computador**, abra o navegador, cole a URL exibida e faça login na sua conta Cloudflare.
-Selecione o domínio que deseja usar e clique em **Authorize**.
-
-Volte ao terminal do servidor. Em alguns segundos vai aparecer:
-
-```
-You have successfully logged in.
-If you wish to copy your credentials to a server, they have been saved to:
-/home/usuario/.cloudflared/cert.pem
-```
-
-Autenticação concluída. ✅
-
----
+Volte ao terminal do servidor. Em alguns segundos vai aparecer a confirmação de que o login foi concluído.
 
 ### 9.3 Criar o túnel
 
@@ -358,15 +303,13 @@ Autenticação concluída. ✅
 cloudflared tunnel create cqp
 ```
 
-Vai aparecer uma mensagem com o ID do túnel, parecida com:
+Vai aparecer o ID do túnel, parecido com:
 
 ```
 Created tunnel cqp with id a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-Anote esse ID (a sequencia longa de letras e números). Você vai precisar dele no próximo passo.
-
----
+Anote esse ID. Você vai usá-lo no próximo passo.
 
 ### 9.4 Criar o arquivo de configuração do túnel
 
@@ -374,7 +317,7 @@ Anote esse ID (a sequencia longa de letras e números). Você vai precisar dele 
 nano ~/.cloudflared/config.yml
 ```
 
-Cole o conteúdo abaixo, substituindo os valores indicados:
+Cole o conteúdo abaixo, fazendo as substituições indicadas:
 
 ```yaml
 tunnel: cqp
@@ -386,30 +329,19 @@ ingress:
   - service: http_status:404
 ```
 
-> - Substitua `USUARIO` pelo nome do seu usuário no servidor
-> - Substitua `a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx` pelo ID do túnel anotado
-> - Substitua `sistema.suaescola.com.br` pelo subdomínio desejado
+Substitua `USUARIO` pelo nome do seu usuário no servidor, o ID pelo que você anotou, e o subdomínio pelo endereço que preferir.
 
 Para salvar: `Ctrl + X`, depois `Y`, depois `Enter`.
 
----
-
-### 9.5 Criar o registro DNS na Cloudflare
+### 9.5 Criar o registro DNS
 
 ```bash
 cloudflared tunnel route dns cqp sistema.suaescola.com.br
 ```
 
-> Substitua `sistema.suaescola.com.br` pelo subdomínio configurado no passo anterior.
+Troque pelo subdomínio que você usou. Deve aparecer a confirmação de que o registro foi criado.
 
-Deve aparecer:
-```
-Added CNAME sistema.suaescola.com.br which will route to this tunnel.
-```
-
----
-
-### 9.6 Instalar o túnel como serviço (inicia automaticamente)
+### 9.6 Ativar o túnel como serviço
 
 ```bash
 sudo cloudflared service install
@@ -417,52 +349,27 @@ sudo systemctl enable cloudflared
 sudo systemctl start cloudflared
 ```
 
-Verifique se está rodando:
+Para confirmar que está rodando:
 
 ```bash
 sudo systemctl status cloudflared
 ```
 
-Deve aparecer `active (running)`. ✅
+Deve aparecer `active (running)`.
 
----
+### 9.7 Testar
 
-### 9.7 Testar o acesso externo
-
-No celular (fora do Wi-Fi da escola) ou em outro computador, abra o navegador e acesse:
+No celular fora do Wi-Fi da escola, ou em qualquer outro computador, abra o navegador e acesse:
 
 ```
 https://sistema.suaescola.com.br
 ```
 
-O sistema deve abrir com cadeado HTTPS. ✅
+O sistema deve carregar normalmente com o cadeado de segurança. O HTTPS é configurado automaticamente pela Cloudflare, não é preciso fazer mais nada.
 
-> O HTTPS é fornecido automaticamente pela Cloudflare — não é necessário configurar certificado.
+### 9.8 Ajuste final no .env
 
----
-
-### 9.8 Atualizar o .env para usar HTTPS
-
-Com o Cloudflare Tunnel ativo, o sistema agora é acessado via HTTPS.
-Abra o arquivo `.env` e remova o `#` da linha do cookie seguro:
-
-```bash
-nano ~/alunos/.env
-```
-
-A linha `SESSION_COOKIE_SECURE` deve **não estar** comentada (sem `#` na frente).
-O arquivo final deve ter:
-
-```
-FLASK_SECRET_KEY=sua-chave-aqui
-FLASK_DEBUG=False
-```
-
-> Como `SESSION_COOKIE_SECURE` já é `True` por padrão quando `FLASK_DEBUG=False`,
-> não é necessário adicionar nada. Apenas certifique-se de que **não há** a linha
-> `SESSION_COOKIE_SECURE=False` no arquivo.
-
-Reinicie o sistema para aplicar:
+Com o Cloudflare ativo, certifique-se de que o arquivo `.env` não contém a linha `SESSION_COOKIE_SECURE=False`. Se tiver, remova-a. Depois reinicie:
 
 ```bash
 cd ~/alunos
@@ -471,28 +378,27 @@ docker compose restart
 
 ---
 
-## Comandos úteis do dia a dia
+## Comandos do dia a dia
 
-| O que fazer | Comando |
+| Situação | Comando |
 |---|---|
 | Ver se o sistema está rodando | `docker compose ps` |
-| Ver erros e logs | `docker compose logs -f web` |
+| Ver o que está acontecendo | `docker compose logs -f web` |
 | Reiniciar o sistema | `docker compose restart` |
 | Parar o sistema | `docker compose down` |
-| Subir novamente | `docker compose up -d` |
-| Ver status do túnel Cloudflare | `sudo systemctl status cloudflared` |
+| Ligar o sistema novamente | `docker compose up -d` |
+| Ver se o túnel Cloudflare está ativo | `sudo systemctl status cloudflared` |
 | Reiniciar o túnel Cloudflare | `sudo systemctl restart cloudflared` |
 
 ---
 
-## Fazer backup manual do banco de dados
+## Backup manual do banco de dados
 
 ```bash
 cp ~/alunos/data/cqp.db ~/backup_$(date +%Y%m%d).db
 ```
 
-Esse comando cria uma cópia do banco com a data de hoje no nome.
-Guarde esse arquivo em um pen drive ou outro computador.
+Isso cria um arquivo com a data de hoje no nome. Guarde em um pen drive ou em outro computador.
 
 ---
 
@@ -504,5 +410,4 @@ Antes de entrar em contato com o desenvolvedor, execute:
 docker compose logs web
 ```
 
-Copie o que aparecer e envie junto com a descrição do problema.
-Isso agiliza muito o diagnóstico.
+Copie tudo que aparecer e envie junto com a descrição do que aconteceu. Com essa informação o problema é resolvido muito mais rápido.
