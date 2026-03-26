@@ -17,9 +17,42 @@
     gap: 8px;
 }
 .graficos-row { margin-top: 24px; }
-.grafico-card canvas { height: 260px !important; }
 
-/* grid 2x2 para os blocos de gráficos */
+/* card único com 4 gráficos lado a lado */
+.graficos-inline {
+    display: flex;
+    gap: 24px;
+    margin-top: 24px;
+}
+.graficos-inline .grafico-item {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.graficos-inline .grafico-item h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.graficos-inline canvas {
+    height: 220px !important;
+    width: 100% !important;
+}
+@media (max-width: 900px) {
+    .graficos-inline { flex-wrap: wrap; }
+    .graficos-inline .grafico-item { flex: 1 1 calc(50% - 12px); }
+}
+@media (max-width: 500px) {
+    .graficos-inline .grafico-item { flex: 1 1 100%; }
+}
+
+/* grid 2x2 para gráficos comerciais */
 .grid-graficos {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -128,28 +161,26 @@
     </div>
 </div>
 
-<!-- gráficos: grid 2x2 -->
-<h3 class="section-title">Gráficos Financeiros</h3>
-<div class="grid-graficos graficos-row">
-    <div class="card grafico-card">
-        <h3>Receita (&#218;ltimos Meses)</h3>
-        <canvas id="graficoReceitaPizza"></canvas>
-    </div>
-    <div class="card grafico-card">
-        <h3>Vendas por Tipo de Curso</h3>
-        <canvas id="graficoVendasPizza"></canvas>
-    </div>
-    <div class="card grafico-card">
-        <h3>Receita x Despesa</h3>
-        <canvas id="graficoFinanceiro"></canvas>
-    </div>
-    <div class="card grafico-card">
-        <h3>Top cursos por faturamento</h3>
-        <canvas id="graficoTopCursosPizza"></canvas>
-    </div>
-    <div class="card grafico-card">
-        <h3>Faturamento por Tipo de Curso</h3>
-        <canvas id="graficoFaturamentoTipo"></canvas>
+<!-- 4 gráficos em um card único -->
+<h3 class="section-title graficos-row">Gráficos Financeiros</h3>
+<div class="card" style="padding: 20px;">
+    <div class="graficos-inline">
+        <div class="grafico-item">
+            <h4>Receita (&#218;ltimos Meses)</h4>
+            <canvas id="graficoReceitaPizza"></canvas>
+        </div>
+        <div class="grafico-item">
+            <h4>Receita x Despesa</h4>
+            <canvas id="graficoFinanceiro"></canvas>
+        </div>
+        <div class="grafico-item">
+            <h4>Vendas por Tipo de Curso</h4>
+            <canvas id="graficoVendasPizza"></canvas>
+        </div>
+        <div class="grafico-item">
+            <h4>Faturamento por Tipo de Curso</h4>
+            <canvas id="graficoFaturamentoTipo"></canvas>
+        </div>
     </div>
 </div>
 
@@ -219,14 +250,6 @@ new Chart('graficoVendasPizza',{ type:'bar',
     options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
         plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>c.raw+' alunos'}}},
         scales:{ x:{beginAtZero:true}, y:{grid:{display:false}} } } });
-
-const rank={{ ranking_cursos|tojson }};
-new Chart('graficoTopCursosPizza',{ type:'bar',
-    data:{ labels:rank.map(i=>limitarTexto(i[0],18)), datasets:[{label:'Faturamento',
-        data:rank.map(i=>safeValue(i[1])), backgroundColor:cores(rank.length), borderRadius:6}]},
-    options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
-        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>'R$ '+c.raw.toLocaleString('pt-BR')}}},
-        scales:{ x:{beginAtZero:true,ticks:{callback:v=>'R$ '+v}}, y:{grid:{display:false}} } } });
 
 const fatTipo={{ faturamento_tipo|tojson }};
 const ftOrd=[...fatTipo].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
