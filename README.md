@@ -1,17 +1,22 @@
 # CQP — Sistema de Gestão Escolar
 
-Sistema web para gestão de escola de idiomas. Desenvolvido com Flask + SQLAlchemy + SQLite.
+Sistema web para gestão de alunos, financeiro e acadêmico.
+Desenvolvido com Flask + SQLAlchemy + SQLite.
 
 ## Stack
 
-- **Backend:** Python 3.12, Flask 3.0, SQLAlchemy 2.0, Flask-Migrate
-- **Banco:** SQLite (arquivo `cqp.db`, gerado automaticamente)
+- **Backend:** Python 3.11, Flask 3.0, SQLAlchemy 2.0
+- **Banco:** SQLite (arquivo `cqp.db`)
 - **PDF:** ReportLab
-- **Segurança:** Werkzeug (hash de senha), python-dotenv
-- **Servidor:** Gunicorn
-- **Hospedagem:** Azure App Service — Brazil South
+- **Servidor:** Gunicorn + Nginx
+- **Infraestrutura:** Docker + Docker Compose
 
-## Instalação (Windows)
+## Deploy (self-host)
+
+Consulte o arquivo **[INSTALL.md](INSTALL.md)** para o guia completo de instalação
+em servidor Ubuntu Server com Docker.
+
+## Desenvolvimento local (Windows)
 
 ```bash
 # 1. Criar e ativar ambiente virtual
@@ -23,16 +28,12 @@ py -m pip install -r requirements.txt
 
 # 3. Configurar variáveis de ambiente
 copy .env.example .env
-# Edite .env e defina FLASK_SECRET_KEY com um valor aleatório:
-# py -c "import os; print(os.urandom(32).hex())"
+# Edite .env e defina FLASK_SECRET_KEY:
+# py -c "import secrets; print(secrets.token_hex(32))"
 
 # 4. Criar banco e usuário admin
 py criar_admin.py
 
-# 5. Inicializar migrações (primeira vez)
-py -m flask db init
-py -m flask db migrate -m "initial"
-py -m flask db upgrade
-
-# 6. Rodar o servidor
+# 5. Rodar o servidor
 py app.py
+```
