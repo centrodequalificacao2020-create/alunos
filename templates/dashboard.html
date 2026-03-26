@@ -128,8 +128,8 @@
     </div>
 </div>
 
-<!-- gr&#225;ficos: grid 2x2 -->
-<h3 class="section-title">Gr&#225;ficos Financeiros</h3>
+<!-- gráficos: grid 2x2 -->
+<h3 class="section-title">Gráficos Financeiros</h3>
 <div class="grid-graficos graficos-row">
     <div class="card grafico-card">
         <h3>Receita (&#218;ltimos Meses)</h3>
@@ -146,6 +146,10 @@
     <div class="card grafico-card">
         <h3>Top cursos por faturamento</h3>
         <canvas id="graficoTopCursosPizza"></canvas>
+    </div>
+    <div class="card grafico-card">
+        <h3>Faturamento por Tipo de Curso</h3>
+        <canvas id="graficoFaturamentoTipo"></canvas>
     </div>
 </div>
 
@@ -223,6 +227,15 @@ new Chart('graficoTopCursosPizza',{ type:'bar',
     options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
         plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>'R$ '+c.raw.toLocaleString('pt-BR')}}},
         scales:{ x:{beginAtZero:true,ticks:{callback:v=>'R$ '+v}}, y:{grid:{display:false}} } } });
+
+const fatTipo={{ faturamento_tipo|tojson }};
+const ftOrd=[...fatTipo].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
+new Chart('graficoFaturamentoTipo',{ type:'bar',
+    data:{ labels:ftOrd.map(i=>limitarTexto(i[0],20)), datasets:[{data:ftOrd.map(i=>safeValue(i[1])),
+        backgroundColor:ftOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'), borderRadius:6}]},
+    options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>'R$ '+safeValue(c.raw).toLocaleString('pt-BR')}}},
+        scales:{ x:{beginAtZero:true,ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR')}}, y:{grid:{display:false}} } } });
 
 const meta=Number('{{ rel_meta or 0 }}')||0, leads=Number('{{ rel_realizado or 0 }}')||0,
       matriculas=Number('{{ rel_matriculas or 0 }}')||0, vendasRel=Number('{{ rel_vendas or 0 }}')||0,

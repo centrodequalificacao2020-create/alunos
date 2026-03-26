@@ -124,7 +124,6 @@ def dashboard():
         meses_label.append(f"{meses_pt[m-1]}/{str(hoje.year)[2:]}")
         valores.append(float(total))
 
-    # Converte Row para listas simples (JSON-serializáveis)
     ranking_cursos = [[nome, float(valor or 0)] for nome, valor in (
         db.session.query(Curso.nome, func.sum(Mensalidade.valor))
         .join(Matricula, Matricula.curso_id == Curso.id)
@@ -146,6 +145,21 @@ def dashboard():
         )
         .filter(Matricula.status == "ATIVA")
         .group_by(Matricula.tipo_curso)
+        .all()
+    )]
+
+    faturamento_tipo = [[tipo or "Não definido", float(total or 0)] for tipo, total in (
+        db.session.query(
+            func.coalesce(Matricula.tipo_curso, "Não definido"),
+            func.sum(Mensalidade.valor)
+        )
+        .join(Mensalidade, Mensalidade.aluno_id == Matricula.aluno_id)
+        .filter(
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento.between(inicio, fim)
+        )
+        .group_by(Matricula.tipo_curso)
+        .order_by(func.sum(Mensalidade.valor).desc())
         .all()
     )]
 
@@ -177,6 +191,7 @@ def dashboard():
         valores=valores,
         ranking_cursos=ranking_cursos,
         vendas_tipo=vendas_tipo,
+        faturamento_tipo=faturamento_tipo,
         recebimento_matricula=recebimento_matricula,
         rel_meta=rel["meta"],
         rel_realizado=rel["realizado"],
