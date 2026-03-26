@@ -40,7 +40,7 @@
     text-overflow: ellipsis;
 }
 .graficos-inline canvas {
-    height: 240px !important;
+    height: 220px !important;
     width: 100% !important;
 }
 .grafico-total {
@@ -221,7 +221,6 @@ Chart.register(ChartDataLabels);
 function safeValue(v){ return Number(v || 0); }
 function limitarTexto(t, l=18){ return t && t.length>l ? t.substring(0,l)+'...' : (t||''); }
 
-// centerText apenas para gráficos do tipo doughnut
 const centerText = {
     id:'centerText',
     afterDraw(chart){
@@ -268,20 +267,12 @@ new Chart('graficoFinanceiro',{ type:'doughnut',
     data:{ labels:['Receita','Despesas'], datasets:[{data:[rec,desp],backgroundColor:['#2ecc71','#e74c3c'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
 
-// -----------------------------------------------------------------------
-// Gráficos de barra horizontal por tipo de curso
-// Boas práticas UX:
-//   - Eixo Y visível à esquerda com os nomes (sempre legível)
-//   - Valor numérico ao final da barra (anchor end, align end) em cor escura
-//   - Tooltip usa labels[dataIndex] explicitamente (não depende do eixo)
-//   - Sem centerText (só doughnut)
-// -----------------------------------------------------------------------
 function cfgBarraTipo(tooltipValorFn, datalabelFn) {
     return {
         responsive: true,
         maintainAspectRatio: false,
         indexAxis: 'y',
-        layout: { padding: { right: 48 } },
+        layout: { padding: { right: 52 } },
         plugins: {
             legend: { display: false },
             tooltip: {
@@ -327,7 +318,11 @@ new Chart('graficoVendasPizza',{ type:'bar',
         data:vOrd.map(i=>safeValue(i[1])),
         backgroundColor:vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
         borderRadius:4,
-        barThickness: 22
+        // sem barThickness fixo: usa porcentagem do espaço da categoria
+        // categoryPercentage = fração do espaço de cada categoria usada pelo grupo
+        // barPercentage      = fração desse grupo usada pela barra em si
+        categoryPercentage: 0.75,
+        barPercentage: 0.9
     }]},
     options: cfgBarraTipo(
         (v) => v.toLocaleString('pt-BR') + ' alunos',
@@ -344,7 +339,8 @@ new Chart('graficoFaturamentoTipo',{ type:'bar',
         data:ftOrd.map(i=>safeValue(i[1])),
         backgroundColor:ftOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
         borderRadius:4,
-        barThickness: 22
+        categoryPercentage: 0.75,
+        barPercentage: 0.9
     }]},
     options: cfgBarraTipo(
         (v) => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2}),
@@ -352,7 +348,6 @@ new Chart('graficoFaturamentoTipo',{ type:'bar',
     )
 });
 
-// Leitura segura via tojson
 const relMeta       = {{ rel_meta       | tojson }};
 const relLeads      = {{ rel_realizado  | tojson }};
 const relMatriculas = {{ rel_matriculas | tojson }};
