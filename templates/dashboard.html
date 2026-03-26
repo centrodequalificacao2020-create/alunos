@@ -28,7 +28,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 .graficos-inline .grafico-item h4 {
     font-size: 13px;
@@ -42,6 +42,12 @@
 .graficos-inline canvas {
     height: 220px !important;
     width: 100% !important;
+}
+.grafico-total {
+    font-size: 12px;
+    color: #7f8c8d;
+    text-align: center;
+    margin-top: 2px;
 }
 @media (max-width: 900px) {
     .graficos-inline { flex-wrap: wrap; }
@@ -174,10 +180,12 @@
         <div class="grafico-item">
             <h4>Vendas por Tipo de Curso</h4>
             <canvas id="graficoVendasPizza"></canvas>
+            <p class="grafico-total" id="totalVendas"></p>
         </div>
         <div class="grafico-item">
             <h4>Faturamento por Tipo de Curso</h4>
             <canvas id="graficoFaturamentoTipo"></canvas>
+            <p class="grafico-total" id="totalFaturamento"></p>
         </div>
     </div>
 </div>
@@ -213,9 +221,11 @@ Chart.register(ChartDataLabels);
 function safeValue(v){ return Number(v || 0); }
 function limitarTexto(t, l=12){ return t && t.length>l ? t.substring(0,l)+'...' : (t||''); }
 
+// centerText apenas para gráficos do tipo doughnut
 const centerText = {
     id:'centerText',
     afterDraw(chart){
+        if(chart.config.type !== 'doughnut') return;
         const {ctx,chartArea} = chart;
         if(!chartArea) return;
         const x=(chartArea.left+chartArea.right)/2, y=(chartArea.top+chartArea.bottom)/2;
@@ -258,21 +268,35 @@ new Chart('graficoFinanceiro',{ type:'doughnut',
     data:{ labels:['Receita','Despesas'], datasets:[{data:[rec,desp],backgroundColor:['#2ecc71','#e74c3c'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
 
+// Configuração para gráficos de barra horizontal por tipo:
+// - label dentro da barra em branco; se a barra for pequena demais, esconde
+// - eixos ocultos; sem centerText
 function cfgBarraTipo(tooltipFn) {
     return {
         responsive: true,
         maintainAspectRatio: false,
         indexAxis: 'y',
+        layout: { padding: { right: 0 } },
         plugins: {
             legend: { display: false },
             tooltip: { callbacks: { label: tooltipFn } },
             datalabels: {
                 display: true,
+                clip: true,           // corta o texto que sair da barra
                 anchor: 'start',
                 align: 'end',
                 color: '#fff',
                 font: { size: 11, weight: 'bold' },
-                formatter: (value, ctx) => ctx.chart.data.labels[ctx.dataIndex]
+                // só exibe se a barra tiver largura suficiente para o texto
+                formatter: function(value, ctx) {
+                    const label = ctx.chart.data.labels[ctx.dataIndex] || '';
+                    const meta  = ctx.chart.getDatasetMeta(0);
+                    const bar   = meta.data[ctx.dataIndex];
+                    if(!bar) return '';
+                    const barWidth = Math.abs(bar.x - bar.base);
+                    // estimativa: ~7px por caractere
+                    return barWidth < label.length * 7 ? '' : label;
+                }
             }
         },
         scales: {
@@ -284,6 +308,8 @@ function cfgBarraTipo(tooltipFn) {
 
 const vendas={{ vendas_tipo|tojson }};
 const vOrd=[...vendas].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
+const totalVendas = vOrd.reduce((s,i)=>s+safeValue(i[1]),0);
+document.getElementById('totalVendas').textContent = 'Total: ' + totalVendas.toLocaleString('pt-BR') + ' alunos';
 new Chart('graficoVendasPizza',{ type:'bar',
     data:{ labels:vOrd.map(i=>i[0]), datasets:[{
         data:vOrd.map(i=>safeValue(i[1])),
@@ -295,16 +321,18 @@ new Chart('graficoVendasPizza',{ type:'bar',
 
 const fatTipo={{ faturamento_tipo|tojson }};
 const ftOrd=[...fatTipo].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
+const totalFat = ftOrd.reduce((s,i)=>s+safeValue(i[1]),0);
+document.getElementById('totalFaturamento').textContent = 'Total: R$ ' + totalFat.toLocaleString('pt-BR',{minimumFractionDigits:2});
 new Chart('graficoFaturamentoTipo',{ type:'bar',
     data:{ labels:ftOrd.map(i=>i[0]), datasets:[{
         data:ftOrd.map(i=>safeValue(i[1])),
         backgroundColor:ftOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
         borderRadius:6
     }]},
-    options: cfgBarraTipo((c)=>'R$ '+safeValue(c.raw).toLocaleString('pt-BR'))
+    options: cfgBarraTipo((c)=>'R$ '+safeValue(c.raw).toLocaleString('pt-BR',{minimumFractionDigits:2}))
 });
 
-// Leitura segura via tojson (evita NaN com Number('...'))
+// Leitura segura via tojson
 const relMeta       = {{ rel_meta       | tojson }};
 const relLeads      = {{ rel_realizado  | tojson }};
 const relMatriculas = {{ rel_matriculas | tojson }};
