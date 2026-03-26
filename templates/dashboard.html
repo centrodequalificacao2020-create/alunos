@@ -21,7 +21,7 @@
 .graficos-inline {
     display: flex;
     gap: 24px;
-    margin-top: 24px;
+    margin-top: 8px;
 }
 .graficos-inline .grafico-item {
     flex: 1;
@@ -159,7 +159,8 @@
     </div>
 </div>
 
-<h3 class="section-title graficos-row">Gráficos Financeiros</h3>
+<!-- 4 gráficos financeiros em um card único -->
+<h3 class="section-title graficos-row">Gr&#225;ficos Financeiros</h3>
 <div class="card" style="padding: 20px;">
     <div class="graficos-inline">
         <div class="grafico-item">
@@ -181,11 +182,23 @@
     </div>
 </div>
 
-<h3 class="section-title section-title--sep">&#128202; An&#225;lise Comercial (Leads x Matr&#237;culas)</h3>
-<div class="grid-graficos">
-    <div class="card grafico-card"><h3>Leads</h3><canvas id="graficoLeads"></canvas></div>
-    <div class="card grafico-card"><h3>Convers&#227;o</h3><canvas id="graficoConversao"></canvas></div>
-    <div class="card grafico-card"><h3>Vendas</h3><canvas id="graficoVendas"></canvas></div>
+<!-- 3 gráficos comerciais em um card único -->
+<h3 class="section-title section-title--sep graficos-row">&#128202; An&#225;lise Comercial (Leads x Matr&#237;culas)</h3>
+<div class="card" style="padding: 20px;">
+    <div class="graficos-inline">
+        <div class="grafico-item">
+            <h4>Leads (Meta x Realizado)</h4>
+            <canvas id="graficoLeads"></canvas>
+        </div>
+        <div class="grafico-item">
+            <h4>Convers&#227;o (Leads x Matr&#237;culas)</h4>
+            <canvas id="graficoConversao"></canvas>
+        </div>
+        <div class="grafico-item">
+            <h4>Vendas (Meta x Realizado)</h4>
+            <canvas id="graficoVendas"></canvas>
+        </div>
+    </div>
 </div>
 
 </div>
@@ -216,14 +229,13 @@ const centerText = {
 };
 Chart.register(centerText);
 
-// datalabels desativado globalmente; ativamos só nos gráficos de barra de tipo
 Chart.defaults.plugins.datalabels.display = false;
 
 const cfgPizza = {
     responsive:true, maintainAspectRatio:false, cutout:'75%',
     plugins:{
         legend:{ position:'bottom', labels:{ font:{size:11,weight:'bold'}, boxWidth:12, padding:15 }},
-        tooltip:{ callbacks:{ label:(c)=>c.label+': R$ '+safeValue(c.raw).toLocaleString('pt-BR') }},
+        tooltip:{ callbacks:{ label:(c)=>c.label+': '+safeValue(c.raw).toLocaleString('pt-BR') }},
         datalabels:{ display:false }
     }
 };
@@ -292,18 +304,28 @@ new Chart('graficoFaturamentoTipo',{ type:'bar',
     options: cfgBarraTipo((c)=>'R$ '+safeValue(c.raw).toLocaleString('pt-BR'))
 });
 
-const meta=Number('{{ rel_meta or 0 }}')||0, leads=Number('{{ rel_realizado or 0 }}')||0,
-      matriculas=Number('{{ rel_matriculas or 0 }}')||0, vendasRel=Number('{{ rel_vendas or 0 }}')||0,
-      metaVendas=Math.round(leads*0.35);
+// Leitura segura via tojson (evita NaN com Number('...'))
+const relMeta       = {{ rel_meta       | tojson }};
+const relLeads      = {{ rel_realizado  | tojson }};
+const relMatriculas = {{ rel_matriculas | tojson }};
+const relVendas     = {{ rel_vendas     | tojson }};
 
 new Chart('graficoLeads',{ type:'doughnut',
-    data:{ labels:['Meta','Realizado'], datasets:[{data:[meta,leads],backgroundColor:['#95a5a6','#3498db'],borderWidth:2,borderColor:'#fff'}]},
+    data:{ labels:['Meta','Realizado'],
+           datasets:[{data:[safeValue(relMeta), safeValue(relLeads)],
+                      backgroundColor:['#95a5a6','#3498db'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
+
 new Chart('graficoConversao',{ type:'doughnut',
-    data:{ labels:['Leads','Matr&#237;culas'], datasets:[{data:[leads,matriculas],backgroundColor:['#3498db','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
+    data:{ labels:['Leads','Matr\u00edculas'],
+           datasets:[{data:[safeValue(relLeads), safeValue(relMatriculas)],
+                      backgroundColor:['#3498db','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
+
 new Chart('graficoVendas',{ type:'doughnut',
-    data:{ labels:['Meta','Vendas'], datasets:[{data:[metaVendas,vendasRel],backgroundColor:['#95a5a6','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
+    data:{ labels:['Meta','Vendas'],
+           datasets:[{data:[safeValue(relMeta), safeValue(relVendas)],
+                      backgroundColor:['#95a5a6','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
 </script>
 {% endblock %}
