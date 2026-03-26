@@ -148,13 +148,14 @@ def dashboard():
         .all()
     )]
 
-    # Subconsulta: tipo_curso da matrícula ativa de cada aluno (sem duplicar)
+    # Subconsulta determinística: matícula ATIVA mais recente (maior id) por aluno
     matricula_ativa_sub = (
         db.session.query(
             Matricula.aluno_id,
             func.coalesce(Matricula.tipo_curso, "Não definido").label("tipo")
         )
         .filter(Matricula.status == "ATIVA")
+        .order_by(Matricula.aluno_id, Matricula.id.desc())
         .distinct(Matricula.aluno_id)
         .subquery()
     )
