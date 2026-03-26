@@ -142,7 +142,7 @@
     <div class="card dashboard-card {{ 'card--danger' if lucro_liquido < 0 else 'card--success' }}">
         <h4>Resultado</h4>
         <p class="{{ 'valor-danger' if lucro_liquido < 0 else 'valor-success' }}">
-            {% if lucro_liquido >= 0 %}&#x2705; Lucro{% else %}&#x26A0;&#xFE0F; Preju&#237;zo{% endif %}
+            {% if lucro_liquido >= 0 %}Lucro{% else %}Preju&#237;zo{% endif %}
         </p>
     </div>
 </div>
