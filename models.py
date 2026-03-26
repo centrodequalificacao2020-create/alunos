@@ -6,7 +6,7 @@ from enums import (
 )
 
 
-# ─── Constantes de domínio (retrocompat) ───────────────────────────────────────────────
+# ─── Constantes de domínio (retrocompat) ─────────────────────────────────────────────────────────
 PERFIS_VALIDOS   = PerfilUsuario.valores()
 STATUS_MATRICULA = StatusMatricula.valores()
 
@@ -150,14 +150,26 @@ class Mensalidade(db.Model):
 
 
 class Despesa(db.Model):
+    """Despesa avulsa (tipo=variavel) ou recorrente (tipo=fixa).
+
+    Para despesas fixas:
+      - data_inicio: primeiro mês em que a cobrança incide  (formato YYYY-MM)
+      - data_fim:    último  mês em que a cobrança incide   (formato YYYY-MM)
+      - data:        data de cadastro do registro (preenchida automaticamente)
+      - valor:       valor mensal a ser computado no dashboard
+    """
     __tablename__ = "despesas"
-    id             = db.Column(db.Integer, primary_key=True)
-    descricao      = db.Column(db.String(200))
-    valor          = db.Column(db.Float, default=0)
-    tipo           = db.Column(db.String(40))
-    categoria      = db.Column(db.String(60))
-    data           = db.Column(db.String(10))
-    observacao     = db.Column(db.Text)
+    id           = db.Column(db.Integer, primary_key=True)
+    descricao    = db.Column(db.String(200))
+    valor        = db.Column(db.Float, default=0)
+    tipo         = db.Column(db.String(40))          # 'fixa' | 'variavel'
+    categoria    = db.Column(db.String(60))
+    data         = db.Column(db.String(10))           # data de cadastro / data do lançamento avulso
+    observacao   = db.Column(db.Text)
+    # ── campos de recorrência (só usados quando tipo == 'fixa') ──
+    data_inicio  = db.Column(db.String(7))            # YYYY-MM  ex: '2026-03'
+    data_fim     = db.Column(db.String(7))            # YYYY-MM  ex: '2026-12'
+    # ── colunas legadas mantidas para não quebrar migrações antigas ──
     recorrente     = db.Column(db.Integer, default=0)
     dia_vencimento = db.Column(db.Integer)
 

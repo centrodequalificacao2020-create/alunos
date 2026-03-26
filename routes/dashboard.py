@@ -23,6 +23,44 @@ def _buscar_relatorio_mes(mes: str) -> dict:
     return {"meta": 0, "realizado": 0, "matriculas": 0, "vendas": 0}
 
 
+def _despesas_do_mes(mes: str) -> float:
+    """
+    Retorna o total de despesas (fixas + variáveis) que incidem sobre `mes` (YYYY-MM).
+
+    Lógica:
+      - Variáveis:  lançamentos cuja coluna `data` está dentro do mês.
+      - Fixas/recorrentes: registros cujo período [data_inicio, data_fim]
+        engloba o mês filtrado. Cada registro vale `valor` por mês.
+    """
+    inicio = f"{mes}-01"
+    fim    = _fim_mes(mes)
+
+    # 1. Despesas variáveis (avulsas) lançadas neste mês
+    variaveis = db.session.query(func.sum(Despesa.valor)).filter(
+        Despesa.tipo != "fixa",
+        Despesa.data.between(inicio, fim)
+    ).scalar() or 0
+
+    # 2. Despesas fixas cujo período cobre este mês
+    #    data_inicio <= mes  E  data_fim >= mes  (comparação de strings YYYY-MM é lexicográfica correta)
+    fixas_ativas = Despesa.query.filter(
+        Despesa.tipo == "fixa",
+        Despesa.data_inicio <= mes,
+        Despesa.data_fim    >= mes
+    ).all()
+    fixas = sum(float(d.valor or 0) for d in fixas_ativas)
+
+    # 3. Retrocompat: registros antigos com recorrente=1 mas sem data_inicio/data_fim
+    legadas = Despesa.query.filter(
+        Despesa.tipo == "fixa",
+        Despesa.recorrente == 1,
+        Despesa.data_inicio.is_(None)
+    ).all()
+    fixas += sum(float(d.valor or 0) for d in legadas)
+
+    return float(variaveis) + fixas
+
+
 @dashboard_bp.route("/dashboard")
 @login_required
 def dashboard():
@@ -77,18 +115,7 @@ def dashboard():
         Mensalidade.data_pagamento.between(inicio, fim)
     ).scalar() or 0
 
-    variaveis = db.session.query(func.sum(Despesa.valor)).filter(
-        Despesa.recorrente == 0,
-        Despesa.data.between(inicio, fim)
-    ).scalar() or 0
-
-    fixas_list = Despesa.query.filter_by(recorrente=1).all()
-    fixas = sum(
-        float(d.valor or 0)
-        for d in fixas_list
-        if d.dia_vencimento and str(d.data or "")[:7] <= mes
-    )
-    despesas_mes = variaveis + fixas
+    despesas_mes = _despesas_do_mes(mes)
 
     lucro_liquido      = recebido_mes - despesas_mes
     margem_lucro       = (lucro_liquido / recebido_mes * 100) if recebido_mes > 0 else 0
@@ -148,7 +175,6 @@ def dashboard():
         .all()
     )]
 
-    # Subconsulta determinística: matícula ATIVA mais recente (maior id) por aluno
     matricula_ativa_sub = (
         db.session.query(
             Matricula.aluno_id,
@@ -227,11 +253,11 @@ def salvar_relatorio():
     db.session.commit()
     return jsonify({"status": "ok"})
 
+
 @dashboard_bp.route("/relatorio")
 @login_required
 def relatorio():
     return render_template("relatorio.html")
-
 
 
 @dashboard_bp.route("/carregar_relatorio/<mes>")

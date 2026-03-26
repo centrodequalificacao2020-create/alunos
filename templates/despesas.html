@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 {% block title %}Despesas{% endblock %}
 
+{% block styles %}
+<style>
+/* Campos de período: só aparecem quando tipo = fixa */
+.campos-periodo { display: none; }
+.campos-periodo.visivel { display: contents; }
+.campos-data-avulsa { display: contents; }
+.campos-data-avulsa.oculto { display: none; }
+
+/* Badge de período nas recorrentes */
+.badge-periodo {
+    display: inline-block;
+    font-size: 11px;
+    background: #ebf5fb;
+    color: #2471a3;
+    border: 1px solid #aed6f1;
+    border-radius: 10px;
+    padding: 1px 8px;
+    white-space: nowrap;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <div class="card-header">
@@ -9,7 +31,7 @@
     </div>
     <p class="card-subtitle">Controle de despesas fixas e variáveis</p>
 
-    <form method="POST">
+    <form method="POST" id="formDespesa">
         <div class="grid-4">
             <div class="campo">
                 <label>Nome</label>
@@ -21,15 +43,27 @@
             </div>
             <div class="campo">
                 <label>Tipo</label>
-                <select name="tipo" required>
+                <select name="tipo" id="tipoDespesa" required>
                     <option value="">Selecione</option>
-                    <option value="fixa">Fixa</option>
+                    <option value="fixa">Fixa (recorrente)</option>
                     <option value="variavel">Variável</option>
                 </select>
             </div>
-            <div class="campo">
-                <label>Data</label>
-                <input type="date" name="data" required>
+
+            {# Data avulsa — só para variável #}
+            <div class="campo campos-data-avulsa" id="campoDataAvulsa">
+                <label>Data do lançamento</label>
+                <input type="date" name="data">
+            </div>
+
+            {# Período de recorrência — só para fixa #}
+            <div class="campo campos-periodo" id="campoInicio">
+                <label>Início da cobrança</label>
+                <input type="month" name="data_inicio" placeholder="YYYY-MM">
+            </div>
+            <div class="campo campos-periodo" id="campoFim">
+                <label>Fim da cobrança</label>
+                <input type="month" name="data_fim" placeholder="YYYY-MM">
             </div>
         </div>
         <div class="grid-1">
@@ -44,9 +78,62 @@
     </form>
 </div>
 
-{% if despesas %}
+{# ────────── Despesas Fixas (recorrentes) ────────── #}
+{% if fixas %}
 <div class="card">
-    <h3>Despesas Registradas</h3>
+    <h3>🔄 Despesas Fixas (recorrentes)</h3>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Período de cobrança</th>
+                    <th>Valor/mês</th>
+                    <th>Observação</th>
+                    <th class="acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in fixas %}
+                <tr>
+                    <td>{{ d.descricao }}</td>
+                    <td>
+                        {% if d.data_inicio and d.data_fim %}
+                        <span class="badge-periodo">
+                            {{ d.data_inicio }} → {{ d.data_fim }}
+                        </span>
+                        {% else %}
+                        <span style="color:#aaa">Período não definido</span>
+                        {% endif %}
+                    </td>
+                    <td>R$ {{ "%.2f"|format(d.valor) }}</td>
+                    <td>{{ d.observacao or '' }}</td>
+                    <td class="acoes">
+                        <a href="/editar_despesa/{{ d.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                        <form method="POST" action="/excluir_despesa/{{ d.id }}" style="display:inline"
+                              onsubmit="return confirm('Excluir esta despesa fixa?')">
+                            <button class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2"><strong>Total fixo/mês:</strong></td>
+                    <td><strong>R$ {{ "%.2f"|format(total_fix) }}</strong></td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{# ────────── Despesas Variáveis ────────── #}
+{% if variaveis %}
+<div class="card">
+    <h3>📊 Despesas Variáveis</h3>
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
@@ -60,7 +147,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for d in despesas %}
+                {% for d in variaveis %}
                 <tr>
                     <td>{{ d.descricao }}</td>
                     <td>{{ d.tipo|capitalize if d.tipo else '—' }}</td>
@@ -79,17 +166,44 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3"><strong>Total:</strong></td>
-                    <td><strong>R$ {{ "%.2f"|format(total) }}</strong></td>
+                    <td colspan="3"><strong>Total variável:</strong></td>
+                    <td><strong>R$ {{ "%.2f"|format(total_var) }}</strong></td>
                     <td colspan="2"></td>
                 </tr>
             </tfoot>
         </table>
     </div>
 </div>
-{% else %}
+{% endif %}
+
+{% if not fixas and not variaveis %}
 <div class="card">
     <p class="empty-state">Nenhuma despesa cadastrada.</p>
 </div>
 {% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tipoDespesa     = document.getElementById('tipoDespesa');
+const campoInicio     = document.getElementById('campoInicio');
+const campoFim        = document.getElementById('campoFim');
+const campoDataAvulsa = document.getElementById('campoDataAvulsa');
+
+function atualizarCampos() {
+    const isFixa = tipoDespesa.value === 'fixa';
+    // período
+    campoInicio.classList.toggle('visivel', isFixa);
+    campoFim.classList.toggle('visivel', isFixa);
+    // data avulsa
+    campoDataAvulsa.classList.toggle('oculto', isFixa);
+    // required dinâmico
+    campoInicio.querySelector('input').required = isFixa;
+    campoFim.querySelector('input').required    = isFixa;
+}
+
+tipoDespesa.addEventListener('change', atualizarCampos);
+atualizarCampos();
+</script>
 {% endblock %}

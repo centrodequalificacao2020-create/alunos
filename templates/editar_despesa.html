@@ -1,8 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Editar Despesa{% endblock %}
-{% block content %}
 
-<div class="card" style="max-width:600px">
+{% block styles %}
+<style>
+.campos-periodo { display: none; }
+.campos-periodo.visivel { display: contents; }
+.campos-data-avulsa { display: contents; }
+.campos-data-avulsa.oculto { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px">
     <div class="card-header">
         <span>✏️</span>
         <h2>Editar Despesa</h2>
@@ -17,9 +26,9 @@
             </div>
             <div class="campo">
                 <label for="tipo">Tipo</label>
-                <select id="tipo" name="tipo" required>
-                    <option value="fixa"     {% if despesa.tipo == 'fixa'     %}selected{% endif %}>Fixa</option>
-                    <option value="variavel" {% if despesa.tipo in ('variavel','unica') %}selected{% endif %}>Variável</option>
+                <select id="tipoDespesa" name="tipo" required>
+                    <option value="fixa"     {% if despesa.tipo == 'fixa'     %}selected{% endif %}>Fixa (recorrente)</option>
+                    <option value="variavel" {% if despesa.tipo != 'fixa' %}selected{% endif %}>Variável</option>
                 </select>
             </div>
         </div>
@@ -30,10 +39,26 @@
                        step="0.01" min="0"
                        value="{{ despesa.valor }}" required>
             </div>
-            <div class="campo">
-                <label for="data">Data</label>
+
+            {# Data avulsa — variável #}
+            <div class="campo campos-data-avulsa" id="campoDataAvulsa">
+                <label for="data">Data do lançamento</label>
                 <input type="date" id="data" name="data"
-                       value="{{ despesa.data }}" required>
+                       value="{{ despesa.data or '' }}">
+            </div>
+
+            {# Início — fixa #}
+            <div class="campo campos-periodo" id="campoInicio">
+                <label>Início da cobrança</label>
+                <input type="month" name="data_inicio"
+                       value="{{ despesa.data_inicio or '' }}">
+            </div>
+
+            {# Fim — fixa #}
+            <div class="campo campos-periodo" id="campoFim">
+                <label>Fim da cobrança</label>
+                <input type="month" name="data_fim"
+                       value="{{ despesa.data_fim or '' }}">
             </div>
         </div>
         <div class="campo">
@@ -47,5 +72,25 @@
         </div>
     </form>
 </div>
+{% endblock %}
 
+{% block scripts %}
+<script>
+const tipoDespesa     = document.getElementById('tipoDespesa');
+const campoInicio     = document.getElementById('campoInicio');
+const campoFim        = document.getElementById('campoFim');
+const campoDataAvulsa = document.getElementById('campoDataAvulsa');
+
+function atualizarCampos() {
+    const isFixa = tipoDespesa.value === 'fixa';
+    campoInicio.classList.toggle('visivel', isFixa);
+    campoFim.classList.toggle('visivel', isFixa);
+    campoDataAvulsa.classList.toggle('oculto', isFixa);
+    campoInicio.querySelector('input').required = isFixa;
+    campoFim.querySelector('input').required    = isFixa;
+}
+
+tipoDespesa.addEventListener('change', atualizarCampos);
+atualizarCampos();
+</script>
 {% endblock %}
