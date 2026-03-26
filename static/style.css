@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v9)
+   SISTEMA ESCOLAR — style.css  (v10)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ────────────────────────────────────────────────── */
@@ -84,12 +84,18 @@ nav {
 nav a {
     color: rgba(255,255,255,.85); margin-left: 18px;
     text-decoration: none; font-size: var(--font-size-base);
-    padding: 4px 0; border-bottom: 2px solid transparent;
+    padding: 4px 0;
+    /* Indicador de página ativa no desktop: linha embaixo do texto */
+    border-bottom: 2px solid transparent;
     transition: color .15s, border-color .15s;
     white-space: nowrap;
 }
 nav a:hover { color: var(--color-white); border-bottom-color: rgba(255,255,255,.5); }
-nav a.active { color: var(--color-white); font-weight: 600; border-bottom-color: var(--color-white); }
+nav a.active {
+    color: var(--color-white);
+    font-weight: 600;
+    border-bottom-color: var(--color-white);
+}
 
 /* ── 4. MAIN ────────────────────────────────────────────────── */
 main { padding: 32px; width: 100%; max-width: 100%; }
@@ -100,7 +106,6 @@ main { padding: 32px; width: 100%; max-width: 100%; }
     padding: 28px; margin-bottom: 32px;
     box-shadow: var(--shadow-md); max-width: 100%; overflow-x: visible;
 }
-/* Dentro de grids, o gap já controla o espaçamento */
 .grid-4 > .card,
 .grid-3 > .card,
 .grid-2 > .card,
@@ -413,16 +418,15 @@ td.acoes { text-align: center; white-space: nowrap; }
 .mt-3 { margin-top: 16px; }
 
 /* ── 26. NAV RESPONSIVO ─────────────────────────────────────── */
-/* Botão hambúrguer — só aparece quando os links não cabem */
 .nav-toggle { display: none; background: none; border: none; color: var(--color-white); font-size: 24px; cursor: pointer; padding: 4px 8px; }
 
-/* Faixa intermediária: links ainda aparecem, mas comprimidos */
+/* Faixa intermediária: links comprimidos mas ainda em linha */
 @media (max-width: 1200px) and (min-width: 1101px) {
     header { padding: 0 20px; }
-    nav a { margin-left: 12px; font-size: 13px; }
+    nav a  { margin-left: 12px; font-size: 13px; }
 }
 
-/* Abaixo de 1100px: ativa o menu hambúrguer */
+/* Abaixo de 1100px: menu hambúrguer vertical */
 @media (max-width: 1100px) {
     header { padding: 0 20px; }
     .nav-toggle { display: block; }
@@ -439,9 +443,29 @@ td.acoes { text-align: center; white-space: nowrap; }
         box-shadow: 0 4px 12px rgba(0,0,0,.2);
     }
     nav.nav-open { display: flex; }
-    nav a { margin: 0; padding: 10px 24px; border-bottom: none; font-size: var(--font-size-base); }
-    nav a:hover { background: rgba(255,255,255,.1); border-bottom: none; }
-    nav a.active { background: rgba(255,255,255,.12); border-bottom: none; border-left: 3px solid var(--color-white); padding-left: 21px; }
+
+    /* Links no menu vertical: sem margin lateral, padding generoso */
+    nav a {
+        margin: 0;
+        padding: 10px 24px;
+        font-size: var(--font-size-base);
+        /* Remove completamente o border-bottom herdado do desktop */
+        border-bottom: none !important;
+        border-left: 3px solid transparent;
+    }
+    nav a:hover {
+        background: rgba(255,255,255,.1);
+        border-bottom: none !important;
+        border-left-color: rgba(255,255,255,.4);
+    }
+    /* Link da página atual no menu mobile: barra esquerda, sem linha embaixo */
+    nav a.active {
+        background: rgba(255,255,255,.12);
+        font-weight: 600;
+        border-bottom: none !important;
+        border-left: 3px solid var(--color-white);
+        padding-left: 21px; /* compensa os 3px da borda esquerda */
+    }
 }
 
 /* ── 27. AUTOCOMPLETE ─────────────────────────────────────────── */
@@ -509,164 +533,68 @@ a:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; 
 
 /* ════════════════════════════════════════════════════════════
    32. TEMA PORTAL DO ALUNO — isolado em body.tema-aluno
-   Não afeta nenhuma página administrativa
    ════════════════════════════════════════════════════════════ */
 body.tema-aluno {
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
     min-height: 100vh;
     color: #f0f4f8;
 }
-
-/* Header escuro petróleo com efeito glass */
 body.tema-aluno header {
     background: rgba(13, 33, 59, 0.88);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
-
-/* Nav mobile: fundo coerente com o tema escuro */
 @media (max-width: 1100px) {
-    body.tema-aluno nav {
-        background: rgba(10, 25, 47, 0.97);
-    }
+    body.tema-aluno nav { background: rgba(10, 25, 47, 0.97); }
 }
-
-/* main com padding adequado para não colar no header */
-body.tema-aluno main {
-    padding: 24px 32px;
-}
-
-/* ── Cards glass escuro — cobre TODOS os .card no portal ── */
+body.tema-aluno main { padding: 24px 32px; }
 body.tema-aluno .card {
     background: rgba(15, 32, 55, 0.82) !important;
     border: 1px solid rgba(255, 255, 255, .12) !important;
     box-shadow: 0 8px 28px rgba(0, 0, 0, .40);
     color: #f0f4f8;
 }
-
 body.tema-aluno .card h2,
 body.tema-aluno .card h3,
-body.tema-aluno .card h4 {
-    color: #e8f1fb;
-}
-
+body.tema-aluno .card h4 { color: #e8f1fb; }
 body.tema-aluno .card p,
 body.tema-aluno .card-subtitle,
 body.tema-aluno .card .text-muted,
-body.tema-aluno .card label {
-    color: rgba(220, 232, 245, 0.72);
-}
-
-/* Separadores internos dos cards */
-body.tema-aluno .card .secao {
-    border-bottom-color: rgba(255, 255, 255, .12);
-    color: rgba(220, 232, 245, 0.80);
-}
-
-/* ── Tabelas dentro dos cards ── */
-body.tema-aluno .card table th {
-    background: rgba(10, 25, 47, 0.70);
-    color: rgba(180, 210, 240, 0.85);
-    border-bottom: 1px solid rgba(255, 255, 255, .10);
-}
-
-body.tema-aluno .card table td {
-    border-bottom-color: rgba(255, 255, 255, .08);
-    color: #dce8f5;
-}
-
-body.tema-aluno .card table tbody tr:hover td {
-    background: rgba(0, 198, 255, .08);
-}
-
-/* Linha de parcela pendente no portal financeiro */
-body.tema-aluno .card table tbody tr.tr-pendente td {
-    background: rgba(239, 68, 68, .12);
-}
-
-/* ── Cards de alerta no portal (pendente/em dia) ── */
-body.tema-aluno .portal-card--pendente {
-    border-left: 4px solid #ef4444 !important;
-    text-align: center;
-}
-body.tema-aluno .portal-card--pendente .portal-alerta-titulo {
-    font-size: 1.1rem; color: #ff8a8a; font-weight: 600;
-}
-body.tema-aluno .portal-card--pendente .portal-alerta-valor {
-    font-size: 1.4rem; font-weight: 700; color: #ff8a8a;
-}
-body.tema-aluno .portal-card--pendente .portal-alerta-sub {
-    font-size: 13px; color: rgba(220, 232, 245, 0.60);
-}
-
-body.tema-aluno .portal-card--ok {
-    border-left: 4px solid #22c55e !important;
-    text-align: center;
-}
-body.tema-aluno .portal-card--ok .portal-alerta-titulo {
-    font-size: 1.1rem; color: #4ade80; font-weight: 600;
-}
-
-/* ── Card de média geral (notas) ── */
-body.tema-aluno .portal-card--media {
-    text-align: center;
-}
-body.tema-aluno .portal-card--media .portal-media-label {
-    font-size: 13px; color: rgba(220, 232, 245, 0.60); margin-bottom: 4px;
-}
-body.tema-aluno .portal-card--media .portal-media-valor {
-    font-size: 2.2rem; font-weight: 700;
-}
-body.tema-aluno .portal-card--media .portal-media-valor.aprovado  { color: #4ade80; }
+body.tema-aluno .card label { color: rgba(220, 232, 245, 0.72); }
+body.tema-aluno .card .secao { border-bottom-color: rgba(255, 255, 255, .12); color: rgba(220, 232, 245, 0.80); }
+body.tema-aluno .card table th { background: rgba(10, 25, 47, 0.70); color: rgba(180, 210, 240, 0.85); border-bottom: 1px solid rgba(255, 255, 255, .10); }
+body.tema-aluno .card table td { border-bottom-color: rgba(255, 255, 255, .08); color: #dce8f5; }
+body.tema-aluno .card table tbody tr:hover td { background: rgba(0, 198, 255, .08); }
+body.tema-aluno .card table tbody tr.tr-pendente td { background: rgba(239, 68, 68, .12); }
+body.tema-aluno .portal-card--pendente { border-left: 4px solid #ef4444 !important; text-align: center; }
+body.tema-aluno .portal-card--pendente .portal-alerta-titulo { font-size: 1.1rem; color: #ff8a8a; font-weight: 600; }
+body.tema-aluno .portal-card--pendente .portal-alerta-valor  { font-size: 1.4rem; font-weight: 700; color: #ff8a8a; }
+body.tema-aluno .portal-card--pendente .portal-alerta-sub    { font-size: 13px; color: rgba(220, 232, 245, 0.60); }
+body.tema-aluno .portal-card--ok { border-left: 4px solid #22c55e !important; text-align: center; }
+body.tema-aluno .portal-card--ok .portal-alerta-titulo { font-size: 1.1rem; color: #4ade80; font-weight: 600; }
+body.tema-aluno .portal-card--media { text-align: center; }
+body.tema-aluno .portal-card--media .portal-media-label  { font-size: 13px; color: rgba(220, 232, 245, 0.60); margin-bottom: 4px; }
+body.tema-aluno .portal-card--media .portal-media-valor  { font-size: 2.2rem; font-weight: 700; }
+body.tema-aluno .portal-card--media .portal-media-valor.aprovado    { color: #4ade80; }
 body.tema-aluno .portal-card--media .portal-media-valor.recuperacao { color: #fbbf24; }
-body.tema-aluno .portal-card--media .portal-media-valor.reprovado { color: #f87171; }
-body.tema-aluno .portal-card--media .portal-media-status {
-    font-size: 13px; color: rgba(220, 232, 245, 0.60);
-}
-
-/* ── Rodapé de frequência ── */
-body.tema-aluno .portal-freq-rodape {
-    margin-top: 16px; display: flex; gap: 24px; flex-wrap: wrap;
-}
-body.tema-aluno .portal-freq-rodape .portal-freq-total {
-    font-weight: 600; color: #f0f4f8;
-}
-
-/* ── Inputs dentro dos cards do portal do aluno ── */
+body.tema-aluno .portal-card--media .portal-media-valor.reprovado   { color: #f87171; }
+body.tema-aluno .portal-card--media .portal-media-status { font-size: 13px; color: rgba(220, 232, 245, 0.60); }
+body.tema-aluno .portal-freq-rodape { margin-top: 16px; display: flex; gap: 24px; flex-wrap: wrap; }
+body.tema-aluno .portal-freq-rodape .portal-freq-total { font-weight: 600; color: #f0f4f8; }
 body.tema-aluno .card form input,
 body.tema-aluno .card form select,
 body.tema-aluno .card .campo input,
-body.tema-aluno .card .campo select {
-    background: rgba(10, 25, 47, 0.60);
-    border-color: rgba(255, 255, 255, .18);
-    color: #f0f4f8;
-}
-
+body.tema-aluno .card .campo select { background: rgba(10, 25, 47, 0.60); border-color: rgba(255, 255, 255, .18); color: #f0f4f8; }
 body.tema-aluno .card form input:focus,
 body.tema-aluno .card form select:focus,
 body.tema-aluno .card .campo input:focus,
-body.tema-aluno .card .campo select:focus {
-    border-color: #00c6ff;
-    box-shadow: 0 0 0 3px rgba(0, 198, 255, .20);
-}
-
-/* ── Sidebar de conteúdo ── */
-body.tema-aluno .sidebar {
-    background: rgba(15, 32, 55, 0.82);
-    border: 1px solid rgba(255,255,255,.12);
-    color: #f0f4f8;
-}
+body.tema-aluno .card .campo select:focus { border-color: #00c6ff; box-shadow: 0 0 0 3px rgba(0, 198, 255, .20); }
+body.tema-aluno .sidebar { background: rgba(15, 32, 55, 0.82); border: 1px solid rgba(255,255,255,.12); color: #f0f4f8; }
 body.tema-aluno .materia-titulo { color: rgba(180,210,240,0.7); }
 body.tema-aluno .aula { color: #dce8f5; border-bottom-color: rgba(255,255,255,.08); }
 body.tema-aluno .aula:hover { background: rgba(0,198,255,.10); }
 body.tema-aluno .aula.ativa  { background: rgba(0,198,255,.22); }
 body.tema-aluno .progresso-barra { background: rgba(255,255,255,.15); }
-
-/* ── btn-secondary no tema escuro ── */
-body.tema-aluno .btn-secondary {
-    background: rgba(255,255,255,.12);
-    color: #f0f4f8;
-    border: 1px solid rgba(255,255,255,.25);
-}
+body.tema-aluno .btn-secondary { background: rgba(255,255,255,.12); color: #f0f4f8; border: 1px solid rgba(255,255,255,.25); }
 body.tema-aluno .btn-secondary:hover { background: rgba(255,255,255,.20); opacity: 1; }
