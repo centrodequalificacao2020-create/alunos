@@ -148,17 +148,28 @@ def dashboard():
         .all()
     )]
 
+    # Subconsulta: tipo_curso da matrícula ativa de cada aluno (sem duplicar)
+    matricula_ativa_sub = (
+        db.session.query(
+            Matricula.aluno_id,
+            func.coalesce(Matricula.tipo_curso, "Não definido").label("tipo")
+        )
+        .filter(Matricula.status == "ATIVA")
+        .distinct(Matricula.aluno_id)
+        .subquery()
+    )
+
     faturamento_tipo = [[tipo or "Não definido", float(total or 0)] for tipo, total in (
         db.session.query(
-            func.coalesce(Matricula.tipo_curso, "Não definido"),
+            matricula_ativa_sub.c.tipo,
             func.sum(Mensalidade.valor)
         )
-        .join(Mensalidade, Mensalidade.aluno_id == Matricula.aluno_id)
+        .join(Mensalidade, Mensalidade.aluno_id == matricula_ativa_sub.c.aluno_id)
         .filter(
             Mensalidade.status == "Pago",
             Mensalidade.data_pagamento.between(inicio, fim)
         )
-        .group_by(Matricula.tipo_curso)
+        .group_by(matricula_ativa_sub.c.tipo)
         .order_by(func.sum(Mensalidade.valor).desc())
         .all()
     )]

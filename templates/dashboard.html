@@ -18,7 +18,6 @@
 }
 .graficos-row { margin-top: 24px; }
 
-/* card único com 4 gráficos lado a lado */
 .graficos-inline {
     display: flex;
     gap: 24px;
@@ -52,7 +51,6 @@
     .graficos-inline .grafico-item { flex: 1 1 100%; }
 }
 
-/* grid 2x2 para gráficos comerciais */
 .grid-graficos {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -161,7 +159,6 @@
     </div>
 </div>
 
-<!-- 4 gráficos em um card único -->
 <h3 class="section-title graficos-row">Gráficos Financeiros</h3>
 <div class="card" style="padding: 20px;">
     <div class="graficos-inline">
@@ -196,7 +193,10 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
+Chart.register(ChartDataLabels);
+
 function safeValue(v){ return Number(v || 0); }
 function limitarTexto(t, l=12){ return t && t.length>l ? t.substring(0,l)+'...' : (t||''); }
 
@@ -216,11 +216,15 @@ const centerText = {
 };
 Chart.register(centerText);
 
+// datalabels desativado globalmente; ativamos só nos gráficos de barra de tipo
+Chart.defaults.plugins.datalabels.display = false;
+
 const cfgPizza = {
     responsive:true, maintainAspectRatio:false, cutout:'75%',
     plugins:{
         legend:{ position:'bottom', labels:{ font:{size:11,weight:'bold'}, boxWidth:12, padding:15 }},
-        tooltip:{ callbacks:{ label:(c)=>c.label+': R$ '+safeValue(c.raw).toLocaleString('pt-BR') }}
+        tooltip:{ callbacks:{ label:(c)=>c.label+': R$ '+safeValue(c.raw).toLocaleString('pt-BR') }},
+        datalabels:{ display:false }
     }
 };
 
@@ -242,23 +246,51 @@ new Chart('graficoFinanceiro',{ type:'doughnut',
     data:{ labels:['Receita','Despesas'], datasets:[{data:[rec,desp],backgroundColor:['#2ecc71','#e74c3c'],borderWidth:2,borderColor:'#fff'}]},
     options:cfgPizza });
 
+function cfgBarraTipo(tooltipFn) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: tooltipFn } },
+            datalabels: {
+                display: true,
+                anchor: 'start',
+                align: 'end',
+                color: '#fff',
+                font: { size: 11, weight: 'bold' },
+                formatter: (value, ctx) => ctx.chart.data.labels[ctx.dataIndex]
+            }
+        },
+        scales: {
+            x: { display: false, beginAtZero: true },
+            y: { display: false, grid: { display: false } }
+        }
+    };
+}
+
 const vendas={{ vendas_tipo|tojson }};
 const vOrd=[...vendas].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
 new Chart('graficoVendasPizza',{ type:'bar',
-    data:{ labels:vOrd.map(i=>limitarTexto(i[0],20)), datasets:[{data:vOrd.map(i=>safeValue(i[1])),
-        backgroundColor:vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'), borderRadius:6}]},
-    options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
-        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>c.raw+' alunos'}}},
-        scales:{ x:{beginAtZero:true}, y:{grid:{display:false}} } } });
+    data:{ labels:vOrd.map(i=>i[0]), datasets:[{
+        data:vOrd.map(i=>safeValue(i[1])),
+        backgroundColor:vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
+        borderRadius:6
+    }]},
+    options: cfgBarraTipo((c)=>c.raw+' alunos')
+});
 
 const fatTipo={{ faturamento_tipo|tojson }};
 const ftOrd=[...fatTipo].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
 new Chart('graficoFaturamentoTipo',{ type:'bar',
-    data:{ labels:ftOrd.map(i=>limitarTexto(i[0],20)), datasets:[{data:ftOrd.map(i=>safeValue(i[1])),
-        backgroundColor:ftOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'), borderRadius:6}]},
-    options:{ responsive:true,maintainAspectRatio:false,indexAxis:'y',
-        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>'R$ '+safeValue(c.raw).toLocaleString('pt-BR')}}},
-        scales:{ x:{beginAtZero:true,ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR')}}, y:{grid:{display:false}} } } });
+    data:{ labels:ftOrd.map(i=>i[0]), datasets:[{
+        data:ftOrd.map(i=>safeValue(i[1])),
+        backgroundColor:ftOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
+        borderRadius:6
+    }]},
+    options: cfgBarraTipo((c)=>'R$ '+safeValue(c.raw).toLocaleString('pt-BR'))
+});
 
 const meta=Number('{{ rel_meta or 0 }}')||0, leads=Number('{{ rel_realizado or 0 }}')||0,
       matriculas=Number('{{ rel_matriculas or 0 }}')||0, vendasRel=Number('{{ rel_vendas or 0 }}')||0,
