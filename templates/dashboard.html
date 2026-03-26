@@ -175,17 +175,19 @@
     </div>
 </div>
 
-<!-- 4 gráficos financeiros em um card único -->
+<!-- 4 gráficos financeiros -->
 <h3 class="section-title graficos-row">Gr&#225;ficos Financeiros</h3>
 <div class="card" style="padding: 20px;">
     <div class="graficos-inline">
         <div class="grafico-item">
             <h4>Receita (&#218;ltimos Meses)</h4>
-            <canvas id="graficoReceitaPizza"></canvas>
+            <canvas id="graficoReceitaMeses"></canvas>
+            <p class="grafico-total" id="totalReceita"></p>
         </div>
         <div class="grafico-item">
             <h4>Receita x Despesa</h4>
             <canvas id="graficoFinanceiro"></canvas>
+            <p class="grafico-total" id="totalFinanceiro"></p>
         </div>
         <div class="grafico-item">
             <h4>Vendas por Tipo de Curso</h4>
@@ -200,7 +202,7 @@
     </div>
 </div>
 
-<!-- 3 gráficos comerciais em um card único -->
+<!-- 3 gráficos comerciais -->
 <h3 class="section-title section-title--sep graficos-row">&#128202; An&#225;lise Comercial (Leads x Matr&#237;culas)</h3>
 <div class="card" style="padding: 20px;">
     <div class="graficos-inline">
@@ -227,62 +229,22 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
 Chart.register(ChartDataLabels);
+Chart.defaults.plugins.datalabels.display = false;
 
 function safeValue(v){ return Number(v || 0); }
 function limitarTexto(t, l=18){ return t && t.length>l ? t.substring(0,l)+'...' : (t||''); }
-
-const centerText = {
-    id:'centerText',
-    afterDraw(chart){
-        if(chart.config.type !== 'doughnut') return;
-        const {ctx,chartArea} = chart;
-        if(!chartArea) return;
-        const x=(chartArea.left+chartArea.right)/2, y=(chartArea.top+chartArea.bottom)/2;
-        const total = chart.data.datasets[0].data.reduce((a,b)=>a+Number(b||0),0);
-        ctx.save();
-        ctx.font='bold 16px Arial'; ctx.fillStyle='#2c3e50';
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText(total.toLocaleString('pt-BR'),x,y);
-        ctx.restore();
-    }
-};
-Chart.register(centerText);
-
-Chart.defaults.plugins.datalabels.display = false;
-
-const cfgPizza = {
-    responsive:true, maintainAspectRatio:false, cutout:'75%',
-    plugins:{
-        legend:{ position:'bottom', labels:{ font:{size:11,weight:'bold'}, boxWidth:12, padding:15 }},
-        tooltip:{ callbacks:{ label:(c)=>c.label+': '+safeValue(c.raw).toLocaleString('pt-BR') }},
-        datalabels:{ display:false }
-    }
-};
-
 function cores(n){
     const b=['#2ecc71','#3498db','#9b59b6','#f39c12','#e74c3c','#1abc9c','#34495e'];
     return Array.from({length:n},(_,i)=>b[i%b.length]);
 }
 
-const dadosReceita = {{ valores | tojson }};
-new Chart('graficoReceitaPizza',{ type:'doughnut',
-    data:{ labels:{{ meses|tojson }}.map(i=>limitarTexto(i)),
-           datasets:[{data:dadosReceita.map(safeValue),backgroundColor:cores(dadosReceita.length),borderWidth:2,borderColor:'#fff'}]},
-    options:cfgPizza });
-
-const fin={{ grafico_financeiro|tojson }};
-let rec=0,desp=0;
-fin.forEach(i=>{ if(i[0]=='Receita') rec=safeValue(i[1]); if(i[0]=='Despesas') desp=safeValue(i[1]); });
-new Chart('graficoFinanceiro',{ type:'doughnut',
-    data:{ labels:['Receita','Despesas'], datasets:[{data:[rec,desp],backgroundColor:['#2ecc71','#e74c3c'],borderWidth:2,borderColor:'#fff'}]},
-    options:cfgPizza });
-
-function cfgBarraTipo(tooltipValorFn, datalabelFn) {
+/* Configção padrão de barra horizontal */
+function cfgBarra(tooltipValorFn, datalabelFn, multiColor) {
     return {
         responsive: true,
         maintainAspectRatio: false,
         indexAxis: 'y',
-        layout: { padding: { right: 52 } },
+        layout: { padding: { right: 56 } },
         plugins: {
             legend: { display: false },
             tooltip: {
@@ -310,8 +272,7 @@ function cfgBarraTipo(tooltipValorFn, datalabelFn) {
                     color: '#555',
                     font: { size: 11 },
                     callback: function(val) {
-                        const lbl = this.getLabelForValue(val);
-                        return limitarTexto(lbl, 16);
+                        return limitarTexto(this.getLabelForValue(val), 16);
                     }
                 }
             }
@@ -319,63 +280,112 @@ function cfgBarraTipo(tooltipValorFn, datalabelFn) {
     };
 }
 
-const vendas={{ vendas_tipo|tojson }};
-const vOrd=[...vendas].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
-const totalVendas = vOrd.reduce((s,i)=>s+safeValue(i[1]),0);
-document.getElementById('totalVendas').textContent = 'Total: ' + totalVendas.toLocaleString('pt-BR') + ' alunos';
-new Chart('graficoVendasPizza',{ type:'bar',
-    data:{ labels:vOrd.map(i=>i[0]), datasets:[{
-        data:vOrd.map(i=>safeValue(i[1])),
-        backgroundColor:vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
-        borderRadius:4,
-        categoryPercentage: 0.75,
-        barPercentage: 0.9
-    }]},
-    options: cfgBarraTipo(
+function moedaFmt(v){
+    return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2});
+}
+
+/* ── Receita Últimos Meses ────────────────────── */
+const dadosReceita = {{ valores | tojson }};
+const labelsReceita = {{ meses | tojson }};
+const totalReceitaVal = dadosReceita.reduce((s,v)=>s+safeValue(v),0);
+document.getElementById('totalReceita').textContent = 'Total: ' + moedaFmt(totalReceitaVal);
+new Chart('graficoReceitaMeses', { type:'bar',
+    data:{ labels: labelsReceita.map(i=>limitarTexto(i)),
+           datasets:[{ data: dadosReceita.map(safeValue),
+                       backgroundColor: cores(dadosReceita.length),
+                       borderRadius: 4, categoryPercentage:0.75, barPercentage:0.9 }]},
+    options: cfgBarra(
+        (v) => moedaFmt(v),
+        (v) => moedaFmt(v),
+        true
+    )
+});
+
+/* ── Receita x Despesa ────────────────────────── */
+const fin = {{ grafico_financeiro | tojson }};
+let rec=0, desp=0;
+fin.forEach(i=>{ if(i[0]==='Receita') rec=safeValue(i[1]); if(i[0]==='Despesas') desp=safeValue(i[1]); });
+document.getElementById('totalFinanceiro').textContent = 'Saldo: ' + moedaFmt(rec - desp);
+new Chart('graficoFinanceiro', { type:'bar',
+    data:{ labels:['Receita','Despesas'],
+           datasets:[{ data:[rec, desp],
+                       backgroundColor:['#2ecc71','#e74c3c'],
+                       borderRadius:4, categoryPercentage:0.6, barPercentage:0.9 }]},
+    options: cfgBarra(
+        (v) => moedaFmt(v),
+        (v) => moedaFmt(v),
+        false
+    )
+});
+
+/* ── Vendas por Tipo de Curso ─────────────────── */
+const vendas = {{ vendas_tipo | tojson }};
+const vOrd = [...vendas].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
+const totalVendasVal = vOrd.reduce((s,i)=>s+safeValue(i[1]),0);
+document.getElementById('totalVendas').textContent = 'Total: ' + totalVendasVal.toLocaleString('pt-BR') + ' alunos';
+new Chart('graficoVendasPizza', { type:'bar',
+    data:{ labels: vOrd.map(i=>i[0]),
+           datasets:[{ data: vOrd.map(i=>safeValue(i[1])),
+                       backgroundColor: vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
+                       borderRadius:4, categoryPercentage:0.75, barPercentage:0.9 }]},
+    options: cfgBarra(
         (v) => v.toLocaleString('pt-BR') + ' alunos',
-        (v) => v.toLocaleString('pt-BR')
+        (v) => v.toLocaleString('pt-BR'),
+        false
     )
 });
 
-const fatTipo={{ faturamento_tipo|tojson }};
-const ftOrd=[...fatTipo].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
-const totalFat = ftOrd.reduce((s,i)=>s+safeValue(i[1]),0);
-document.getElementById('totalFaturamento').textContent = 'Total: R$ ' + totalFat.toLocaleString('pt-BR',{minimumFractionDigits:2});
-new Chart('graficoFaturamentoTipo',{ type:'bar',
-    data:{ labels:ftOrd.map(i=>i[0]), datasets:[{
-        data:ftOrd.map(i=>safeValue(i[1])),
-        backgroundColor:ftOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
-        borderRadius:4,
-        categoryPercentage: 0.75,
-        barPercentage: 0.9
-    }]},
-    options: cfgBarraTipo(
-        (v) => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2}),
-        (v) => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2})
+/* ── Faturamento por Tipo de Curso ────────────── */
+const fatTipo = {{ faturamento_tipo | tojson }};
+const ftOrd = [...fatTipo].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
+const totalFatVal = ftOrd.reduce((s,i)=>s+safeValue(i[1]),0);
+document.getElementById('totalFaturamento').textContent = 'Total: ' + moedaFmt(totalFatVal);
+new Chart('graficoFaturamentoTipo', { type:'bar',
+    data:{ labels: ftOrd.map(i=>i[0]),
+           datasets:[{ data: ftOrd.map(i=>safeValue(i[1])),
+                       backgroundColor: ftOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
+                       borderRadius:4, categoryPercentage:0.75, barPercentage:0.9 }]},
+    options: cfgBarra(
+        (v) => moedaFmt(v),
+        (v) => moedaFmt(v),
+        false
     )
 });
 
-const relMeta       = {{ rel_meta       | tojson }};
-const relLeads      = {{ rel_realizado  | tojson }};
-const relMatriculas = {{ rel_matriculas | tojson }};
-const relVendas     = {{ rel_vendas     | tojson }};
+/* ── Análise Comercial ───────────────────────── */
+const relMeta       = safeValue({{ rel_meta       | tojson }});
+const relLeads      = safeValue({{ rel_realizado  | tojson }});
+const relMatriculas = safeValue({{ rel_matriculas | tojson }});
+const relVendas     = safeValue({{ rel_vendas     | tojson }});
 
-new Chart('graficoLeads',{ type:'doughnut',
+const cfgComercial = cfgBarra(
+    (v) => v.toLocaleString('pt-BR'),
+    (v) => v.toLocaleString('pt-BR'),
+    false
+);
+
+new Chart('graficoLeads', { type:'bar',
     data:{ labels:['Meta','Realizado'],
-           datasets:[{data:[safeValue(relMeta), safeValue(relLeads)],
-                      backgroundColor:['#95a5a6','#3498db'],borderWidth:2,borderColor:'#fff'}]},
-    options:cfgPizza });
+           datasets:[{ data:[relMeta, relLeads],
+                       backgroundColor:['#95a5a6','#3498db'],
+                       borderRadius:4, categoryPercentage:0.6, barPercentage:0.9 }]},
+    options: cfgComercial
+});
 
-new Chart('graficoConversao',{ type:'doughnut',
+new Chart('graficoConversao', { type:'bar',
     data:{ labels:['Leads','Matr\u00edculas'],
-           datasets:[{data:[safeValue(relLeads), safeValue(relMatriculas)],
-                      backgroundColor:['#3498db','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
-    options:cfgPizza });
+           datasets:[{ data:[relLeads, relMatriculas],
+                       backgroundColor:['#3498db','#2ecc71'],
+                       borderRadius:4, categoryPercentage:0.6, barPercentage:0.9 }]},
+    options: cfgComercial
+});
 
-new Chart('graficoVendas',{ type:'doughnut',
+new Chart('graficoVendas', { type:'bar',
     data:{ labels:['Meta','Vendas'],
-           datasets:[{data:[safeValue(relMeta), safeValue(relVendas)],
-                      backgroundColor:['#95a5a6','#2ecc71'],borderWidth:2,borderColor:'#fff'}]},
-    options:cfgPizza });
+           datasets:[{ data:[relMeta, relVendas],
+                       backgroundColor:['#95a5a6','#2ecc71'],
+                       borderRadius:4, categoryPercentage:0.6, barPercentage:0.9 }]},
+    options: cfgComercial
+});
 </script>
 {% endblock %}
