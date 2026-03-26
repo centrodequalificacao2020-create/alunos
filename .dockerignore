@@ -1,0 +1,38 @@
+# ── Controle de versão ──
+.git
+.gitignore
+
+# ── Ambiente virtual Python (não entra no container) ──
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ── Banco de dados local (persistido em ./data/ via volume) ──
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# ── Segredos (jamais dentro da imagem) ──
+.env
+*.env
+
+# ── Documentação e arquivos de desenvolvimento ──
+*.md
+PROJECT_BRIEF.md
+
+# ── Logs ──
+*.log
+logs/
+
+# ── IDEs e OS ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ── Uploads gerados em runtime (persistidos via volume) ──
+static/uploads/

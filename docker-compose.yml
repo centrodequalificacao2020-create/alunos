@@ -1,0 +1,44 @@
+# ───────────────────────────────────────────────────────────────────────────
+# CQP — Sistema de Gestão de Alunos
+#
+# Uso:
+#   docker compose up -d              ← subir
+#   docker compose logs -f web        ← ver logs
+#   docker compose up -d --build      ← atualizar após git pull
+#   docker compose down               ← parar tudo
+# ───────────────────────────────────────────────────────────────────────────
+
+services:
+
+  web:
+    build: .
+    container_name: cqp_web
+    restart: always
+    env_file:
+      - .env          # FLASK_SECRET_KEY e FLASK_DEBUG ficam aqui, fora do repositório
+    environment:
+      - DATABASE_URL=sqlite:////data/cqp.db
+    volumes:
+      - ./data:/data            # banco de dados persistido fora do container
+      - ./static:/app/static    # logo_escola.png e assinatura.png
+    expose:
+      - "5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cqp_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./static:/app/static:ro
+    depends_on:
+      web:
+        condition: service_healthy
