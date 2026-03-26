@@ -280,6 +280,197 @@ Pronto. O sistema é atualizado sem perder nenhum dado.
 
 ---
 
+## Parte 9 — Acesso externo com Cloudflare Tunnel (opcional)
+
+> **Para quê serve?**
+> Permite acessar o sistema de qualquer lugar — celular, casa, outros computadores fora
+> da escola — sem precisar abrir portas no roteador e com HTTPS automático.
+> É gratuito e fornecido pela Cloudflare.
+
+### Pré-requisitos
+
+- Ter um domínio registrado (ex: `suaescola.com.br`) com o DNS gerenciado pela Cloudflare
+- Ter uma conta na Cloudflare (gratuita): https://dash.cloudflare.com/sign-up
+
+> Se ainda não tem um domínio, converse com o desenvolvedor antes de continuar.
+
+---
+
+### 9.1 Instalar o cloudflared no servidor
+
+```bash
+curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+sudo dpkg -i cloudflared.deb
+rm cloudflared.deb
+```
+
+Verifique a instalação:
+
+```bash
+cloudflared --version
+```
+
+Deve aparecer algo como `cloudflared version 2024.x.x`. ✅
+
+---
+
+### 9.2 Autenticar na Cloudflare (sem navegador no servidor)
+
+Este passo conecta o servidor à sua conta Cloudflare.
+Como o servidor não tem interface gráfica, a autenticação é feita pelo segundo computador.
+
+No servidor, execute:
+
+```bash
+cloudflared tunnel login
+```
+
+Vai aparecer uma mensagem como:
+
+```
+Please open the following URL and log in with your Cloudflare account:
+
+https://dash.cloudflare.com/argotunnel?callback=...
+
+Leave cloudflared running to download the cert automatically.
+```
+
+**Não feche o terminal do servidor.**
+
+No **segundo computador**, abra o navegador, cole a URL exibida e faça login na sua conta Cloudflare.
+Selecione o domínio que deseja usar e clique em **Authorize**.
+
+Volte ao terminal do servidor. Em alguns segundos vai aparecer:
+
+```
+You have successfully logged in.
+If you wish to copy your credentials to a server, they have been saved to:
+/home/usuario/.cloudflared/cert.pem
+```
+
+Autenticação concluída. ✅
+
+---
+
+### 9.3 Criar o túnel
+
+```bash
+cloudflared tunnel create cqp
+```
+
+Vai aparecer uma mensagem com o ID do túnel, parecida com:
+
+```
+Created tunnel cqp with id a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+Anote esse ID (a sequencia longa de letras e números). Você vai precisar dele no próximo passo.
+
+---
+
+### 9.4 Criar o arquivo de configuração do túnel
+
+```bash
+nano ~/.cloudflared/config.yml
+```
+
+Cole o conteúdo abaixo, substituindo os valores indicados:
+
+```yaml
+tunnel: cqp
+credentials-file: /home/USUARIO/.cloudflared/a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx.json
+
+ingress:
+  - hostname: sistema.suaescola.com.br
+    service: http://localhost:80
+  - service: http_status:404
+```
+
+> - Substitua `USUARIO` pelo nome do seu usuário no servidor
+> - Substitua `a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx` pelo ID do túnel anotado
+> - Substitua `sistema.suaescola.com.br` pelo subdomínio desejado
+
+Para salvar: `Ctrl + X`, depois `Y`, depois `Enter`.
+
+---
+
+### 9.5 Criar o registro DNS na Cloudflare
+
+```bash
+cloudflared tunnel route dns cqp sistema.suaescola.com.br
+```
+
+> Substitua `sistema.suaescola.com.br` pelo subdomínio configurado no passo anterior.
+
+Deve aparecer:
+```
+Added CNAME sistema.suaescola.com.br which will route to this tunnel.
+```
+
+---
+
+### 9.6 Instalar o túnel como serviço (inicia automaticamente)
+
+```bash
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+```
+
+Verifique se está rodando:
+
+```bash
+sudo systemctl status cloudflared
+```
+
+Deve aparecer `active (running)`. ✅
+
+---
+
+### 9.7 Testar o acesso externo
+
+No celular (fora do Wi-Fi da escola) ou em outro computador, abra o navegador e acesse:
+
+```
+https://sistema.suaescola.com.br
+```
+
+O sistema deve abrir com cadeado HTTPS. ✅
+
+> O HTTPS é fornecido automaticamente pela Cloudflare — não é necessário configurar certificado.
+
+---
+
+### 9.8 Atualizar o .env para usar HTTPS
+
+Com o Cloudflare Tunnel ativo, o sistema agora é acessado via HTTPS.
+Abra o arquivo `.env` e remova o `#` da linha do cookie seguro:
+
+```bash
+nano ~/alunos/.env
+```
+
+A linha `SESSION_COOKIE_SECURE` deve **não estar** comentada (sem `#` na frente).
+O arquivo final deve ter:
+
+```
+FLASK_SECRET_KEY=sua-chave-aqui
+FLASK_DEBUG=False
+```
+
+> Como `SESSION_COOKIE_SECURE` já é `True` por padrão quando `FLASK_DEBUG=False`,
+> não é necessário adicionar nada. Apenas certifique-se de que **não há** a linha
+> `SESSION_COOKIE_SECURE=False` no arquivo.
+
+Reinicie o sistema para aplicar:
+
+```bash
+cd ~/alunos
+docker compose restart
+```
+
+---
+
 ## Comandos úteis do dia a dia
 
 | O que fazer | Comando |
@@ -289,13 +480,15 @@ Pronto. O sistema é atualizado sem perder nenhum dado.
 | Reiniciar o sistema | `docker compose restart` |
 | Parar o sistema | `docker compose down` |
 | Subir novamente | `docker compose up -d` |
+| Ver status do túnel Cloudflare | `sudo systemctl status cloudflared` |
+| Reiniciar o túnel Cloudflare | `sudo systemctl restart cloudflared` |
 
 ---
 
 ## Fazer backup manual do banco de dados
 
 ```bash
-cp data/cqp.db backup_$(date +%Y%m%d).db
+cp ~/alunos/data/cqp.db ~/backup_$(date +%Y%m%d).db
 ```
 
 Esse comando cria uma cópia do banco com a data de hoje no nome.
