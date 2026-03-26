@@ -3,13 +3,6 @@
 
 {% block styles %}
 <style>
-/* Campos de período: só aparecem quando tipo = fixa */
-.campos-periodo { display: none; }
-.campos-periodo.visivel { display: contents; }
-.campos-data-avulsa { display: contents; }
-.campos-data-avulsa.oculto { display: none; }
-
-/* Badge de período nas recorrentes */
 .badge-periodo {
     display: inline-block;
     font-size: 11px;
@@ -32,6 +25,7 @@
     <p class="card-subtitle">Controle de despesas fixas e variáveis</p>
 
     <form method="POST" id="formDespesa">
+        {# Linha 1: campos fixos sempre visíveis #}
         <div class="grid-4">
             <div class="campo">
                 <label>Nome</label>
@@ -49,23 +43,24 @@
                     <option value="variavel">Variável</option>
                 </select>
             </div>
-
-            {# Data avulsa — só para variável #}
-            <div class="campo campos-data-avulsa" id="campoDataAvulsa">
+            <div class="campo" id="campoDataAvulsa">
                 <label>Data do lançamento</label>
                 <input type="date" name="data">
             </div>
+        </div>
 
-            {# Período de recorrência — só para fixa #}
-            <div class="campo campos-periodo" id="campoInicio">
+        {# Linha 2: período — só aparece quando tipo = fixa #}
+        <div class="grid-4" id="linhaFixa" style="display:none">
+            <div class="campo">
                 <label>Início da cobrança</label>
-                <input type="month" name="data_inicio" placeholder="YYYY-MM">
+                <input type="month" name="data_inicio" id="inputInicio">
             </div>
-            <div class="campo campos-periodo" id="campoFim">
+            <div class="campo">
                 <label>Fim da cobrança</label>
-                <input type="month" name="data_fim" placeholder="YYYY-MM">
+                <input type="month" name="data_fim" id="inputFim">
             </div>
         </div>
+
         <div class="grid-1">
             <div class="campo">
                 <label>Observação</label>
@@ -187,20 +182,17 @@
 {% block scripts %}
 <script>
 const tipoDespesa     = document.getElementById('tipoDespesa');
-const campoInicio     = document.getElementById('campoInicio');
-const campoFim        = document.getElementById('campoFim');
+const linhaFixa       = document.getElementById('linhaFixa');
 const campoDataAvulsa = document.getElementById('campoDataAvulsa');
+const inputInicio     = document.getElementById('inputInicio');
+const inputFim        = document.getElementById('inputFim');
 
 function atualizarCampos() {
     const isFixa = tipoDespesa.value === 'fixa';
-    // período
-    campoInicio.classList.toggle('visivel', isFixa);
-    campoFim.classList.toggle('visivel', isFixa);
-    // data avulsa
-    campoDataAvulsa.classList.toggle('oculto', isFixa);
-    // required dinâmico
-    campoInicio.querySelector('input').required = isFixa;
-    campoFim.querySelector('input').required    = isFixa;
+    linhaFixa.style.display       = isFixa ? '' : 'none';
+    campoDataAvulsa.style.display = isFixa ? 'none' : '';
+    inputInicio.required = isFixa;
+    inputFim.required    = isFixa;
 }
 
 tipoDespesa.addEventListener('change', atualizarCampos);
