@@ -139,9 +139,11 @@
         <h4>Margem de lucro</h4>
         <p class="valor-info">{{ "%.1f"|format(margem_lucro) }}%</p>
     </div>
-    <div class="card dashboard-card">
+    <div class="card dashboard-card {{ 'card--danger' if lucro_liquido < 0 else 'card--success' }}">
         <h4>Resultado</h4>
-        <p>{% if lucro_liquido >= 0 %}Lucro{% else %}Preju&#237;zo{% endif %}</p>
+        <p class="{{ 'valor-danger' if lucro_liquido < 0 else 'valor-success' }}">
+            {% if lucro_liquido >= 0 %}&#x2705; Lucro{% else %}&#x26A0;&#xFE0F; Preju&#237;zo{% endif %}
+        </p>
     </div>
 </div>
 
@@ -318,9 +320,6 @@ new Chart('graficoVendasPizza',{ type:'bar',
         data:vOrd.map(i=>safeValue(i[1])),
         backgroundColor:vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
         borderRadius:4,
-        // sem barThickness fixo: usa porcentagem do espaço da categoria
-        // categoryPercentage = fração do espaço de cada categoria usada pelo grupo
-        // barPercentage      = fração desse grupo usada pela barra em si
         categoryPercentage: 0.75,
         barPercentage: 0.9
     }]},
