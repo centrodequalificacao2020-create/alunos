@@ -139,12 +139,22 @@
         <h4>Margem de lucro</h4>
         <p class="valor-info">{{ "%.1f"|format(margem_lucro) }}%</p>
     </div>
-    <div class="card dashboard-card {{ 'card--danger' if lucro_liquido < 0 else 'card--success' }}">
+    {% if lucro_liquido > 0 %}
+    <div class="card dashboard-card card--success">
         <h4>Resultado</h4>
-        <p class="{{ 'valor-danger' if lucro_liquido < 0 else 'valor-success' }}">
-            {% if lucro_liquido >= 0 %}Lucro{% else %}Preju&#237;zo{% endif %}
-        </p>
+        <p class="valor-success">Lucro</p>
     </div>
+    {% elif lucro_liquido < 0 %}
+    <div class="card dashboard-card card--danger">
+        <h4>Resultado</h4>
+        <p class="valor-danger">Preju&#237;zo</p>
+    </div>
+    {% else %}
+    <div class="card dashboard-card card--orange">
+        <h4>Resultado</h4>
+        <p class="valor-orange">Equil&#237;brio</p>
+    </div>
+    {% endif %}
 </div>
 
 <h3 class="section-title">Indicadores Financeiros Avan&#231;ados</h3>
