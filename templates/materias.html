@@ -1,7 +1,65 @@
 {% extends "base.html" %}
 {% block title %}Matérias{% endblock %}
-{% block content %}
 
+{% block styles %}
+<style>
+/* ── Accordion ── */
+.accordion-grupo {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+.accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: #f7f9fc;
+    transition: background .15s;
+    gap: 10px;
+}
+.accordion-header:hover { background: #eef2f8; }
+.accordion-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+.accordion-badge {
+    font-size: 11px;
+    background: #3498db;
+    color: #fff;
+    border-radius: 10px;
+    padding: 2px 9px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.accordion-chevron {
+    font-size: 13px;
+    color: #7f8c8d;
+    transition: transform .25s;
+    flex-shrink: 0;
+}
+.accordion-grupo.aberto .accordion-chevron { transform: rotate(180deg); }
+.accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s ease;
+}
+.accordion-grupo.aberto .accordion-body { max-height: 2000px; }
+.accordion-inner { padding: 0 0 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
 <div class="card">
     <div class="card-header">
         <span>📖</span>
@@ -34,48 +92,73 @@
 
 <div class="card">
     <h3>Matérias por Curso</h3>
-    {% for (curso_id, curso_nome), lista in materias_por_curso.items() %}
-    <h4 style="margin: 16px 0 8px">📚 {{ curso_nome }}</h4>
-    <div class="tabela-planilha">
-        <table class="tabela-excel">
-            <thead>
-                <tr>
-                    <th>Matéria</th>
-                    <th class="acoes">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in lista %}
-                <tr>
-                    <td>
-                        <form method="POST" action="/materias"
-                              style="display:flex; align-items:center; gap:8px;">
-                            <input type="hidden" name="acao" value="editar">
-                            <input type="hidden" name="materia_id" value="{{ m.id }}">
-                            <input type="text" name="novo_nome" value="{{ m.nome }}"
-                                   class="input-inline" style="flex:1; min-width:0;">
-                            <button type="submit" class="btn btn-editar tooltip"
-                                    data-tooltip="Renomear">✏️</button>
-                        </form>
-                    </td>
-                    <td class="acoes">
-                        <form method="POST" action="/materias" style="display:inline;"
-                              onsubmit="return confirm('Excluir matéria {{ m.nome }}?')">
-                            <input type="hidden" name="acao" value="excluir">
-                            <input type="hidden" name="materia_id" value="{{ m.id }}">
-                            <button type="submit" class="btn btn-vermelho tooltip"
-                                    data-tooltip="Excluir">🗑️</button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="2" class="empty-state">Nenhuma matéria neste curso.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    {% if materias_por_curso %}
+    <div style="margin-top:12px">
+        {% for (curso_id, curso_nome), lista in materias_por_curso.items() %}
+        <div class="accordion-grupo{% if loop.first %} aberto{% endif %}" id="acc-mat-{{ curso_id }}">
+            <div class="accordion-header" onclick="toggleAcc('acc-mat-{{ curso_id }}')">
+                <h4><span>📚</span> {{ curso_nome }}</h4>
+                <span class="accordion-badge">{{ lista | length }} matéria{{ 's' if lista | length != 1 else '' }}</span>
+                <span class="accordion-chevron">▼</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-inner">
+                    <div class="tabela-planilha">
+                        <table class="tabela-excel">
+                            <thead>
+                                <tr>
+                                    <th>Matéria</th>
+                                    <th class="acoes">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in lista %}
+                                <tr>
+                                    <td>
+                                        <form method="POST" action="/materias"
+                                              style="display:flex; align-items:center; gap:8px;">
+                                            <input type="hidden" name="acao" value="editar">
+                                            <input type="hidden" name="materia_id" value="{{ m.id }}">
+                                            <input type="text" name="novo_nome" value="{{ m.nome }}"
+                                                   class="input-inline" style="flex:1; min-width:0;">
+                                            <button type="submit" class="btn btn-editar tooltip"
+                                                    data-tooltip="Renomear">✏️</button>
+                                        </form>
+                                    </td>
+                                    <td class="acoes">
+                                        <form method="POST" action="/materias" style="display:inline;"
+                                              onsubmit="return confirm('Excluir matéria {{ m.nome }}?')">
+                                            <input type="hidden" name="acao" value="excluir">
+                                            <input type="hidden" name="materia_id" value="{{ m.id }}">
+                                            <button type="submit" class="btn btn-vermelho tooltip"
+                                                    data-tooltip="Excluir">🗑️</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="2" class="empty-state">Nenhuma matéria neste curso.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
     {% else %}
     <p class="empty-state">Nenhuma matéria cadastrada.</p>
-    {% endfor %}
+    {% endif %}
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleAcc(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('aberto');
+}
+</script>
 {% endblock %}

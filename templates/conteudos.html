@@ -20,6 +20,60 @@
     transition: background .15s, color .15s;
 }
 .video-link:hover { background: #e74c3c; color: #fff; }
+
+/* ── Accordion ── */
+.accordion-grupo {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+.accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: #f7f9fc;
+    transition: background .15s;
+    gap: 10px;
+}
+.accordion-header:hover { background: #eef2f8; }
+.accordion-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+.accordion-badge {
+    font-size: 11px;
+    background: #3498db;
+    color: #fff;
+    border-radius: 10px;
+    padding: 2px 9px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.accordion-chevron {
+    font-size: 13px;
+    color: #7f8c8d;
+    transition: transform .25s;
+    flex-shrink: 0;
+}
+.accordion-grupo.aberto .accordion-chevron { transform: rotate(180deg); }
+.accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .35s ease;
+}
+.accordion-grupo.aberto .accordion-body { max-height: 4000px; }
+.accordion-inner { padding: 8px 16px 12px; }
 </style>
 {% endblock %}
 
@@ -72,19 +126,40 @@
 <h3 class="section-title" style="margin-top:32px">📚 Conteúdos enviados</h3>
 
 {% if conteudos %}
-<div style="margin-top:24px">
-{% set ns_mat = namespace(atual="") %}
-{% for c in conteudos %}
+<div style="margin-top:16px">
 
-{% if ns_mat.atual != (c.materia.nome if c.materia else "Sem matéria") %}
-{% if not loop.first %}</ul></div>{% endif %}
-{% set ns_mat.atual = c.materia.nome if c.materia else "Sem matéria" %}
-<div class="card">
-    <div class="card-header">
-        <span>📂</span>
-        <h3>{{ ns_mat.atual }}{% if c.materia and c.materia.curso %} — {{ c.materia.curso.nome }}{% endif %}</h3>
+{# Agrupa conteudos por matéria no lado Python, mas aqui usamos o loop Jinja com ns #}
+{% set ns_mat = namespace(atual="", acc_id="", count=0, first=true) %}
+{% for c in conteudos %}
+{% set nome_mat = c.materia.nome if c.materia else "Sem matéria" %}
+{% set nome_curso = " — " ~ c.materia.curso.nome if (c.materia and c.materia.curso) else "" %}
+
+{# Fecha grupo anterior e abre novo quando a matéria muda #}
+{% if ns_mat.atual != nome_mat %}
+    {% if not loop.first %}
+    </ul></div></div></div>
+    {% endif %}
+    {% set ns_mat.atual = nome_mat %}
+    {% set ns_mat.acc_id = "acc-cont-" ~ loop.index %}
+    {% set ns_mat.first = loop.first %}
+
+    {# Conta quantos conteúdos essa matéria tem #}
+    {% set ns_count = namespace(n=0) %}
+    {% for x in conteudos %}
+        {% if (x.materia.nome if x.materia else "Sem matéria") == nome_mat %}
+            {% set ns_count.n = ns_count.n + 1 %}
+        {% endif %}
+    {% endfor %}
+
+<div class="accordion-grupo{% if loop.first %} aberto{% endif %}" id="{{ ns_mat.acc_id }}">
+    <div class="accordion-header" onclick="toggleAcc('{{ ns_mat.acc_id }}')">
+        <h3><span>📂</span> {{ nome_mat }}{{ nome_curso }}</h3>
+        <span class="accordion-badge">{{ ns_count.n }} item{{ 's' if ns_count.n != 1 else '' }}</span>
+        <span class="accordion-chevron">▼</span>
     </div>
-    <ul style="padding-left:0;list-style:none">
+    <div class="accordion-body">
+        <div class="accordion-inner">
+        <ul style="padding-left:0;list-style:none;margin:0">
 {% endif %}
 
 <li class="conteudo-item" id="item-{{ c.id }}">
@@ -117,8 +192,9 @@
     <div class="preview-box" id="preview-{{ c.id }}"></div>
 </li>
 
-{% if loop.last %}</ul></div>{% endif %}
+{% if loop.last %}</ul></div></div></div>{% endif %}
 {% endfor %}
+
 </div>
 {% else %}
 <p class="empty-state">Nenhum conteúdo cadastrado ainda.</p>
@@ -158,6 +234,12 @@
 
 {% block scripts %}
 <script>
+// ── Accordion ──
+function toggleAcc(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('aberto');
+}
+
 // ── Filtro de matérias por curso ──
 const materias = {{ materias_json | tojson }};
 document.getElementById('curso_id').addEventListener('change', function(){
@@ -197,6 +279,12 @@ function togglePreview(id, tipo, src) {
         box.classList.remove('aberto');
         box.innerHTML = '';
         return;
+    }
+    // garante que o accordion pai esteja aberto
+    const li = document.getElementById(`item-${id}`);
+    if (li) {
+        const acc = li.closest('.accordion-grupo');
+        if (acc && !acc.classList.contains('aberto')) acc.classList.add('aberto');
     }
     box.classList.add('aberto');
     if (tipo === 'pdf') {
