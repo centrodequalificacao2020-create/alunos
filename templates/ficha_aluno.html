@@ -75,11 +75,11 @@
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
                     <td class="acoes-texto">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-pdf" target="_blank">
+                           class="btn btn-sm btn-azul" target="_blank">
                             📄 Declaração
                         </a>
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-verde" target="_blank">
+                           class="btn btn-sm btn-azul" target="_blank">
                             📊 Presença
                         </a>
                         <form method="POST" action="/excluir_matricula/{{ m.id }}"
