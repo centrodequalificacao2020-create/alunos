@@ -66,13 +66,13 @@ document.addEventListener('click', function(e) {
             <span class="resumo-label">Total pago</span>
             <span class="resumo-valor">R$ {{ "%.2f"|format(total_pago or 0) }}</span>
         </div>
-        <div class="resumo-item resumo-item--pagar">
+        <div class="resumo-item resumo-item--azul">
             <span class="resumo-label">A pagar</span>
             <span class="resumo-valor">R$ {{ "%.2f"|format(total_pagar or 0) }}</span>
         </div>
-        <div class="resumo-item resumo-item--saldo">
-            <span class="resumo-label">Saldo restante</span>
-            <span class="resumo-valor">R$ {{ "%.2f"|format(saldo or 0) }}</span>
+        <div class="resumo-item resumo-item--vencidas">
+            <span class="resumo-label">Parcelas vencidas</span>
+            <span class="resumo-valor">R$ {{ "%.2f"|format(vencidas_total or 0) }}</span>
         </div>
     </div>
 </div>
@@ -89,6 +89,7 @@ document.addEventListener('click', function(e) {
                 <tr>
                     <th>Parcela</th>
                     <th>Vencimento</th>
+                    <th>Curso</th>
                     <th>Tipo</th>
                     <th>Valor</th>
                     <th class="acoes">Ações</th>
@@ -96,9 +97,10 @@ document.addEventListener('click', function(e) {
             </thead>
             <tbody>
             {% for p in pendentes %}
-            <tr>
+            <tr{% if p.vencimento and p.vencimento < hoje %} class="parcela-vencida"{% endif %}>
                 <td>{{ p.parcela_ref }}</td>
                 <td>{{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}</td>
+                <td>{{ p.curso_nome }}</td>
                 <td>{% include 'partials/badge_tipo.html' %}</td>
                 <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
                 <td class="acoes">
@@ -133,6 +135,7 @@ document.addEventListener('click', function(e) {
                 <tr>
                     <th>Parcela</th>
                     <th>Vencimento</th>
+                    <th>Curso</th>
                     <th>Tipo</th>
                     <th>Valor</th>
                     <th>Data Pgto</th>
@@ -145,6 +148,7 @@ document.addEventListener('click', function(e) {
             <tr>
                 <td>{{ p.parcela_ref }}</td>
                 <td>{{ p.vencimento[8:10] }}/{{ p.vencimento[5:7] }}/{{ p.vencimento[0:4] }}</td>
+                <td>{{ p.curso_nome }}</td>
                 <td>{% include 'partials/badge_tipo.html' %}</td>
                 <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
                 <td>{{ p.data_pagamento or '-' }}</td>

@@ -24,13 +24,26 @@ def financeiro():
     alunos   = Aluno.query.order_by(Aluno.nome).all()
     aluno_id = request.args.get("aluno_id", type=int)
     pendentes, pagas = [], []
-    total_pago = total_pagar = saldo = 0
+    total_pago = total_pagar = vencidas_total = 0
+    hoje = date.today().isoformat()
+
     if aluno_id:
-        pendentes    = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
-        pagas        = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
-        total_pago   = sum(m.valor for m in pagas)
-        total_pagar  = sum(m.valor for m in pendentes)
-        saldo        = total_pago - total_pagar
+        pendentes  = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
+        pagas      = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
+        total_pago  = sum(m.valor for m in pagas)
+        total_pagar = sum(m.valor for m in pendentes)
+
+        # Parcelas vencidas = pendentes com vencimento antes de hoje
+        vencidas       = [m for m in pendentes if m.vencimento and m.vencimento < hoje]
+        vencidas_total = sum(m.valor for m in vencidas)
+
+        # Enriquecer cada parcela com o nome do curso via matricula
+        curso_map = {c.id: c.nome for c in Curso.query.all()}
+        matriculas_aluno = {mat.id: mat.curso_id for mat in Matricula.query.filter_by(aluno_id=aluno_id).all()}
+        for m in pendentes + pagas:
+            curso_id = matriculas_aluno.get(m.matricula_id)
+            m.curso_nome = curso_map.get(curso_id, "-") if curso_id else "-"
+
     return render_template("financeiro.html",
                            alunos=alunos,
                            aluno_id=aluno_id,
@@ -38,7 +51,8 @@ def financeiro():
                            pagas=pagas,
                            total_pago=total_pago,
                            total_pagar=total_pagar,
-                           saldo=saldo)
+                           vencidas_total=vencidas_total,
+                           hoje=hoje)
 
 
 @financeiro_bp.route("/pagar/<int:id>", methods=["GET", "POST"])
