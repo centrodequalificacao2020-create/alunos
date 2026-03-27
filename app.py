@@ -3,6 +3,7 @@ import re
 from flask import Flask
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 from config import Config
 from db import init_db
 from logging_config import configure_logging
@@ -13,6 +14,9 @@ limiter = Limiter(
     default_limits=[],          # sem limite global — só nas rotas explícitas
     storage_uri="memory://",    # in-memory; trocar por Redis em produção
 )
+
+# Proteção CSRF global — protege automaticamente todos os formulários POST
+csrf = CSRFProtect()
 
 
 def limpar_nome_arquivo(nome):
@@ -27,6 +31,7 @@ def create_app(config_class=Config):
     # Extensões
     init_db(app)
     limiter.init_app(app)
+    csrf.init_app(app)          # ← CSRF ativo em toda a aplicação
 
     # Logging
     configure_logging(app)
