@@ -18,7 +18,7 @@ def despesas():
     if request.method == "POST":
         f    = request.form
         tipo = f.get("tipo", "variavel")
-        hoje = date.today().isoformat()          # data de cadastro
+        hoje = date.today().isoformat()
 
         d = Despesa(
             descricao  = f.get("nome", "").strip(),
@@ -33,7 +33,6 @@ def despesas():
             d.data_fim     = f.get("data_fim")    or d.data_inicio
             d.recorrente   = 1
         else:
-            # despesa avulsa: usa a data informada pelo usuário
             d.data = f.get("data") or hoje
 
         db.session.add(d)
@@ -41,17 +40,38 @@ def despesas():
         flash("Despesa cadastrada.", "sucesso")
         return redirect("/despesas")
 
-    fixas    = Despesa.query.filter_by(tipo="fixa").order_by(Despesa.data_inicio).all()
-    variaveis = Despesa.query.filter(
-        Despesa.tipo != "fixa"
-    ).order_by(Despesa.data.desc()).all()
+    # ── GET ────────────────────────────────────────────────────────────
+    page   = request.args.get("page", 1, type=int)
+    busca  = request.args.get("q", "").strip()
+    mes    = request.args.get("mes", "").strip()   # formato YYYY-MM
+
+    # Despesas fixas: sempre exibe todas (geralmente < 20 registros)
+    fixas     = Despesa.query.filter_by(tipo="fixa").order_by(Despesa.data_inicio).all()
     total_fix = sum(d.valor for d in fixas)
-    total_var = sum(d.valor for d in variaveis)
+
+    # Despesas variáveis: paginadas com filtros opcionais
+    q_var = Despesa.query.filter(Despesa.tipo != "fixa")
+
+    if busca:
+        q_var = q_var.filter(Despesa.descricao.ilike(f"%{busca}%"))
+    if mes:
+        q_var = q_var.filter(Despesa.data.like(f"{mes}%"))
+
+    q_var      = q_var.order_by(Despesa.data.desc())
+    paginacao  = q_var.paginate(page=page, per_page=20, error_out=False)
+    variaveis  = paginacao.items
+    total_var  = sum(d.valor for d in q_var.all())   # total real (todos os filtrados)
+
     return render_template(
         "despesas.html",
-        fixas=fixas, variaveis=variaveis,
-        total_fix=total_fix, total_var=total_var,
-        # compat: despesas passável ao template legado (não usa mais)
+        fixas=fixas,
+        variaveis=variaveis,
+        paginacao=paginacao,
+        total_fix=total_fix,
+        total_var=total_var,
+        busca=busca,
+        mes=mes,
+        # compat legado
         despesas=fixas + variaveis,
         total=total_fix + total_var,
     )
@@ -89,5 +109,5 @@ def excluir_despesa(id):
     d = Despesa.query.get_or_404(id)
     db.session.delete(d)
     db.session.commit()
-    flash("Despesa excuída.", "sucesso")
+    flash("Despesa excluída.", "sucesso")
     return redirect("/despesas")

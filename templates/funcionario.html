@@ -26,7 +26,7 @@
             <div class="campo">
                 <label for="perfil">Perfil</label>
                 <select id="perfil" name="perfil">
-                    {% for p in ['administrador', 'financeiro', 'secretaria', 'instrutor'] %}
+                    {% for p in perfis %}
                     <option value="{{ p }}">{{ p | capitalize }}</option>
                     {% endfor %}
                 </select>
@@ -56,6 +56,30 @@
 
 <div class="card">
     <h3>Equipe Cadastrada</h3>
+
+    {# Filtros #}
+    <form method="GET" action="/funcionarios" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+        <div class="campo" style="min-width:180px">
+            <label>Buscar nome</label>
+            <input type="text" name="q" value="{{ busca }}" placeholder="Ex: Maria">
+        </div>
+        <div class="campo" style="min-width:140px">
+            <label>Perfil</label>
+            <select name="perfil">
+                <option value="">Todos</option>
+                {% for p in perfis %}
+                <option value="{{ p }}" {{ 'selected' if perfil_filtro == p }}>{{ p | capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end">
+            <button type="submit" class="btn btn-azul">🔍 Filtrar</button>
+            {% if busca or perfil_filtro %}
+            <a href="/funcionarios" class="btn">✖ Limpar</a>
+            {% endif %}
+        </div>
+    </form>
+
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
@@ -84,10 +108,36 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="empty-state">Nenhum funcionário cadastrado.</td></tr>
+                <tr><td colspan="5" class="empty-state">Nenhum funcionário encontrado{{ ' com estes filtros' if busca or perfil_filtro }}.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    {# Paginação #}
+    {% if paginacao.pages > 1 %}
+    <div class="paginacao" style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+        {% if paginacao.has_prev %}
+        <a href="/funcionarios?page={{ paginacao.prev_num }}&q={{ busca }}&perfil={{ perfil_filtro }}" class="btn">‹ Anterior</a>
+        {% endif %}
+
+        {% for p in paginacao.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+                {% if p == paginacao.page %}
+                <span class="btn btn-azul">{{ p }}</span>
+                {% else %}
+                <a href="/funcionarios?page={{ p }}&q={{ busca }}&perfil={{ perfil_filtro }}" class="btn">{{ p }}</a>
+                {% endif %}
+            {% else %}
+            <span class="btn" style="pointer-events:none">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if paginacao.has_next %}
+        <a href="/funcionarios?page={{ paginacao.next_num }}&q={{ busca }}&perfil={{ perfil_filtro }}" class="btn">Próxima ›</a>
+        {% endif %}
+        <small style="align-self:center;color:var(--text-muted)">{{ paginacao.total }} registro(s)</small>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -25,7 +25,6 @@
     <p class="card-subtitle">Controle de despesas fixas e variáveis</p>
 
     <form method="POST" id="formDespesa">
-        {# Linha 1: campos fixos sempre visíveis #}
         <div class="grid-4">
             <div class="campo">
                 <label>Nome</label>
@@ -49,7 +48,6 @@
             </div>
         </div>
 
-        {# Linha 2: período — só aparece quando tipo = fixa #}
         <div class="grid-4" id="linhaFixa" style="display:none">
             <div class="campo">
                 <label>Início da cobrança</label>
@@ -73,7 +71,7 @@
     </form>
 </div>
 
-{# ────────── Despesas Fixas (recorrentes) ────────── #}
+{# ────────── Despesas Fixas ────────── #}
 {% if fixas %}
 <div class="card">
     <h3>🔄 Despesas Fixas (recorrentes)</h3>
@@ -94,9 +92,7 @@
                     <td>{{ d.descricao }}</td>
                     <td>
                         {% if d.data_inicio and d.data_fim %}
-                        <span class="badge-periodo">
-                            {{ d.data_inicio }} → {{ d.data_fim }}
-                        </span>
+                        <span class="badge-periodo">{{ d.data_inicio }} → {{ d.data_fim }}</span>
                         {% else %}
                         <span style="color:#aaa">Período não definido</span>
                         {% endif %}
@@ -126,9 +122,30 @@
 {% endif %}
 
 {# ────────── Despesas Variáveis ────────── #}
-{% if variaveis %}
 <div class="card">
-    <h3>📊 Despesas Variáveis</h3>
+    <div class="card-header">
+        <h3>📊 Despesas Variáveis</h3>
+    </div>
+
+    {# Filtros #}
+    <form method="GET" action="/despesas" class="toolbar-filtros" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div class="campo" style="min-width:180px">
+            <label>Buscar descrição</label>
+            <input type="text" name="q" value="{{ busca }}" placeholder="Ex: internet">
+        </div>
+        <div class="campo" style="min-width:140px">
+            <label>Mês</label>
+            <input type="month" name="mes" value="{{ mes }}">
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end">
+            <button type="submit" class="btn btn-azul">🔍 Filtrar</button>
+            {% if busca or mes %}
+            <a href="/despesas" class="btn">✖ Limpar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if variaveis %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
@@ -161,15 +178,44 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3"><strong>Total variável:</strong></td>
+                    <td colspan="3"><strong>Total variável{{ ' (filtrado)' if busca or mes }}:</strong></td>
                     <td><strong>R$ {{ "%.2f"|format(total_var) }}</strong></td>
                     <td colspan="2"></td>
                 </tr>
             </tfoot>
         </table>
     </div>
+
+    {# Paginação #}
+    {% if paginacao.pages > 1 %}
+    <div class="paginacao" style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+        {% if paginacao.has_prev %}
+        <a href="/despesas?page={{ paginacao.prev_num }}&q={{ busca }}&mes={{ mes }}" class="btn">‹ Anterior</a>
+        {% endif %}
+
+        {% for p in paginacao.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+                {% if p == paginacao.page %}
+                <span class="btn btn-azul">{{ p }}</span>
+                {% else %}
+                <a href="/despesas?page={{ p }}&q={{ busca }}&mes={{ mes }}" class="btn">{{ p }}</a>
+                {% endif %}
+            {% else %}
+            <span class="btn" style="pointer-events:none">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if paginacao.has_next %}
+        <a href="/despesas?page={{ paginacao.next_num }}&q={{ busca }}&mes={{ mes }}" class="btn">Próxima ›</a>
+        {% endif %}
+        <small style="align-self:center;color:var(--text-muted)">{{ paginacao.total }} registro(s)</small>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p class="empty-state">Nenhuma despesa variável encontrada{{ ' com estes filtros' if busca or mes }}.</p>
+    {% endif %}
 </div>
-{% endif %}
 
 {% if not fixas and not variaveis %}
 <div class="card">
