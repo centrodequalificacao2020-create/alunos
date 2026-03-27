@@ -25,7 +25,7 @@ def cadastro():
                 func.replace(func.replace(func.replace(Aluno.cpf, ".", ""), "-", ""), " ", "") == cpf
             ).first()
             if existente:
-                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 cursos    = Curso.query.order_by(Curso.nome).all()
                 paginacao = Aluno.query.order_by(Aluno.nome).paginate(page=1, per_page=20, error_out=False)
                 hoje = date.today().isoformat()
@@ -75,7 +75,7 @@ def cadastro():
         )
         return redirect("/cadastro")
 
-    # ── GET ────────────────────────────────────────────────────────────────
+    # ── GET ──────────────────────────────────────────────────────────────
     page   = request.args.get("page", 1, type=int)
     busca  = request.args.get("q", "").strip()
     status = request.args.get("status", "").strip()
@@ -129,11 +129,10 @@ def excluir_aluno(id):
     senha = request.form.get("senha", "")
     user  = Usuario.query.get(session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
-        flash("Senha incorreta. Exclusão cancelada.", "erro")
+        flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
         return redirect("/cadastro")
     a = Aluno.query.get_or_404(id)
     nome = a.nome
-    # deletar dependentes antes do aluno para evitar violação de NOT NULL / FK
     TurmaAluno.query.filter_by(aluno_id=id).delete()
     Nota.query.filter_by(aluno_id=id).delete()
     Frequencia.query.filter_by(aluno_id=id).delete()
@@ -142,7 +141,7 @@ def excluir_aluno(id):
     Matricula.query.filter_by(aluno_id=id).delete()
     db.session.delete(a)
     db.session.commit()
-    flash(f"Aluno \u201c{nome}\u201d excluído com sucesso.", "sucesso")
+    flash(f"Aluno \u201c{nome}\u201d exclu\u00eddo com sucesso.", "sucesso")
     return redirect("/cadastro")
 
 
@@ -160,7 +159,7 @@ def editar_aluno(id):
                 Aluno.id != id
             ).first()
             if existente:
-                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
 
@@ -183,7 +182,7 @@ def editar_aluno(id):
         confirm    = f.get("senha_portal_confirm", "").strip()
         if nova_senha:
             if nova_senha != confirm:
-                flash("As senhas do portal não conferem.", "erro")
+                flash("As senhas do portal n\u00e3o conferem.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
             a.senha = hash_senha(nova_senha)
@@ -205,8 +204,69 @@ def editar_aluno(id):
 @login_required
 def ficha_aluno(aluno_id):
     aluno      = Aluno.query.get_or_404(aluno_id)
-    matriculas = Matricula.query.filter_by(aluno_id=aluno_id).all()
+    matriculas = Matricula.query.filter_by(aluno_id=aluno_id).order_by(Matricula.data_matricula.desc()).all()
     for m in matriculas:
         curso        = Curso.query.get(m.curso_id)
         m.curso_nome = curso.nome if curso else "\u2014"
-    return render_template("ficha_aluno.html", aluno=aluno, matriculas=matriculas)
+
+    # Cursos dispon\u00edveis = todos os cursos MENOS os que j\u00e1 t\u00eam matr\u00edcula ATIVA
+    ids_ativos = {
+        m.curso_id for m in matriculas
+        if m.status and m.status.upper() == "ATIVA"
+    }
+    cursos_disponiveis = [
+        c for c in Curso.query.order_by(Curso.nome).all()
+        if c.id not in ids_ativos
+    ]
+
+    return render_template(
+        "ficha_aluno.html",
+        aluno=aluno,
+        matriculas=matriculas,
+        cursos_disponiveis=cursos_disponiveis,
+    )
+
+
+@aluno_bp.route("/matricular_aluno", methods=["POST"])
+@login_required
+def matricular_aluno():
+    aluno_id = request.form.get("aluno_id", type=int)
+    curso_id = request.form.get("curso_id", type=int)
+
+    if not aluno_id or not curso_id:
+        flash("Selecione um curso para matricular.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+
+    # Impede dupla matr\u00edcula ativa no mesmo curso
+    ja_matriculado = Matricula.query.filter_by(
+        aluno_id=aluno_id, curso_id=curso_id
+    ).filter(func.upper(Matricula.status) == "ATIVA").first()
+
+    if ja_matriculado:
+        flash("O aluno j\u00e1 possui matr\u00edcula ativa neste curso.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+
+    nova = Matricula(
+        aluno_id       = aluno_id,
+        curso_id       = curso_id,
+        status         = "Ativa",
+        data_matricula = date.today().isoformat(),
+    )
+    db.session.add(nova)
+    db.session.commit()
+
+    curso = Curso.query.get(curso_id)
+    flash(f"Aluno matriculado em \u201c{curso.nome}\u201d com sucesso.", "sucesso")
+    return redirect(f"/aluno/{aluno_id}")
+
+
+@aluno_bp.route("/desmatricular/<int:matricula_id>", methods=["POST"])
+@login_required
+def desmatricular(matricula_id):
+    m = Matricula.query.get_or_404(matricula_id)
+    aluno_id = m.aluno_id
+    curso    = Curso.query.get(m.curso_id)
+    m.status = "Cancelada"
+    db.session.commit()
+    flash(f"Matr\u00edcula em \u201c{curso.nome if curso else 'curso'}\u201d cancelada.", "sucesso")
+    return redirect(f"/aluno/{aluno_id}")

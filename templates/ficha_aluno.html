@@ -37,7 +37,27 @@
 </div>
 
 <div class="card" style="margin-top:20px">
-    <h3>📋 Matrículas</h3>
+    <div class="card-header--between" style="align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <h3>📋 Matrículas</h3>
+
+        {# Formulário de nova matrícula #}
+        {% if cursos_disponiveis %}
+        <form method="POST" action="/matricular_aluno"
+              style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+            <select name="curso_id" required style="min-width:200px">
+                <option value="">Selecione um curso…</option>
+                {% for c in cursos_disponiveis %}
+                <option value="{{ c.id }}">{{ c.nome }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-azul">➕ Matricular</button>
+        </form>
+        {% else %}
+        <span style="font-size:13px;color:var(--text-muted)">Aluno já matriculado em todos os cursos disponíveis.</span>
+        {% endif %}
+    </div>
+
     {% if matriculas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
@@ -57,17 +77,23 @@
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
                     <td style="white-space:nowrap">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-pdf"
-                           title="Baixar Declaração de Conclusão"
-                           target="_blank">
+                           class="btn btn-sm btn-pdf" title="Baixar Declaração de Conclusão" target="_blank">
                             📄 Declaração
                         </a>
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-verde"
-                           title="Baixar Histórico de Presença"
-                           target="_blank">
+                           class="btn btn-sm btn-verde" title="Baixar Histórico de Presença" target="_blank">
                             📊 Presença
                         </a>
+                        {% if m.status and m.status.upper() == 'ATIVA' %}
+                        <form method="POST" action="/desmatricular/{{ m.id }}"
+                              style="display:inline"
+                              onsubmit="return confirm('Cancelar a matrícula em {{ m.curso_nome }}?')">
+                            <button type="submit" class="btn btn-vermelho btn-sm tooltip"
+                                    data-tooltip="Desmatricular">
+                                ❌ Desmatricular
+                            </button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
