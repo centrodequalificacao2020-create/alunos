@@ -6,7 +6,7 @@
     <!-- CSRF: token disponível para requisições fetch/AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Sistema Escolar{% endblock %} — CQP</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=11">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=12">
     {% block styles %}{% endblock %}
 </head>
 <body class="{% if request.path.startswith('/aluno') %}tema-aluno{% endif %}">

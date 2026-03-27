@@ -42,6 +42,8 @@
     --color-orange-light: #fff3e0;
     --color-dark:         #37474f;
     --color-dark-light:   #eceff1;
+    /* Token de fundo para a coluna sticky — sobrescrito pelo tema escuro */
+    --acoes-bg: var(--color-white);
     --radius-sm:  4px;
     --radius-md:  8px;
     --radius-lg:  12px;
@@ -219,8 +221,14 @@ td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
 }
 .tabela-excel thead th.acoes { position: sticky; right: 0; z-index: 3; background: var(--color-primary); }
 .tabela-excel td { padding: 8px 14px; }
-.tabela-excel td.acoes { background: var(--color-white); position: sticky; right: 0; z-index: 1; box-shadow: -2px 0 5px rgba(0,0,0,.15); }
+/* Coluna sticky — usa variável para suportar tema claro e escuro */
+.tabela-excel td.acoes {
+    background: var(--acoes-bg);
+    position: sticky; right: 0; z-index: 1;
+    box-shadow: -2px 0 5px rgba(0,0,0,.15);
+}
 .tabela-excel tbody tr:hover td { background: var(--color-primary-light); }
+.tabela-excel tbody tr:hover td.acoes { background: var(--color-primary-light); }
 
 /* ── 10. STATUS ──────────────────────────────────────────── */
 .status-ativo      { color: var(--color-status-ativa);      font-weight: 600; }
@@ -517,7 +525,13 @@ a:focus-visible { outline: 3px solid var(--color-primary); border-radius: var(--
 /* ════════════════════════════════════════════════════════════
    32. TEMA PORTAL DO ALUNO — isolado em body.tema-aluno
    ════════════════════════════════════════════════════════════ */
-body.tema-aluno { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; color: #f0f4f8; }
+body.tema-aluno {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    min-height: 100vh;
+    color: #f0f4f8;
+    /* Sobrescreve o fundo da coluna sticky para o tema escuro */
+    --acoes-bg: #1a2f45;
+}
 body.tema-aluno header { background: rgba(13, 33, 59, 0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.10); }
 @media (max-width: 1100px) { body.tema-aluno nav { background: rgba(10, 25, 47, 0.97); } }
 body.tema-aluno main { padding: 24px 32px; }
@@ -528,6 +542,7 @@ body.tema-aluno .card .secao { border-bottom-color: rgba(255, 255, 255, .12); co
 body.tema-aluno .card table th { background: rgba(10, 25, 47, 0.70); color: rgba(180, 210, 240, 0.85); border-bottom: 1px solid rgba(255, 255, 255, .10); }
 body.tema-aluno .card table td { border-bottom-color: rgba(255, 255, 255, .08); color: #dce8f5; }
 body.tema-aluno .card table tbody tr:hover td { background: rgba(0, 198, 255, .08); }
+body.tema-aluno .card table tbody tr:hover td.acoes { background: rgba(0, 198, 255, .08); }
 body.tema-aluno .card table tbody tr.tr-pendente td { background: rgba(239, 68, 68, .12); }
 body.tema-aluno .portal-card--pendente { border-left: 4px solid #ef4444 !important; text-align: center; }
 body.tema-aluno .portal-card--pendente .portal-alerta-titulo { font-size: 1.1rem; color: #ff8a8a; font-weight: 600; }
