@@ -209,7 +209,6 @@ def ficha_aluno(aluno_id):
         curso        = Curso.query.get(m.curso_id)
         m.curso_nome = curso.nome if curso else "\u2014"
 
-    # Cursos dispon\u00edveis = todos os cursos MENOS os que j\u00e1 t\u00eam matr\u00edcula ATIVA
     ids_ativos = {
         m.curso_id for m in matriculas
         if m.status and m.status.upper() == "ATIVA"
@@ -237,7 +236,6 @@ def matricular_aluno():
         flash("Selecione um curso para matricular.", "erro")
         return redirect(f"/aluno/{aluno_id}")
 
-    # Impede dupla matr\u00edcula ativa no mesmo curso
     ja_matriculado = Matricula.query.filter_by(
         aluno_id=aluno_id, curso_id=curso_id
     ).filter(func.upper(Matricula.status) == "ATIVA").first()
@@ -260,13 +258,15 @@ def matricular_aluno():
     return redirect(f"/aluno/{aluno_id}")
 
 
-@aluno_bp.route("/desmatricular/<int:matricula_id>", methods=["POST"])
+@aluno_bp.route("/excluir_matricula/<int:matricula_id>", methods=["POST"])
 @login_required
-def desmatricular(matricula_id):
+def excluir_matricula(matricula_id):
+    """Exclui permanentemente o registro de matrícula do banco."""
     m = Matricula.query.get_or_404(matricula_id)
     aluno_id = m.aluno_id
     curso    = Curso.query.get(m.curso_id)
-    m.status = "Cancelada"
+    nome_curso = curso.nome if curso else "curso"
+    db.session.delete(m)
     db.session.commit()
-    flash(f"Matr\u00edcula em \u201c{curso.nome if curso else 'curso'}\u201d cancelada.", "sucesso")
+    flash(f"Matr\u00edcula em \u201c{nome_curso}\u201d exclu\u00edda com sucesso.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")

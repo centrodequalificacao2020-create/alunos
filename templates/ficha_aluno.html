@@ -82,15 +82,14 @@
                            class="btn btn-sm btn-verde" target="_blank">
                             📊 Presença
                         </a>
-                        {% if m.status and m.status.upper() == 'ATIVA' %}
-                        <form method="POST" action="/desmatricular/{{ m.id }}"
+                        <form method="POST" action="/excluir_matricula/{{ m.id }}"
                               style="display:inline-flex;align-items:center"
-                              onsubmit="return confirm('Cancelar a matrícula em {{ m.curso_nome }}?')">
-                            <button type="submit" class="btn btn-sm btn-vermelho">
-                                ❌ Desmatricular
+                              onsubmit="return confirm('Excluir permanentemente a matrícula em {{ m.curso_nome }}? Esta ação não pode ser desfeita.')">
+                            <button type="submit" class="btn btn-sm btn-vermelho tooltip"
+                                    data-tooltip="Excluir matrícula">
+                                🗑️ Excluir
                             </button>
                         </form>
-                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
