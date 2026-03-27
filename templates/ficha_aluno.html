@@ -39,7 +39,6 @@
 <div class="card" style="margin-top:20px">
     <h3>📋 Matrículas</h3>
 
-    {# Barra de nova matrícula — acima da tabela, em linha #}
     {% if cursos_disponiveis %}
     <form method="POST" action="/matricular_aluno" class="toolbar-matricula">
         <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
@@ -65,7 +64,7 @@
                     <th>Curso</th>
                     <th>Data</th>
                     <th>Status</th>
-                    <th class="acoes">Ações</th>
+                    <th class="acoes-texto">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -74,21 +73,20 @@
                     <td>{{ m.curso_nome }}</td>
                     <td>{{ m.data_matricula or '-' }}</td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
-                    <td class="acoes" style="white-space:nowrap">
+                    <td class="acoes-texto">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-pdf tooltip" data-tooltip="Declaração" target="_blank">
+                           class="btn btn-sm btn-pdf" target="_blank">
                             📄 Declaração
                         </a>
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-verde tooltip" data-tooltip="Histórico de Presença" target="_blank">
+                           class="btn btn-sm btn-verde" target="_blank">
                             📊 Presença
                         </a>
                         {% if m.status and m.status.upper() == 'ATIVA' %}
                         <form method="POST" action="/desmatricular/{{ m.id }}"
                               style="display:inline-flex;align-items:center"
                               onsubmit="return confirm('Cancelar a matrícula em {{ m.curso_nome }}?')">
-                            <button type="submit" class="btn btn-sm btn-vermelho tooltip"
-                                    data-tooltip="Desmatricular">
+                            <button type="submit" class="btn btn-sm btn-vermelho">
                                 ❌ Desmatricular
                             </button>
                         </form>
