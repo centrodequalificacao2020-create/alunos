@@ -25,7 +25,7 @@ def financeiro():
     aluno_id = request.args.get("aluno_id", type=int)
     pendentes, pagas = [], []
     total_pago = total_pagar = vencidas_total = 0
-    hoje = date.today()  # objeto date — compatível com p.vencimento no template
+    hoje = date.today()
 
     if aluno_id:
         pendentes  = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
@@ -37,22 +37,25 @@ def financeiro():
         def _eh_vencida(m):
             if not m.vencimento:
                 return False
-            v = m.vencimento
-            # suporte a string ISO "YYYY-MM-DD" e a objeto date
-            if isinstance(v, str):
+            try:
                 from datetime import datetime
-                v = datetime.strptime(v[:10], "%Y-%m-%d").date()
-            return v < hoje
+                v = datetime.strptime(str(m.vencimento)[:10], "%Y-%m-%d").date()
+                return v < hoje
+            except (ValueError, TypeError):
+                return False
 
         vencidas       = [m for m in pendentes if _eh_vencida(m)]
         vencidas_total = sum(m.valor for m in vencidas)
 
-        # Enriquecer cada parcela com o nome do curso via matricula
+        # Enriquecer cada parcela com o nome do curso via matricula ativa
         curso_map = {c.id: c.nome for c in Curso.query.all()}
-        matriculas_aluno = {mat.id: mat.curso_id for mat in Matricula.query.filter_by(aluno_id=aluno_id).all()}
+        mat_ativa = (Matricula.query
+                     .filter_by(aluno_id=aluno_id)
+                     .order_by(Matricula.id.desc())
+                     .first())
+        curso_nome_padrao = curso_map.get(mat_ativa.curso_id, "-") if mat_ativa else "-"
         for m in pendentes + pagas:
-            curso_id = matriculas_aluno.get(m.matricula_id)
-            m.curso_nome = curso_map.get(curso_id, "-") if curso_id else "-"
+            m.curso_nome = curso_nome_padrao
 
     return render_template("financeiro.html",
                            alunos=alunos,
