@@ -25,7 +25,7 @@ def financeiro():
     aluno_id = request.args.get("aluno_id", type=int)
     pendentes, pagas = [], []
     total_pago = total_pagar = vencidas_total = 0
-    hoje = date.today().isoformat()
+    hoje = date.today()  # objeto date — compatível com p.vencimento no template
 
     if aluno_id:
         pendentes  = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
@@ -34,7 +34,17 @@ def financeiro():
         total_pagar = sum(m.valor for m in pendentes)
 
         # Parcelas vencidas = pendentes com vencimento antes de hoje
-        vencidas       = [m for m in pendentes if m.vencimento and m.vencimento < hoje]
+        def _eh_vencida(m):
+            if not m.vencimento:
+                return False
+            v = m.vencimento
+            # suporte a string ISO "YYYY-MM-DD" e a objeto date
+            if isinstance(v, str):
+                from datetime import datetime
+                v = datetime.strptime(v[:10], "%Y-%m-%d").date()
+            return v < hoje
+
+        vencidas       = [m for m in pendentes if _eh_vencida(m)]
         vencidas_total = sum(m.valor for m in vencidas)
 
         # Enriquecer cada parcela com o nome do curso via matricula
