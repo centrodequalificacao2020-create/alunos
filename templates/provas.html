@@ -462,8 +462,10 @@
 
 {% block scripts %}
 <script>
+{# Só serializa questões quando estamos na view de edição de questões E prova existe #}
 const questoesData = {
-    {% for q in prova.questoes if view == 'questoes' %}
+    {% if view == 'questoes' and prova is defined %}
+    {% for q in prova.questoes %}
     {{ q.id }}: {
         enunciado: {{ q.enunciado | tojson }},
         pontos: {{ q.pontos }},
@@ -475,6 +477,7 @@ const questoesData = {
         ]
     },
     {% endfor %}
+    {% endif %}
 };
 
 function abrirEditarQuestao(qId) {
