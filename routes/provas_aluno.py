@@ -10,20 +10,16 @@ from security import aluno_login_required
 provas_aluno_bp = Blueprint("provas_aluno", __name__)
 
 
-def _matriculas_ativas(aluno_id):
-    return {
+def _cursos_ativos(aluno_id):
+    """Retorna lista (não set) de curso_id com matrícula ATIVA."""
+    return [
         m.curso_id for m in
         Matricula.query.filter(
             Matricula.aluno_id == aluno_id,
             db.func.upper(Matricula.status) == "ATIVA"
         ).all()
-    }
-
-
-def _prova_disponivel(prova, aluno_id):
-    if not prova.ativa:
-        return False
-    return prova.curso_id in _matriculas_ativas(aluno_id)
+        if m.curso_id
+    ]
 
 
 def _tentativas_usadas(prova_id, aluno_id):
@@ -36,7 +32,7 @@ def _ultima_tentativa(prova_id, aluno_id):
     return (
         RespostaProva.query
         .filter_by(prova_id=prova_id, aluno_id=aluno_id)
-        .order_by(RespostaProva.finalizado_em.desc())
+        .order_by(RespostaProva.id.desc())
         .first()
     )
 
@@ -47,14 +43,19 @@ def _ultima_tentativa(prova_id, aluno_id):
 @aluno_login_required
 def listar_provas_aluno():
     aluno        = db.get_or_404(Aluno, session["aluno_id"])
-    cursos_aluno = _matriculas_ativas(aluno.id)
+    cursos_aluno = _cursos_ativos(aluno.id)
+
+    # Protege contra IN() com lista vazia (gera SQL inválido em algumas versões)
+    if not cursos_aluno:
+        return render_template("aluno/provas_lista.html",
+                               aluno=aluno, provas=[])
 
     provas_raw = (
         Prova.query
         .filter(Prova.ativa == 1, Prova.curso_id.in_(cursos_aluno))
         .order_by(Prova.id.desc())
         .all()
-    ) if cursos_aluno else []
+    )
 
     provas = []
     for prova in provas_raw:
@@ -80,13 +81,14 @@ def realizar_prova(prova_id):
     aluno = db.get_or_404(Aluno, session["aluno_id"])
     prova = db.get_or_404(Prova, prova_id)
 
-    if not _prova_disponivel(prova, aluno.id):
-        flash("Esta prova n\u00e3o est\u00e1 dispon\u00edvel para voc\u00ea.", "erro")
+    cursos_aluno = _cursos_ativos(aluno.id)
+    if not prova.ativa or prova.curso_id not in cursos_aluno:
+        flash("Esta prova não está disponível para você.", "erro")
         return redirect("/aluno/provas")
 
     tentativas_feitas = _tentativas_usadas(prova_id, aluno.id)
     if tentativas_feitas >= prova.tentativas:
-        flash("Voc\u00ea j\u00e1 utilizou todas as tentativas desta prova.", "erro")
+        flash("Você já utilizou todas as tentativas desta prova.", "erro")
         return redirect("/aluno/provas")
 
     questoes = (
@@ -96,7 +98,7 @@ def realizar_prova(prova_id):
         .all()
     )
     if not questoes:
-        flash("Esta prova n\u00e3o possui quest\u00f5es cadastradas.", "erro")
+        flash("Esta prova não possui questões cadastradas.", "erro")
         return redirect("/aluno/provas")
 
     if request.method == "POST":
@@ -113,13 +115,13 @@ def realizar_prova(prova_id):
         db.session.add(resp_prova)
         db.session.flush()
 
-        nota_total = 0.0
-        pontos_max = 0.0
+        nota_total       = 0.0
+        pontos_max       = 0.0
         tem_dissertativa = False
 
         for questao in questoes:
             pontos_max += questao.pontos
-            campo = f"questao_{questao.id}"
+            campo       = f"questao_{questao.id}"
 
             if questao.tipo == "dissertativa":
                 tem_dissertativa = True
@@ -160,11 +162,11 @@ def realizar_prova(prova_id):
         db.session.commit()
 
         if tem_dissertativa:
-            flash("Prova enviada! Quest\u00f5es dissertativas aguardam corre\u00e7\u00e3o do instrutor.", "sucesso")
+            flash("Prova enviada! Questões dissertativas aguardam correção do instrutor.", "sucesso")
         elif resp_prova.aprovado:
-            flash(f"Parab\u00e9ns! Aprovado com nota {resp_prova.nota_obtida}.", "sucesso")
+            flash(f"Parabéns! Aprovado com nota {resp_prova.nota_obtida}.", "sucesso")
         else:
-            flash(f"Reprovado. Sua nota: {resp_prova.nota_obtida} (m\u00ednimo: {prova.nota_minima}).", "erro")
+            flash(f"Reprovado. Sua nota: {resp_prova.nota_obtida} (mínimo: {prova.nota_minima}).", "erro")
 
         return redirect(f"/aluno/provas/{prova_id}/resultado/{resp_prova.id}")
 
@@ -172,7 +174,7 @@ def realizar_prova(prova_id):
                            aluno=aluno, prova=prova, questoes=questoes)
 
 
-# ── RESULTADO DA TENTATIVA (aluno) ───────────────────────────────────────────
+# ── RESULTADO DA TENTATIVA ───────────────────────────────────────────────────
 
 @provas_aluno_bp.route("/provas/<int:prova_id>/resultado/<int:resp_id>")
 @aluno_login_required

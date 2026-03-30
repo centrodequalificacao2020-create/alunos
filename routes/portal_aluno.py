@@ -2,8 +2,7 @@ from flask import Blueprint, render_template, session, redirect, flash, request
 from db import db
 from models import (
     Aluno, Matricula, Mensalidade, Nota, Frequencia,
-    Materia, Conteudo, ProgressoAula, AcessoConteudoCurso,
-    RespostaProva
+    Materia, Conteudo, ProgressoAula, AcessoConteudoCurso
 )
 from security import aluno_login_required, hash_senha, verificar_senha
 from datetime import date, datetime
@@ -15,7 +14,7 @@ def _get_aluno():
     return db.get_or_404(Aluno, session["aluno_id"])
 
 
-# ── LOGIN / LOGOUT ────────────────────────────────────────────────────────────────────────────
+# ─── LOGIN / LOGOUT ──────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 def aluno_login():
@@ -44,7 +43,7 @@ def aluno_logout():
     return redirect("/aluno/login")
 
 
-# ── DASHBOARD ────────────────────────────────────────────────────────────────────────────
+# ─── DASHBOARD ───────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
@@ -58,25 +57,27 @@ def aluno_dashboard():
         if m.status.upper() in ("PENDENTE", "ATRASADO") and m.vencimento and m.vencimento < hoje
     )
 
-    # Conta provas pendentes de correction ou disponíveis não feitas
-    from models import Prova
-    cursos_aluno = {
-        m.curso_id for m in aluno.matriculas
-        if m.status.upper() == "ATIVA"
-    }
+    # Contagem de provas disponíveis para o aluno (sem disparar erro se tabela vazia)
     provas_disp = 0
-    if cursos_aluno:
-        from models import Prova
-        provas_ativas = Prova.query.filter(
-            Prova.ativa == 1,
-            Prova.curso_id.in_(cursos_aluno)
-        ).all()
-        for p in provas_ativas:
-            tentativas_feitas = RespostaProva.query.filter_by(
-                prova_id=p.id, aluno_id=aluno.id
-            ).count()
-            if tentativas_feitas < p.tentativas:
-                provas_disp += 1
+    try:
+        from models import Prova, RespostaProva
+        cursos_aluno = [
+            m.curso_id for m in aluno.matriculas
+            if m.status.upper() == "ATIVA" and m.curso_id
+        ]
+        if cursos_aluno:
+            provas_ativas = Prova.query.filter(
+                Prova.ativa == 1,
+                Prova.curso_id.in_(cursos_aluno)
+            ).all()
+            for p in provas_ativas:
+                usadas = RespostaProva.query.filter_by(
+                    prova_id=p.id, aluno_id=aluno.id
+                ).count()
+                if usadas < p.tentativas:
+                    provas_disp += 1
+    except Exception:
+        provas_disp = 0
 
     return render_template(
         "aluno/dashboard.html",
@@ -88,7 +89,7 @@ def aluno_dashboard():
     )
 
 
-# ── FINANCEIRO ────────────────────────────────────────────────────────────────────────────
+# ─── FINANCEIRO ──────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
@@ -99,7 +100,7 @@ def aluno_financeiro():
                            mensalidades=aluno.mensalidades)
 
 
-# ── NOTAS / BOLETIM ────────────────────────────────────────────────────────────────────────────
+# ─── NOTAS / BOLETIM ─────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
@@ -116,39 +117,43 @@ def aluno_notas():
     if curso_id:
         materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
 
-    # Provas realizadas pelo aluno para exibir no boletim
-    from models import Prova
-    provas_realizadas = (
-        db.session.query(RespostaProva)
-        .join(Prova, Prova.id == RespostaProva.prova_id)
-        .filter(
-            RespostaProva.aluno_id == aluno.id,
-            Prova.curso_id == curso_id,
-        )
-        .order_by(RespostaProva.finalizado_em.desc())
-        .all()
-    ) if curso_id else []
-
-    # Agrupa melhor nota por prova
-    melhor_por_prova = {}
-    for rp in provas_realizadas:
-        if rp.nota_obtida is not None:
-            ant = melhor_por_prova.get(rp.prova_id)
-            if ant is None or rp.nota_obtida > ant.nota_obtida:
-                melhor_por_prova[rp.prova_id] = rp
+    # Provas realizadas para o boletim
+    provas_realizadas = []
+    melhor_por_prova  = {}
+    try:
+        from models import Prova, RespostaProva
+        if curso_id:
+            provas_realizadas = (
+                db.session.query(RespostaProva)
+                .join(Prova, Prova.id == RespostaProva.prova_id)
+                .filter(
+                    RespostaProva.aluno_id == aluno.id,
+                    Prova.curso_id == curso_id,
+                )
+                .order_by(RespostaProva.finalizado_em.desc())
+                .all()
+            )
+            for rp in provas_realizadas:
+                if rp.nota_obtida is not None:
+                    ant = melhor_por_prova.get(rp.prova_id)
+                    if ant is None or rp.nota_obtida > ant.nota_obtida:
+                        melhor_por_prova[rp.prova_id] = rp
+    except Exception:
+        provas_realizadas = []
+        melhor_por_prova  = {}
 
     return render_template(
         "aluno/notas.html",
-        aluno               = aluno,
-        matricula           = matricula,
-        notas_dict          = notas_dict,
-        materias            = materias,
-        provas_realizadas   = provas_realizadas,
-        melhor_por_prova    = melhor_por_prova,
+        aluno             = aluno,
+        matricula         = matricula,
+        notas_dict        = notas_dict,
+        materias          = materias,
+        provas_realizadas = provas_realizadas,
+        melhor_por_prova  = melhor_por_prova,
     )
 
 
-# ── FREQUÊNCIA ────────────────────────────────────────────────────────────────────────────
+# ─── FREQUÊNCIA ──────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
@@ -163,7 +168,7 @@ def aluno_frequencia():
                            total=total, presente=presente, pct=pct)
 
 
-# ── CONTEÚDO ────────────────────────────────────────────────────────────────────────────
+# ─── CONTEÚDO ────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
@@ -208,7 +213,7 @@ def concluir_aula(conteudo_id):
     return redirect("/aluno/conteudo")
 
 
-# ── TROCAR SENHA ────────────────────────────────────────────────────────────────────────────
+# ─── TROCAR SENHA ────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/senha", methods=["GET", "POST"])
 @aluno_login_required
@@ -221,7 +226,7 @@ def aluno_trocar_senha():
         if not aluno.senha or not verificar_senha(atual, aluno.senha):
             flash("Senha atual incorreta.", "erro")
         elif nova != repete:
-            flash("As senhas n\u00e3o coincidem.", "erro")
+            flash("As senhas não coincidem.", "erro")
         elif len(nova) < 6:
             flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
         else:
