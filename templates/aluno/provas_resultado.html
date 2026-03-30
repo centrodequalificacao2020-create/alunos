@@ -1,105 +1,150 @@
 {% extends "base.html" %}
-{% block title %}Resultado — {{ prova.titulo }}{% endblock %}
+{% block title %}Resultado &mdash; {{ prova.titulo }}{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-body{ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364); min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff; }
-.wrap{ max-width:820px; margin:auto; padding:30px 20px 60px; }
-.resultado-card{
-    border-radius:20px; padding:30px; text-align:center;
-    margin-bottom:30px; border:1px solid rgba(255,255,255,.15);
+:root{
+    --bg:#0f1923; --card:rgba(255,255,255,.06); --border:rgba(255,255,255,.12);
+    --accent:#00c6ff; --green:#00ff9d; --red:#ff4d4d;
+    --yellow:#ffd700; --purple:#c77dff;
 }
-.aprovado  { background:linear-gradient(135deg,rgba(0,255,157,.15),rgba(0,198,255,.1)); border-color:#00ff9d; }
-.reprovado { background:linear-gradient(135deg,rgba(255,77,77,.15),rgba(255,100,0,.08)); border-color:#ff4d4d; }
-.pendente  { background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(255,165,0,.08)); border-color:#ffd700; }
-.nota-grande{ font-size:64px; font-weight:800; line-height:1; margin:10px 0 4px; }
-.resultado-label{ font-size:18px; font-weight:600; opacity:.85; margin-bottom:8px; }
-.resultado-sub{ font-size:14px; opacity:.6; }
-.gabarito-titulo{ font-size:18px; font-weight:600; margin-bottom:16px; opacity:.9; }
-.q-card{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:18px 20px; margin-bottom:14px; }
-.q-card.acerto { border-left:4px solid #00ff9d; }
-.q-card.erro   { border-left:4px solid #ff4d4d; }
-.q-card.dissertativa { border-left:4px solid #ffd700; }
-.q-num{ font-size:11px; opacity:.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
-.q-enunc{ font-size:15px; margin-bottom:12px; line-height:1.5; }
-.q-opcao{ font-size:13px; padding:6px 12px; border-radius:8px; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
-.q-opcao.certa    { background:rgba(0,255,157,.15); color:#00ff9d; }
-.q-opcao.errada   { background:rgba(255,77,77,.15);  color:#ff4d4d; }
-.q-opcao.neutra   { opacity:.5; }
-.q-resp-texto{ background:rgba(255,255,255,.05); border-radius:8px; padding:10px 14px; font-size:14px; opacity:.8; white-space:pre-wrap; margin-top:6px; }
-.btn{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:12px 22px; border-radius:10px; font-size:14px; font-weight:600;
-    text-decoration:none; transition:.25s;
+body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff; min-height:100vh; }
+.wrap { max-width:760px; margin:auto; padding:30px 20px 60px; }
+
+/* card de resultado geral */
+.res-card {
+    border-radius:20px; padding:28px 24px; margin-bottom:28px;
+    text-align:center; border:1px solid;
 }
-.btn-primary{ background:#00c6ff; color:#000; }
-.btn-primary:hover{ opacity:.85; }
-.btn-outline{ background:transparent; border:1px solid rgba(255,255,255,.25); color:#fff; margin-left:10px; }
-.btn-outline:hover{ background:rgba(255,255,255,.08); }
-.acoes{ margin-top:10px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+.res-card.aprovado  { background:rgba(0,255,157,.08);  border-color:var(--green); }
+.res-card.reprovado { background:rgba(255,77,77,.08);   border-color:var(--red); }
+.res-card.pendente  { background:rgba(199,125,255,.08); border-color:var(--purple); }
+.res-nota { font-size:56px; font-weight:900; line-height:1; margin:8px 0; }
+.res-nota.aprovado  { color:var(--green); }
+.res-nota.reprovado { color:var(--red); }
+.res-nota.pendente  { color:var(--purple); }
+.res-label { font-size:13px; opacity:.55; }
+.res-titulo { font-size:18px; font-weight:700; margin-bottom:4px; }
+
+/* gabarito */
+.q-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:14px; padding:18px 20px; margin-bottom:14px;
+}
+.q-card.acerto  { border-left:4px solid var(--green); }
+.q-card.erro    { border-left:4px solid var(--red); }
+.q-card.diss-corr { border-left:4px solid var(--green); }
+.q-card.diss-pend { border-left:4px solid var(--purple); }
+.q-card.diss-erro { border-left:4px solid var(--red); }
+.q-num   { font-size:11px; opacity:.4; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.q-enunc { font-size:14px; line-height:1.6; margin-bottom:12px; }
+.alt-row { display:flex; align-items:center; gap:9px; padding:7px 11px; border-radius:8px; margin-bottom:5px; font-size:13px; }
+.alt-row.certa   { background:rgba(0,255,157,.1);  color:var(--green); }
+.alt-row.errada  { background:rgba(255,77,77,.1);  color:var(--red); }
+.alt-row.neutra  { opacity:.35; }
+.diss-resp {
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1);
+    border-radius:9px; padding:10px 14px; font-size:13px;
+    white-space:pre-wrap; color:#d0d0d0; min-height:48px;
+}
+.pts-row { font-size:13px; margin-top:10px; opacity:.7; }
+
+.acoes { display:flex; gap:12px; flex-wrap:wrap; margin-top:28px; }
+.btn {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:11px 22px; border-radius:9px; font-size:14px; font-weight:600;
+    cursor:pointer; text-decoration:none; border:none; transition:.25s;
+}
+.btn-back   { background:rgba(255,255,255,.08); color:#fff; border:1px solid var(--border); }
+.btn-back:hover { background:rgba(255,255,255,.15); }
+.btn-tentar { background:linear-gradient(135deg,var(--accent),#0072ff); color:#fff; }
+.btn-tentar:hover { opacity:.85; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="wrap">
 
-    {% if resp_prova.aprovado == 1 %}
-    <div class="resultado-card aprovado">
-        <div style="font-size:48px">&#127881;</div>
-        <div class="nota-grande" style="color:#00ff9d">{{ resp_prova.nota_obtida }}</div>
-        <div class="resultado-label">Aprovado!</div>
-        <div class="resultado-sub">Nota mínima era {{ prova.nota_minima }} &mdash; parabéns!</div>
+    {# ── Card de resultado geral ── #}
+    {% if resp_prova.nota_obtida is none %}
+    <div class="res-card pendente">
+        <div class="res-titulo">{{ prova.titulo }}</div>
+        <div class="res-nota pendente">&#9711;</div>
+        <div style="color:var(--purple);font-weight:700;font-size:15px">Aguardando corre&ccedil;&atilde;o do instrutor</div>
+        <div class="res-label" style="margin-top:6px">Quest&otilde;es dissertativas ser&atilde;o avaliadas em breve.</div>
     </div>
-    {% elif resp_prova.nota_obtida is none %}
-    <div class="resultado-card pendente">
-        <div style="font-size:48px">&#9203;</div>
-        <div class="resultado-label" style="color:#ffd700">Aguardando correção</div>
-        <div class="resultado-sub">Sua prova contém questões dissertativas que serão corrigidas pelo instrutor.</div>
+    {% elif resp_prova.aprovado %}
+    <div class="res-card aprovado">
+        <div class="res-titulo">{{ prova.titulo }}</div>
+        <div style="font-size:28px">&#127881;</div>
+        <div class="res-nota aprovado">{{ '%.1f'|format(resp_prova.nota_obtida) }}</div>
+        <div style="color:var(--green);font-weight:700;font-size:16px">Aprovado!</div>
+        <div class="res-label">Nota m&iacute;nima era {{ prova.nota_minima }} &bull; Tentativa {{ resp_prova.tentativa_num }}</div>
     </div>
     {% else %}
-    <div class="resultado-card reprovado">
-        <div style="font-size:48px">&#128531;</div>
-        <div class="nota-grande" style="color:#ff4d4d">{{ resp_prova.nota_obtida }}</div>
-        <div class="resultado-label">Reprovado</div>
-        <div class="resultado-sub">Nota mínima era {{ prova.nota_minima }}. Tente novamente!</div>
+    <div class="res-card reprovado">
+        <div class="res-titulo">{{ prova.titulo }}</div>
+        <div style="font-size:28px">&#128533;</div>
+        <div class="res-nota reprovado">{{ '%.1f'|format(resp_prova.nota_obtida) }}</div>
+        <div style="color:var(--red);font-weight:700;font-size:16px">Reprovado</div>
+        <div class="res-label">Nota m&iacute;nima era {{ prova.nota_minima }} &bull; Tentativa {{ resp_prova.tentativa_num }}</div>
     </div>
     {% endif %}
 
-    <div class="gabarito-titulo"><i class="fas fa-list-check"></i> Gabarito</div>
-
+    {# ── Gabarito questão a questão ── #}
     {% for item in gabarito %}
-    {% set q  = item.questao %}
+    {% set q = item.questao %}
     {% set rq = item.rq %}
+
     {% if q.tipo == 'dissertativa' %}
-    <div class="q-card dissertativa">
-        <div class="q-num">Questão {{ loop.index }} &mdash; Dissertativa</div>
-        <div class="q-enunc">{{ q.enunciado }}</div>
-        <div style="font-size:13px;opacity:.6;margin-bottom:4px">Sua resposta:</div>
-        <div class="q-resp-texto">{{ rq.resposta_texto or '(sem resposta)' }}</div>
-        <div style="font-size:12px;opacity:.5;margin-top:8px">Correção pendente pelo instrutor.</div>
-    </div>
-    {% else %}
-    {% set acertou = item.escolhida and item.correta and item.escolhida.id == item.correta.id %}
-    <div class="q-card {{ 'acerto' if acertou else 'erro' }}">
-        <div class="q-num">Questão {{ loop.index }} &mdash; {{ '+' + rq.pontos_obtidos|string if acertou else '0' }} pts</div>
-        <div class="q-enunc">{{ q.enunciado }}</div>
-        {% for alt in q.alternativas|sort(attribute='ordem') %}
-            {% if alt.id == item.correta.id %}
-            <div class="q-opcao certa"><i class="fas fa-check"></i> {{ alt.texto }}</div>
-            {% elif item.escolhida and alt.id == item.escolhida.id %}
-            <div class="q-opcao errada"><i class="fas fa-times"></i> {{ alt.texto }}</div>
+        {% if rq.corrigida %}
+            {% if rq.pontos_obtidos >= q.pontos * 0.5 %}
+            {% set cls = 'diss-corr' %}
             {% else %}
-            <div class="q-opcao neutra">{{ alt.texto }}</div>
+            {% set cls = 'diss-erro' %}
+            {% endif %}
+        {% else %}
+            {% set cls = 'diss-pend' %}
+        {% endif %}
+    {% else %}
+        {% set acertou = item.escolhida and item.correta and item.escolhida.id == item.correta.id %}
+        {% set cls = 'acerto' if acertou else 'erro' %}
+    {% endif %}
+
+    <div class="q-card {{ cls }}">
+        <div class="q-num">Quest&atilde;o {{ loop.index }}
+            {% if q.tipo == 'dissertativa' %} &bull; <span style="color:var(--purple)">Dissertativa</span>{% endif %}
+        </div>
+        <div class="q-enunc">{{ q.enunciado }}</div>
+
+        {% if q.tipo == 'dissertativa' %}
+        <div class="diss-resp">{{ rq.texto_resposta or '(sem resposta)' }}</div>
+        {% if rq.corrigida %}
+        <div class="pts-row">
+            Pontua&ccedil;&atilde;o: <strong style="color:{% if rq.pontos_obtidos >= q.pontos * 0.5 %}var(--green){% else %}var(--red){% endif %}">{{ rq.pontos_obtidos }}</strong> / {{ q.pontos }}
+        </div>
+        {% else %}
+        <div class="pts-row" style="color:var(--purple)"><i class="fas fa-hourglass-half"></i> Aguardando avalia&ccedil;&atilde;o do instrutor</div>
+        {% endif %}
+
+        {% else %}
+        {% for alt in q.alternativas|sort(attribute='ordem') %}
+            {% if item.correta and alt.id == item.correta.id %}
+            <div class="alt-row certa"><i class="fas fa-check-circle"></i> {{ alt.texto }}</div>
+            {% elif item.escolhida and alt.id == item.escolhida.id and not (item.correta and alt.id == item.correta.id) %}
+            <div class="alt-row errada"><i class="fas fa-times-circle"></i> {{ alt.texto }} <small>(sua resposta)</small></div>
+            {% else %}
+            <div class="alt-row neutra">{{ alt.texto }}</div>
             {% endif %}
         {% endfor %}
+        {% endif %}
     </div>
-    {% endif %}
     {% endfor %}
 
     <div class="acoes">
-        <a href="/aluno/provas" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Voltar às provas</a>
-        <a href="/aluno/dashboard" class="btn btn-outline"><i class="fas fa-home"></i> Dashboard</a>
+        <a href="/aluno/provas" class="btn btn-back"><i class="fas fa-arrow-left"></i> Voltar &agrave;s provas</a>
     </div>
+
 </div>
 {% endblock %}

@@ -1,357 +1,232 @@
-import os
-from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response
-from models import (
-    Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula,
-    ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno
-)
-from security import verificar_senha, aluno_login_required, hash_senha
+from flask import Blueprint, render_template, session, redirect, flash, request
 from db import db
-from app import limiter
-from sqlalchemy.exc import OperationalError
-
+from models import (
+    Aluno, Matricula, Mensalidade, Nota, Frequencia,
+    Materia, Conteudo, ProgressoAula, AcessoConteudoCurso,
+    RespostaProva
+)
+from security import aluno_login_required, hash_senha, verificar_senha
+from datetime import date, datetime
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 
-def _matriculas_ativas(aluno_id):
-    return (
-        Matricula.query
-        .filter(
-            Matricula.aluno_id == aluno_id,
-            db.func.upper(Matricula.status) == "ATIVA"
-        )
-        .order_by(Matricula.id.desc())
-        .all()
-    )
+def _get_aluno():
+    return db.get_or_404(Aluno, session["aluno_id"])
 
 
-def _matricula_ativa(aluno_id):
-    return (
-        Matricula.query
-        .filter(
-            Matricula.aluno_id == aluno_id,
-            db.func.upper(Matricula.status) == "ATIVA"
-        )
-        .order_by(Matricula.id.desc())
-        .first()
-    )
-
-
-def _curso_liberado(aluno_id, curso_id):
-    """Retorna True se o admin liberou acesso. Retorna True se a tabela nao existir (modo permissivo)."""
-    try:
-        from models import AcessoConteudoCurso
-        acesso = AcessoConteudoCurso.query.filter_by(
-            aluno_id=aluno_id, curso_id=curso_id
-        ).first()
-        # sem registro = bloqueado por padrao
-        return acesso is not None and acesso.liberado == 1
-    except OperationalError:
-        # tabela nao existe ainda: modo permissivo (libera tudo)
-        return True
-
-
-def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
-    matriculas = _matriculas_ativas(aluno_id)
-    for mat in matriculas:
-        if not _curso_liberado(aluno_id, mat.curso_id):
-            continue
-        vinculo = (
-            db.session.query(CursoMateria)
-            .filter(
-                CursoMateria.materia_id == conteudo.materia_id,
-                CursoMateria.curso_id   == mat.curso_id,
-            ).first()
-        )
-        if vinculo:
-            return True
-    return False
-
-
-def _contar_atrasadas(mensalidades):
-    hoje = date.today().strftime("%Y-%m-%d")
-    return sum(
-        1 for m in mensalidades
-        if m.status != "Pago" and m.vencimento and str(m.vencimento) < hoje
-    )
-
-
-def _registrar_login(aluno_id):
-    try:
-        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
-        if ip and "," in ip:
-            ip = ip.split(",")[0].strip()
-        ua = (request.headers.get("User-Agent") or "")[:300]
-        db.session.add(LoginHistoricoAluno(
-            aluno_id=aluno_id,
-            login_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            ip=ip, user_agent=ua
-        ))
-        db.session.commit()
-    except OperationalError:
-        db.session.rollback()  # tabela ainda nao existe, ignora silenciosamente
-
-
-# ──────────────────────── ROTAS ────────────────────────────────────────────
+# ── LOGIN / LOGOUT ────────────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
-@limiter.limit("10 per minute")
-def login_aluno():
+def aluno_login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        senha = request.form.get("senha", "")
-        aluno = Aluno.query.filter_by(email=email).first()
-        if aluno and aluno.senha and verificar_senha(senha, aluno.senha):
-            session.clear()
-            session.permanent = True
-            session["aluno_id"] = aluno.id
-            session["perfil"]   = "aluno"
-            _registrar_login(aluno.id)
-            return redirect("/aluno/dashboard")
-        flash("E-mail ou senha incorretos.", "erro")
+        cpf   = request.form.get("cpf", "").strip()
+        senha = request.form.get("senha", "").strip()
+        aluno = Aluno.query.filter_by(cpf=cpf).first()
+        if not aluno or not aluno.senha or not verificar_senha(senha, aluno.senha):
+            flash("CPF ou senha incorretos.", "erro")
+            return redirect("/aluno/login")
+        from models import LoginHistoricoAluno
+        db.session.add(LoginHistoricoAluno(
+            aluno_id=aluno.id,
+            login_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+        db.session.commit()
+        session["aluno_id"] = aluno.id
+        session["perfil"]   = "aluno"
+        return redirect("/aluno/dashboard")
     return render_template("aluno/login.html")
 
 
 @portal_aluno_bp.route("/logout")
-def logout_aluno():
+def aluno_logout():
     session.clear()
     return redirect("/aluno/login")
 
 
+# ── DASHBOARD ────────────────────────────────────────────────────────────────────────────
+
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
-def dashboard_aluno():
-    aluno        = db.get_or_404(Aluno, session["aluno_id"])
-    matricula    = _matricula_ativa(aluno.id)
-    mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
-    atrasadas    = _contar_atrasadas(mensalidades)
-    val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
+def aluno_dashboard():
+    aluno     = _get_aluno()
+    matricula = aluno.matricula_ativa
+    hoje      = date.today().isoformat()
 
-    ultimo_login = None
-    try:
-        logins = (
-            LoginHistoricoAluno.query
-            .filter_by(aluno_id=aluno.id)
-            .order_by(LoginHistoricoAluno.login_em.desc())
-            .limit(2).all()
-        )
-        ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
-    except OperationalError:
-        pass
+    atrasadas = sum(
+        1 for m in aluno.mensalidades
+        if m.status.upper() in ("PENDENTE", "ATRASADO") and m.vencimento and m.vencimento < hoje
+    )
 
-    return render_template("aluno/dashboard.html", aluno=aluno,
-        matricula=matricula, atrasadas=atrasadas, valor_pendente=val_pend,
-        ultimo_login=ultimo_login)
+    # Conta provas pendentes de correction ou disponíveis não feitas
+    from models import Prova
+    cursos_aluno = {
+        m.curso_id for m in aluno.matriculas
+        if m.status.upper() == "ATIVA"
+    }
+    provas_disp = 0
+    if cursos_aluno:
+        from models import Prova
+        provas_ativas = Prova.query.filter(
+            Prova.ativa == 1,
+            Prova.curso_id.in_(cursos_aluno)
+        ).all()
+        for p in provas_ativas:
+            tentativas_feitas = RespostaProva.query.filter_by(
+                prova_id=p.id, aluno_id=aluno.id
+            ).count()
+            if tentativas_feitas < p.tentativas:
+                provas_disp += 1
 
+    return render_template(
+        "aluno/dashboard.html",
+        aluno        = aluno,
+        matricula    = matricula,
+        atrasadas    = atrasadas,
+        provas_disp  = provas_disp,
+        ultimo_login = aluno.ultimo_login,
+    )
+
+
+# ── FINANCEIRO ────────────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
-def financeiro_aluno():
-    aluno        = db.get_or_404(Aluno, session["aluno_id"])
-    matricula    = _matricula_ativa(aluno.id)
-    mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
-    atrasadas    = _contar_atrasadas(mensalidades)
-    val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
-    return render_template("aluno/financeiro.html", aluno=aluno,
-        matricula=matricula, mensalidades=mensalidades,
-        atrasadas=atrasadas, valor_pendente=val_pend)
+def aluno_financeiro():
+    aluno = _get_aluno()
+    return render_template("aluno/financeiro.html",
+                           aluno=aluno,
+                           mensalidades=aluno.mensalidades)
 
 
-@portal_aluno_bp.route("/frequencia")
-@aluno_login_required
-def frequencia_aluno():
-    aluno       = db.get_or_404(Aluno, session["aluno_id"])
-    frequencias = Frequencia.query.filter_by(aluno_id=aluno.id).order_by(Frequencia.data.desc()).all()
-    return render_template("aluno/frequencia.html", aluno=aluno, frequencias=frequencias)
-
+# ── NOTAS / BOLETIM ────────────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
-def notas_aluno():
-    aluno     = db.get_or_404(Aluno, session["aluno_id"])
-    matricula = _matricula_ativa(aluno.id)
-    notas = []
-    media = None
-    if matricula:
-        rows = (
-            db.session.query(Materia, Nota)
-            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .outerjoin(
-                Nota,
-                (Nota.materia_id == Materia.id) &
-                (Nota.aluno_id   == aluno.id) &
-                (Nota.curso_id   == matricula.curso_id)
-            )
-            .filter(CursoMateria.curso_id == matricula.curso_id, Materia.ativa == 1)
-            .order_by(Materia.nome).all()
-        )
-        notas = [(nota, materia) for materia, nota in rows]
-        valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
-        if valores:
-            media = round(sum(valores) / len(valores), 1)
-    return render_template("aluno/notas.html", aluno=aluno,
-                           matricula=matricula, notas=notas, media=media)
+def aluno_notas():
+    aluno     = _get_aluno()
+    matricula = aluno.matricula_ativa
+    curso_id  = matricula.curso_id if matricula else None
 
+    notas_dict = {}
+    for n in aluno.notas:
+        notas_dict.setdefault(n.materia_id, []).append(n)
+
+    materias = []
+    if curso_id:
+        materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
+
+    # Provas realizadas pelo aluno para exibir no boletim
+    from models import Prova
+    provas_realizadas = (
+        db.session.query(RespostaProva)
+        .join(Prova, Prova.id == RespostaProva.prova_id)
+        .filter(
+            RespostaProva.aluno_id == aluno.id,
+            Prova.curso_id == curso_id,
+        )
+        .order_by(RespostaProva.finalizado_em.desc())
+        .all()
+    ) if curso_id else []
+
+    # Agrupa melhor nota por prova
+    melhor_por_prova = {}
+    for rp in provas_realizadas:
+        if rp.nota_obtida is not None:
+            ant = melhor_por_prova.get(rp.prova_id)
+            if ant is None or rp.nota_obtida > ant.nota_obtida:
+                melhor_por_prova[rp.prova_id] = rp
+
+    return render_template(
+        "aluno/notas.html",
+        aluno               = aluno,
+        matricula           = matricula,
+        notas_dict          = notas_dict,
+        materias            = materias,
+        provas_realizadas   = provas_realizadas,
+        melhor_por_prova    = melhor_por_prova,
+    )
+
+
+# ── FREQUÊNCIA ────────────────────────────────────────────────────────────────────────────
+
+@portal_aluno_bp.route("/frequencia")
+@aluno_login_required
+def aluno_frequencia():
+    aluno = _get_aluno()
+    freqs = sorted(aluno.frequencias, key=lambda f: f.data or "", reverse=True)
+    total    = len(freqs)
+    presente = sum(1 for f in freqs if f.status == "presente")
+    pct      = round(presente / total * 100) if total else 0
+    return render_template("aluno/frequencia.html",
+                           aluno=aluno, frequencias=freqs,
+                           total=total, presente=presente, pct=pct)
+
+
+# ── CONTEÚDO ────────────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
-def conteudo_cursos():
-    aluno      = db.get_or_404(Aluno, session["aluno_id"])
-    matriculas = _matriculas_ativas(aluno.id)
-
-    cursos_info = []
-    for mat in matriculas:
-        curso = db.session.get(Curso, mat.curso_id)
-        if not curso:
-            continue
-        liberado = _curso_liberado(aluno.id, curso.id)
-        total = concluidos = 0
-        if liberado:
-            try:
-                total = (
-                    db.session.query(Conteudo)
-                    .join(Materia,      Materia.id == Conteudo.materia_id)
-                    .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-                    .filter(CursoMateria.curso_id == curso.id)
-                    .count()
-                )
-                concluidos = (
-                    db.session.query(ProgressoAula)
-                    .join(Conteudo, Conteudo.id == ProgressoAula.conteudo_id)
-                    .join(Materia,  Materia.id  == Conteudo.materia_id)
-                    .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-                    .filter(
-                        CursoMateria.curso_id   == curso.id,
-                        ProgressoAula.aluno_id  == aluno.id,
-                        ProgressoAula.concluido == 1
-                    ).count()
-                )
-            except OperationalError:
-                pass
-        pct = round(concluidos / total * 100) if total > 0 else 0
-        cursos_info.append({
-            "curso":        curso,
-            "matricula":    mat,
-            "total":        total,
-            "concluidos":   concluidos,
-            "pct":          pct,
-            "liberado":     liberado,
-            "data_cadastro": getattr(mat, "data_cadastro", None),
-        })
-
-    return render_template("aluno/conteudo_cursos.html", aluno=aluno, cursos_info=cursos_info)
-
-
-@portal_aluno_bp.route("/conteudo/<int:curso_id>")
-@aluno_login_required
-def conteudo_aluno(curso_id):
-    aluno = db.get_or_404(Aluno, session["aluno_id"])
-    matricula = Matricula.query.filter(
-        Matricula.aluno_id == aluno.id,
-        Matricula.curso_id == curso_id,
-        db.func.upper(Matricula.status) == "ATIVA"
-    ).first()
+def aluno_conteudo():
+    aluno     = _get_aluno()
+    matricula = aluno.matricula_ativa
     if not matricula:
-        abort(403)
-    if not _curso_liberado(aluno.id, curso_id):
-        flash("O acesso ao conte\u00fado deste curso ainda n\u00e3o foi liberado. Entre em contato com a secretaria.", "aviso")
-        return redirect("/aluno/conteudo")
-    curso = db.get_or_404(Curso, curso_id)
-    conteudos = (
-        db.session.query(Conteudo, ProgressoAula)
-        .outerjoin(
-            ProgressoAula,
-            (ProgressoAula.conteudo_id == Conteudo.id) &
-            (ProgressoAula.aluno_id    == aluno.id)
-        )
-        .join(Materia,      Materia.id == Conteudo.materia_id)
-        .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-        .filter(CursoMateria.curso_id == curso_id)
-        .order_by(Materia.nome, Conteudo.data)
-        .all()
+        return render_template("aluno/conteudo_cursos.html", aluno=aluno, cursos=[])
+
+    acesso = AcessoConteudoCurso.query.filter_by(
+        aluno_id=aluno.id, curso_id=matricula.curso_id, liberado=1
+    ).first()
+    if not acesso:
+        flash("Seu acesso ao conteúdo ainda não foi liberado. Fale com a secretaria.", "erro")
+        return redirect("/aluno/dashboard")
+
+    materias  = Materia.query.filter_by(curso_id=matricula.curso_id, ativa=1).all()
+    conteudos = Conteudo.query.filter(
+        Conteudo.materia_id.in_([m.id for m in materias])
+    ).all()
+    progressos = {p.conteudo_id: p for p in
+                  ProgressoAula.query.filter_by(aluno_id=aluno.id).all()}
+    return render_template(
+        "aluno/conteudo.html",
+        aluno=aluno, materias=materias,
+        conteudos=conteudos, progressos=progressos,
     )
-    return render_template("aluno/conteudo.html",
-                           aluno=aluno, curso=curso, conteudos=conteudos)
 
 
-@portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
-@aluno_login_required
-def abrir_arquivo_conteudo(conteudo_id):
-    import mimetypes
-    conteudo = db.get_or_404(Conteudo, conteudo_id)
-    if not _aluno_pode_acessar_conteudo(session["aluno_id"], conteudo):
-        abort(403)
-    if not conteudo.arquivo:
-        abort(404)
-    arquivo = conteudo.arquivo.strip()
-    if arquivo.startswith("http://") or arquivo.startswith("https://"):
-        return redirect(arquivo)
-    base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    caminho    = arquivo.lstrip("/")
-    candidatos = [
-        os.path.join(base_dir, caminho),
-        os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
-        os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
-        os.path.join(base_dir, "uploads", os.path.basename(caminho)),
-    ]
-    for candidato in candidatos:
-        if os.path.isfile(candidato):
-            mime, _ = mimetypes.guess_type(candidato)
-            mime = mime or "application/octet-stream"
-            with open(candidato, "rb") as f:
-                dados = f.read()
-            resp = Response(dados, mimetype=mime)
-            resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
-            resp.headers["X-Content-Type-Options"] = "nosniff"
-            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
-            resp.headers["Pragma"]                 = "no-cache"
-            return resp
-    abort(404)
-
-
-@portal_aluno_bp.route("/concluir/<int:conteudo_id>")
+@portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>", methods=["POST"])
 @aluno_login_required
 def concluir_aula(conteudo_id):
-    conteudo = db.get_or_404(Conteudo, conteudo_id)
-    materia  = db.session.get(Materia, conteudo.materia_id)
-    curso_id = None
-    if materia:
-        cm = CursoMateria.query.filter_by(materia_id=materia.id).first()
-        if cm:
-            curso_id = cm.curso_id
-    p = ProgressoAula.query.filter_by(
-        aluno_id=session["aluno_id"], conteudo_id=conteudo_id).first()
-    if not p:
+    aluno = _get_aluno()
+    prog  = ProgressoAula.query.filter_by(
+        aluno_id=aluno.id, conteudo_id=conteudo_id
+    ).first()
+    if not prog:
         db.session.add(ProgressoAula(
-            aluno_id=session["aluno_id"], conteudo_id=conteudo_id, concluido=1
+            aluno_id=aluno.id, conteudo_id=conteudo_id, concluido=1
         ))
-    else:
-        p.concluido = 1
-    db.session.commit()
-    return redirect(f"/aluno/conteudo/{curso_id}" if curso_id else "/aluno/conteudo")
+        db.session.commit()
+    return redirect("/aluno/conteudo")
 
+
+# ── TROCAR SENHA ────────────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/senha", methods=["GET", "POST"])
 @aluno_login_required
-def trocar_senha():
-    aluno = db.get_or_404(Aluno, session["aluno_id"])
+def aluno_trocar_senha():
+    aluno = _get_aluno()
     if request.method == "POST":
-        atual    = request.form.get("senha_atual", "")
-        nova     = request.form.get("nova_senha", "").strip()
-        confirma = request.form.get("confirma_senha", "").strip()
+        atual  = request.form.get("atual",  "").strip()
+        nova   = request.form.get("nova",   "").strip()
+        repete = request.form.get("repete", "").strip()
         if not aluno.senha or not verificar_senha(atual, aluno.senha):
             flash("Senha atual incorreta.", "erro")
-            return render_template("aluno/trocar_senha.html", aluno=aluno)
-        if len(nova) < 6:
+        elif nova != repete:
+            flash("As senhas n\u00e3o coincidem.", "erro")
+        elif len(nova) < 6:
             flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
-            return render_template("aluno/trocar_senha.html", aluno=aluno)
-        if nova != confirma:
-            flash("As senhas n\u00e3o conferem.", "erro")
-            return render_template("aluno/trocar_senha.html", aluno=aluno)
-        aluno.senha = hash_senha(nova)
-        db.session.commit()
-        flash("Senha alterada com sucesso!", "sucesso")
-        return redirect("/aluno/dashboard")
+        else:
+            aluno.senha = hash_senha(nova)
+            db.session.commit()
+            flash("Senha alterada com sucesso!", "sucesso")
+            return redirect("/aluno/dashboard")
     return render_template("aluno/trocar_senha.html", aluno=aluno)

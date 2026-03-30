@@ -4,173 +4,278 @@
 {% block styles %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-body{ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364); min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff; }
-.wrap{ max-width:820px; margin:auto; padding:30px 20px 60px; }
-.prova-header{ background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:22px 26px; margin-bottom:28px; }
-.prova-header h2{ margin:0 0 6px; font-size:22px; }
-.prova-meta{ font-size:13px; opacity:.65; display:flex; gap:16px; flex-wrap:wrap; }
-.timer-box{
-    position:fixed; top:70px; right:20px;
-    background:rgba(0,0,0,.7); backdrop-filter:blur(10px);
-    border:1px solid rgba(255,255,255,.2); border-radius:12px;
-    padding:10px 18px; font-size:20px; font-weight:700;
-    color:#ffd700; z-index:999; letter-spacing:2px;
+:root{
+    --bg: #0f1923;
+    --card: rgba(255,255,255,.06);
+    --border: rgba(255,255,255,.12);
+    --accent: #00c6ff;
+    --green: #00ff9d;
+    --red: #ff4d4d;
+    --yellow: #ffd700;
+    --purple: #c77dff;
+    --warn: #ff9f43;
 }
-.timer-box.urgent{ color:#ff4d4d; animation:pulse .8s infinite; }
-@keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.5} }
-.questao-card{
-    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
-    border-radius:14px; padding:22px 24px; margin-bottom:20px;
+html,body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff; min-height:100vh; margin:0; }
+
+/* barra fixa no topo */
+#barra-topo {
+    position:fixed; top:0; left:0; right:0; z-index:999;
+    background:rgba(15,25,35,.92); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 24px; gap:12px;
+}
+#barra-topo h2 { margin:0; font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:55vw; }
+
+/* cronômetro */
+#cronometro {
+    display:flex; align-items:center; gap:7px;
+    font-size:18px; font-weight:700; letter-spacing:1px;
+    color:var(--accent); min-width:90px; justify-content:flex-end;
+}
+#cronometro.warn  { color:var(--warn); }
+#cronometro.crit  { color:var(--red); animation:pulsar .8s infinite alternate; }
+@keyframes pulsar { from{opacity:1} to{opacity:.4} }
+
+/* barra de progresso superior */
+#barra-prog {
+    position:fixed; top:52px; left:0; right:0; z-index:998;
+    height:3px; background:rgba(255,255,255,.1);
+}
+#barra-prog-fill {
+    height:100%; background:linear-gradient(90deg,var(--accent),var(--purple));
+    transition:width .4s;
+}
+
+.wrap { max-width:760px; margin:auto; padding:80px 20px 60px; }
+
+/* card de cada questão */
+.q-wrap {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:22px 24px; margin-bottom:18px;
     transition:.3s;
 }
-.questao-card:focus-within{ border-color:#00c6ff; background:rgba(0,198,255,.06); }
-.questao-num{ font-size:12px; opacity:.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
-.questao-enunciado{ font-size:16px; line-height:1.6; margin-bottom:16px; }
-.questao-pontos{ font-size:12px; opacity:.5; margin-bottom:14px; }
-.alternativas{ display:flex; flex-direction:column; gap:10px; }
-.alt-label{
+.q-wrap.respondida { border-color:rgba(0,198,255,.4); }
+.q-num { font-size:11px; opacity:.45; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.q-enunc { font-size:15px; line-height:1.65; margin-bottom:16px; }
+
+/* alternativas */
+.alt-label {
     display:flex; align-items:center; gap:12px;
-    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
-    border-radius:10px; padding:12px 16px; cursor:pointer; transition:.25s;
+    padding:11px 14px; border-radius:10px; margin-bottom:8px;
+    border:1px solid rgba(255,255,255,.1); cursor:pointer;
+    font-size:14px; transition:.2s;
+    background:rgba(255,255,255,.03);
 }
-.alt-label:hover{ background:rgba(0,198,255,.1); border-color:#00c6ff; }
-.alt-label input{ accent-color:#00c6ff; width:16px; height:16px; flex-shrink:0; }
-.alt-label input:checked ~ span{ color:#00c6ff; font-weight:600; }
-.dissertativa textarea{
-    width:100%; min-height:120px; background:rgba(255,255,255,.06);
-    border:1px solid rgba(255,255,255,.15); border-radius:10px;
-    padding:12px; color:#fff; font-size:15px; resize:vertical;
-    font-family:inherit;
+.alt-label:hover { background:rgba(0,198,255,.1); border-color:var(--accent); }
+.alt-label input[type=radio] { display:none; }
+.alt-label.selecionada { background:rgba(0,198,255,.15); border-color:var(--accent); }
+.alt-letra {
+    width:26px; height:26px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; flex-shrink:0;
+    transition:.2s;
 }
-.dissertativa textarea:focus{ outline:none; border-color:#00c6ff; }
-.btn-submit{
-    width:100%; padding:16px; border-radius:12px; font-size:17px; font-weight:700;
-    background:linear-gradient(135deg,#00c6ff,#0072ff); color:#fff;
-    border:none; cursor:pointer; transition:.3s; margin-top:10px;
-    display:flex; align-items:center; justify-content:center; gap:10px;
+.alt-label.selecionada .alt-letra { background:var(--accent); border-color:var(--accent); color:#0f1923; }
+
+/* dissertativa */
+.diss-textarea {
+    width:100%; padding:12px 14px; border-radius:10px;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
+    color:#fff; font-size:14px; min-height:120px; resize:vertical;
+    font-family:inherit; line-height:1.6; box-sizing:border-box;
 }
-.btn-submit:hover{ opacity:.88; transform:translateY(-2px); }
-.alerta-sem-resp{
-    background:rgba(255,77,77,.15); border:1px solid #ff4d4d;
-    border-radius:10px; padding:12px 16px; margin-bottom:20px;
-    display:none; color:#ff4d4d; font-size:14px;
+.diss-textarea:focus { outline:none; border-color:var(--purple); }
+.diss-counter { font-size:11px; opacity:.4; text-align:right; margin-top:4px; }
+
+/* rodapé fixo */
+#rodape-fixo {
+    position:fixed; bottom:0; left:0; right:0; z-index:999;
+    background:rgba(15,25,35,.92); backdrop-filter:blur(10px);
+    border-top:1px solid var(--border);
+    padding:12px 24px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
 }
+.resp-resumo { display:flex; gap:6px; flex-wrap:wrap; }
+.bolinha {
+    width:10px; height:10px; border-radius:50%;
+    background:rgba(255,255,255,.2);
+    transition:.3s;
+}
+.bolinha.ok { background:var(--green); }
+
+.btn-enviar {
+    background:linear-gradient(135deg,var(--accent),#0072ff);
+    color:#fff; border:none; padding:12px 28px;
+    border-radius:10px; font-size:15px; font-weight:700;
+    cursor:pointer; transition:.25s; white-space:nowrap;
+}
+.btn-enviar:hover { opacity:.85; transform:scale(1.03); }
+.btn-enviar:disabled { opacity:.4; cursor:not-allowed; transform:none; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="wrap">
-
+<div id="barra-topo">
+    <h2>&#128221; {{ prova.titulo }}</h2>
     {% if prova.tempo_limite %}
-    <div class="timer-box" id="timer">--:--</div>
+    <div id="cronometro"><i class="fas fa-clock"></i> <span id="tempo-txt">--:--</span></div>
+    {% else %}
+    <div style="font-size:12px;opacity:.4">Sem limite de tempo</div>
+    {% endif %}
+</div>
+<div id="barra-prog"><div id="barra-prog-fill" style="width:0%"></div></div>
+
+<div class="wrap">
+    {% if prova.descricao %}
+    <div style="background:rgba(0,198,255,.08);border:1px solid rgba(0,198,255,.2);border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:14px;opacity:.9">
+        <i class="fas fa-info-circle" style="color:var(--accent)"></i> {{ prova.descricao }}
+    </div>
     {% endif %}
 
-    <div class="prova-header">
-        <h2><i class="fas fa-file-alt" style="color:#fd79a8"></i> {{ prova.titulo }}</h2>
-        {% if prova.descricao %}<p style="opacity:.7;margin:4px 0 8px">{{ prova.descricao }}</p>{% endif %}
-        <div class="prova-meta">
-            <span><i class="fas fa-question-circle"></i> {{ questoes|length }} questões</span>
-            <span><i class="fas fa-star-half-alt"></i> Nota mínima: {{ prova.nota_minima }}</span>
-            {% if prova.tempo_limite %}<span><i class="fas fa-clock"></i> Tempo: {{ prova.tempo_limite }} minutos</span>{% endif %}
-        </div>
-    </div>
-
-    <div class="alerta-sem-resp" id="alerta">&#9888; Responda todas as questões objetivas antes de enviar.</div>
-
-    <form method="POST" id="forma-prova">
+    <form method="POST" id="formProva">
         <input type="hidden" name="iniciado_em" id="iniciado_em">
 
         {% for q in questoes %}
-        <div class="questao-card">
-            <div class="questao-num">Questão {{ loop.index }}</div>
-            <div class="questao-enunciado">{{ q.enunciado }}</div>
-            <div class="questao-pontos">{{ q.pontos }} ponto{{ 's' if q.pontos != 1 }}</div>
+        <div class="q-wrap" id="qwrap-{{ loop.index0 }}" data-idx="{{ loop.index0 }}">
+            <div class="q-num">Quest&atilde;o {{ loop.index }} de {{ questoes|length }}
+                {% if q.tipo == 'dissertativa' %}
+                &nbsp;&bull;&nbsp;<span style="color:var(--purple)">Dissertativa</span>
+                {% endif %}
+            </div>
+            <div class="q-enunc">{{ q.enunciado }}</div>
 
             {% if q.tipo == 'dissertativa' %}
-            <div class="dissertativa">
-                <textarea name="questao_{{ q.id }}" placeholder="Digite sua resposta aqui..."></textarea>
-            </div>
+            <textarea
+                class="diss-textarea"
+                name="questao_{{ q.id }}"
+                id="diss_{{ q.id }}"
+                placeholder="Digite sua resposta aqui&hellip;"
+                oninput="onDiss({{ loop.index0 }}, this)"
+            ></textarea>
+            <div class="diss-counter" id="diss-cnt-{{ loop.index0 }}">0 caracteres</div>
 
-            {% elif q.tipo == 'verdadeiro_falso' %}
-            <div class="alternativas">
-                {% for alt in q.alternativas|sort(attribute='ordem') %}
-                <label class="alt-label">
-                    <input type="radio" name="questao_{{ q.id }}" value="{{ alt.id }}" required>
-                    <span>{{ alt.texto }}</span>
-                </label>
-                {% endfor %}
-            </div>
-
-            {% else %}{# múltipla escolha #}
-            <div class="alternativas">
-                {% for alt in q.alternativas|sort(attribute='ordem') %}
-                <label class="alt-label">
-                    <input type="radio" name="questao_{{ q.id }}" value="{{ alt.id }}" required>
-                    <span>{{ alt.texto }}</span>
-                </label>
-                {% endfor %}
-            </div>
+            {% else %}
+            {% set letras = ['A','B','C','D','E','F','G','H'] %}
+            {% for alt in q.alternativas|sort(attribute='ordem') %}
+            <label class="alt-label" id="alt-lbl-{{ q.id }}-{{ alt.id }}"
+                   onclick="selecionarAlternativa({{ loop.index0 }}, {{ loop.index - 1 }}, '{{ q.id }}-{{ alt.id }}')">
+                <input type="radio" name="questao_{{ q.id }}" value="{{ alt.id }}"
+                       id="radio-{{ q.id }}-{{ alt.id }}">
+                <span class="alt-letra">{{ letras[loop.index0] }}</span>
+                <span>{{ alt.texto }}</span>
+            </label>
+            {% endfor %}
             {% endif %}
         </div>
         {% endfor %}
 
-        <button type="submit" class="btn-submit" id="btn-enviar">
-            <i class="fas fa-paper-plane"></i> Enviar Prova
-        </button>
+        <div style="height:70px"></div>{# espaco rodape #}
     </form>
 </div>
-{% endblock %}
 
-{% block scripts %}
+<div id="rodape-fixo">
+    <div class="resp-resumo" id="resp-resumo">
+        {% for q in questoes %}
+        <div class="bolinha" id="bolinha-{{ loop.index0 }}"></div>
+        {% endfor %}
+    </div>
+    <button type="button" class="btn-enviar" id="btnEnviar" onclick="confirmarEnvio()">
+        <i class="fas fa-paper-plane"></i> Enviar prova
+    </button>
+</div>
+
 <script>
-// Marca horário de início
+const TOTAL_QUESTOES = {{ questoes|length }};
+const TEMPO_LIMITE   = {{ prova.tempo_limite or 'null' }}; // minutos
+let respondidas = new Array(TOTAL_QUESTOES).fill(false);
+let tempoRestante;
+
+// Registra hora de início
 document.getElementById('iniciado_em').value = new Date().toISOString().slice(0,19).replace('T',' ');
 
-{% if prova.tempo_limite %}
-// Timer
-const TEMPO_SEG = {{ prova.tempo_limite }} * 60;
-let restante   = TEMPO_SEG;
-const timerEl  = document.getElementById('timer');
-const form     = document.getElementById('forma-prova');
-
-function formatar(s){
-    const m = Math.floor(s/60).toString().padStart(2,'0');
-    const seg = (s%60).toString().padStart(2,'0');
-    return m+':'+seg;
+// ── Progresso ───────────────────────────────────────────────────────────────
+function atualizarProgresso() {
+    const feitas = respondidas.filter(Boolean).length;
+    document.getElementById('barra-prog-fill').style.width = (feitas / TOTAL_QUESTOES * 100) + '%';
+    // bolinhas
+    for (let i = 0; i < TOTAL_QUESTOES; i++) {
+        document.getElementById('bolinha-' + i)?.classList.toggle('ok', respondidas[i]);
+    }
 }
 
-const tick = setInterval(function(){
-    restante--;
-    timerEl.textContent = formatar(restante);
-    if(restante <= 60) timerEl.classList.add('urgent');
-    if(restante <= 0){
-        clearInterval(tick);
-        timerEl.textContent = '00:00';
-        form.submit();
-    }
-}, 1000);
+// ── Selecionar alternativa ───────────────────────────────────────────────────
+function selecionarAlternativa(qIdx, altIdxLocal, labelKey) {
+    // desmarca visuais anteriores da questão
+    const qWrap = document.getElementById('qwrap-' + qIdx);
+    qWrap.querySelectorAll('.alt-label').forEach(l => l.classList.remove('selecionada'));
+    // marca o radio e o label
+    const radio = document.getElementById('radio-' + labelKey);
+    if (radio) radio.checked = true;
+    document.getElementById('alt-lbl-' + labelKey)?.classList.add('selecionada');
+    qWrap.classList.add('respondida');
+    respondidas[qIdx] = true;
+    atualizarProgresso();
+}
 
-timerEl.textContent = formatar(TEMPO_SEG);
-{% endif %}
+// ── Dissertativa ─────────────────────────────────────────────────────────────
+function onDiss(qIdx, el) {
+    const cnt = el.value.trim().length;
+    document.getElementById('diss-cnt-' + qIdx).textContent = cnt + ' caracteres';
+    respondidas[qIdx] = cnt > 0;
+    const wrap = document.getElementById('qwrap-' + qIdx);
+    wrap?.classList.toggle('respondida', cnt > 0);
+    atualizarProgresso();
+}
 
-// Validação antes de enviar
-document.getElementById('forma-prova').addEventListener('submit', function(e){
-    const objetivas = document.querySelectorAll('input[type=radio]');
-    const nomes = new Set([...objetivas].map(r => r.name));
-    let ok = true;
-    nomes.forEach(function(nome){
-        const marcado = document.querySelector('input[name="'+nome+'"]:checked');
-        if(!marcado) ok = false;
-    });
-    if(!ok){
-        e.preventDefault();
-        const alerta = document.getElementById('alerta');
-        alerta.style.display = 'block';
-        alerta.scrollIntoView({behavior:'smooth'});
-    } else {
-        document.getElementById('btn-enviar').disabled = true;
-        document.getElementById('btn-enviar').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+// ── Cronômetro ───────────────────────────────────────────────────────────────
+if (TEMPO_LIMITE) {
+    tempoRestante = TEMPO_LIMITE * 60; // em segundos
+    const elTxt = document.getElementById('tempo-txt');
+    const elCron = document.getElementById('cronometro');
+
+    function formatarTempo(s) {
+        const m = Math.floor(s / 60).toString().padStart(2,'0');
+        const sec = (s % 60).toString().padStart(2,'0');
+        return m + ':' + sec;
     }
-});
+
+    elTxt.textContent = formatarTempo(tempoRestante);
+
+    const timer = setInterval(() => {
+        tempoRestante--;
+        elTxt.textContent = formatarTempo(tempoRestante);
+
+        // avisos visuais
+        const pct = tempoRestante / (TEMPO_LIMITE * 60);
+        if (pct <= 0.10) {
+            elCron.className = 'crit';
+        } else if (pct <= 0.25) {
+            elCron.className = 'warn';
+        }
+
+        if (tempoRestante <= 0) {
+            clearInterval(timer);
+            document.getElementById('formProva').submit();
+        }
+    }, 1000);
+}
+
+// ── Confirmar envio ──────────────────────────────────────────────────────────
+function confirmarEnvio() {
+    const feitas = respondidas.filter(Boolean).length;
+    const faltam = TOTAL_QUESTOES - feitas;
+    if (faltam > 0) {
+        const ok = confirm(
+            `Voc\u00ea deixou ${faltam} quest\u00e3o(oes) sem resposta.\nDeseja enviar assim mesmo?`
+        );
+        if (!ok) return;
+    }
+    document.getElementById('btnEnviar').disabled = true;
+    document.getElementById('formProva').submit();
+}
+
+atualizarProgresso();
 </script>
 {% endblock %}

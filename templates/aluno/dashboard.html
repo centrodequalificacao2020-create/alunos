@@ -18,27 +18,13 @@ body {
     padding: 30px 20px 10px;
     color: #fff;
 }
-.aluno-header h1 {
-    font-size: 22px;
-    font-weight: 600;
-    margin: 0 0 4px;
-}
-.aluno-header p {
-    opacity: 0.65;
-    margin: 0;
-    font-size: 14px;
-}
+.aluno-header h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.aluno-header p  { opacity: 0.65; margin: 0; font-size: 14px; }
 .ultimo-login {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-    font-size: 12px;
-    color: rgba(255,255,255,.45);
-    background: rgba(255,255,255,.07);
-    border: 1px solid rgba(255,255,255,.12);
-    border-radius: 999px;
-    padding: 3px 12px 3px 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px; font-size: 12px; color: rgba(255,255,255,.45);
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 999px; padding: 3px 12px 3px 8px;
 }
 .ultimo-login i { font-size: 11px; color: rgba(255,255,255,.35); }
 .aluno-grid {
@@ -54,26 +40,18 @@ body {
 .home-card {
     background: linear-gradient(145deg, rgba(0,198,255,.25), rgba(0,120,255,.15));
     backdrop-filter: blur(15px);
-    border-radius: 20px;
-    padding: 30px;
-    text-align: center;
-    cursor: pointer;
-    transition: .35s;
+    border-radius: 20px; padding: 30px; text-align: center;
+    cursor: pointer; transition: .35s;
     border: 1px solid rgba(255,255,255,.15);
     box-shadow: 0 5px 20px rgba(0,0,0,.3);
-    position: relative;
-    overflow: hidden;
-    text-decoration: none;
-    display: block;
+    position: relative; overflow: hidden;
+    text-decoration: none; display: block;
 }
 .home-card::before {
-    content: '';
-    position: absolute;
-    width: 150%; height: 150%;
-    top: -50%; left: -50%;
+    content: ''; position: absolute;
+    width: 150%; height: 150%; top: -50%; left: -50%;
     background: radial-gradient(circle, rgba(255,255,255,.15), transparent 60%);
-    opacity: 0;
-    transition: .4s;
+    opacity: 0; transition: .4s;
 }
 .home-card:hover::before { opacity: 1; }
 .home-card:hover {
@@ -81,46 +59,27 @@ body {
     box-shadow: 0 20px 40px rgba(0,0,0,.6);
     background: linear-gradient(145deg, rgba(0,198,255,.45), rgba(0,120,255,.25));
 }
-.home-card i {
-    font-size: 38px;
-    margin-bottom: 12px;
-    display: block;
-    transition: .3s;
-}
-.home-card:hover i { transform: scale(1.2) rotate(5deg); }
-.home-card span {
-    font-weight: 600;
-    font-size: 15px;
-    color: #fff;
-    letter-spacing: .5px;
-    display: block;
-}
-.home-card small {
-    display: block;
-    margin-top: 6px;
-    font-size: 12px;
-    color: rgba(255,255,255,.6);
-}
+.home-card i      { font-size: 38px; margin-bottom: 12px; display: block; transition: .3s; }
+.home-card:hover i{ transform: scale(1.2) rotate(5deg); }
+.home-card span   { font-weight: 600; font-size: 15px; color: #fff; letter-spacing: .5px; display: block; }
+.home-card small  { display: block; margin-top: 6px; font-size: 12px; color: rgba(255,255,255,.6); }
 .badge-atraso {
-    display: inline-block;
-    margin-top: 6px;
-    background: #ff4d4d;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 10px;
-    border-radius: 999px;
-    letter-spacing: .4px;
+    display: inline-block; margin-top: 6px;
+    background: #ff4d4d; color: #fff;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: .4px;
 }
 .badge-ok {
-    display: inline-block;
-    margin-top: 6px;
-    background: #00ff9d;
-    color: #0f2027;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 10px;
-    border-radius: 999px;
+    display: inline-block; margin-top: 6px;
+    background: #00ff9d; color: #0f2027;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 10px; border-radius: 999px;
+}
+.badge-provas {
+    display: inline-block; margin-top: 6px;
+    background: #c77dff; color: #fff;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 10px; border-radius: 999px; letter-spacing: .4px;
 }
 .c1{color:#00c6ff;} .c2{color:#ffd700;} .c3{color:#00ff9d;}
 .c4{color:#c77dff;} .c5{color:#ff9f43;} .c6{color:#ff4d4d;}
@@ -148,9 +107,9 @@ body {
         <i class="fas fa-dollar-sign c2"></i>
         <span>Financeiro</span>
         {% if atrasadas > 0 %}
-        <span class="badge-atraso">Voc&ecirc; tem {{ atrasadas }} em atraso</span>
+        <span class="badge-atraso">{{ atrasadas }} em atraso</span>
         {% else %}
-        <span class="badge-ok">Voc&ecirc; est&aacute; em dia &#10004;</span>
+        <span class="badge-ok">Em dia &#10004;</span>
         {% endif %}
     </a>
 
@@ -169,7 +128,11 @@ body {
     <a href="/aluno/provas" class="home-card">
         <i class="fas fa-file-alt c9"></i>
         <span>Provas</span>
+        {% if provas_disp > 0 %}
+        <span class="badge-provas">{{ provas_disp }} dispon&iacute;vel{{ 'is' if provas_disp > 1 else '' }}</span>
+        {% else %}
         <small>Exerc&iacute;cios e avalia&ccedil;&otilde;es</small>
+        {% endif %}
     </a>
 
     <a href="/aluno/frequencia" class="home-card">

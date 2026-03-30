@@ -5,109 +5,171 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 :root{
-    --bg:      #0f2027;
-    --card:    rgba(255,255,255,.07);
-    --border:  rgba(255,255,255,.12);
-    --accent:  #00c6ff;
-    --green:   #00ff9d;
-    --red:     #ff4d4d;
-    --yellow:  #ffd700;
+    --bg:#0f1923; --card:rgba(255,255,255,.06); --border:rgba(255,255,255,.12);
+    --accent:#00c6ff; --green:#00ff9d; --red:#ff4d4d;
+    --yellow:#ffd700; --purple:#c77dff; --warn:#ff9f43;
 }
-body{ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364); min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff; }
-.wrap{ max-width:900px; margin:auto; padding:30px 20px; }
-h2{ font-size:24px; margin-bottom:4px; }
-.sub{ opacity:.6; font-size:14px; margin-bottom:30px; }
-.prova-card{
+body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff; min-height:100vh; }
+.wrap { max-width:800px; margin:auto; padding:30px 20px 60px; }
+
+/* cabeçalho */
+.page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:28px; }
+.page-header h1 { margin:0; font-size:20px; }
+.voltar { display:inline-flex; align-items:center; gap:6px; color:rgba(255,255,255,.55); font-size:13px; text-decoration:none; transition:.2s; }
+.voltar:hover { color:#fff; }
+
+/* pill status */
+.pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 12px; border-radius:999px; font-size:12px; font-weight:700;
+}
+.pill-ok     { background:rgba(0,255,157,.12);  color:var(--green);  border:1px solid var(--green); }
+.pill-err    { background:rgba(255,77,77,.12);   color:var(--red);    border:1px solid var(--red); }
+.pill-pend   { background:rgba(199,125,255,.12); color:var(--purple); border:1px solid var(--purple); }
+.pill-disp   { background:rgba(0,198,255,.12);   color:var(--accent); border:1px solid var(--accent); }
+.pill-esgot  { background:rgba(255,255,255,.06); color:#888;          border:1px solid rgba(255,255,255,.15); }
+
+/* card de prova */
+.prova-card {
     background:var(--card); border:1px solid var(--border);
-    border-radius:16px; padding:22px 24px; margin-bottom:18px;
-    display:flex; align-items:center; gap:20px; transition:.3s;
+    border-radius:16px; padding:20px 22px; margin-bottom:16px;
+    display:flex; flex-direction:column; gap:14px;
 }
-.prova-card:hover{ background:rgba(0,198,255,.12); border-color:var(--accent); }
-.prova-icon{ font-size:32px; min-width:44px; text-align:center; }
-.prova-info{ flex:1; }
-.prova-info h3{ margin:0 0 4px; font-size:17px; }
-.prova-meta{ font-size:13px; opacity:.65; display:flex; gap:14px; flex-wrap:wrap; }
-.prova-meta span{ display:flex; align-items:center; gap:5px; }
-.badge{
-    display:inline-block; padding:3px 10px; border-radius:20px;
-    font-size:12px; font-weight:600; white-space:nowrap;
+.prova-card.ativa-card { border-left:4px solid var(--accent); }
+.prova-card.concluida  { border-left:4px solid var(--green); }
+.prova-card.reprovada  { border-left:4px solid var(--red); }
+.prova-card.pendente   { border-left:4px solid var(--purple); }
+.prova-card.esgotada   { border-left:4px solid #555; opacity:.65; }
+
+.prova-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.prova-titulo { font-size:16px; font-weight:700; margin:0 0 4px; }
+.prova-meta   { font-size:12px; opacity:.5; display:flex; flex-wrap:wrap; gap:8px; }
+.prova-meta span { display:inline-flex; align-items:center; gap:4px; }
+
+/* barra de tentativas */
+.tent-barra { display:flex; gap:5px; align-items:center; }
+.tent-bola {
+    width:12px; height:12px; border-radius:50%;
+    background:rgba(255,255,255,.15);
 }
-.badge-ok   { background:rgba(0,255,157,.15); color:var(--green); border:1px solid var(--green); }
-.badge-err  { background:rgba(255,77,77,.15);  color:var(--red);   border:1px solid var(--red); }
-.badge-pend { background:rgba(255,215,0,.15);  color:var(--yellow);border:1px solid var(--yellow); }
-.badge-nova { background:rgba(0,198,255,.15);  color:var(--accent);border:1px solid var(--accent); }
-.btn{
-    padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600;
-    text-decoration:none; border:none; cursor:pointer; transition:.25s;
+.tent-bola.usada { background:var(--warn); }
+.tent-bola.aprov  { background:var(--green); }
+.tent-bola.reprov { background:var(--red); }
+
+.prova-acoes { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.btn {
     display:inline-flex; align-items:center; gap:7px;
+    padding:9px 20px; border-radius:9px; font-size:14px; font-weight:600;
+    cursor:pointer; text-decoration:none; border:none; transition:.25s;
 }
-.btn-primary{ background:var(--accent); color:#000; }
-.btn-primary:hover{ opacity:.85; }
-.btn-disabled{ background:rgba(255,255,255,.1); color:rgba(255,255,255,.35); cursor:not-allowed; }
-.empty{ text-align:center; padding:60px 20px; opacity:.5; }
-.empty i{ font-size:48px; display:block; margin-bottom:16px; }
+.btn-iniciar  { background:linear-gradient(135deg,var(--accent),#0072ff); color:#fff; }
+.btn-iniciar:hover { opacity:.85; }
+.btn-resultado{ background:rgba(255,255,255,.08); color:#fff; border:1px solid var(--border); }
+.btn-resultado:hover { background:rgba(255,255,255,.15); }
+
+.empty-box {
+    text-align:center; padding:60px 20px; opacity:.4; font-size:15px;
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="wrap">
-    <h2><i class="fas fa-file-alt" style="color:#fd79a8"></i> Minhas Provas e Exercícios</h2>
-    <p class="sub">Olá, {{ aluno.nome.split()[0] }}! Veja as provas disponíveis para seus cursos.</p>
 
-    {% if not provas %}
-    <div class="empty">
-        <i class="fas fa-inbox"></i>
-        <p>Nenhuma prova disponível no momento.</p>
-        <p style="font-size:13px">Novas provas aparecerão aqui quando forem ativadas pelo instrutor.</p>
-    </div>
-    {% else %}
-    {% for item in provas %}
-    {% set p = item.prova %}
-    <div class="prova-card">
-        <div class="prova-icon">
-            {% if item.ultima and item.ultima.aprovado == 1 %}
-                <i class="fas fa-check-circle" style="color:#00ff9d"></i>
-            {% elif item.ultima and item.ultima.aprovado == 0 and item.ultima.finalizado_em %}
-                <i class="fas fa-times-circle" style="color:#ff4d4d"></i>
-            {% else %}
-                <i class="fas fa-file-alt" style="color:#00c6ff"></i>
-            {% endif %}
+    <div class="page-header">
+        <div>
+            <a href="/aluno/dashboard" class="voltar"><i class="fas fa-arrow-left"></i> Dashboard</a>
+            <h1 style="margin-top:6px">&#128221; Minhas Provas</h1>
         </div>
-        <div class="prova-info">
-            <h3>{{ p.titulo }}</h3>
-            {% if p.descricao %}<p style="font-size:13px;opacity:.7;margin:2px 0 6px">{{ p.descricao }}</p>{% endif %}
-            <div class="prova-meta">
-                <span><i class="fas fa-question-circle"></i> {{ p.total_questoes }} questões</span>
-                <span><i class="fas fa-star-half-alt"></i> Mínimo {{ p.nota_minima }}</span>
-                {% if p.tempo_limite %}<span><i class="fas fa-clock"></i> {{ p.tempo_limite }} min</span>{% endif %}
-                <span><i class="fas fa-redo"></i> Tentativas: {{ item.tentativas_feitas }}/{{ p.tentativas }}</span>
-                {% if item.ultima %}
-                    <span>
-                        {% if item.ultima.aprovado == 1 %}
-                            <span class="badge badge-ok">Aprovado &mdash; {{ item.ultima.nota_obtida }}</span>
-                        {% elif item.ultima.aprovado == 0 and item.ultima.nota_obtida is not none %}
-                            <span class="badge badge-err">Reprovado &mdash; {{ item.ultima.nota_obtida }}</span>
-                        {% else %}
-                            <span class="badge badge-pend">Aguardando correção</span>
-                        {% endif %}
-                    </span>
+    </div>
+
+    {% if provas %}
+    {% for item in provas %}
+    {% set p  = item.prova %}
+    {% set tf = item.tentativas_feitas %}
+    {% set ul = item.ultima %}
+
+    {# define classe do card #}
+    {% if ul and ul.aprovado == 1 %}
+        {% set card_cls = 'concluida' %}
+    {% elif ul and ul.aprovado == 0 and not item.pode_fazer %}
+        {% set card_cls = 'reprovada' %}
+    {% elif ul and ul.nota_obtida is none %}
+        {% set card_cls = 'pendente' %}
+    {% elif not item.pode_fazer %}
+        {% set card_cls = 'esgotada' %}
+    {% else %}
+        {% set card_cls = 'ativa-card' %}
+    {% endif %}
+
+    <div class="prova-card {{ card_cls }}">
+        <div class="prova-top">
+            <div>
+                <div class="prova-titulo">{{ p.titulo }}</div>
+                <div class="prova-meta">
+                    {% if p.materia %}<span><i class="fas fa-book"></i> {{ p.materia.nome }}</span>{% endif %}
+                    <span><i class="fas fa-star"></i> Nota m&iacute;n. {{ p.nota_minima }}</span>
+                    {% if p.tempo_limite %}<span><i class="fas fa-clock"></i> {{ p.tempo_limite }} min</span>{% else %}<span><i class="fas fa-infinity"></i> Sem limite</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                {% if ul and ul.aprovado == 1 %}
+                    <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ '%.1f'|format(ul.nota_obtida) }}</span>
+                {% elif ul and ul.aprovado == 0 %}
+                    <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ '%.1f'|format(ul.nota_obtida) }}</span>
+                {% elif ul and ul.nota_obtida is none %}
+                    <span class="pill pill-pend"><i class="fas fa-hourglass-half"></i> Aguardando corre&ccedil;&atilde;o</span>
+                {% elif item.pode_fazer %}
+                    <span class="pill pill-disp"><i class="fas fa-play"></i> Dispon&iacute;vel</span>
                 {% else %}
-                    <span class="badge badge-nova">Nova</span>
+                    <span class="pill pill-esgot"><i class="fas fa-lock"></i> Tentativas esgotadas</span>
                 {% endif %}
             </div>
         </div>
-        <div>
+
+        {# barra de tentativas #}
+        <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:12px;opacity:.45">Tentativas:</span>
+            <div class="tent-barra">
+                {% for i in range(p.tentativas) %}
+                    {% if i < tf %}
+                        {% if ul and ul.aprovado == 1 and i == tf - 1 %}
+                        <div class="tent-bola aprov" title="Aprovado"></div>
+                        {% elif ul and ul.aprovado == 0 and i == tf - 1 %}
+                        <div class="tent-bola reprov" title="Reprovado"></div>
+                        {% else %}
+                        <div class="tent-bola usada" title="Usada"></div>
+                        {% endif %}
+                    {% else %}
+                    <div class="tent-bola" title="Dispon&iacute;vel"></div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <span style="font-size:12px;opacity:.35">{{ tf }}/{{ p.tentativas }}</span>
+        </div>
+
+        <div class="prova-acoes">
             {% if item.pode_fazer %}
-            <a href="/aluno/provas/{{ p.id }}/realizar" class="btn btn-primary">
-                <i class="fas fa-play"></i>
-                {% if item.tentativas_feitas == 0 %}Iniciar{% else %}Tentar novamente{% endif %}
+            <a href="/aluno/provas/{{ p.id }}/realizar" class="btn btn-iniciar">
+                <i class="fas fa-{{ 'redo' if tf > 0 else 'play' }}"></i>
+                {{ 'Nova tentativa' if tf > 0 else 'Iniciar prova' }}
             </a>
-            {% else %}
-            <span class="btn btn-disabled"><i class="fas fa-lock"></i> Esgotado</span>
+            {% endif %}
+            {% if ul %}
+            <a href="/aluno/provas/{{ p.id }}/resultado/{{ ul.id }}" class="btn btn-resultado">
+                <i class="fas fa-chart-bar"></i> Ver &uacute;ltimo resultado
+            </a>
             {% endif %}
         </div>
     </div>
     {% endfor %}
+
+    {% else %}
+    <div class="empty-box">
+        <i class="fas fa-file-alt" style="font-size:48px;display:block;margin-bottom:16px"></i>
+        Nenhuma prova dispon&iacute;vel para seu curso no momento.
+    </div>
     {% endif %}
+
 </div>
 {% endblock %}
