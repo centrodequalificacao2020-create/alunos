@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Atividades{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+.form-atividade{ background:var(--color-surface,#f9f9f9); border:1px solid var(--color-border,#ddd);
+  border-radius:10px; padding:24px; margin-bottom:32px; }
+.form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-grid-full{ grid-column:1/-1; }
+.form-label{ display:block; font-size:13px; font-weight:600; margin-bottom:5px; }
+select,input[type=text],textarea{ width:100%; padding:9px 12px; border-radius:7px;
+  border:1px solid var(--color-border,#ccc); font-size:14px; box-sizing:border-box; }
+textarea{ resize:vertical; }
+
+/* enunciados dinâmicos */
+.enunciado-item{ display:flex; gap:8px; align-items:flex-start; margin-bottom:10px; }
+.enunciado-item textarea{ flex:1; min-height:70px; }
+.btn-rem-enunc{ background:#ff4d4d; color:#fff; border:none; border-radius:7px;
+  padding:4px 10px; cursor:pointer; font-size:13px; }
+
+.btn-add-enunc{ background:var(--color-accent,#3498db); color:#fff; border:none;
+  border-radius:7px; padding:7px 14px; cursor:pointer; font-size:13px; font-weight:600; margin-top:4px; }
+
+/* tabela */
+table{ width:100%; border-collapse:collapse; font-size:14px; }
+th{ background:var(--color-surface,#f0f0f0); padding:10px 12px; text-align:left;
+  font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+td{ padding:10px 12px; border-bottom:1px solid var(--color-border,#eee); vertical-align:top; }
+tr:hover td{ background:var(--color-hover,#fafafa); }
+.badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+.badge-ativa{ background:#d4edda; color:#155724; }
+.btn-acao{ display:inline-flex; align-items:center; gap:4px;
+  padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600;
+  border:none; cursor:pointer; text-decoration:none; }
+.btn-excluir{ background:#fde8e8; color:#c0392b; }
+.btn-entregas{ background:#e8f4fd; color:#2980b9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card-header">
+  <span>&#128203;</span>
+  <h2>Atividades</h2>
+</div>
+
+{# ── Formulário de criação ── #}
+<div class="form-atividade">
+  <h3 style="margin:0 0 18px">Nova Atividade</h3>
+  <form method="POST" action="/atividades">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+
+      <div>
+        <label class="form-label">Título *</label>
+        <input type="text" name="titulo" placeholder="Ex: Lista de Exercícios 1" required>
+      </div>
+
+      <div>
+        <label class="form-label">Curso *</label>
+        <select name="curso_id" id="sel-curso" required>
+          <option value="">Selecione o curso</option>
+          {% for c in cursos %}
+          <option value="{{ c.id }}">{{ c.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Matéria (opcional)</label>
+        <select name="materia_id" id="sel-materia">
+          <option value="">Todas as matérias</option>
+          {% for m in materias %}
+          <option value="{{ m.id }}" data-curso="{{ m.curso_id }}">{{ m.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-grid-full">
+        <label class="form-label">Descrição / instruções</label>
+        <textarea name="descricao" rows="2" placeholder="Instruções gerais da atividade..."></textarea>
+      </div>
+
+      <div class="form-grid-full">
+        <label class="form-label">Enunciados / Quest&otilde;es *</label>
+        <div id="enunciados-container">
+          <div class="enunciado-item">
+            <textarea name="enunciado[]" placeholder="Enunciado da questão 1..." rows="3" required></textarea>
+            <button type="button" class="btn-rem-enunc" onclick="removerEnunciado(this)" title="Remover">&#10005;</button>
+          </div>
+        </div>
+        <button type="button" class="btn-add-enunc" onclick="adicionarEnunciado()">
+          <i class="fas fa-plus"></i> Adicionar enunciado
+        </button>
+      </div>
+
+    </div>
+    <div style="margin-top:18px">
+      <button type="submit" class="btn btn-azul">&#128190; Salvar Atividade</button>
+    </div>
+  </form>
+</div>
+
+{# ── Listagem ── #}
+<h3>Atividades cadastradas</h3>
+{% if atividades %}
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Título</th>
+      <th>Curso</th>
+      <th>Matéria</th>
+      <th>Enunciados</th>
+      <th>Status</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for atv in atividades %}
+  <tr>
+    <td>{{ atv.id }}</td>
+    <td><strong>{{ atv.titulo }}</strong>
+      {% if atv.descricao %}<br><small style="opacity:.5">{{ atv.descricao[:60] }}...</small>{% endif %}
+    </td>
+    <td>{{ atv.curso.nome if atv.curso else '—' }}</td>
+    <td>{{ atv.materia.nome if atv.materia else '—' }}</td>
+    <td style="text-align:center">{{ atv.questoes|length }}</td>
+    <td>
+      <span class="badge badge-ativa">Ativa</span>
+    </td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <a href="/atividades/{{ atv.id }}/entregas" class="btn-acao btn-entregas">
+        <i class="fas fa-inbox"></i> Entregas
+      </a>
+      <form method="POST" action="/atividades/excluir/{{ atv.id }}"
+            onsubmit="return confirm('Excluir esta atividade?')" style="margin:0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-acao btn-excluir">
+          <i class="fas fa-trash"></i> Excluir
+        </button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="opacity:.5">Nenhuma atividade cadastrada ainda.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const materiasJson = {{ materias_json | tojson }};
+
+document.getElementById('sel-curso').addEventListener('change', function(){
+  const cursoId = parseInt(this.value);
+  const sel = document.getElementById('sel-materia');
+  Array.from(sel.options).forEach(opt => {
+    if(!opt.value){ opt.style.display=''; return; }
+    opt.style.display = (!cursoId || parseInt(opt.dataset.curso)===cursoId) ? '' : 'none';
+  });
+  sel.value = '';
+});
+
+function adicionarEnunciado(){
+  const cont = document.getElementById('enunciados-container');
+  const num  = cont.children.length + 1;
+  const div  = document.createElement('div');
+  div.className = 'enunciado-item';
+  div.innerHTML = `
+    <textarea name="enunciado[]" placeholder="Enunciado da questão ${num}..." rows="3"></textarea>
+    <button type="button" class="btn-rem-enunc" onclick="removerEnunciado(this)" title="Remover">✕</button>`;
+  cont.appendChild(div);
+}
+
+function removerEnunciado(btn){
+  const cont = document.getElementById('enunciados-container');
+  if(cont.children.length <= 1){ alert('Deve haver pelo menos um enunciado.'); return; }
+  btn.parentElement.remove();
+}
+</script>
+{% endblock %}

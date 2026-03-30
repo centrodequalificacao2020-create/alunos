@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% block title %}{{ curso.nome }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+body{
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff;
+}
+.wrap{ max-width:1100px; margin:auto; padding:24px 20px 80px; }
+.voltar{ color:rgba(255,255,255,.5); font-size:13px; text-decoration:none;
+  display:inline-flex; align-items:center; gap:5px; transition:.2s; margin-bottom:14px; }
+.voltar:hover{ color:#fff; }
+.page-title{ font-size:21px; font-weight:800; margin:0 0 20px; }
+
+/* tabs */
+.tabs{ display:flex; gap:6px; margin-bottom:22px; flex-wrap:wrap; }
+.tab-btn{
+  padding:8px 18px; border-radius:10px; font-size:13px; font-weight:700;
+  border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.06);
+  color:rgba(255,255,255,.6); cursor:pointer; transition:.2s;
+}
+.tab-btn.ativo{ background:rgba(0,180,219,.25); border-color:#00b4db; color:#fff; }
+.tab-btn:hover{ background:rgba(255,255,255,.12); color:#fff; }
+.tab-pane{ display:none; }
+.tab-pane.ativo{ display:block; }
+
+/* ─── AULAS ────────────────────────────────────────────────────────────── */
+.portal{ display:flex; gap:24px; }
+.sidebar{
+  width:270px; flex-shrink:0;
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+  border-radius:14px; padding:16px; max-height:75vh; overflow-y:auto;
+}
+.mat-titulo{
+  font-size:10px; font-weight:800; text-transform:uppercase;
+  letter-spacing:1.5px; opacity:.4; margin:14px 0 6px;
+}
+.aula-item{
+  display:flex; align-items:center; gap:8px;
+  padding:9px 10px; border-radius:10px; cursor:pointer;
+  font-size:13px; transition:.15s;
+}
+.aula-item:hover{ background:rgba(255,255,255,.1); }
+.aula-item.ativa{ background:rgba(0,180,219,.2); border:1px solid rgba(0,180,219,.4); }
+.aula-item .ic{ width:18px; text-align:center; opacity:.5; font-size:11px; }
+.aula-item.concluida .ic{ color:#00ff9d; opacity:1; }
+.progresso-barra{ background:rgba(255,255,255,.1); height:6px; border-radius:4px; overflow:hidden; margin:14px 0 4px; }
+.progresso-fill{ background:#00b4db; height:100%; transition:width .4s; }
+.progresso-txt{ font-size:11px; opacity:.35; }
+
+.player{
+  flex:1; min-width:0;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+  border-radius:14px; padding:20px;
+}
+.player-titulo{ font-size:17px; font-weight:700; margin-bottom:14px; min-height:24px; }
+.video-frame{ width:100%; height:480px; border-radius:10px; border:none; }
+#pdf-container{
+  width:100%; background:#525659; border-radius:10px;
+  overflow-y:auto; max-height:72vh; padding:16px;
+  box-sizing:border-box; display:none;
+}
+#pdf-container canvas{ display:block; margin:0 auto 10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.5); pointer-events:none; }
+.pdf-toolbar{
+  display:none; align-items:center; gap:10px;
+  background:rgba(0,0,0,.4); padding:8px 12px;
+  border-radius:10px 10px 0 0; font-size:13px;
+}
+.pdf-toolbar button{
+  background:rgba(255,255,255,.1); border:none; color:#fff;
+  padding:4px 12px; border-radius:6px; cursor:pointer;
+}
+.pdf-toolbar button:hover{ background:rgba(255,255,255,.2); }
+.btn-concluir{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(0,255,157,.15); color:#00ff9d;
+  border:1px solid rgba(0,255,157,.4);
+  padding:8px 18px; border-radius:10px; font-size:13px; font-weight:700;
+  text-decoration:none; margin-top:16px;
+}
+.btn-concluir:hover{ background:rgba(0,255,157,.28); }
+.concluida-txt{ color:#00ff9d; font-size:13px; font-weight:700; margin-top:16px; }
+
+@media(max-width:700px){
+  .portal{ flex-direction:column; }
+  .sidebar{ width:100%; max-height:none; }
+  .video-frame{ height:220px; }
+}
+
+/* ─── PROVAS ────────────────────────────────────────────────────────────── */
+.prova-card{
+  background:rgba(199,125,255,.07); border:1px solid rgba(199,125,255,.18);
+  border-radius:14px; padding:18px 20px; margin-bottom:12px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:14px; flex-wrap:wrap;
+}
+.prova-titulo{ font-size:15px; font-weight:700; }
+.prova-meta{ font-size:12px; opacity:.4; margin-top:3px; }
+.btn-prova{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(199,125,255,.15); color:#c77dff;
+  border:1px solid rgba(199,125,255,.4);
+  padding:8px 18px; border-radius:10px; font-size:13px; font-weight:700;
+  text-decoration:none; transition:.2s;
+}
+.btn-prova:hover{ background:rgba(199,125,255,.3); }
+.pill-esgotada{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:5px 14px; border-radius:999px; font-size:12px; font-weight:700;
+  background:rgba(255,77,77,.1); color:#ff4d4d; border:1px solid #ff4d4d;
+}
+
+/* ─── ATIVIDADES ─────────────────────────────────────────────────────────── */
+.atv-card{
+  background:rgba(255,193,7,.06); border:1px solid rgba(255,193,7,.18);
+  border-radius:14px; padding:20px 22px; margin-bottom:14px;
+}
+.atv-titulo{ font-size:15px; font-weight:700; margin-bottom:6px; }
+.atv-desc{ font-size:13px; opacity:.55; margin-bottom:14px; }
+.questao-bloco{
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+  border-radius:10px; padding:14px 16px; margin-bottom:10px;
+}
+.questao-num{ font-size:10px; opacity:.35; text-transform:uppercase;
+  letter-spacing:1px; margin-bottom:6px; }
+.questao-enunc{ font-size:14px; line-height:1.6; }
+
+/* upload */
+.upload-area{
+  background:rgba(255,255,255,.04); border:1px dashed rgba(255,193,7,.35);
+  border-radius:12px; padding:16px 18px; margin-top:14px;
+}
+.upload-label{ font-size:12px; font-weight:700; opacity:.45;
+  text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; display:block; }
+.upload-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+.file-input-wrap label{
+  display:block; font-size:11px; opacity:.4; margin-bottom:4px; }
+.file-input-wrap input[type=file]{
+  width:100%; background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.15); border-radius:8px;
+  padding:6px 8px; color:#fff; font-size:12px; cursor:pointer;
+}
+.entregue-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(0,255,157,.1); color:#00ff9d;
+  border:1px solid rgba(0,255,157,.35);
+  padding:5px 14px; border-radius:999px; font-size:12px; font-weight:700;
+  margin-top:12px;
+}
+.btn-entregar{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,193,7,.15); color:#ffc107;
+  border:1px solid rgba(255,193,7,.4);
+  padding:9px 20px; border-radius:10px; font-size:13px; font-weight:700;
+  cursor:pointer; margin-top:12px; transition:.2s;
+}
+.btn-entregar:hover{ background:rgba(255,193,7,.28); }
+
+.vazio{
+  background:rgba(255,255,255,.03); border:1px dashed rgba(255,255,255,.1);
+  border-radius:12px; padding:20px;
+  color:rgba(255,255,255,.3); font-size:14px;
+  display:flex; align-items:center; gap:8px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <a href="/aluno/cursos" class="voltar"><i class="fas fa-arrow-left"></i> Meus Cursos</a>
+  <div class="page-title">&#127979; {{ curso.nome }}</div>
+
+  {# ── TABS ────────────────────────────────────────────────────────────────── #}
+  <div class="tabs">
+    <button class="tab-btn ativo" onclick="trocarTab('aulas',this)">
+      <i class="fas fa-play-circle"></i> Aulas
+    </button>
+    <button class="tab-btn" onclick="trocarTab('provas',this)">
+      <i class="fas fa-file-alt"></i> Provas
+      {% if provas %}<span style="opacity:.5">({{ provas|length }})</span>{% endif %}
+    </button>
+    <button class="tab-btn" onclick="trocarTab('atividades',this)">
+      <i class="fas fa-tasks"></i> Atividades
+      {% if atividades %}<span style="opacity:.5">({{ atividades|length }})</span>{% endif %}
+    </button>
+  </div>
+
+  {# ────────────────────── TAB AULAS ─────────────────────────── #}
+  <div id="tab-aulas" class="tab-pane ativo">
+    {% if conteudos %}
+    {% set total_c = conteudos|length %}
+    {% set ns = namespace(conc=0) %}
+    {% for c, prog in conteudos %}{% if prog and prog.concluido %}{% set ns.conc = ns.conc+1 %}{% endif %}{% endfor %}
+    {% set pct = (ns.conc / total_c * 100) if total_c > 0 else 0 %}
+
+    <div class="portal">
+      <!-- SIDEBAR -->
+      <div class="sidebar">
+        {% set ns2 = namespace(mat_atual='') %}
+        {% for c, prog in conteudos %}
+          {% if ns2.mat_atual != c.materia.nome %}
+            <div class="mat-titulo">{{ c.materia.nome }}</div>
+            {% set ns2.mat_atual = c.materia.nome %}
+          {% endif %}
+          <div class="aula-item {% if prog and prog.concluido %}concluida{% endif %}"
+               data-id="{{ c.id }}"
+               data-tipo="{{ 'pdf' if c.arquivo and c.arquivo.lower().endswith('.pdf') else ('video' if c.video else ('arquivo' if c.arquivo else 'vazio')) }}"
+               data-video="{{ c.video or '' }}"
+               data-titulo="{{ c.titulo }}"
+               data-concluido="{{ '1' if prog and prog.concluido else '0' }}">
+            <span class="ic">
+              {% if prog and prog.concluido %}<i class="fas fa-check-circle"></i>
+              {% else %}<i class="far fa-circle"></i>{% endif %}
+            </span>
+            {{ c.titulo }}
+          </div>
+        {% endfor %}
+
+        <div class="progresso-barra">
+          <div class="progresso-fill" style="width:{{ pct|round(1) }}%"></div>
+        </div>
+        <div class="progresso-txt">{{ ns.conc }} / {{ total_c }} conclu&iacute;das</div>
+      </div>
+
+      <!-- PLAYER -->
+      <div class="player">
+        <div class="player-titulo" id="tituloAula">Selecione uma aula</div>
+        <div class="pdf-toolbar" id="pdfToolbar">
+          <button onclick="pdfAnterior()"><i class="fas fa-chevron-left"></i> Anterior</button>
+          <span id="pdfPagInfo" style="opacity:.7">P&aacute;g 1/1</span>
+          <button onclick="pdfProximo()">Pr&oacute;xima <i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div id="pdf-container"></div>
+        <div id="conteudoAula"></div>
+        <div id="botaoConclusao"></div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma aula dispon&iacute;vel no momento.</div>
+    {% endif %}
+  </div>{# /tab-aulas #}
+
+  {# ────────────────────── TAB PROVAS ────────────────────────── #}
+  <div id="tab-provas" class="tab-pane">
+    {% if provas %}
+      {% for item in provas %}
+      <div class="prova-card">
+        <div>
+          <div class="prova-titulo"><i class="fas fa-file-alt" style="opacity:.6"></i> {{ item.prova.titulo }}</div>
+          <div class="prova-meta">
+            {% if item.prova.materia %}{{ item.prova.materia.nome }} &nbsp;|&nbsp; {% endif %}
+            {{ item.prova.total_questoes }} quest&otilde;es &nbsp;|&nbsp;
+            {{ item.tentativas_usadas }}/{{ item.prova.tentativas }} tentativa(s) usada(s)
+          </div>
+        </div>
+        {% if item.pode_fazer %}
+          <a href="/aluno/provas/{{ item.prova.id }}/realizar" class="btn-prova">
+            <i class="fas fa-pen"></i> Realizar
+          </a>
+        {% else %}
+          <span class="pill-esgotada"><i class="fas fa-ban"></i> Tentativas esgotadas</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma prova liberada para este curso.</div>
+    {% endif %}
+  </div>{# /tab-provas #}
+
+  {# ────────────────────── TAB ATIVIDADES ─────────────────────── #}
+  <div id="tab-atividades" class="tab-pane">
+    {% if atividades %}
+      {% for atv in atividades %}
+      {% set entrega = entregas_map.get(atv.id) %}
+      <div class="atv-card">
+        <div class="atv-titulo"><i class="fas fa-tasks" style="opacity:.6"></i> {{ atv.titulo }}</div>
+        {% if atv.descricao %}<div class="atv-desc">{{ atv.descricao }}</div>{% endif %}
+
+        {# Enunciados/questões #}
+        {% for q in atv.questoes %}
+        <div class="questao-bloco">
+          <div class="questao-num">Quest&atilde;o {{ loop.index }}</div>
+          <div class="questao-enunc">{{ q.enunciado }}</div>
+        </div>
+        {% endfor %}
+
+        {# Entrega #}
+        {% if entrega and entrega.status == 'entregue' %}
+          <div class="entregue-badge">
+            <i class="fas fa-check"></i> Atividade entregue em {{ entrega.entregue_em or '' }}
+          </div>
+          {% if entrega.nota is not none %}
+            <div style="margin-top:8px;font-size:13px;opacity:.65">
+              Nota: <strong style="color:#00ff9d">{{ '%.1f'|format(entrega.nota) }}</strong>
+              {% if entrega.feedback %}&nbsp;&mdash;&nbsp;{{ entrega.feedback }}{% endif %}
+            </div>
+          {% endif %}
+        {% else %}
+          {# Formulário de entrega com até 3 arquivos #}
+          <form method="POST" action="/aluno/atividade/{{ atv.id }}/entregar"
+                enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="upload-area">
+              <span class="upload-label"><i class="fas fa-paperclip"></i> Anexar arquivos (m&aacute;x. 3)</span>
+              <div class="upload-grid">
+                <div class="file-input-wrap">
+                  <label for="arq1_{{ atv.id }}">Arquivo 1</label>
+                  <input type="file" id="arq1_{{ atv.id }}" name="arquivo1">
+                </div>
+                <div class="file-input-wrap">
+                  <label for="arq2_{{ atv.id }}">Arquivo 2 (opcional)</label>
+                  <input type="file" id="arq2_{{ atv.id }}" name="arquivo2">
+                </div>
+                <div class="file-input-wrap">
+                  <label for="arq3_{{ atv.id }}">Arquivo 3 (opcional)</label>
+                  <input type="file" id="arq3_{{ atv.id }}" name="arquivo3">
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-entregar">
+              <i class="fas fa-paper-plane"></i> Enviar Atividade
+            </button>
+          </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma atividade dispon&iacute;vel neste curso.</div>
+    {% endif %}
+  </div>{# /tab-atividades #}
+
+</div>{# /wrap #}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pdfDoc=null, pagAtual=1, totalPags=1, renderizando=false;
+
+async function renderPag(n){
+  if(renderizando)return; renderizando=true;
+  try{
+    const cont=document.getElementById('pdf-container');
+    cont.innerHTML='';
+    const pag=await pdfDoc.getPage(n);
+    const esc=Math.min(cont.clientWidth/pag.getViewport({scale:1}).width,1.8);
+    const vp=pag.getViewport({scale:esc});
+    const cv=document.createElement('canvas');
+    cv.height=vp.height; cv.width=vp.width;
+    cont.appendChild(cv);
+    await pag.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+    document.getElementById('pdfPagInfo').textContent=`Pág ${n}/${totalPags}`;
+  }finally{renderizando=false;}
+}
+function pdfAnterior(){if(pagAtual>1){pagAtual--;renderPag(pagAtual);}}
+function pdfProximo(){if(pagAtual<totalPags){pagAtual++;renderPag(pagAtual);}}
+
+async function carregarPDF(cid){
+  const cont=document.getElementById('pdf-container');
+  const tb=document.getElementById('pdfToolbar');
+  document.getElementById('conteudoAula').innerHTML='';
+  cont.innerHTML='<p style="color:#ccc;padding:20px">Carregando PDF...</p>';
+  cont.style.display='block'; tb.style.display='flex';
+  try{
+    const r=await fetch(`/aluno/arquivo/${cid}`,{credentials:'same-origin'});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    pdfDoc=await pdfjsLib.getDocument({data:await r.arrayBuffer()}).promise;
+    totalPags=pdfDoc.numPages; pagAtual=1;
+    await renderPag(pagAtual);
+  }catch(e){
+    cont.innerHTML=`<p style="color:#f88;padding:20px">Erro ao carregar PDF: ${e.message}</p>`;
+    tb.style.display='none';
+  }
+}
+
+function embedUrl(src){
+  const YT='rel=0&modestbranding=1&iv_load_policy=3&fs=1';
+  if(src.includes('youtu.be/')){
+    const id=src.split('youtu.be/')[1].split('?')[0];
+    return `https://www.youtube-nocookie.com/embed/${id}?${YT}`;
+  }
+  if(src.includes('youtube.com/watch')){
+    try{const id=new URL(src).searchParams.get('v');
+      return id?`https://www.youtube-nocookie.com/embed/${id}?${YT}`:src;}catch{return src;}
+  }
+  if(src.includes('youtube.com/embed/'))return src.split('?')[0]+'?'+YT;
+  if(src.includes('vimeo.com/')){
+    const id=src.split('vimeo.com/')[1].split('?')[0];
+    return `https://player.vimeo.com/video/${id}?dnt=1`;
+  }
+  return src;
+}
+
+function ocultarPDF(){
+  const c=document.getElementById('pdf-container');
+  const t=document.getElementById('pdfToolbar');
+  c.style.display='none'; t.style.display='none'; c.innerHTML=''; pdfDoc=null;
+}
+
+function abrirAula(el){
+  const tipo=el.dataset.tipo, video=el.dataset.video||'',
+        titulo=el.dataset.titulo||'Aula', id=el.dataset.id,
+        conc=el.dataset.concluido;
+  document.getElementById('tituloAula').textContent=titulo;
+  const area=document.getElementById('conteudoAula');
+  const botao=document.getElementById('botaoConclusao');
+  document.querySelectorAll('.aula-item').forEach(a=>a.classList.remove('ativa'));
+  el.classList.add('ativa');
+  ocultarPDF(); area.innerHTML='';
+
+  if(tipo==='pdf'){
+    carregarPDF(id);
+  }else if(tipo==='video'||(tipo!=='pdf'&&video)){
+    if(/\.(mp4|webm|ogg)$/i.test(video)){
+      area.innerHTML=`<video class="video-frame" controls style="background:#000" oncontextmenu="return false">
+        <source src="${video}">Seu navegador não suporta vídeo.</video>`;
+    }else{
+      area.innerHTML=`<iframe class="video-frame" src="${embedUrl(video)}"
+        allowfullscreen allow="autoplay;encrypted-media"></iframe>`;
+    }
+  }else if(tipo==='arquivo'){
+    area.innerHTML=`<p><a href="/aluno/arquivo/${id}" target="_blank" class="btn-concluir">
+      <i class="fas fa-file-download"></i> Baixar arquivo</a></p>`;
+  }else{
+    area.innerHTML='<p style="opacity:.4">Nenhum conteúdo para esta aula.</p>';
+  }
+
+  botao.innerHTML = conc==='1'
+    ? '<div class="concluida-txt"><i class="fas fa-check-circle"></i> Aula concluída</div>'
+    : `<a href="/aluno/conteudo/concluir/${id}" class="btn-concluir"
+         onclick="this.style.opacity=.5">
+         <i class="fas fa-check"></i> Marcar como concluída</a>`;
+
+  localStorage.setItem('aula_{{ curso.id }}', id);
+}
+
+const aulas=document.querySelectorAll('.aula-item');
+aulas.forEach(a=>a.addEventListener('click',function(){abrirAula(this);}));
+
+const ultima=localStorage.getItem('aula_{{ curso.id }}');
+if(ultima){
+  const el=document.querySelector(`[data-id="${ultima}"]`);
+  if(el)abrirAula(el); else if(aulas.length)abrirAula(aulas[0]);
+}else if(aulas.length){ abrirAula(aulas[0]); }
+
+function trocarTab(id, btn){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('ativo'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('ativo'));
+  document.getElementById('tab-'+id).classList.add('ativo');
+  btn.classList.add('ativo');
+}
+</script>
+{% endblock %}

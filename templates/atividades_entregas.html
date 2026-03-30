@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Entregas — {{ atividade.titulo }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+table{ width:100%; border-collapse:collapse; font-size:14px; }
+th{ background:var(--color-surface,#f0f0f0); padding:10px 12px;
+  text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+td{ padding:10px 12px; border-bottom:1px solid var(--color-border,#eee); vertical-align:top; }
+.badge-entregue { background:#d4edda; color:#155724; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+.badge-corrigida{ background:#cce5ff; color:#004085; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+.form-avaliacao{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.form-avaliacao input[type=number]{ width:70px; padding:5px 8px; border-radius:6px;
+  border:1px solid #ccc; font-size:14px; }
+.form-avaliacao input[type=text]{ width:200px; padding:5px 8px; border-radius:6px;
+  border:1px solid #ccc; font-size:14px; }
+.btn-avaliar{ background:#3498db; color:#fff; border:none; border-radius:6px;
+  padding:5px 12px; font-size:13px; font-weight:700; cursor:pointer; }
+.link-arq{ color:#3498db; font-size:12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px">
+  <a href="/atividades" class="voltar" style="color:#3498db;font-size:13px">
+    <i class="fas fa-arrow-left"></i> Voltar
+  </a>
+</div>
+
+<div class="card-header">
+  <span>&#128203;</span>
+  <h2>Entregas — {{ atividade.titulo }}</h2>
+</div>
+<p style="opacity:.5;font-size:13px;margin-bottom:20px">
+  Curso: {{ atividade.curso.nome }}
+  {% if atividade.materia %} &nbsp;|&nbsp; Matéria: {{ atividade.materia.nome }}{% endif %}
+</p>
+
+{% if entregas %}
+<table>
+  <thead>
+    <tr>
+      <th>Aluno</th><th>Entregue em</th><th>Arquivos</th>
+      <th>Status</th><th>Nota</th><th>Avaliar</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for e in entregas %}
+  <tr>
+    <td><strong>{{ e.aluno.nome }}</strong></td>
+    <td style="white-space:nowrap">{{ e.entregue_em or '—' }}</td>
+    <td>
+      {% for arq in [e.arquivo1, e.arquivo2, e.arquivo3] if arq %}
+        <a href="/atividades/download/{{ arq }}" class="link-arq" target="_blank">
+          <i class="fas fa-file-download"></i> {{ arq.split('_',3)[-1] if '_' in arq else arq }}
+        </a><br>
+      {% else %}
+        <span style="opacity:.35">Sem arquivos</span>
+      {% endfor %}
+    </td>
+    <td>
+      {% if e.status == 'corrigida' %}
+        <span class="badge-corrigida">Corrigida</span>
+      {% else %}
+        <span class="badge-entregue">Entregue</span>
+      {% endif %}
+    </td>
+    <td>{{ '%.1f'|format(e.nota) if e.nota is not none else '—' }}</td>
+    <td>
+      <form method="POST"
+            action="/atividades/{{ atividade.id }}/entregas/{{ e.id }}/avaliar"
+            class="form-avaliacao">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="number" name="nota" min="0" max="10" step="0.1"
+               value="{{ e.nota or '' }}" placeholder="Nota">
+        <input type="text" name="feedback" value="{{ e.feedback or '' }}"
+               placeholder="Feedback (opcional)">
+        <button type="submit" class="btn-avaliar">Salvar</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="opacity:.5">Nenhuma entrega recebida ainda.</p>
+{% endif %}
+{% endblock %}
