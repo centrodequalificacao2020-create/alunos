@@ -1,6 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, flash, session
+from flask import Blueprint, render_template, request, redirect, flash, session, jsonify
 from db import db
-from models import Prova, Questao, Alternativa, RespostaProva, Curso, Materia
+from models import (
+    Prova, Questao, Alternativa, RespostaProva, RespostaQuestao,
+    Curso, Materia, Aluno
+)
 from security import login_required
 from datetime import datetime
 
@@ -18,13 +21,11 @@ def listar_provas():
     q = Prova.query.order_by(Prova.id.desc())
     if curso_id:
         q = q.filter_by(curso_id=curso_id)
-    provas  = q.all()
-    cursos  = Curso.query.order_by(Curso.nome).all()
+    provas = q.all()
+    cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("provas.html",
-                           provas=provas,
-                           cursos=cursos,
-                           curso_id_sel=curso_id,
-                           view="lista")
+                           provas=provas, cursos=cursos,
+                           curso_id_sel=curso_id, view="lista")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,10 +39,10 @@ def nova_prova():
     materias = Materia.query.filter_by(ativa=1).order_by(Materia.nome).all()
 
     if request.method == "POST":
-        f = request.form
+        f     = request.form
         titulo = f.get("titulo", "").strip()
         if not titulo:
-            flash("Título é obrigatório.", "erro")
+            flash("T\u00edtulo \u00e9 obrigat\u00f3rio.", "erro")
             return redirect("/provas/nova")
 
         prova = Prova(
@@ -58,13 +59,10 @@ def nova_prova():
         )
         db.session.add(prova)
         db.session.commit()
-        flash(f"Prova \u201c{prova.titulo}\u201d criada. Agora adicione as quest\u00f5es.", "sucesso")
+        flash(f"Prova \u201c{prova.titulo}\u201d criada. Adicione as quest\u00f5es.", "sucesso")
         return redirect(f"/provas/{prova.id}/questoes")
 
-    return render_template("provas.html",
-                           cursos=cursos,
-                           materias=materias,
-                           view="nova")
+    return render_template("provas.html", cursos=cursos, materias=materias, view="nova")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,7 +72,7 @@ def nova_prova():
 @provas_bp.route("/provas/<int:id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_prova(id):
-    prova    = Prova.query.get_or_404(id)
+    prova    = db.get_or_404(Prova, id)
     cursos   = Curso.query.order_by(Curso.nome).all()
     materias = Materia.query.filter_by(ativa=1).order_by(Materia.nome).all()
 
@@ -92,11 +90,8 @@ def editar_prova(id):
         flash("Prova atualizada.", "sucesso")
         return redirect("/provas")
 
-    return render_template("provas.html",
-                           prova=prova,
-                           cursos=cursos,
-                           materias=materias,
-                           view="editar")
+    return render_template("provas.html", prova=prova,
+                           cursos=cursos, materias=materias, view="editar")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -106,47 +101,40 @@ def editar_prova(id):
 @provas_bp.route("/provas/<int:id>/excluir", methods=["POST"])
 @login_required
 def excluir_prova(id):
-    prova = Prova.query.get_or_404(id)
+    prova = db.get_or_404(Prova, id)
     db.session.delete(prova)
     db.session.commit()
-    flash("Prova excluída.", "sucesso")
+    flash("Prova exclu\u00edda.", "sucesso")
     return redirect("/provas")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GERENCIAR QUESTÕES DE UMA PROVA
+# GERENCIAR QUESTÕES
 # ─────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/questoes", methods=["GET", "POST"])
 @login_required
 def gerenciar_questoes(id):
-    prova = Prova.query.get_or_404(id)
+    prova = db.get_or_404(Prova, id)
 
     if request.method == "POST":
         acao = request.form.get("acao", "")
 
-        # ── Adicionar nova questão ──
         if acao == "add_questao":
             enunciado = request.form.get("enunciado", "").strip()
             tipo      = request.form.get("tipo", "multipla_escolha")
             pontos    = float(request.form.get("pontos", 1.0))
             if not enunciado:
-                flash("Enunciado não pode ser vazio.", "erro")
+                flash("Enunciado n\u00e3o pode ser vazio.", "erro")
                 return redirect(f"/provas/{id}/questoes")
 
             ordem = (db.session.query(db.func.max(Questao.ordem))
                      .filter_by(prova_id=id).scalar() or 0) + 1
-            q = Questao(
-                prova_id  = id,
-                enunciado = enunciado,
-                tipo      = tipo,
-                ordem     = ordem,
-                pontos    = pontos,
-            )
+            q = Questao(prova_id=id, enunciado=enunciado,
+                        tipo=tipo, ordem=ordem, pontos=pontos)
             db.session.add(q)
-            db.session.flush()  # gera q.id antes do commit
+            db.session.flush()
 
-            # ── Alternativas (para objetivas) ──
             if tipo in ("multipla_escolha", "verdadeiro_falso"):
                 textos   = request.form.getlist("alt_texto")
                 corretas = request.form.getlist("alt_correta")
@@ -154,78 +142,140 @@ def gerenciar_questoes(id):
                     texto = texto.strip()
                     if not texto:
                         continue
-                    alt = Alternativa(
-                        questao_id = q.id,
-                        texto      = texto,
-                        correta    = 1 if str(i) in corretas else 0,
-                        ordem      = i + 1,
-                    )
-                    db.session.add(alt)
+                    db.session.add(Alternativa(
+                        questao_id=q.id, texto=texto,
+                        correta=1 if str(i) in corretas else 0,
+                        ordem=i + 1,
+                    ))
 
             db.session.commit()
-            flash("Questão adicionada.", "sucesso")
+            flash("Quest\u00e3o adicionada.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
-        # ── Excluir questão ──
         elif acao == "del_questao":
             q_id = int(request.form.get("questao_id"))
-            q    = Questao.query.get_or_404(q_id)
+            q    = db.get_or_404(Questao, q_id)
             if q.prova_id != id:
-                flash("Operação inválida.", "erro")
+                flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
                 return redirect(f"/provas/{id}/questoes")
             db.session.delete(q)
             db.session.commit()
-            flash("Questão removida.", "sucesso")
+            flash("Quest\u00e3o removida.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
-        # ── Editar questão ──
         elif acao == "edit_questao":
-            q_id      = int(request.form.get("questao_id"))
-            q         = Questao.query.get_or_404(q_id)
-            enunciado = request.form.get("enunciado", "").strip()
-            pontos    = float(request.form.get("pontos", q.pontos))
-            if enunciado:
-                q.enunciado = enunciado
-            q.pontos = pontos
+            q_id = int(request.form.get("questao_id"))
+            q    = db.get_or_404(Questao, q_id)
+            enun = request.form.get("enunciado", "").strip()
+            if enun:
+                q.enunciado = enun
+            q.pontos = float(request.form.get("pontos", q.pontos))
 
             textos   = request.form.getlist("alt_texto")
             corretas = request.form.getlist("alt_correta")
             alt_ids  = request.form.getlist("alt_id")
-
             for idx, (alt_id, texto) in enumerate(zip(alt_ids, textos)):
                 texto = texto.strip()
                 if not texto:
                     continue
-                alt = Alternativa.query.get(int(alt_id))
+                alt = db.session.get(Alternativa, int(alt_id))
                 if alt and alt.questao_id == q.id:
                     alt.texto   = texto
                     alt.correta = 1 if str(idx) in corretas else 0
-
             db.session.commit()
-            flash("Questão atualizada.", "sucesso")
+            flash("Quest\u00e3o atualizada.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
-    return render_template("provas.html",
-                           prova=prova,
-                           view="questoes")
+    return render_template("provas.html", prova=prova, view="questoes")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RESULTADOS DE UMA PROVA
+# RESULTADOS DE UMA PROVA (admin) — lista todas as tentativas
 # ─────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/resultados")
 @login_required
 def resultados_prova(id):
-    prova     = Prova.query.get_or_404(id)
-    respostas = (RespostaProva.query
-                 .filter_by(prova_id=id)
-                 .order_by(RespostaProva.finalizado_em.desc())
-                 .all())
+    prova     = db.get_or_404(Prova, id)
+    respostas = (
+        RespostaProva.query
+        .filter_by(prova_id=id)
+        .order_by(RespostaProva.finalizado_em.desc())
+        .all()
+    )
+    # conta pendentes de correção
+    pendentes = sum(1 for r in respostas if r.nota_obtida is None)
     return render_template("provas.html",
-                           prova=prova,
-                           respostas=respostas,
-                           view="resultados")
+                           prova=prova, respostas=respostas,
+                           pendentes=pendentes, view="resultados")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CORRIGIR TENTATIVA DISSERTATIVA (admin/instrutor)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@provas_bp.route("/provas/corrigir/<int:resp_id>", methods=["GET", "POST"])
+@login_required
+def corrigir_tentativa(resp_id):
+    resp_prova = db.get_or_404(RespostaProva, resp_id)
+    prova      = db.get_or_404(Prova, resp_prova.prova_id)
+    aluno      = db.get_or_404(Aluno, resp_prova.aluno_id)
+
+    respostas = (
+        db.session.query(RespostaQuestao, Questao)
+        .join(Questao, Questao.id == RespostaQuestao.questao_id)
+        .filter(RespostaQuestao.resposta_prova_id == resp_id)
+        .order_by(Questao.ordem)
+        .all()
+    )
+
+    if request.method == "POST":
+        total_pontos = 0.0
+        pontos_max   = 0.0
+
+        for rq, q in respostas:
+            pontos_max += q.pontos
+            if q.tipo == "dissertativa":
+                campo = f"pontos_{rq.id}"
+                pts   = request.form.get(campo, "")
+                try:
+                    pts = float(pts)
+                    pts = max(0.0, min(pts, q.pontos))  # clipa entre 0 e máximo
+                except (ValueError, TypeError):
+                    pts = 0.0
+                rq.pontos_obtidos = pts
+                rq.corrigida      = 1
+                total_pontos += pts
+            else:
+                total_pontos += (rq.pontos_obtidos or 0.0)
+
+        nota_final = round((total_pontos / pontos_max) * 10, 2) if pontos_max else 0.0
+        resp_prova.nota_obtida = nota_final
+        resp_prova.aprovado    = 1 if nota_final >= prova.nota_minima else 0
+        db.session.commit()
+
+        flash(
+            f"Corre\u00e7\u00e3o salva! Aluno {aluno.nome} — "
+            f"Nota: {nota_final} ({'Aprovado' if resp_prova.aprovado else 'Reprovado'}).",
+            "sucesso"
+        )
+        return redirect(f"/provas/{prova.id}/resultados")
+
+    # Monta gabarito com alternativas para exibir lado a lado
+    gabarito = []
+    for rq, q in respostas:
+        correta   = Alternativa.query.filter_by(questao_id=q.id, correta=1).first()
+        escolhida = db.session.get(Alternativa, rq.alternativa_id) if rq.alternativa_id else None
+        gabarito.append({
+            "questao":   q,
+            "rq":        rq,
+            "correta":   correta,
+            "escolhida": escolhida,
+        })
+
+    return render_template("provas_corrigir.html",
+                           resp_prova=resp_prova, prova=prova,
+                           aluno=aluno, gabarito=gabarito)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -235,12 +285,35 @@ def resultados_prova(id):
 @provas_bp.route("/provas/<int:id>/toggle", methods=["POST"])
 @login_required
 def toggle_prova(id):
-    prova = Prova.query.get_or_404(id)
+    prova = db.get_or_404(Prova, id)
     if prova.total_questoes == 0 and prova.ativa == 0:
-        flash("Adicione ao menos uma questão antes de ativar a prova.", "erro")
+        flash("Adicione ao menos uma quest\u00e3o antes de ativar a prova.", "erro")
         return redirect("/provas")
     prova.ativa = 0 if prova.ativa else 1
     db.session.commit()
     estado = "ativada" if prova.ativa else "colocada em rascunho"
     flash(f"Prova {estado}.", "sucesso")
     return redirect("/provas")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# API JSON — estatísticas da prova (para uso futuro em dashboard)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@provas_bp.route("/provas/<int:id>/stats.json")
+@login_required
+def stats_prova(id):
+    prova     = db.get_or_404(Prova, id)
+    respostas = RespostaProva.query.filter_by(prova_id=id).all()
+    notas     = [r.nota_obtida for r in respostas if r.nota_obtida is not None]
+    aprovados = sum(1 for r in respostas if r.aprovado == 1)
+    pendentes = sum(1 for r in respostas if r.nota_obtida is None)
+    return jsonify({
+        "total_tentativas": len(respostas),
+        "pendentes":        pendentes,
+        "aprovados":        aprovados,
+        "reprovados":       len(notas) - aprovados,
+        "media":            round(sum(notas) / len(notas), 2) if notas else None,
+        "maior_nota":       max(notas) if notas else None,
+        "menor_nota":       min(notas) if notas else None,
+    })

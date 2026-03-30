@@ -21,17 +21,14 @@ def _matriculas_ativas(aluno_id):
 
 
 def _prova_disponivel(prova, aluno_id):
-    """Verifica se o aluno pode acessar esta prova."""
     if not prova.ativa:
         return False
-    cursos_aluno = _matriculas_ativas(aluno_id)
-    return prova.curso_id in cursos_aluno
+    return prova.curso_id in _matriculas_ativas(aluno_id)
 
 
 def _tentativas_usadas(prova_id, aluno_id):
     return RespostaProva.query.filter_by(
-        prova_id=prova_id,
-        aluno_id=aluno_id
+        prova_id=prova_id, aluno_id=aluno_id
     ).count()
 
 
@@ -44,9 +41,7 @@ def _ultima_tentativa(prova_id, aluno_id):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# LISTAGEM DE PROVAS DO ALUNO
-# ─────────────────────────────────────────────────────────────────────────────
+# ── LISTAGEM DE PROVAS ───────────────────────────────────────────────────────
 
 @provas_aluno_bp.route("/provas")
 @aluno_login_required
@@ -67,19 +62,17 @@ def listar_provas_aluno():
         pode_fazer        = tentativas_feitas < prova.tentativas
         ultima            = _ultima_tentativa(prova.id, aluno.id)
         provas.append({
-            "prova":            prova,
+            "prova":             prova,
             "tentativas_feitas": tentativas_feitas,
-            "pode_fazer":       pode_fazer,
-            "ultima":           ultima,
+            "pode_fazer":        pode_fazer,
+            "ultima":            ultima,
         })
 
     return render_template("aluno/provas_lista.html",
                            aluno=aluno, provas=provas)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# REALIZAR PROVA
-# ─────────────────────────────────────────────────────────────────────────────
+# ── REALIZAR PROVA ───────────────────────────────────────────────────────────
 
 @provas_aluno_bp.route("/provas/<int:prova_id>/realizar", methods=["GET", "POST"])
 @aluno_login_required
@@ -103,89 +96,83 @@ def realizar_prova(prova_id):
         .all()
     )
     if not questoes:
-        flash("Esta prova n\u00e3o possui quest\u00f5es.", "erro")
+        flash("Esta prova n\u00e3o possui quest\u00f5es cadastradas.", "erro")
         return redirect("/aluno/provas")
 
     if request.method == "POST":
         iniciado_em = request.form.get("iniciado_em", "")
         agora       = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Cria registro de tentativa
         resp_prova = RespostaProva(
             prova_id      = prova_id,
             aluno_id      = aluno.id,
+            tentativa_num = tentativas_feitas + 1,
             iniciado_em   = iniciado_em or agora,
             finalizado_em = agora,
         )
         db.session.add(resp_prova)
-        db.session.flush()  # gera resp_prova.id
+        db.session.flush()
 
-        nota_total  = 0.0
-        pontos_max  = 0.0
+        nota_total = 0.0
+        pontos_max = 0.0
+        tem_dissertativa = False
 
         for questao in questoes:
             pontos_max += questao.pontos
             campo = f"questao_{questao.id}"
 
             if questao.tipo == "dissertativa":
+                tem_dissertativa = True
                 texto_resp = (request.form.get(campo) or "").strip()
-                rq = RespostaQuestao(
-                    resposta_prova_id  = resp_prova.id,
-                    questao_id         = questao.id,
-                    resposta_texto     = texto_resp,
-                    pontos_obtidos     = 0.0,  # correcão manual
-                )
-                db.session.add(rq)
-
-            else:  # múltipla escolha ou verdadeiro/falso
+                db.session.add(RespostaQuestao(
+                    resposta_prova_id = resp_prova.id,
+                    questao_id        = questao.id,
+                    texto_resposta    = texto_resp,
+                    pontos_obtidos    = None,
+                    corrigida         = 0,
+                ))
+            else:
                 alt_id_str = request.form.get(campo)
                 alt_id     = int(alt_id_str) if alt_id_str and alt_id_str.isdigit() else None
-                alternativa_correta = Alternativa.query.filter_by(
+                correta    = Alternativa.query.filter_by(
                     questao_id=questao.id, correta=1
                 ).first()
-                correta_id  = alternativa_correta.id if alternativa_correta else None
-                acertou     = (alt_id == correta_id) if alt_id else False
+                acertou     = alt_id is not None and correta is not None and alt_id == correta.id
                 pts_obtidos = questao.pontos if acertou else 0.0
                 nota_total += pts_obtidos
 
-                rq = RespostaQuestao(
-                    resposta_prova_id  = resp_prova.id,
-                    questao_id         = questao.id,
-                    alternativa_id     = alt_id,
-                    pontos_obtidos     = pts_obtidos,
-                )
-                db.session.add(rq)
+                db.session.add(RespostaQuestao(
+                    resposta_prova_id = resp_prova.id,
+                    questao_id        = questao.id,
+                    alternativa_id    = alt_id,
+                    pontos_obtidos    = pts_obtidos,
+                    corrigida         = 1,
+                ))
 
-        # Calcula nota final sobre 10
-        if pontos_max > 0:
-            nota_final = round((nota_total / pontos_max) * 10, 2)
+        if tem_dissertativa:
+            resp_prova.nota_obtida = None
+            resp_prova.aprovado    = None
         else:
-            nota_final = 0.0
+            nota_final             = round((nota_total / pontos_max) * 10, 2) if pontos_max else 0.0
+            resp_prova.nota_obtida = nota_final
+            resp_prova.aprovado    = 1 if nota_final >= prova.nota_minima else 0
 
-        tem_dissertativa = any(q.tipo == "dissertativa" for q in questoes)
-        resp_prova.nota_obtida = nota_final
-        resp_prova.aprovado    = 0 if tem_dissertativa else (
-            1 if nota_final >= prova.nota_minima else 0
-        )
         db.session.commit()
 
         if tem_dissertativa:
-            flash("Prova enviada! Quest\u00f5es dissertativas ser\u00e3o corrigidas pelo instrutor.", "sucesso")
+            flash("Prova enviada! Quest\u00f5es dissertativas aguardam corre\u00e7\u00e3o do instrutor.", "sucesso")
         elif resp_prova.aprovado:
-            flash(f"Parab\u00e9ns! Voc\u00ea foi aprovado com nota {nota_final}.", "sucesso")
+            flash(f"Parab\u00e9ns! Aprovado com nota {resp_prova.nota_obtida}.", "sucesso")
         else:
-            flash(f"Voc\u00ea foi reprovado. Nota: {nota_final} (m\u00ednimo: {prova.nota_minima}).", "erro")
+            flash(f"Reprovado. Sua nota: {resp_prova.nota_obtida} (m\u00ednimo: {prova.nota_minima}).", "erro")
 
         return redirect(f"/aluno/provas/{prova_id}/resultado/{resp_prova.id}")
 
-    # GET — exibe formulário da prova
     return render_template("aluno/provas_realizar.html",
                            aluno=aluno, prova=prova, questoes=questoes)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RESULTADO DE UMA TENTATIVA
-# ─────────────────────────────────────────────────────────────────────────────
+# ── RESULTADO DA TENTATIVA (aluno) ───────────────────────────────────────────
 
 @provas_aluno_bp.route("/provas/<int:prova_id>/resultado/<int:resp_id>")
 @aluno_login_required
@@ -194,7 +181,6 @@ def resultado_prova_aluno(prova_id, resp_id):
     prova      = db.get_or_404(Prova, prova_id)
     resp_prova = db.get_or_404(RespostaProva, resp_id)
 
-    # garante que o resultado é do aluno logado
     if resp_prova.aluno_id != aluno.id:
         abort(403)
 
@@ -206,7 +192,6 @@ def resultado_prova_aluno(prova_id, resp_id):
         .all()
     )
 
-    # anexa alternativas corretas e a escolhida para exibir gabarito
     gabarito = []
     for rq, q in respostas:
         correta   = Alternativa.query.filter_by(questao_id=q.id, correta=1).first()
