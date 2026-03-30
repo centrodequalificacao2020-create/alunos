@@ -1,40 +1,49 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, flash, session, abort
 from db import db
-from models import (
-    Aluno, Prova, Questao, Alternativa,
-    RespostaProva, RespostaQuestao, Matricula
-)
 from security import aluno_login_required
 
 provas_aluno_bp = Blueprint("provas_aluno", __name__)
 
 
 def _cursos_ativos(aluno_id):
-    """Retorna lista (não set) de curso_id com matrícula ATIVA."""
-    return [
-        m.curso_id for m in
-        Matricula.query.filter(
-            Matricula.aluno_id == aluno_id,
-            db.func.upper(Matricula.status) == "ATIVA"
-        ).all()
-        if m.curso_id
-    ]
+    """Retorna lista de curso_id com matrícula ATIVA."""
+    # Import local para evitar ImportError se tabela nao existir ainda
+    from models import Matricula
+    try:
+        return [
+            m.curso_id for m in
+            Matricula.query.filter(
+                Matricula.aluno_id == aluno_id,
+                db.func.upper(Matricula.status) == "ATIVA"
+            ).all()
+            if m.curso_id
+        ]
+    except Exception:
+        return []
 
 
 def _tentativas_usadas(prova_id, aluno_id):
-    return RespostaProva.query.filter_by(
-        prova_id=prova_id, aluno_id=aluno_id
-    ).count()
+    from models import RespostaProva
+    try:
+        return RespostaProva.query.filter_by(
+            prova_id=prova_id, aluno_id=aluno_id
+        ).count()
+    except Exception:
+        return 0
 
 
 def _ultima_tentativa(prova_id, aluno_id):
-    return (
-        RespostaProva.query
-        .filter_by(prova_id=prova_id, aluno_id=aluno_id)
-        .order_by(RespostaProva.id.desc())
-        .first()
-    )
+    from models import RespostaProva
+    try:
+        return (
+            RespostaProva.query
+            .filter_by(prova_id=prova_id, aluno_id=aluno_id)
+            .order_by(RespostaProva.id.desc())
+            .first()
+        )
+    except Exception:
+        return None
 
 
 # ── LISTAGEM DE PROVAS ───────────────────────────────────────────────────────
@@ -42,20 +51,25 @@ def _ultima_tentativa(prova_id, aluno_id):
 @provas_aluno_bp.route("/provas")
 @aluno_login_required
 def listar_provas_aluno():
+    from models import Aluno, Prova
     aluno        = db.get_or_404(Aluno, session["aluno_id"])
     cursos_aluno = _cursos_ativos(aluno.id)
 
-    # Protege contra IN() com lista vazia (gera SQL inválido em algumas versões)
     if not cursos_aluno:
         return render_template("aluno/provas_lista.html",
                                aluno=aluno, provas=[])
 
-    provas_raw = (
-        Prova.query
-        .filter(Prova.ativa == 1, Prova.curso_id.in_(cursos_aluno))
-        .order_by(Prova.id.desc())
-        .all()
-    )
+    try:
+        provas_raw = (
+            Prova.query
+            .filter(Prova.ativa == 1, Prova.curso_id.in_(cursos_aluno))
+            .order_by(Prova.id.desc())
+            .all()
+        )
+    except Exception:
+        # Tabela ainda nao existe no banco — exibe pagina vazia sem 500
+        return render_template("aluno/provas_lista.html",
+                               aluno=aluno, provas=[])
 
     provas = []
     for prova in provas_raw:
@@ -78,6 +92,7 @@ def listar_provas_aluno():
 @provas_aluno_bp.route("/provas/<int:prova_id>/realizar", methods=["GET", "POST"])
 @aluno_login_required
 def realizar_prova(prova_id):
+    from models import Aluno, Prova, Questao, Alternativa, RespostaProva, RespostaQuestao
     aluno = db.get_or_404(Aluno, session["aluno_id"])
     prova = db.get_or_404(Prova, prova_id)
 
@@ -179,6 +194,7 @@ def realizar_prova(prova_id):
 @provas_aluno_bp.route("/provas/<int:prova_id>/resultado/<int:resp_id>")
 @aluno_login_required
 def resultado_prova_aluno(prova_id, resp_id):
+    from models import Aluno, Prova, RespostaProva, RespostaQuestao, Questao, Alternativa
     aluno      = db.get_or_404(Aluno, session["aluno_id"])
     prova      = db.get_or_404(Prova, prova_id)
     resp_prova = db.get_or_404(RespostaProva, resp_id)
