@@ -37,27 +37,45 @@
 
     {# Acesso ao portal #}
     {% set ul = aluno.ultimo_login %}
-    <div style="margin-top:16px;padding:12px 16px;background:var(--color-surface);
-                border-radius:var(--radius-md);border:1px solid var(--color-border);
-                display:flex;align-items:center;gap:28px;flex-wrap:wrap;">
+    <div style="margin-top:16px;padding:14px 18px;
+                background:#f8f9fa;
+                border-radius:var(--radius-md);
+                border:1px solid #dee2e6;
+                display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
+
+        {# — Portal ativo/inativo — #}
         <div>
-            <p style="margin:0;font-size:12px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.4px;">Portal do Aluno</p>
+            <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
+                       text-transform:uppercase;letter-spacing:.5px;">Portal do Aluno</p>
             {% if aluno.senha %}
-                <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:var(--color-success);">&#10003; Acesso ativado</p>
+                <p style="margin:5px 0 0;font-size:13px;font-weight:700;color:#198754;">&#10003; Acesso ativado</p>
             {% else %}
-                <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:var(--color-danger);">&#10007; Sem acesso</p>
+                <p style="margin:5px 0 0;font-size:13px;font-weight:700;color:#dc3545;">&#10007; Sem acesso</p>
             {% endif %}
         </div>
+
+        {# separador visual #}
+        <div style="width:1px;height:36px;background:#dee2e6;flex-shrink:0;"></div>
+
+        {# — Último login — #}
         <div>
-            <p style="margin:0;font-size:12px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.4px;">Último Login</p>
+            <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
+                       text-transform:uppercase;letter-spacing:.5px;">Último Login</p>
             {% if ul %}
                 {% set d = ul.login_em %}
-                <p style="margin:4px 0 0;font-size:13px;font-weight:600;">
-                    {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}
-                    <span style="font-size:11px;color:var(--color-text-muted);font-weight:400;">({{ ul.ip or '-' }})</span>
+                <p style="margin:5px 0 0;font-size:14px;font-weight:700;color:#212529;">
+                    {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+                    <span style="color:#495057;">às {{ d[11:16] }}</span>
                 </p>
+                {% if ul.ip %}
+                <p style="margin:2px 0 0;font-size:11px;color:#6c757d;font-family:monospace;">
+                    IP: {{ ul.ip }}
+                </p>
+                {% endif %}
             {% else %}
-                <p style="margin:4px 0 0;font-size:13px;color:var(--color-text-muted);">Nunca acessou</p>
+                <p style="margin:5px 0 0;font-size:13px;font-weight:600;color:#adb5bd;font-style:italic;">
+                    Nunca acessou
+                </p>
             {% endif %}
         </div>
     </div>
@@ -182,9 +200,11 @@
                 {% set d = lg.login_em %}
                 <tr>
                     <td style="color:var(--color-text-muted);font-size:12px;">{{ loop.index }}</td>
-                    <td>{{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}</td>
-                    <td style="font-size:12px;font-family:monospace;">{{ lg.ip or '-' }}</td>
-                    <td style="font-size:11px;color:var(--color-text-muted);max-width:320px;
+                    <td style="font-size:13px;font-weight:600;color:#212529;">
+                        {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}
+                    </td>
+                    <td style="font-size:12px;font-family:monospace;color:#495057;">{{ lg.ip or '-' }}</td>
+                    <td style="font-size:11px;color:#6c757d;max-width:320px;
                                overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         {{ lg.user_agent or '-' }}
                     </td>
@@ -193,7 +213,7 @@
             </tbody>
         </table>
     </div>
-    <p style="font-size:12px;color:var(--color-text-muted);margin-top:8px;">
+    <p style="font-size:12px;color:#6c757d;margin-top:8px;">
         Exibindo os últimos {{ logins|length }} acessos.
     </p>
 </div>
