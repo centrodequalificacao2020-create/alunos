@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v14)
+   SISTEMA ESCOLAR — style.css  (v15)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ───────────────────────────────────────────────────── */
@@ -187,22 +187,61 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
 .btn-pdf     { background: #c0392b; color: var(--color-white); }
 .btn-secondary { background: rgba(255,255,255,.15); color: var(--color-white); border: 1px solid rgba(255,255,255,.3); }
 
+/* ── COLUNA DE AÇÕES — ÍCONES (acoes) ──────────────────────
+   Usada quando os botões são só ícones quadrados (✏️ 🗑️).
+   th e td recebem o mesmo text-align: center.
+──────────────────────────────────────────────────────────── */
+th.acoes,
+td.acoes {
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    padding: 8px 12px;
+}
+
+th.acoes {
+    /* sobrescreve o text-align:left do table th global */
+    text-align: center !important;
+}
+
 .acoes .btn {
-    width: 36px;
-    height: 32px;
+    width: 34px;
+    height: 30px;
     padding: 0;
     margin: 0 2px;
     font-size: 15px;
 }
-.acoes-texto {
+
+/* Garante que forms inline dentro de .acoes não quebram alinhamento */
+.acoes form {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 2px;
+}
+
+/* ── COLUNA DE AÇÕES — TEXTO (acoes-texto) ─────────────────
+   Usada quando os botões têm label (ex: "📄 Declaração").
+   Mesmo tratamento de alinhamento que .acoes.
+──────────────────────────────────────────────────────────── */
+th.acoes-texto,
+td.acoes-texto {
     text-align: center;
     vertical-align: middle;
     white-space: nowrap;
-    min-width: 290px;
+    min-width: 220px;
     padding: 8px 14px;
 }
+
+th.acoes-texto {
+    text-align: center !important;
+}
+
 .acoes-texto .btn,
-.acoes-texto form { display: inline-flex; align-items: center; margin: 0 2px; }
+.acoes-texto form {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 2px;
+}
 
 .acoes-form { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
 .acoes-form--between { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; }
@@ -217,7 +256,6 @@ table th {
     text-transform: uppercase; color: var(--color-text-head);
 }
 table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); font-size: var(--font-size-base); vertical-align: middle; }
-td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
 .tabela-planilha { max-width: 100%; overflow: auto; border: 1px solid #ddd; border-radius: var(--radius-md); max-height: 400px; }
 .tabela-container { max-height: 320px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
 .tabela-excel { width: max-content; min-width: 100%; border-collapse: collapse; }
@@ -227,20 +265,27 @@ td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
     font-weight: 600; font-size: var(--font-size-sm); text-transform: uppercase;
     border-bottom: 2px solid var(--color-primary-dark);
     padding: 10px 14px; position: sticky; top: 0; z-index: 2;
+    /* reset: cabeçalhos da tabela-excel são left por padrão */
+    text-align: left;
 }
-.tabela-excel thead th.acoes { position: sticky; right: 0; z-index: 3; background: var(--color-primary); }
-.tabela-excel td { padding: 8px 14px; }
-.tabela-excel td.acoes {
-    background: var(--acoes-bg);
-    position: sticky; right: 0; z-index: 1;
-    box-shadow: -2px 0 5px rgba(0,0,0,.15);
+
+/* Cabeçalhos de ação dentro de tabela-excel: centralizar */
+.tabela-excel thead th.acoes,
+.tabela-excel thead th.acoes-texto {
+    text-align: center !important;
+    position: sticky; right: 0; z-index: 3;
+    background: var(--color-primary);
 }
-.tabela-excel thead th.acoes-texto { position: sticky; right: 0; z-index: 3; background: var(--color-primary); }
+
+/* Células de dados de ação dentro de tabela-excel */
+.tabela-excel td.acoes,
 .tabela-excel td.acoes-texto {
     background: var(--acoes-bg);
     position: sticky; right: 0; z-index: 1;
     box-shadow: -2px 0 5px rgba(0,0,0,.15);
+    text-align: center;
 }
+
 .tabela-excel tbody tr:hover td { background: var(--color-primary-light); }
 .tabela-excel tbody tr:hover td.acoes,
 .tabela-excel tbody tr:hover td.acoes-texto { background: var(--color-primary-light); }
@@ -251,13 +296,15 @@ td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
     color: var(--color-danger);
     font-weight: 600;
 }
-.tabela-excel tbody tr.parcela-vencida td.acoes {
+.tabela-excel tbody tr.parcela-vencida td.acoes,
+.tabela-excel tbody tr.parcela-vencida td.acoes-texto {
     background: #fff0f0;
 }
 .tabela-excel tbody tr.parcela-vencida:hover td {
     background: #ffd6d6;
 }
-.tabela-excel tbody tr.parcela-vencida:hover td.acoes {
+.tabela-excel tbody tr.parcela-vencida:hover td.acoes,
+.tabela-excel tbody tr.parcela-vencida:hover td.acoes-texto {
     background: #ffd6d6;
 }
 
