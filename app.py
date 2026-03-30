@@ -37,18 +37,19 @@ def create_app(config_class=Config):
     configure_logging(app)
 
     # Blueprints
-    from routes.auth         import auth_bp
-    from routes.cursos       import cursos_bp
-    from routes.aluno        import aluno_bp
-    from routes.financeiro   import financeiro_bp
-    from routes.dashboard    import dashboard_bp
-    from routes.despesas     import despesas_bp
-    from routes.funcionario  import funcionario_bp
-    from routes.conteudos    import conteudos_bp
-    from routes.portal_aluno import portal_aluno_bp
-    from routes.academico    import academico_bp
-    from routes.backup       import backup_bp
-    from routes.provas       import provas_bp          # ← módulo de provas
+    from routes.auth          import auth_bp
+    from routes.cursos        import cursos_bp
+    from routes.aluno         import aluno_bp
+    from routes.financeiro    import financeiro_bp
+    from routes.dashboard     import dashboard_bp
+    from routes.despesas      import despesas_bp
+    from routes.funcionario   import funcionario_bp
+    from routes.conteudos     import conteudos_bp
+    from routes.portal_aluno  import portal_aluno_bp
+    from routes.academico     import academico_bp
+    from routes.backup        import backup_bp
+    from routes.provas        import provas_bp          # ← provas (admin)
+    from routes.provas_aluno  import provas_aluno_bp    # ← provas (portal aluno)
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(cursos_bp)
@@ -60,8 +61,9 @@ def create_app(config_class=Config):
     app.register_blueprint(conteudos_bp)
     app.register_blueprint(academico_bp)
     app.register_blueprint(backup_bp)
-    app.register_blueprint(provas_bp)                  # ← registra provas
-    app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
+    app.register_blueprint(provas_bp)                   # ← rotas /provas (admin)
+    app.register_blueprint(portal_aluno_bp,  url_prefix="/aluno")
+    app.register_blueprint(provas_aluno_bp,  url_prefix="/aluno")  # ← /aluno/provas/*
 
     @app.template_filter("moeda")
     def filtro_moeda(valor):
