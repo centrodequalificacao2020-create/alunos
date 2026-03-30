@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Lançar Mensalidade{% endblock %}
+{% block content %}
+
+<script>
+const CURSO_TIPO = {{ curso_tipo | tojson }};
+function preencherTipo(sel) {
+    const tipo = CURSO_TIPO[parseInt(sel.value)] || "";
+    const st   = document.getElementById("tipo_curso");
+    if (!st) return;
+    for (let opt of st.options) {
+        if (opt.value === tipo) { opt.selected = true; return; }
+    }
+    st.value = "";
+}
+</script>
+
+<div class="card" style="max-width:700px">
+    <div class="card-header">
+        <span>&#128197;</span>
+        <h2 style="margin:0">Lançar Mensalidade / Material Avulso</h2>
+    </div>
+    <p class="card-subtitle">Adiciona parcelas a uma matr&iacute;cula j&aacute; existente &mdash; <strong>sem criar nova matr&iacute;cula</strong>.</p>
+
+    <form method="POST" action="/lancar_mensalidade">
+        <input type="hidden" name="apenas_mensalidade" value="1">
+
+        <div class="campo">
+            <label>Aluno *</label>
+            <select name="aluno_id" required>
+                <option value="">Selecione o aluno</option>
+                {% for a in alunos %}
+                <option value="{{ a.id }}">{{ a.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="campo">
+            <label>Curso *</label>
+            <select name="curso_id" required onchange="preencherTipo(this)">
+                <option value="">Selecione o curso</option>
+                {% for c in cursos %}
+                <option value="{{ c.id }}">{{ c.nome }}</option>
+                {% endfor %}
+            </select>
+            <small style="color:#888">O aluno deve j&aacute; ter matr&iacute;cula ativa neste curso.</small>
+        </div>
+
+        <h3 class="secao">&#128197; Mensalidade</h3>
+        <div class="grid-2">
+            <div class="campo">
+                <label>Valor da Mensalidade (R$)</label>
+                <input type="number" name="valor_mensalidade" step="0.01" min="0" placeholder="0,00">
+                <small style="color:#888">Deixe em branco para n&atilde;o lan&ccedil;ar mensalidades.</small>
+            </div>
+            <div class="campo">
+                <label>Qtd. Parcelas de Mensalidade</label>
+                <input type="number" name="parcelas" min="1" value="1">
+            </div>
+        </div>
+        <div class="campo">
+            <label>Primeiro vencimento da mensalidade</label>
+            <input type="date" name="data_primeira_mensalidade">
+        </div>
+
+        <h3 class="secao">&#128218; Material / Apostila</h3>
+        <div class="grid-2">
+            <div class="campo">
+                <label>Valor do Material / Apostila (R$)</label>
+                <input type="number" name="valor_material" step="0.01" min="0" placeholder="0,00">
+                <small style="color:#888">Pode ser parcelado abaixo.</small>
+            </div>
+            <div class="campo">
+                <label>Qtd. Parcelas do Material</label>
+                <input type="number" name="parcelas_material" min="1" value="1">
+                <small style="color:#888">1 = cobra integral. 2+ = divide o valor.</small>
+            </div>
+        </div>
+        <div class="campo">
+            <label>Primeiro vencimento do material</label>
+            <input type="date" name="data_material">
+        </div>
+        <div class="campo">
+            <label>Formato do Material</label>
+            <div class="material-opcoes">
+                <label class="material-card">
+                    <input type="radio" name="material_didatico" value="Digital" checked>
+                    <span>&#128241; Digital</span>
+                </label>
+                <label class="material-card">
+                    <input type="radio" name="material_didatico" value="F&iacute;sico">
+                    <span>&#128218; F&iacute;sico</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="campo">
+            <label>Observa&ccedil;&otilde;es</label>
+            <textarea name="observacao" class="observacao-grande" placeholder="Opcional"></textarea>
+        </div>
+
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">&#128190; Lan&ccedil;ar Parcelas</button>
+            <a href="/financeiro" class="btn" style="background:#e0e0e0;color:#333">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

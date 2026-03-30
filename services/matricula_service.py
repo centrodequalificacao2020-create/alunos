@@ -61,8 +61,12 @@ def criar_matricula(form_data) -> int:
     if not curso:
         raise ValueError("Curso não encontrado.")
 
+    # ── Flag: lançamento avulso (não cria matrícula, não cria parcela de matrícula) ──
+    apenas_mensalidade = form_data.get("apenas_mensalidade") == "1"
+
     # O formulário pode enviar valor_mensal OU valor_mensalidade
-    valor_matricula   = float(form_data.get("valor_matricula")   or 0)
+    # Em lançamento avulso, valor_matricula deve ser ZERO — nunca cria parcela de matrícula
+    valor_matricula   = 0.0 if apenas_mensalidade else float(form_data.get("valor_matricula") or 0)
     valor_mensalidade = float(
         form_data.get("valor_mensalidade") or
         form_data.get("valor_mensal")      or
@@ -71,9 +75,15 @@ def criar_matricula(form_data) -> int:
     parcelas          = int(form_data.get("parcelas") or curso.parcelas or 1)
     tipo_curso        = form_data.get("tipo_curso")     or curso.tipo or ""
     data_matricula    = form_data.get("data_matricula") or date.today().isoformat()
+
+    # Material didático — parcelável em qualquer modo (matrícula OU avulso)
     material_didatico = form_data.get("material_didatico") or ""
     valor_material    = float(form_data.get("valor_material") or 0)
+    # parcelas_material: usa o campo do form; padrão 1 (integral)
     parcelas_material = int(form_data.get("parcelas_material") or 1)
+    if parcelas_material < 1:
+        parcelas_material = 1
+
     observacao        = form_data.get("observacao") or ""
 
     # mes_inicio a partir do campo data_primeira_mensalidade (formulário) ou mes_inicio
@@ -89,7 +99,7 @@ def criar_matricula(form_data) -> int:
     except Exception:
         ano, mes = date.today().year, date.today().month
 
-    # data de vencimento do material
+    # data de vencimento do material (primeira parcela)
     data_material_raw = form_data.get("data_material") or data_matricula
     try:
         ano_mat = int(data_material_raw[:4])
@@ -98,9 +108,6 @@ def criar_matricula(form_data) -> int:
         ano_mat, mes_mat = ano, mes
 
     # ── Cria o registro de matrícula ─────────────────────────────────────────
-    # NÃO cria matrícula automática se o formulário for só de mensalidade avulsa
-    apenas_mensalidade = form_data.get("apenas_mensalidade") == "1"
-
     if not apenas_mensalidade:
         matricula = Matricula(
             aluno_id            = aluno_id,
@@ -119,14 +126,18 @@ def criar_matricula(form_data) -> int:
         # Atualiza curso_id legado do aluno apenas na criação de matrícula
         aluno.curso_id = curso_id
     else:
-        # Apenas lança parcelas — busca matrícula existente para o curso
+        # Apenas lança parcelas — busca matrícula existente para o curso especificado
+        # IMPORTANTE: filtra pelo curso_id do form para não pegar matrícula de outro curso
         matricula = Matricula.query.filter_by(
             aluno_id=aluno_id, curso_id=curso_id
         ).order_by(Matricula.id.desc()).first()
         if not matricula:
-            raise ValueError("Aluno não possui matrícula neste curso. Crie a matrícula primeiro.")
+            raise ValueError(
+                "Aluno não possui matrícula neste curso. "
+                "Crie a matrícula primeiro na aba Matrículas."
+            )
 
-    # ── Parcela de matrícula ─────────────────────────────────────────────────
+    # ── Parcela de matrícula (nunca em modo avulso) ───────────────────────────
     if not apenas_mensalidade and valor_matricula > 0:
         db.session.add(Mensalidade(
             aluno_id    = aluno_id,
@@ -146,7 +157,7 @@ def criar_matricula(form_data) -> int:
         vencimento = f"{venc_ano:04d}-{venc_mes:02d}-10"
         db.session.add(Mensalidade(
             aluno_id    = aluno_id,
-            curso_id    = curso_id,   # ← vincula ao curso correto
+            curso_id    = curso_id,   # ← sempre vincula ao curso do formulário
             valor       = valor_mensalidade,
             vencimento  = vencimento,
             status      = "Pendente",
@@ -154,7 +165,7 @@ def criar_matricula(form_data) -> int:
             parcela_ref = f"{i:02d}/{parcelas:02d}",
         ))
 
-    # ── Parcelas de material (parcelável) ────────────────────────────────────
+    # ── Parcelas de material (parcelável, funciona em ambos os modos) ────────
     if valor_material > 0:
         for i in range(1, parcelas_material + 1):
             venc_mes = mes_mat + i - 1
