@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, flash, session
 from db import db
 from models import Prova, Questao, Alternativa, RespostaProva, Curso, Materia
-from security import login_required, instrutor_required
+from security import login_required
 from datetime import datetime
 
 provas_bp = Blueprint("provas", __name__)
@@ -148,8 +148,8 @@ def gerenciar_questoes(id):
 
             # ── Alternativas (para objetivas) ──
             if tipo in ("multipla_escolha", "verdadeiro_falso"):
-                textos  = request.form.getlist("alt_texto")
-                corretas = request.form.getlist("alt_correta")  # valores = índice string
+                textos   = request.form.getlist("alt_texto")
+                corretas = request.form.getlist("alt_correta")
                 for i, texto in enumerate(textos):
                     texto = texto.strip()
                     if not texto:
@@ -169,7 +169,7 @@ def gerenciar_questoes(id):
         # ── Excluir questão ──
         elif acao == "del_questao":
             q_id = int(request.form.get("questao_id"))
-            q = Questao.query.get_or_404(q_id)
+            q    = Questao.query.get_or_404(q_id)
             if q.prova_id != id:
                 flash("Operação inválida.", "erro")
                 return redirect(f"/provas/{id}/questoes")
@@ -188,7 +188,6 @@ def gerenciar_questoes(id):
                 q.enunciado = enunciado
             q.pontos = pontos
 
-            # Atualiza alternativas existentes
             textos   = request.form.getlist("alt_texto")
             corretas = request.form.getlist("alt_correta")
             alt_ids  = request.form.getlist("alt_id")
