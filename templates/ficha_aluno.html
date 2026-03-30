@@ -34,6 +34,33 @@
             <p><strong>CEP:</strong> {{ aluno.cep or '' }}</p>
         </div>
     </div>
+
+    {# ── Acesso ao portal ── #}
+    {% set ul = aluno.ultimo_login %}
+    <div style="margin-top:16px; padding:12px 16px; background:var(--color-surface);
+                border-radius:var(--radius-md); border:1px solid var(--color-border);
+                display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
+        <div>
+            <p style="margin:0;font-size:12px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.4px;">Portal do Aluno</p>
+            {% if aluno.senha %}
+                <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:var(--color-success);">&#10003; Acesso ativado</p>
+            {% else %}
+                <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:var(--color-danger);">&#10007; Sem acesso</p>
+            {% endif %}
+        </div>
+        <div>
+            <p style="margin:0;font-size:12px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.4px;">Último Login</p>
+            {% if ul %}
+                {% set d = ul.login_em %}
+                <p style="margin:4px 0 0;font-size:13px;font-weight:600;">
+                    {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}
+                    <span style="font-size:11px;color:var(--color-text-muted);font-weight:400;">({{ ul.ip or '-' }})</span>
+                </p>
+            {% else %}
+                <p style="margin:4px 0 0;font-size:13px;color:var(--color-text-muted);">Nunca acessou</p>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 <div class="card" style="margin-top:20px">
@@ -62,7 +89,8 @@
             <thead>
                 <tr>
                     <th>Curso</th>
-                    <th>Data</th>
+                    <th>Data Matrícula</th>
+                    <th>Cadastrado em</th>
                     <th>Status</th>
                     <th class="acoes-texto">Ações</th>
                 </tr>
@@ -72,6 +100,15 @@
                 <tr>
                     <td>{{ m.curso_nome }}</td>
                     <td>{{ m.data_matricula or '-' }}</td>
+                    <td style="font-size:12px;color:var(--color-text-muted);">
+                        {% if m.data_cadastro %}
+                            {% set dc = m.data_cadastro %}
+                            {{ dc[8:10] }}/{{ dc[5:7] }}/{{ dc[0:4] }}
+                            {% if dc|length >= 16 %}às {{ dc[11:16] }}{% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
                     <td class="acoes-texto">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
@@ -100,4 +137,46 @@
     <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
     {% endif %}
 </div>
+
+{# ── Histórico de Logins ── #}
+{% set logins = aluno.login_historico[:20] %}
+{% if logins %}
+<div class="card" style="margin-top:20px">
+    <h3>🔐 Histórico de Acesso ao Portal</h3>
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Data / Hora</th>
+                    <th>IP</th>
+                    <th>Dispositivo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lg in logins %}
+                {% set d = lg.login_em %}
+                <tr>
+                    <td style="color:var(--color-text-muted);font-size:12px;">{{ loop.index }}</td>
+                    <td>{{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}</td>
+                    <td style="font-size:12px;font-family:monospace;">{{ lg.ip or '-' }}</td>
+                    <td style="font-size:11px;color:var(--color-text-muted);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {{ lg.user_agent or '-' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p style="font-size:12px;color:var(--color-text-muted);margin-top:8px;">
+        Exibindo os últimos {{ logins|length }} acessos.
+    </p>
+</div>
+{% else %}
+<div class="card" style="margin-top:20px">
+    <h3>🔐 Histórico de Acesso ao Portal</h3>
+    <p class="empty-state">Este aluno ainda não acessou o portal.</p>
+</div>
+{% endif %}
+
 {% endblock %}

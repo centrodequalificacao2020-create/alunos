@@ -28,6 +28,19 @@ body {
     margin: 0;
     font-size: 14px;
 }
+.ultimo-login {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: rgba(255,255,255,.45);
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 999px;
+    padding: 3px 12px 3px 8px;
+}
+.ultimo-login i { font-size: 11px; color: rgba(255,255,255,.35); }
 .aluno-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -118,6 +131,14 @@ body {
     <h1>🎓 Bem-vindo, {{ aluno.nome.strip().split()[0] }}!</h1>
     {% if matricula %}
     <p>{{ matricula.curso.nome if matricula.curso else '' }}</p>
+    {% endif %}
+    {% if ultimo_login %}
+    <span class="ultimo-login">
+        <i class="fas fa-clock"></i>
+        Último acesso:
+        {% set d = ultimo_login.login_em %}
+        {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}
+    </span>
     {% endif %}
 </div>
 

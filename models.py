@@ -6,7 +6,7 @@ from enums import (
 )
 
 
-# ─── Constantes de domínio (retrocompat) ─────────────────────────────────────────────────────────
+# ─ Constantes de domínio (retrocompat) ──────────────────────────────────────────────────
 PERFIS_VALIDOS   = PerfilUsuario.valores()
 STATUS_MATRICULA = StatusMatricula.valores()
 
@@ -90,6 +90,9 @@ class Aluno(db.Model):
     matriculas             = db.relationship("Matricula",   backref="aluno", lazy=True)
     frequencias            = db.relationship("Frequencia",  backref="aluno", lazy=True)
     notas                  = db.relationship("Nota",        backref="aluno", lazy=True)
+    login_historico        = db.relationship("LoginHistoricoAluno", backref="aluno",
+                                             lazy=True, cascade="all, delete-orphan",
+                                             order_by="LoginHistoricoAluno.login_em.desc()")
 
     @property
     def matricula_ativa(self):
@@ -103,6 +106,16 @@ class Aluno(db.Model):
         m = self.matricula_ativa
         return m.curso if m else None
 
+    @property
+    def ultimo_login(self):
+        """Retorna o registro de login mais recente ou None."""
+        return (
+            LoginHistoricoAluno.query
+            .filter_by(aluno_id=self.id)
+            .order_by(LoginHistoricoAluno.login_em.desc())
+            .first()
+        )
+
 
 class Matricula(db.Model):
     __tablename__ = "matriculas"
@@ -112,7 +125,8 @@ class Matricula(db.Model):
     curso_id            = db.Column(db.Integer, db.ForeignKey("cursos.id"),
                                     nullable=False)
     tipo_curso          = db.Column(db.String(60))
-    data_matricula      = db.Column(db.String(10))
+    data_matricula      = db.Column(db.String(10))   # data em que o admin registrou a matrícula
+    data_cadastro       = db.Column(db.String(19))   # timestamp ISO preenchido automaticamente
     status              = db.Column(db.String(20), default=StatusMatricula.ATIVA.value)
     valor_matricula     = db.Column(db.Float, default=0)
     valor_mensalidade   = db.Column(db.Float, default=0)
@@ -122,12 +136,30 @@ class Matricula(db.Model):
     observacao          = db.Column(db.Text)
 
     def save(self, session):
-        """Garante que status é sempre salvo em maiúsculo e válido."""
+        """Garante que status é sempre salvo em maiúsculo e válido.
+           Preenche data_cadastro se ainda nao foi definido.
+        """
         valor = (self.status or StatusMatricula.ATIVA.value).upper().strip()
         if valor not in StatusMatricula.valores():
             valor = StatusMatricula.ATIVA.value
         self.status = valor
+        if not self.data_cadastro:
+            self.data_cadastro = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         session.add(self)
+
+
+class LoginHistoricoAluno(db.Model):
+    """Registra cada login do aluno no portal."""
+    __tablename__ = "login_historico_aluno"
+    __table_args__ = (
+        db.Index("ix_login_hist_aluno_id", "aluno_id"),
+        db.Index("ix_login_hist_login_em", "login_em"),
+    )
+    id         = db.Column(db.Integer, primary_key=True)
+    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    login_em   = db.Column(db.String(19), nullable=False)   # YYYY-MM-DD HH:MM:SS
+    ip         = db.Column(db.String(45))                   # IPv4 ou IPv6
+    user_agent = db.Column(db.String(300))
 
 
 class Mensalidade(db.Model):
@@ -150,26 +182,17 @@ class Mensalidade(db.Model):
 
 
 class Despesa(db.Model):
-    """Despesa avulsa (tipo=variavel) ou recorrente (tipo=fixa).
-
-    Para despesas fixas:
-      - data_inicio: primeiro mês em que a cobrança incide  (formato YYYY-MM)
-      - data_fim:    último  mês em que a cobrança incide   (formato YYYY-MM)
-      - data:        data de cadastro do registro (preenchida automaticamente)
-      - valor:       valor mensal a ser computado no dashboard
-    """
+    """Despesa avulsa (tipo=variavel) ou recorrente (tipo=fixa)."""
     __tablename__ = "despesas"
     id           = db.Column(db.Integer, primary_key=True)
     descricao    = db.Column(db.String(200))
     valor        = db.Column(db.Float, default=0)
-    tipo         = db.Column(db.String(40))          # 'fixa' | 'variavel'
+    tipo         = db.Column(db.String(40))
     categoria    = db.Column(db.String(60))
-    data         = db.Column(db.String(10))           # data de cadastro / data do lançamento avulso
+    data         = db.Column(db.String(10))
     observacao   = db.Column(db.Text)
-    # ── campos de recorrência (só usados quando tipo == 'fixa') ──
-    data_inicio  = db.Column(db.String(7))            # YYYY-MM  ex: '2026-03'
-    data_fim     = db.Column(db.String(7))            # YYYY-MM  ex: '2026-12'
-    # ── colunas legadas mantidas para não quebrar migrações antigas ──
+    data_inicio  = db.Column(db.String(7))
+    data_fim     = db.Column(db.String(7))
     recorrente     = db.Column(db.Integer, default=0)
     dia_vencimento = db.Column(db.Integer)
 

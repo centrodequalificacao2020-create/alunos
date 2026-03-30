@@ -9,7 +9,6 @@
     gap: 24px;
     margin-top: 24px;
 }
-
 .curso-card {
     background: rgba(15, 32, 55, 0.82);
     border: 1px solid rgba(255,255,255,.12);
@@ -29,47 +28,15 @@
     box-shadow: 0 10px 32px rgba(0,198,255,.18);
     border-color: rgba(0,198,255,.5);
 }
-
-.curso-card__icone {
-    font-size: 36px;
-    line-height: 1;
-}
-.curso-card__nome {
-    font-size: 17px;
-    font-weight: 700;
-    color: #e8f1fb;
-    line-height: 1.3;
-}
-.curso-card__tipo {
-    font-size: 12px;
-    color: rgba(220,232,245,.55);
-    text-transform: uppercase;
-    letter-spacing: .5px;
-}
-
-/* barra de progresso */
-.curso-progresso {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-.curso-progresso__barra {
-    background: rgba(255,255,255,.15);
-    border-radius: 8px;
-    height: 8px;
-    overflow: hidden;
-}
-.curso-progresso__fill {
-    height: 100%;
-    border-radius: 8px;
-    background: linear-gradient(90deg, #00c6ff, #0072ff);
-    transition: width .4s;
-}
-.curso-progresso__texto {
-    font-size: 12px;
-    color: rgba(220,232,245,.60);
-}
-
+.curso-card__icone  { font-size: 36px; line-height: 1; }
+.curso-card__nome   { font-size: 17px; font-weight: 700; color: #e8f1fb; line-height: 1.3; }
+.curso-card__tipo   { font-size: 12px; color: rgba(220,232,245,.55); text-transform: uppercase; letter-spacing: .5px; }
+.curso-card__meta   { font-size: 12px; color: rgba(220,232,245,.45); display: flex; flex-direction: column; gap: 3px; }
+.curso-card__meta span { display: flex; align-items: center; gap: 5px; }
+.curso-progresso            { display: flex; flex-direction: column; gap: 5px; }
+.curso-progresso__barra     { background: rgba(255,255,255,.15); border-radius: 8px; height: 8px; overflow: hidden; }
+.curso-progresso__fill      { height: 100%; border-radius: 8px; background: linear-gradient(90deg, #00c6ff, #0072ff); transition: width .4s; }
+.curso-progresso__texto     { font-size: 12px; color: rgba(220,232,245,.60); }
 .curso-card__btn {
     align-self: flex-start;
     margin-top: auto;
@@ -82,16 +49,8 @@
     font-weight: 600;
     transition: background .15s;
 }
-.curso-card:hover .curso-card__btn {
-    background: rgba(0,198,255,.30);
-}
-
-.empty-cursos {
-    text-align: center;
-    padding: 60px 0;
-    color: rgba(220,232,245,.55);
-    font-size: 15px;
-}
+.curso-card:hover .curso-card__btn { background: rgba(0,198,255,.30); }
+.empty-cursos { text-align: center; padding: 60px 0; color: rgba(220,232,245,.55); font-size: 15px; }
 </style>
 {% endblock %}
 
@@ -109,12 +68,24 @@
     {% for item in cursos_info %}
     <a class="curso-card" href="/aluno/conteudo/{{ item.curso.id }}">
 
-        <div class="curso-card__icone">&#127979;</div>
+        <div class="curso-card__icone">🏫</div>
 
         <div>
             <div class="curso-card__nome">{{ item.curso.nome }}</div>
             {% if item.curso.tipo %}
             <div class="curso-card__tipo">{{ item.curso.tipo }}</div>
+            {% endif %}
+        </div>
+
+        {# Data de cadastro da matrícula #}
+        <div class="curso-card__meta">
+            {% if item.data_cadastro %}
+            {% set dc = item.data_cadastro %}
+            <span>📅 Matriculado em: {{ dc[8:10] }}/{{ dc[5:7] }}/{{ dc[0:4] }}
+                {% if dc|length >= 16 %} às {{ dc[11:16] }}{% endif %}
+            </span>
+            {% elif item.matricula.data_matricula %}
+            <span>📅 Matrícula: {{ item.matricula.data_matricula }}</span>
             {% endif %}
         </div>
 
@@ -138,7 +109,6 @@
     </a>
     {% endfor %}
 </div>
-
 {% else %}
 <div class="empty-cursos">
     &#127805; Você não possui matrículas ativas no momento.
