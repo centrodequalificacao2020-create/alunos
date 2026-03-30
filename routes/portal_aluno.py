@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from flask import Blueprint, render_template, request, redirect, session, flash, abort, send_file, make_response, Response
 from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria, Nota
 from security import verificar_senha, aluno_login_required, hash_senha
@@ -36,6 +37,16 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
     return vinculo is not None
 
 
+def _contar_atrasadas(mensalidades):
+    """Conta parcelas nao pagas cujo vencimento ja passou (atrasadas de verdade)."""
+    hoje = date.today().strftime("%Y-%m-%d")
+    count = 0
+    for m in mensalidades:
+        if m.status != "Pago" and m.vencimento and str(m.vencimento) < hoje:
+            count += 1
+    return count
+
+
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def login_aluno():
@@ -65,10 +76,10 @@ def dashboard_aluno():
     aluno        = db.get_or_404(Aluno, session["aluno_id"])
     matricula    = _matricula_ativa(aluno.id)
     mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
-    pendentes    = sum(1 for m in mensalidades if m.status != "Pago")
+    atrasadas    = _contar_atrasadas(mensalidades)
     val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
     return render_template("aluno/dashboard.html", aluno=aluno,
-        matricula=matricula, pendentes=pendentes, valor_pendente=val_pend)
+        matricula=matricula, atrasadas=atrasadas, valor_pendente=val_pend)
 
 
 @portal_aluno_bp.route("/financeiro")
@@ -77,11 +88,11 @@ def financeiro_aluno():
     aluno        = db.get_or_404(Aluno, session["aluno_id"])
     matricula    = _matricula_ativa(aluno.id)
     mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
-    pendentes    = sum(1 for m in mensalidades if m.status != "Pago")
+    atrasadas    = _contar_atrasadas(mensalidades)
     val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
     return render_template("aluno/financeiro.html", aluno=aluno,
         matricula=matricula, mensalidades=mensalidades,
-        pendentes=pendentes, valor_pendente=val_pend)
+        atrasadas=atrasadas, valor_pendente=val_pend)
 
 
 @portal_aluno_bp.route("/frequencia")
@@ -193,7 +204,7 @@ def abrir_arquivo_conteudo(conteudo_id):
             mime, _ = mimetypes.guess_type(candidato)
             mime = mime or "application/octet-stream"
 
-            # Le os bytes — nunca expoe o caminho real na resposta
+            # Le os bytes - nunca expoe o caminho real na resposta
             with open(candidato, "rb") as f:
                 dados = f.read()
 

@@ -12,15 +12,15 @@
     {% endif %}
 </div>
 
-{% if pendentes > 0 %}
+{% if atrasadas > 0 %}
 <div class="card portal-card--pendente" style="max-width:900px; margin:0 auto 16px;">
-    <p class="portal-alerta-titulo">⚠️ {{ pendentes }} parcela{{ 's' if pendentes > 1 }} pendente{{ 's' if pendentes > 1 }}</p>
+    <p class="portal-alerta-titulo">⚠️ Você tem {{ atrasadas }} parcela{{ 's' if atrasadas > 1 }} em atraso</p>
     <p class="portal-alerta-valor">R$ {{ '%.2f'|format(valor_pendente) }}</p>
     <p class="portal-alerta-sub">Regularize com a secretaria</p>
 </div>
 {% else %}
 <div class="card portal-card--ok" style="max-width:900px; margin:0 auto 16px;">
-    <p class="portal-alerta-titulo">✅ Pagamentos em dia</p>
+    <p class="portal-alerta-titulo">✅ Você está em dia!</p>
 </div>
 {% endif %}
 
