@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Minhas Provas{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+    --bg:      #0f2027;
+    --card:    rgba(255,255,255,.07);
+    --border:  rgba(255,255,255,.12);
+    --accent:  #00c6ff;
+    --green:   #00ff9d;
+    --red:     #ff4d4d;
+    --yellow:  #ffd700;
+}
+body{ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364); min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff; }
+.wrap{ max-width:900px; margin:auto; padding:30px 20px; }
+h2{ font-size:24px; margin-bottom:4px; }
+.sub{ opacity:.6; font-size:14px; margin-bottom:30px; }
+.prova-card{
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:22px 24px; margin-bottom:18px;
+    display:flex; align-items:center; gap:20px; transition:.3s;
+}
+.prova-card:hover{ background:rgba(0,198,255,.12); border-color:var(--accent); }
+.prova-icon{ font-size:32px; min-width:44px; text-align:center; }
+.prova-info{ flex:1; }
+.prova-info h3{ margin:0 0 4px; font-size:17px; }
+.prova-meta{ font-size:13px; opacity:.65; display:flex; gap:14px; flex-wrap:wrap; }
+.prova-meta span{ display:flex; align-items:center; gap:5px; }
+.badge{
+    display:inline-block; padding:3px 10px; border-radius:20px;
+    font-size:12px; font-weight:600; white-space:nowrap;
+}
+.badge-ok   { background:rgba(0,255,157,.15); color:var(--green); border:1px solid var(--green); }
+.badge-err  { background:rgba(255,77,77,.15);  color:var(--red);   border:1px solid var(--red); }
+.badge-pend { background:rgba(255,215,0,.15);  color:var(--yellow);border:1px solid var(--yellow); }
+.badge-nova { background:rgba(0,198,255,.15);  color:var(--accent);border:1px solid var(--accent); }
+.btn{
+    padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600;
+    text-decoration:none; border:none; cursor:pointer; transition:.25s;
+    display:inline-flex; align-items:center; gap:7px;
+}
+.btn-primary{ background:var(--accent); color:#000; }
+.btn-primary:hover{ opacity:.85; }
+.btn-disabled{ background:rgba(255,255,255,.1); color:rgba(255,255,255,.35); cursor:not-allowed; }
+.empty{ text-align:center; padding:60px 20px; opacity:.5; }
+.empty i{ font-size:48px; display:block; margin-bottom:16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+    <h2><i class="fas fa-file-alt" style="color:#fd79a8"></i> Minhas Provas e Exercícios</h2>
+    <p class="sub">Olá, {{ aluno.nome.split()[0] }}! Veja as provas disponíveis para seus cursos.</p>
+
+    {% if not provas %}
+    <div class="empty">
+        <i class="fas fa-inbox"></i>
+        <p>Nenhuma prova disponível no momento.</p>
+        <p style="font-size:13px">Novas provas aparecerão aqui quando forem ativadas pelo instrutor.</p>
+    </div>
+    {% else %}
+    {% for item in provas %}
+    {% set p = item.prova %}
+    <div class="prova-card">
+        <div class="prova-icon">
+            {% if item.ultima and item.ultima.aprovado == 1 %}
+                <i class="fas fa-check-circle" style="color:#00ff9d"></i>
+            {% elif item.ultima and item.ultima.aprovado == 0 and item.ultima.finalizado_em %}
+                <i class="fas fa-times-circle" style="color:#ff4d4d"></i>
+            {% else %}
+                <i class="fas fa-file-alt" style="color:#00c6ff"></i>
+            {% endif %}
+        </div>
+        <div class="prova-info">
+            <h3>{{ p.titulo }}</h3>
+            {% if p.descricao %}<p style="font-size:13px;opacity:.7;margin:2px 0 6px">{{ p.descricao }}</p>{% endif %}
+            <div class="prova-meta">
+                <span><i class="fas fa-question-circle"></i> {{ p.total_questoes }} questões</span>
+                <span><i class="fas fa-star-half-alt"></i> Mínimo {{ p.nota_minima }}</span>
+                {% if p.tempo_limite %}<span><i class="fas fa-clock"></i> {{ p.tempo_limite }} min</span>{% endif %}
+                <span><i class="fas fa-redo"></i> Tentativas: {{ item.tentativas_feitas }}/{{ p.tentativas }}</span>
+                {% if item.ultima %}
+                    <span>
+                        {% if item.ultima.aprovado == 1 %}
+                            <span class="badge badge-ok">Aprovado &mdash; {{ item.ultima.nota_obtida }}</span>
+                        {% elif item.ultima.aprovado == 0 and item.ultima.nota_obtida is not none %}
+                            <span class="badge badge-err">Reprovado &mdash; {{ item.ultima.nota_obtida }}</span>
+                        {% else %}
+                            <span class="badge badge-pend">Aguardando correção</span>
+                        {% endif %}
+                    </span>
+                {% else %}
+                    <span class="badge badge-nova">Nova</span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            {% if item.pode_fazer %}
+            <a href="/aluno/provas/{{ p.id }}/realizar" class="btn btn-primary">
+                <i class="fas fa-play"></i>
+                {% if item.tentativas_feitas == 0 %}Iniciar{% else %}Tentar novamente{% endif %}
+            </a>
+            {% else %}
+            <span class="btn btn-disabled"><i class="fas fa-lock"></i> Esgotado</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

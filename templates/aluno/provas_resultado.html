@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Resultado — {{ prova.titulo }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+body{ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364); min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff; }
+.wrap{ max-width:820px; margin:auto; padding:30px 20px 60px; }
+.resultado-card{
+    border-radius:20px; padding:30px; text-align:center;
+    margin-bottom:30px; border:1px solid rgba(255,255,255,.15);
+}
+.aprovado  { background:linear-gradient(135deg,rgba(0,255,157,.15),rgba(0,198,255,.1)); border-color:#00ff9d; }
+.reprovado { background:linear-gradient(135deg,rgba(255,77,77,.15),rgba(255,100,0,.08)); border-color:#ff4d4d; }
+.pendente  { background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(255,165,0,.08)); border-color:#ffd700; }
+.nota-grande{ font-size:64px; font-weight:800; line-height:1; margin:10px 0 4px; }
+.resultado-label{ font-size:18px; font-weight:600; opacity:.85; margin-bottom:8px; }
+.resultado-sub{ font-size:14px; opacity:.6; }
+.gabarito-titulo{ font-size:18px; font-weight:600; margin-bottom:16px; opacity:.9; }
+.q-card{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:18px 20px; margin-bottom:14px; }
+.q-card.acerto { border-left:4px solid #00ff9d; }
+.q-card.erro   { border-left:4px solid #ff4d4d; }
+.q-card.dissertativa { border-left:4px solid #ffd700; }
+.q-num{ font-size:11px; opacity:.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
+.q-enunc{ font-size:15px; margin-bottom:12px; line-height:1.5; }
+.q-opcao{ font-size:13px; padding:6px 12px; border-radius:8px; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+.q-opcao.certa    { background:rgba(0,255,157,.15); color:#00ff9d; }
+.q-opcao.errada   { background:rgba(255,77,77,.15);  color:#ff4d4d; }
+.q-opcao.neutra   { opacity:.5; }
+.q-resp-texto{ background:rgba(255,255,255,.05); border-radius:8px; padding:10px 14px; font-size:14px; opacity:.8; white-space:pre-wrap; margin-top:6px; }
+.btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:12px 22px; border-radius:10px; font-size:14px; font-weight:600;
+    text-decoration:none; transition:.25s;
+}
+.btn-primary{ background:#00c6ff; color:#000; }
+.btn-primary:hover{ opacity:.85; }
+.btn-outline{ background:transparent; border:1px solid rgba(255,255,255,.25); color:#fff; margin-left:10px; }
+.btn-outline:hover{ background:rgba(255,255,255,.08); }
+.acoes{ margin-top:10px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+    {% if resp_prova.aprovado == 1 %}
+    <div class="resultado-card aprovado">
+        <div style="font-size:48px">&#127881;</div>
+        <div class="nota-grande" style="color:#00ff9d">{{ resp_prova.nota_obtida }}</div>
+        <div class="resultado-label">Aprovado!</div>
+        <div class="resultado-sub">Nota mínima era {{ prova.nota_minima }} &mdash; parabéns!</div>
+    </div>
+    {% elif resp_prova.nota_obtida is none %}
+    <div class="resultado-card pendente">
+        <div style="font-size:48px">&#9203;</div>
+        <div class="resultado-label" style="color:#ffd700">Aguardando correção</div>
+        <div class="resultado-sub">Sua prova contém questões dissertativas que serão corrigidas pelo instrutor.</div>
+    </div>
+    {% else %}
+    <div class="resultado-card reprovado">
+        <div style="font-size:48px">&#128531;</div>
+        <div class="nota-grande" style="color:#ff4d4d">{{ resp_prova.nota_obtida }}</div>
+        <div class="resultado-label">Reprovado</div>
+        <div class="resultado-sub">Nota mínima era {{ prova.nota_minima }}. Tente novamente!</div>
+    </div>
+    {% endif %}
+
+    <div class="gabarito-titulo"><i class="fas fa-list-check"></i> Gabarito</div>
+
+    {% for item in gabarito %}
+    {% set q  = item.questao %}
+    {% set rq = item.rq %}
+    {% if q.tipo == 'dissertativa' %}
+    <div class="q-card dissertativa">
+        <div class="q-num">Questão {{ loop.index }} &mdash; Dissertativa</div>
+        <div class="q-enunc">{{ q.enunciado }}</div>
+        <div style="font-size:13px;opacity:.6;margin-bottom:4px">Sua resposta:</div>
+        <div class="q-resp-texto">{{ rq.resposta_texto or '(sem resposta)' }}</div>
+        <div style="font-size:12px;opacity:.5;margin-top:8px">Correção pendente pelo instrutor.</div>
+    </div>
+    {% else %}
+    {% set acertou = item.escolhida and item.correta and item.escolhida.id == item.correta.id %}
+    <div class="q-card {{ 'acerto' if acertou else 'erro' }}">
+        <div class="q-num">Questão {{ loop.index }} &mdash; {{ '+' + rq.pontos_obtidos|string if acertou else '0' }} pts</div>
+        <div class="q-enunc">{{ q.enunciado }}</div>
+        {% for alt in q.alternativas|sort(attribute='ordem') %}
+            {% if alt.id == item.correta.id %}
+            <div class="q-opcao certa"><i class="fas fa-check"></i> {{ alt.texto }}</div>
+            {% elif item.escolhida and alt.id == item.escolhida.id %}
+            <div class="q-opcao errada"><i class="fas fa-times"></i> {{ alt.texto }}</div>
+            {% else %}
+            <div class="q-opcao neutra">{{ alt.texto }}</div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    <div class="acoes">
+        <a href="/aluno/provas" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Voltar às provas</a>
+        <a href="/aluno/dashboard" class="btn btn-outline"><i class="fas fa-home"></i> Dashboard</a>
+    </div>
+</div>
+{% endblock %}
