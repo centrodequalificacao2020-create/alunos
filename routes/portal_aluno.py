@@ -3,7 +3,8 @@ from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, session, flash, abort, make_response, Response
 from models import (
     Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula,
-    ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno
+    ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno,
+    AcessoConteudoCurso
 )
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
@@ -37,9 +38,19 @@ def _matricula_ativa(aluno_id):
     )
 
 
+def _curso_liberado(aluno_id, curso_id):
+    """Retorna True se o admin liberou o acesso ao conteudo deste curso."""
+    acesso = AcessoConteudoCurso.query.filter_by(
+        aluno_id=aluno_id, curso_id=curso_id
+    ).first()
+    return acesso is not None and acesso.liberado == 1
+
+
 def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
     matriculas = _matriculas_ativas(aluno_id)
     for mat in matriculas:
+        if not _curso_liberado(aluno_id, mat.curso_id):
+            continue
         vinculo = (
             db.session.query(CursoMateria)
             .filter(
@@ -55,26 +66,23 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
 
 def _contar_atrasadas(mensalidades):
     hoje = date.today().strftime("%Y-%m-%d")
-    count = 0
-    for m in mensalidades:
-        if m.status != "Pago" and m.vencimento and str(m.vencimento) < hoje:
-            count += 1
-    return count
+    return sum(
+        1 for m in mensalidades
+        if m.status != "Pago" and m.vencimento and str(m.vencimento) < hoje
+    )
 
 
 def _registrar_login(aluno_id):
-    """Grava um registro na tabela login_historico_aluno."""
     ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
     if ip and "," in ip:
-        ip = ip.split(",")[0].strip()   # pega o IP real quando ha proxy
+        ip = ip.split(",")[0].strip()
     ua = (request.headers.get("User-Agent") or "")[:300]
-    registro = LoginHistoricoAluno(
+    db.session.add(LoginHistoricoAluno(
         aluno_id   = aluno_id,
         login_em   = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ip         = ip,
         user_agent = ua
-    )
-    db.session.add(registro)
+    ))
     db.session.commit()
 
 
@@ -92,7 +100,7 @@ def login_aluno():
             session.permanent = True
             session["aluno_id"] = aluno.id
             session["perfil"]   = "aluno"
-            _registrar_login(aluno.id)          # ← grava historico
+            _registrar_login(aluno.id)
             return redirect("/aluno/dashboard")
         flash("E-mail ou senha incorretos.", "erro")
     return render_template("aluno/login.html")
@@ -113,13 +121,11 @@ def dashboard_aluno():
     atrasadas    = _contar_atrasadas(mensalidades)
     val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
 
-    # Ultimo login: o 2o registro mais recente (o 1o e o atual)
     logins = (
         LoginHistoricoAluno.query
         .filter_by(aluno_id=aluno.id)
         .order_by(LoginHistoricoAluno.login_em.desc())
-        .limit(2)
-        .all()
+        .limit(2).all()
     )
     ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
 
@@ -167,10 +173,7 @@ def notas_aluno():
                 (Nota.aluno_id   == aluno.id) &
                 (Nota.curso_id   == matricula.curso_id)
             )
-            .filter(
-                CursoMateria.curso_id == matricula.curso_id,
-                Materia.ativa == 1
-            )
+            .filter(CursoMateria.curso_id == matricula.curso_id, Materia.ativa == 1)
             .order_by(Materia.nome)
             .all()
         )
@@ -191,35 +194,39 @@ def conteudo_cursos():
 
     cursos_info = []
     for mat in matriculas:
-        curso = Curso.query.get(mat.curso_id)
+        curso = db.session.get(Curso, mat.curso_id)
         if not curso:
             continue
-        total = (
-            db.session.query(Conteudo)
-            .join(Materia,      Materia.id      == Conteudo.materia_id)
-            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .filter(CursoMateria.curso_id == curso.id)
-            .count()
-        )
-        concluidos = (
-            db.session.query(ProgressoAula)
-            .join(Conteudo, Conteudo.id == ProgressoAula.conteudo_id)
-            .join(Materia,  Materia.id  == Conteudo.materia_id)
-            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .filter(
-                CursoMateria.curso_id       == curso.id,
-                ProgressoAula.aluno_id      == aluno.id,
-                ProgressoAula.concluido     == 1
+        liberado = _curso_liberado(aluno.id, curso.id)
+        total = concluidos = 0
+        if liberado:
+            total = (
+                db.session.query(Conteudo)
+                .join(Materia,      Materia.id      == Conteudo.materia_id)
+                .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+                .filter(CursoMateria.curso_id == curso.id)
+                .count()
             )
-            .count()
-        )
+            concluidos = (
+                db.session.query(ProgressoAula)
+                .join(Conteudo, Conteudo.id == ProgressoAula.conteudo_id)
+                .join(Materia,  Materia.id  == Conteudo.materia_id)
+                .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+                .filter(
+                    CursoMateria.curso_id       == curso.id,
+                    ProgressoAula.aluno_id      == aluno.id,
+                    ProgressoAula.concluido     == 1
+                )
+                .count()
+            )
         pct = round(concluidos / total * 100) if total > 0 else 0
         cursos_info.append({
-            "curso":       curso,
-            "matricula":   mat,
-            "total":       total,
-            "concluidos":  concluidos,
-            "pct":         pct,
+            "curso":        curso,
+            "matricula":    mat,
+            "total":        total,
+            "concluidos":   concluidos,
+            "pct":          pct,
+            "liberado":     liberado,
             "data_cadastro": mat.data_cadastro,
         })
 
@@ -237,6 +244,9 @@ def conteudo_aluno(curso_id):
     ).first()
     if not matricula:
         abort(403)
+    if not _curso_liberado(aluno.id, curso_id):
+        flash("O acesso ao conte\u00fado deste curso ainda n\u00e3o foi liberado. Entre em contato com a secretaria.", "aviso")
+        return redirect("/aluno/conteudo")
     curso = db.get_or_404(Curso, curso_id)
     conteudos = (
         db.session.query(Conteudo, ProgressoAula)
@@ -267,8 +277,8 @@ def abrir_arquivo_conteudo(conteudo_id):
     arquivo = conteudo.arquivo.strip()
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
         return redirect(arquivo)
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    caminho  = arquivo.lstrip("/")
+    base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    caminho    = arquivo.lstrip("/")
     candidatos = [
         os.path.join(base_dir, caminho),
         os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
@@ -281,13 +291,13 @@ def abrir_arquivo_conteudo(conteudo_id):
             mime = mime or "application/octet-stream"
             with open(candidato, "rb") as f:
                 dados = f.read()
-            response = Response(dados, mimetype=mime)
-            response.headers["Content-Disposition"] = "inline"
-            response.headers["X-Frame-Options"]     = "SAMEORIGIN"
-            response.headers["X-Content-Type-Options"] = "nosniff"
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            response.headers["Pragma"]        = "no-cache"
-            return response
+            resp = Response(dados, mimetype=mime)
+            resp.headers["Content-Disposition"]   = "inline"
+            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
+            resp.headers["X-Content-Type-Options"] = "nosniff"
+            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"]                 = "no-cache"
+            return resp
     abort(404)
 
 
@@ -295,7 +305,7 @@ def abrir_arquivo_conteudo(conteudo_id):
 @aluno_login_required
 def concluir_aula(conteudo_id):
     conteudo = db.get_or_404(Conteudo, conteudo_id)
-    materia  = Materia.query.get(conteudo.materia_id)
+    materia  = db.session.get(Materia, conteudo.materia_id)
     curso_id = None
     if materia:
         cm = CursoMateria.query.filter_by(materia_id=materia.id).first()
@@ -304,18 +314,13 @@ def concluir_aula(conteudo_id):
     p = ProgressoAula.query.filter_by(
         aluno_id=session["aluno_id"], conteudo_id=conteudo_id).first()
     if not p:
-        p = ProgressoAula(
-            aluno_id    = session["aluno_id"],
-            conteudo_id = conteudo_id,
-            concluido   = 1
-        )
-        db.session.add(p)
+        db.session.add(ProgressoAula(
+            aluno_id=session["aluno_id"], conteudo_id=conteudo_id, concluido=1
+        ))
     else:
         p.concluido = 1
     db.session.commit()
-    if curso_id:
-        return redirect(f"/aluno/conteudo/{curso_id}")
-    return redirect("/aluno/conteudo")
+    return redirect(f"/aluno/conteudo/{curso_id}" if curso_id else "/aluno/conteudo")
 
 
 @portal_aluno_bp.route("/senha", methods=["GET", "POST"])
@@ -333,7 +338,7 @@ def trocar_senha():
             flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         if nova != confirma:
-            flash("As senhas nao conferem.", "erro")
+            flash("As senhas n\u00e3o conferem.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         aluno.senha = hash_senha(nova)
         db.session.commit()

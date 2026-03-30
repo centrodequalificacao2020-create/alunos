@@ -35,11 +35,11 @@
         </div>
     </div>
 
-    {# ── Acesso ao portal ── #}
+    {# Acesso ao portal #}
     {% set ul = aluno.ultimo_login %}
-    <div style="margin-top:16px; padding:12px 16px; background:var(--color-surface);
-                border-radius:var(--radius-md); border:1px solid var(--color-border);
-                display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
+    <div style="margin-top:16px;padding:12px 16px;background:var(--color-surface);
+                border-radius:var(--radius-md);border:1px solid var(--color-border);
+                display:flex;align-items:center;gap:28px;flex-wrap:wrap;">
         <div>
             <p style="margin:0;font-size:12px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.4px;">Portal do Aluno</p>
             {% if aluno.senha %}
@@ -63,8 +63,9 @@
     </div>
 </div>
 
+{# ===== MATRÍCULAS + CONTROLE DE ACESSO ===== #}
 <div class="card" style="margin-top:20px">
-    <h3>📋 Matrículas</h3>
+    <h3>📋 Matrículas &amp; Acesso ao Conteúdo</h3>
 
     {% if cursos_disponiveis %}
     <form method="POST" action="/matricular_aluno" class="toolbar-matricula">
@@ -92,40 +93,68 @@
                     <th>Data Matrícula</th>
                     <th>Cadastrado em</th>
                     <th>Status</th>
+                    <th style="text-align:center">Conteúdo</th>
                     <th class="acoes-texto">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 {% for m in matriculas %}
+                {% set ac = m.acesso_conteudo %}
+                {% set liberado = ac and ac.liberado == 1 %}
                 <tr>
-                    <td>{{ m.curso_nome }}</td>
+                    <td><strong>{{ m.curso_nome }}</strong></td>
                     <td>{{ m.data_matricula or '-' }}</td>
                     <td style="font-size:12px;color:var(--color-text-muted);">
                         {% if m.data_cadastro %}
                             {% set dc = m.data_cadastro %}
                             {{ dc[8:10] }}/{{ dc[5:7] }}/{{ dc[0:4] }}
                             {% if dc|length >= 16 %}às {{ dc[11:16] }}{% endif %}
-                        {% else %}
-                            -
-                        {% endif %}
+                        {% else %}-{% endif %}
                     </td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
+
+                    {# ---- toggle acesso conteúdo ---- #}
+                    <td style="text-align:center;">
+                        <form method="POST"
+                              action="/aluno/{{ aluno.id }}/acesso_conteudo/{{ m.curso_id }}"
+                              style="display:inline">
+                            {% if liberado %}
+                            <input type="hidden" name="acao" value="bloquear">
+                            <button type="submit"
+                                    class="btn btn-sm"
+                                    style="background:#00c37710;color:#00c377;border:1px solid #00c377;min-width:110px;"
+                                    title="Clique para bloquear">
+                                🟢 Liberado
+                            </button>
+                            {% else %}
+                            <input type="hidden" name="acao" value="liberar">
+                            <button type="submit"
+                                    class="btn btn-sm"
+                                    style="background:#ff4d4d10;color:#ff6b6b;border:1px solid #ff4d4d;min-width:110px;"
+                                    title="Clique para liberar">
+                                🔴 Bloqueado
+                            </button>
+                            {% endif %}
+                        </form>
+                        {% if liberado and ac.liberado_em %}
+                        {% set le = ac.liberado_em %}
+                        <div style="font-size:10px;color:var(--color-text-muted);margin-top:3px;">
+                            por {{ ac.liberado_por or '?' }}<br>
+                            {{ le[8:10] }}/{{ le[5:7] }}/{{ le[0:4] }} {{ le[11:16] }}
+                        </div>
+                        {% endif %}
+                    </td>
+
                     <td class="acoes-texto">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-azul" target="_blank">
-                            📄 Declaração
-                        </a>
+                           class="btn btn-sm btn-azul" target="_blank">📄 Declaração</a>
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-azul" target="_blank">
-                            📊 Presença
-                        </a>
+                           class="btn btn-sm btn-azul" target="_blank">📊 Presença</a>
                         <form method="POST" action="/excluir_matricula/{{ m.id }}"
                               style="display:inline-flex;align-items:center"
-                              onsubmit="return confirm('Excluir permanentemente a matrícula em {{ m.curso_nome }}? Esta ação não pode ser desfeita.')">
+                              onsubmit="return confirm('Excluir permanentemente a matrícula em {{ m.curso_nome }}?')">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
-                                    data-tooltip="Excluir matrícula">
-                                🗑️ Excluir
-                            </button>
+                                    data-tooltip="Excluir matrícula">🗑️ Excluir</button>
                         </form>
                     </td>
                 </tr>
@@ -138,7 +167,7 @@
     {% endif %}
 </div>
 
-{# ── Histórico de Logins ── #}
+{# ===== HISTÓRICO DE LOGINS ===== #}
 {% set logins = aluno.login_historico[:20] %}
 {% if logins %}
 <div class="card" style="margin-top:20px">
@@ -146,12 +175,7 @@
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Data / Hora</th>
-                    <th>IP</th>
-                    <th>Dispositivo</th>
-                </tr>
+                <tr><th>#</th><th>Data / Hora</th><th>IP</th><th>Dispositivo</th></tr>
             </thead>
             <tbody>
                 {% for lg in logins %}
@@ -160,7 +184,8 @@
                     <td style="color:var(--color-text-muted);font-size:12px;">{{ loop.index }}</td>
                     <td>{{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}</td>
                     <td style="font-size:12px;font-family:monospace;">{{ lg.ip or '-' }}</td>
-                    <td style="font-size:11px;color:var(--color-text-muted);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    <td style="font-size:11px;color:var(--color-text-muted);max-width:320px;
+                               overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         {{ lg.user_agent or '-' }}
                     </td>
                 </tr>
@@ -178,5 +203,4 @@
     <p class="empty-state">Este aluno ainda não acessou o portal.</p>
 </div>
 {% endif %}
-
 {% endblock %}

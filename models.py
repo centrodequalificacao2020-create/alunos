@@ -108,13 +108,28 @@ class Aluno(db.Model):
 
     @property
     def ultimo_login(self):
-        """Retorna o registro de login mais recente ou None."""
         return (
             LoginHistoricoAluno.query
             .filter_by(aluno_id=self.id)
             .order_by(LoginHistoricoAluno.login_em.desc())
             .first()
         )
+
+
+class AcessoConteudoCurso(db.Model):
+    """Controla se um aluno tem acesso liberado ao conteudo de determinado curso."""
+    __tablename__ = "acesso_conteudo_curso"
+    __table_args__ = (
+        db.UniqueConstraint("aluno_id", "curso_id", name="uq_acesso_aluno_curso"),
+        db.Index("ix_acesso_cont_aluno", "aluno_id"),
+        db.Index("ix_acesso_cont_curso",  "curso_id"),
+    )
+    id           = db.Column(db.Integer, primary_key=True)
+    aluno_id     = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    curso_id     = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
+    liberado     = db.Column(db.Integer, nullable=False, default=0)  # 0=bloqueado 1=liberado
+    liberado_por = db.Column(db.String(120))   # nome/usuario do admin
+    liberado_em  = db.Column(db.String(19))    # YYYY-MM-DD HH:MM:SS
 
 
 class Matricula(db.Model):
@@ -125,8 +140,8 @@ class Matricula(db.Model):
     curso_id            = db.Column(db.Integer, db.ForeignKey("cursos.id"),
                                     nullable=False)
     tipo_curso          = db.Column(db.String(60))
-    data_matricula      = db.Column(db.String(10))   # data em que o admin registrou a matrícula
-    data_cadastro       = db.Column(db.String(19))   # timestamp ISO preenchido automaticamente
+    data_matricula      = db.Column(db.String(10))
+    data_cadastro       = db.Column(db.String(19))
     status              = db.Column(db.String(20), default=StatusMatricula.ATIVA.value)
     valor_matricula     = db.Column(db.Float, default=0)
     valor_mensalidade   = db.Column(db.Float, default=0)
@@ -136,9 +151,6 @@ class Matricula(db.Model):
     observacao          = db.Column(db.Text)
 
     def save(self, session):
-        """Garante que status é sempre salvo em maiúsculo e válido.
-           Preenche data_cadastro se ainda nao foi definido.
-        """
         valor = (self.status or StatusMatricula.ATIVA.value).upper().strip()
         if valor not in StatusMatricula.valores():
             valor = StatusMatricula.ATIVA.value
@@ -149,7 +161,6 @@ class Matricula(db.Model):
 
 
 class LoginHistoricoAluno(db.Model):
-    """Registra cada login do aluno no portal."""
     __tablename__ = "login_historico_aluno"
     __table_args__ = (
         db.Index("ix_login_hist_aluno_id", "aluno_id"),
@@ -157,8 +168,8 @@ class LoginHistoricoAluno(db.Model):
     )
     id         = db.Column(db.Integer, primary_key=True)
     aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    login_em   = db.Column(db.String(19), nullable=False)   # YYYY-MM-DD HH:MM:SS
-    ip         = db.Column(db.String(45))                   # IPv4 ou IPv6
+    login_em   = db.Column(db.String(19), nullable=False)
+    ip         = db.Column(db.String(45))
     user_agent = db.Column(db.String(300))
 
 
@@ -182,17 +193,16 @@ class Mensalidade(db.Model):
 
 
 class Despesa(db.Model):
-    """Despesa avulsa (tipo=variavel) ou recorrente (tipo=fixa)."""
     __tablename__ = "despesas"
-    id           = db.Column(db.Integer, primary_key=True)
-    descricao    = db.Column(db.String(200))
-    valor        = db.Column(db.Float, default=0)
-    tipo         = db.Column(db.String(40))
-    categoria    = db.Column(db.String(60))
-    data         = db.Column(db.String(10))
-    observacao   = db.Column(db.Text)
-    data_inicio  = db.Column(db.String(7))
-    data_fim     = db.Column(db.String(7))
+    id             = db.Column(db.Integer, primary_key=True)
+    descricao      = db.Column(db.String(200))
+    valor          = db.Column(db.Float, default=0)
+    tipo           = db.Column(db.String(40))
+    categoria      = db.Column(db.String(60))
+    data           = db.Column(db.String(10))
+    observacao     = db.Column(db.Text)
+    data_inicio    = db.Column(db.String(7))
+    data_fim       = db.Column(db.String(7))
     recorrente     = db.Column(db.Integer, default=0)
     dia_vencimento = db.Column(db.Integer)
 

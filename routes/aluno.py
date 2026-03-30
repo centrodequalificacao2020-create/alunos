@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, flash, jsonify, session
 from db import db
-from models import Aluno, Curso, Mensalidade, Matricula
+from models import Aluno, Curso, Mensalidade, Matricula, AcessoConteudoCurso
 from security import login_required, verificar_senha, hash_senha
 from sqlalchemy import func
 
@@ -75,7 +75,7 @@ def cadastro():
         )
         return redirect("/cadastro")
 
-    # ── GET ──────────────────────────────────────────────────────────────
+    # GET
     page   = request.args.get("page", 1, type=int)
     busca  = request.args.get("q", "").strip()
     status = request.args.get("status", "").strip()
@@ -88,10 +88,8 @@ def cadastro():
     }
 
     query = Aluno.query.order_by(Aluno.nome)
-
     if busca:
         query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
-
     if status == "Inadimplente":
         query = query.filter(Aluno.id.in_(inadimplentes_ids))
     elif status:
@@ -99,12 +97,10 @@ def cadastro():
 
     paginacao = query.paginate(page=page, per_page=20, error_out=False)
     alunos    = paginacao.items
-
     for a in alunos:
         a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
 
     cursos = Curso.query.order_by(Curso.nome).all()
-
     return render_template("cadastro.html",
                            alunos=alunos,
                            cursos=cursos,
@@ -127,16 +123,17 @@ def pendencias_aluno(id):
 def excluir_aluno(id):
     from models import Usuario, TurmaAluno, Nota, Frequencia, ProgressoAula
     senha = request.form.get("senha", "")
-    user  = Usuario.query.get(session.get("usuario_id"))
+    user  = db.session.get(Usuario, session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
         flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
         return redirect("/cadastro")
-    a = Aluno.query.get_or_404(id)
+    a = db.get_or_404(Aluno, id)
     nome = a.nome
     TurmaAluno.query.filter_by(aluno_id=id).delete()
     Nota.query.filter_by(aluno_id=id).delete()
     Frequencia.query.filter_by(aluno_id=id).delete()
     ProgressoAula.query.filter_by(aluno_id=id).delete()
+    AcessoConteudoCurso.query.filter_by(aluno_id=id).delete()
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
     db.session.delete(a)
@@ -148,7 +145,7 @@ def excluir_aluno(id):
 @aluno_bp.route("/editar_aluno/<int:id>", methods=["GET", "POST"])
 @login_required
 def editar_aluno(id):
-    a = Aluno.query.get_or_404(id)
+    a = db.get_or_404(Aluno, id)
     if request.method == "POST":
         f   = request.form
         cpf = _cpf_limpo(f.get("cpf", ""))
@@ -203,11 +200,21 @@ def editar_aluno(id):
 @aluno_bp.route("/aluno/<int:aluno_id>")
 @login_required
 def ficha_aluno(aluno_id):
-    aluno      = Aluno.query.get_or_404(aluno_id)
-    matriculas = Matricula.query.filter_by(aluno_id=aluno_id).order_by(Matricula.data_matricula.desc()).all()
+    aluno      = db.get_or_404(Aluno, aluno_id)
+    matriculas = (
+        Matricula.query
+        .filter_by(aluno_id=aluno_id)
+        .order_by(Matricula.data_matricula.desc())
+        .all()
+    )
     for m in matriculas:
-        curso        = Curso.query.get(m.curso_id)
+        curso        = db.session.get(Curso, m.curso_id)
         m.curso_nome = curso.nome if curso else "\u2014"
+        # acesso ao conteudo para este curso
+        acesso = AcessoConteudoCurso.query.filter_by(
+            aluno_id=aluno_id, curso_id=m.curso_id
+        ).first()
+        m.acesso_conteudo = acesso  # pode ser None (nao configurado = bloqueado)
 
     ids_ativos = {
         m.curso_id for m in matriculas
@@ -224,6 +231,37 @@ def ficha_aluno(aluno_id):
         matriculas=matriculas,
         cursos_disponiveis=cursos_disponiveis,
     )
+
+
+@aluno_bp.route("/aluno/<int:aluno_id>/acesso_conteudo/<int:curso_id>", methods=["POST"])
+@login_required
+def toggle_acesso_conteudo(aluno_id, curso_id):
+    """Libera ou bloqueia o acesso ao conteudo de um curso para um aluno."""
+    acao = request.form.get("acao", "liberar")  # 'liberar' | 'bloquear'
+
+    admin_nome = session.get("usuario_nome") or session.get("usuario") or "admin"
+
+    acesso = AcessoConteudoCurso.query.filter_by(
+        aluno_id=aluno_id, curso_id=curso_id
+    ).first()
+
+    if acesso is None:
+        acesso = AcessoConteudoCurso(aluno_id=aluno_id, curso_id=curso_id)
+        db.session.add(acesso)
+
+    if acao == "liberar":
+        acesso.liberado     = 1
+        acesso.liberado_por = admin_nome
+        acesso.liberado_em  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        flash("Acesso ao conte\u00fado liberado com sucesso.", "sucesso")
+    else:
+        acesso.liberado     = 0
+        acesso.liberado_por = admin_nome
+        acesso.liberado_em  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        flash("Acesso ao conte\u00fado bloqueado.", "aviso")
+
+    db.session.commit()
+    return redirect(f"/aluno/{aluno_id}")
 
 
 @aluno_bp.route("/matricular_aluno", methods=["POST"])
@@ -253,7 +291,7 @@ def matricular_aluno():
     db.session.add(nova)
     db.session.commit()
 
-    curso = Curso.query.get(curso_id)
+    curso = db.session.get(Curso, curso_id)
     flash(f"Aluno matriculado em \u201c{curso.nome}\u201d com sucesso.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
 
@@ -261,11 +299,14 @@ def matricular_aluno():
 @aluno_bp.route("/excluir_matricula/<int:matricula_id>", methods=["POST"])
 @login_required
 def excluir_matricula(matricula_id):
-    """Exclui permanentemente o registro de matrícula do banco."""
-    m = Matricula.query.get_or_404(matricula_id)
-    aluno_id = m.aluno_id
-    curso    = Curso.query.get(m.curso_id)
+    m = db.get_or_404(Matricula, matricula_id)
+    aluno_id   = m.aluno_id
+    curso      = db.session.get(Curso, m.curso_id)
     nome_curso = curso.nome if curso else "curso"
+    # remove tambem o registro de acesso ao conteudo
+    AcessoConteudoCurso.query.filter_by(
+        aluno_id=aluno_id, curso_id=m.curso_id
+    ).delete()
     db.session.delete(m)
     db.session.commit()
     flash(f"Matr\u00edcula em \u201c{nome_curso}\u201d exclu\u00edda com sucesso.", "sucesso")

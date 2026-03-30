@@ -14,19 +14,25 @@
     border: 1px solid rgba(255,255,255,.12);
     border-radius: 14px;
     padding: 28px 24px 22px;
-    text-decoration: none;
     color: #f0f4f8;
     display: flex;
     flex-direction: column;
     gap: 14px;
     transition: transform .18s, box-shadow .18s, border-color .18s;
-    cursor: pointer;
     box-shadow: 0 4px 18px rgba(0,0,0,.35);
 }
-.curso-card:hover {
+.curso-card.liberado {
+    cursor: pointer;
+    text-decoration: none;
+}
+.curso-card.liberado:hover {
     transform: translateY(-4px);
     box-shadow: 0 10px 32px rgba(0,198,255,.18);
     border-color: rgba(0,198,255,.5);
+}
+.curso-card.bloqueado {
+    opacity: .72;
+    cursor: not-allowed;
 }
 .curso-card__icone  { font-size: 36px; line-height: 1; }
 .curso-card__nome   { font-size: 17px; font-weight: 700; color: #e8f1fb; line-height: 1.3; }
@@ -37,6 +43,13 @@
 .curso-progresso__barra     { background: rgba(255,255,255,.15); border-radius: 8px; height: 8px; overflow: hidden; }
 .curso-progresso__fill      { height: 100%; border-radius: 8px; background: linear-gradient(90deg, #00c6ff, #0072ff); transition: width .4s; }
 .curso-progresso__texto     { font-size: 12px; color: rgba(220,232,245,.60); }
+.badge-bloqueado {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,77,77,.12); color: #ff6b6b;
+    border: 1px solid rgba(255,77,77,.35);
+    border-radius: 8px; padding: 6px 14px;
+    font-size: 12px; font-weight: 600;
+}
 .curso-card__btn {
     align-self: flex-start;
     margin-top: auto;
@@ -49,7 +62,7 @@
     font-weight: 600;
     transition: background .15s;
 }
-.curso-card:hover .curso-card__btn { background: rgba(0,198,255,.30); }
+.curso-card.liberado:hover .curso-card__btn { background: rgba(0,198,255,.30); }
 .empty-cursos { text-align: center; padding: 60px 0; color: rgba(220,232,245,.55); font-size: 15px; }
 </style>
 {% endblock %}
@@ -66,7 +79,13 @@
 {% if cursos_info %}
 <div class="cursos-grid">
     {% for item in cursos_info %}
-    <a class="curso-card" href="/aluno/conteudo/{{ item.curso.id }}">
+
+    {# card clicavel se liberado, inerte se bloqueado #}
+    {% if item.liberado %}
+    <a class="curso-card liberado" href="/aluno/conteudo/{{ item.curso.id }}">
+    {% else %}
+    <div class="curso-card bloqueado">
+    {% endif %}
 
         <div class="curso-card__icone">🏫</div>
 
@@ -77,7 +96,6 @@
             {% endif %}
         </div>
 
-        {# Data de cadastro da matrícula #}
         <div class="curso-card__meta">
             {% if item.data_cadastro %}
             {% set dc = item.data_cadastro %}
@@ -89,24 +107,28 @@
             {% endif %}
         </div>
 
-        {% if item.total > 0 %}
-        <div class="curso-progresso">
-            <div class="curso-progresso__barra">
-                <div class="curso-progresso__fill" style="width: {{ item.pct }}%"></div>
+        {% if item.liberado %}
+            {% if item.total > 0 %}
+            <div class="curso-progresso">
+                <div class="curso-progresso__barra">
+                    <div class="curso-progresso__fill" style="width: {{ item.pct }}%"></div>
+                </div>
+                <div class="curso-progresso__texto">
+                    {{ item.concluidos }} / {{ item.total }} aulas concluídas &mdash; {{ item.pct }}%
+                </div>
             </div>
-            <div class="curso-progresso__texto">
-                {{ item.concluidos }} / {{ item.total }} aulas concluídas &mdash; {{ item.pct }}%
+            {% else %}
+            <div class="curso-progresso__texto" style="color: rgba(220,232,245,.40);">
+                Nenhuma aula cadastrada ainda
             </div>
-        </div>
+            {% endif %}
+            <div class="curso-card__btn">Acessar aulas &#8594;</div>
         {% else %}
-        <div class="curso-progresso__texto" style="color: rgba(220,232,245,.40);">
-            Nenhuma aula cadastrada ainda
-        </div>
+            <div class="badge-bloqueado">🔒 Aguardando liberação da secretaria</div>
         {% endif %}
 
-        <div class="curso-card__btn">Acessar aulas &#8594;</div>
+    {% if item.liberado %}</a>{% else %}</div>{% endif %}
 
-    </a>
     {% endfor %}
 </div>
 {% else %}
