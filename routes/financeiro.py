@@ -28,12 +28,17 @@ def financeiro():
     hoje = date.today()
 
     if aluno_id:
-        pendentes   = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
-        pagas       = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
+        pendentes = (Mensalidade.query
+                     .filter_by(aluno_id=aluno_id, status="Pendente")
+                     .order_by(Mensalidade.vencimento)
+                     .all())
+        pagas     = (Mensalidade.query
+                     .filter_by(aluno_id=aluno_id, status="Pago")
+                     .order_by(Mensalidade.vencimento)
+                     .all())
         total_pago  = sum(m.valor for m in pagas)
         total_pagar = sum(m.valor for m in pendentes)
 
-        # Calcula total de parcelas vencidas (pendentes com vencimento antes de hoje)
         def _vencida(m):
             try:
                 return datetime.strptime(str(m.vencimento)[:10], "%Y-%m-%d").date() < hoje
@@ -42,15 +47,18 @@ def financeiro():
 
         vencidas_total = sum(m.valor for m in pendentes if _vencida(m))
 
-        # Enriquece cada parcela com o nome do curso via matrícula mais recente
-        curso_map  = {c.id: c.nome for c in Curso.query.all()}
-        mat = (Matricula.query
-               .filter_by(aluno_id=aluno_id)
-               .order_by(Matricula.id.desc())
-               .first())
-        curso_nome = curso_map.get(mat.curso_id, "-") if mat else "-"
+        # Enriquece cada parcela com o nome do curso usando curso_id da própria parcela
+        curso_map = {c.id: c.nome for c in Curso.query.all()}
         for m in pendentes + pagas:
-            m.curso_nome = curso_nome
+            if m.curso_id:
+                m.curso_nome = curso_map.get(m.curso_id, "-")
+            else:
+                # Fallback: matrícula mais recente (parcelas antigas sem curso_id)
+                mat = (Matricula.query
+                       .filter_by(aluno_id=aluno_id)
+                       .order_by(Matricula.id.desc())
+                       .first())
+                m.curso_nome = curso_map.get(mat.curso_id, "-") if mat else "-"
 
     return render_template("financeiro.html",
                            alunos=alunos,
@@ -152,3 +160,33 @@ def salvar_matricula():
     except ValueError as e:
         flash(str(e), "erro")
         return redirect("/movimentacao")
+
+
+@financeiro_bp.route("/lancar_mensalidade", methods=["GET", "POST"])
+@login_required
+def lancar_mensalidade():
+    """Lança parcelas avulsas sem criar nova matrícula."""
+    alunos = Aluno.query.filter(Aluno.status.in_(["Ativo", "Pré-Matrícula"])).order_by(Aluno.nome).all()
+    cursos = Curso.query.order_by(Curso.nome).all()
+    tipos  = _tipos_curso()
+    curso_tipo = {c.id: (c.tipo or "") for c in cursos}
+
+    if request.method == "POST":
+        # Injeta flag para o service não criar matrícula
+        data = request.form.copy()
+        # ImmutableMultiDict → dict mutável
+        from werkzeug.datastructures import ImmutableMultiDict
+        mutable = data.to_dict(flat=False)
+        mutable["apenas_mensalidade"] = ["1"]
+        mutable["valor_matricula"]    = ["0"]  # não gera parcela de matrícula
+        try:
+            criar_matricula(ImmutableMultiDict(mutable))
+            flash("Parcelas lançadas com sucesso.", "sucesso")
+        except ValueError as e:
+            flash(str(e), "erro")
+        aluno_id = request.form.get("aluno_id", "")
+        return redirect(f"/financeiro?aluno_id={aluno_id}")
+
+    return render_template("lancar_mensalidade.html",
+                           alunos=alunos, cursos=cursos, tipos=tipos,
+                           curso_tipo=curso_tipo)

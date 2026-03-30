@@ -2,7 +2,8 @@ from flask import Blueprint, render_template, session, redirect, flash, request,
 from db import db
 from models import (
     Aluno, Matricula, Mensalidade, Nota, Frequencia,
-    Materia, Conteudo, ProgressoAula, AcessoConteudoCurso, Curso
+    Materia, Conteudo, ProgressoAula, AcessoConteudoCurso, Curso,
+    MateriaLiberada, ProvaLiberada, Atividade, EntregaAtividade
 )
 from security import aluno_login_required, hash_senha, verificar_senha
 from datetime import date, datetime
@@ -58,33 +59,11 @@ def aluno_dashboard():
         if m.status.upper() in ("PENDENTE", "ATRASADO") and m.vencimento and m.vencimento < hoje
     )
 
-    provas_disp = 0
-    try:
-        from models import Prova, RespostaProva
-        cursos_aluno = [
-            m.curso_id for m in aluno.matriculas
-            if m.status.upper() == "ATIVA" and m.curso_id
-        ]
-        if cursos_aluno:
-            provas_ativas = Prova.query.filter(
-                Prova.ativa == 1,
-                Prova.curso_id.in_(cursos_aluno)
-            ).all()
-            for p in provas_ativas:
-                usadas = RespostaProva.query.filter_by(
-                    prova_id=p.id, aluno_id=aluno.id
-                ).count()
-                if usadas < p.tentativas:
-                    provas_disp += 1
-    except Exception:
-        provas_disp = 0
-
     return render_template(
         "aluno/dashboard.html",
         aluno        = aluno,
         matricula    = matricula,
         atrasadas    = atrasadas,
-        provas_disp  = provas_disp,
         ultimo_login = aluno.ultimo_login,
     )
 
@@ -109,46 +88,22 @@ def aluno_notas():
     matricula = aluno.matricula_ativa
     curso_id  = matricula.curso_id if matricula else None
 
+    # Só exibe notas que foram publicadas manualmente pelo instrutor/secretaria
     notas_dict = {}
     for n in aluno.notas:
-        notas_dict.setdefault(n.materia_id, []).append(n)
+        if n.publicada:
+            notas_dict.setdefault(n.materia_id, []).append(n)
 
     materias = []
     if curso_id:
         materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
 
-    provas_realizadas = []
-    melhor_por_prova  = {}
-    try:
-        from models import Prova, RespostaProva
-        if curso_id:
-            provas_realizadas = (
-                db.session.query(RespostaProva)
-                .join(Prova, Prova.id == RespostaProva.prova_id)
-                .filter(
-                    RespostaProva.aluno_id == aluno.id,
-                    Prova.curso_id == curso_id,
-                )
-                .order_by(RespostaProva.finalizado_em.desc())
-                .all()
-            )
-            for rp in provas_realizadas:
-                if rp.nota_obtida is not None:
-                    ant = melhor_por_prova.get(rp.prova_id)
-                    if ant is None or rp.nota_obtida > ant.nota_obtida:
-                        melhor_por_prova[rp.prova_id] = rp
-    except Exception:
-        provas_realizadas = []
-        melhor_por_prova  = {}
-
     return render_template(
         "aluno/notas.html",
-        aluno             = aluno,
-        matricula         = matricula,
-        notas_dict        = notas_dict,
-        materias          = materias,
-        provas_realizadas = provas_realizadas,
-        melhor_por_prova  = melhor_por_prova,
+        aluno      = aluno,
+        matricula  = matricula,
+        notas_dict = notas_dict,
+        materias   = materias,
     )
 
 
@@ -167,48 +122,125 @@ def aluno_frequencia():
                            total=total, presente=presente, pct=pct)
 
 
-# ─── CONTEÚDO ────────────────────────────────────────────────────────────────
+# ─── CURSOS (ex-"Aulas") ─────────────────────────────────────────────────────
 
-@portal_aluno_bp.route("/conteudo")
+@portal_aluno_bp.route("/cursos")
 @aluno_login_required
-def aluno_conteudo():
-    aluno     = _get_aluno()
-    matricula = aluno.matricula_ativa
+def aluno_cursos():
+    """Lista os cursos em que o aluno tem matrícula ativa."""
+    aluno = _get_aluno()
+    matriculas_ativas = [
+        m for m in aluno.matriculas if m.status.upper() == "ATIVA"
+    ]
+    cursos_com_acesso = []
+    for m in matriculas_ativas:
+        acesso = AcessoConteudoCurso.query.filter_by(
+            aluno_id=aluno.id, curso_id=m.curso_id, liberado=1
+        ).first()
+        cursos_com_acesso.append({
+            "curso":    m.curso,
+            "liberado": bool(acesso),
+        })
+    return render_template("aluno/cursos.html",
+                           aluno=aluno,
+                           cursos_com_acesso=cursos_com_acesso)
 
+
+@portal_aluno_bp.route("/cursos/<int:curso_id>")
+@aluno_login_required
+def aluno_curso_detalhe(curso_id):
+    """Conteúdo, provas e atividades de um curso específico."""
+    aluno = _get_aluno()
+
+    # Verifica matrícula ativa no curso
+    matricula = next(
+        (m for m in aluno.matriculas
+         if m.curso_id == curso_id and m.status.upper() == "ATIVA"), None
+    )
     if not matricula:
-        return render_template("aluno/conteudo_cursos.html", aluno=aluno, cursos=[])
+        flash("Você não está matriculado neste curso.", "erro")
+        return redirect("/aluno/cursos")
 
+    # Verifica acesso liberado ao curso
     acesso = AcessoConteudoCurso.query.filter_by(
-        aluno_id=aluno.id, curso_id=matricula.curso_id, liberado=1
+        aluno_id=aluno.id, curso_id=curso_id, liberado=1
     ).first()
     if not acesso:
-        flash("Seu acesso ao conteúdo ainda não foi liberado. Fale com a secretaria.", "erro")
-        return redirect("/aluno/dashboard")
+        flash("Seu acesso a este curso ainda não foi liberado. Fale com a secretaria.", "erro")
+        return redirect("/aluno/cursos")
 
-    curso    = db.get_or_404(Curso, matricula.curso_id)
-    materias = Materia.query.filter_by(curso_id=matricula.curso_id, ativa=1).all()
+    curso = db.get_or_404(Curso, curso_id)
 
-    # Monta lista de conteúdos ordenados por matéria/id como tuplas (conteudo, progresso)
-    conteudos_raw = (
-        Conteudo.query
-        .filter(Conteudo.materia_id.in_([m.id for m in materias]))
-        .order_by(Conteudo.materia_id, Conteudo.id)
-        .all()
-    )
+    # Matérias liberadas individualmente para este aluno neste curso
+    ids_liberados = {
+        ml.materia_id for ml in MateriaLiberada.query.filter_by(
+            aluno_id=aluno.id, liberado=1
+        ).all()
+    }
+    todas_materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
+    materias_visiveis = [m for m in todas_materias if m.id in ids_liberados]
+
+    # Conteúdos apenas das matérias liberadas
+    conteudos_raw = []
+    if materias_visiveis:
+        conteudos_raw = (
+            Conteudo.query
+            .filter(Conteudo.materia_id.in_([m.id for m in materias_visiveis]))
+            .order_by(Conteudo.materia_id, Conteudo.id)
+            .all()
+        )
     progressos_map = {
         p.conteudo_id: p
         for p in ProgressoAula.query.filter_by(aluno_id=aluno.id).all()
     }
-    # Lista de tuplas (conteudo, progresso_ou_None) — exatamente o que o template espera
     conteudos = [(c, progressos_map.get(c.id)) for c in conteudos_raw]
 
+    # Provas liberadas individualmente para este aluno neste curso
+    from models import Prova, RespostaProva
+    ids_provas_liberadas = {
+        pl.prova_id for pl in ProvaLiberada.query.filter_by(
+            aluno_id=aluno.id, liberado=1
+        ).all()
+    }
+    provas_do_curso = Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
+    provas_visiveis = []
+    for p in provas_do_curso:
+        if p.id not in ids_provas_liberadas:
+            continue
+        usadas = RespostaProva.query.filter_by(
+            prova_id=p.id, aluno_id=aluno.id
+        ).count()
+        provas_visiveis.append({
+            "prova":     p,
+            "tentativas_usadas": usadas,
+            "pode_fazer": usadas < p.tentativas,
+        })
+
+    # Atividades do curso (liberadas via ativa=1)
+    atividades = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
+    entregas_map = {
+        e.atividade_id: e
+        for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
+    }
+
     return render_template(
-        "aluno/conteudo.html",
-        aluno     = aluno,
-        curso     = curso,
-        materias  = materias,
-        conteudos = conteudos,
+        "aluno/curso_detalhe.html",
+        aluno            = aluno,
+        curso            = curso,
+        materias         = materias_visiveis,
+        conteudos        = conteudos,
+        provas           = provas_visiveis,
+        atividades       = atividades,
+        entregas_map     = entregas_map,
     )
+
+
+# ─── ROTA LEGADA /conteudo — redireciona para /cursos ────────────────────────
+
+@portal_aluno_bp.route("/conteudo")
+@aluno_login_required
+def aluno_conteudo():
+    return redirect("/aluno/cursos")
 
 
 @portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>", methods=["POST"])
@@ -223,10 +255,9 @@ def concluir_aula(conteudo_id):
             aluno_id=aluno.id, conteudo_id=conteudo_id, concluido=1
         ))
         db.session.commit()
-    return redirect("/aluno/conteudo")
+    return redirect(request.referrer or "/aluno/cursos")
 
 
-# Rota legada referenciada no JS do template (/aluno/concluir/<id>)
 @portal_aluno_bp.route("/concluir/<int:conteudo_id>", methods=["GET", "POST"])
 @aluno_login_required
 def concluir_aula_legado(conteudo_id):
@@ -239,15 +270,51 @@ def concluir_aula_legado(conteudo_id):
             aluno_id=aluno.id, conteudo_id=conteudo_id, concluido=1
         ))
         db.session.commit()
-    return redirect("/aluno/conteudo")
+    return redirect("/aluno/cursos")
 
 
-# ─── SERVIR ARQUIVO DE CONTEÚDO (PDF / download) ─────────────────────────────
+# ─── ENTREGA DE ATIVIDADE ────────────────────────────────────────────────────
+
+@portal_aluno_bp.route("/atividade/<int:atividade_id>/entregar", methods=["POST"])
+@aluno_login_required
+def entregar_atividade(atividade_id):
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+    aluno     = _get_aluno()
+    atividade = db.get_or_404(Atividade, atividade_id)
+
+    entrega = EntregaAtividade.query.filter_by(
+        aluno_id=aluno.id, atividade_id=atividade_id
+    ).first()
+    if not entrega:
+        entrega = EntregaAtividade(
+            aluno_id     = aluno.id,
+            atividade_id = atividade_id,
+            entregue_em  = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        db.session.add(entrega)
+
+    upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
+    os.makedirs(upload_folder, exist_ok=True)
+
+    for idx, campo in enumerate(["arquivo1", "arquivo2", "arquivo3"], 1):
+        f = request.files.get(campo)
+        if f and f.filename:
+            fname = secure_filename(f"{aluno.id}_atv{atividade_id}_{idx}_{f.filename}")
+            f.save(os.path.join(upload_folder, fname))
+            setattr(entrega, campo, fname)
+
+    entrega.status = "entregue"
+    db.session.commit()
+    flash("Atividade entregue com sucesso!", "sucesso")
+    return redirect(f"/aluno/cursos/{atividade.curso_id}")
+
+
+# ─── SERVIR ARQUIVO DE CONTEÚDO ───────────────────────────────────────────────
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
 def servir_arquivo(conteudo_id):
-    """Serve o arquivo de um conteúdo apenas para alunos autenticados com acesso."""
     from flask import current_app
     aluno    = _get_aluno()
     conteudo = db.get_or_404(Conteudo, conteudo_id)
@@ -255,7 +322,6 @@ def servir_arquivo(conteudo_id):
     if not conteudo.arquivo:
         abort(404)
 
-    # Verifica se o aluno tem matrícula no curso da matéria
     materia = db.session.get(Materia, conteudo.materia_id)
     if materia:
         cursos_aluno = [
@@ -268,27 +334,3 @@ def servir_arquivo(conteudo_id):
     upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
     filename      = os.path.basename(conteudo.arquivo)
     return send_from_directory(upload_folder, filename)
-
-
-# ─── TROCAR SENHA ────────────────────────────────────────────────────────────
-
-@portal_aluno_bp.route("/senha", methods=["GET", "POST"])
-@aluno_login_required
-def aluno_trocar_senha():
-    aluno = _get_aluno()
-    if request.method == "POST":
-        atual  = request.form.get("atual",  "").strip()
-        nova   = request.form.get("nova",   "").strip()
-        repete = request.form.get("repete", "").strip()
-        if not aluno.senha or not verificar_senha(atual, aluno.senha):
-            flash("Senha atual incorreta.", "erro")
-        elif nova != repete:
-            flash("As senhas não coincidem.", "erro")
-        elif len(nova) < 6:
-            flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
-        else:
-            aluno.senha = hash_senha(nova)
-            db.session.commit()
-            flash("Senha alterada com sucesso!", "sucesso")
-            return redirect("/aluno/dashboard")
-    return render_template("aluno/trocar_senha.html", aluno=aluno)

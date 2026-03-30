@@ -41,6 +41,9 @@ def criar_matricula(form_data) -> int:
     Cria matrícula + parcelas de mensalidade a partir dos dados do formulário.
     Retorna o id da Matricula criada.
     Lança ValueError se dados obrigatórios estiverem ausentes.
+
+    REGRA: todas as Mensalidades geradas recebem curso_id, para que alunos
+    com múltiplos cursos tenham parcelas corretamente separadas por curso.
     """
     aluno_id  = form_data.get("aluno_id", type=int)
     curso_id  = form_data.get("curso_id", type=int)
@@ -58,39 +61,76 @@ def criar_matricula(form_data) -> int:
     if not curso:
         raise ValueError("Curso não encontrado.")
 
-    valor_matricula   = float(form_data.get("valor_matricula")   or curso.valor_matricula or 0)
-    valor_mensalidade = float(form_data.get("valor_mensalidade") or curso.valor_mensal    or 0)
-    parcelas          = int(form_data.get("parcelas")            or curso.parcelas        or 1)
-    tipo_curso        = form_data.get("tipo_curso")  or curso.tipo or ""
+    # O formulário pode enviar valor_mensal OU valor_mensalidade
+    valor_matricula   = float(form_data.get("valor_matricula")   or 0)
+    valor_mensalidade = float(
+        form_data.get("valor_mensalidade") or
+        form_data.get("valor_mensal")      or
+        curso.valor_mensal or 0
+    )
+    parcelas          = int(form_data.get("parcelas") or curso.parcelas or 1)
+    tipo_curso        = form_data.get("tipo_curso")     or curso.tipo or ""
     data_matricula    = form_data.get("data_matricula") or date.today().isoformat()
     material_didatico = form_data.get("material_didatico") or ""
     valor_material    = float(form_data.get("valor_material") or 0)
+    parcelas_material = int(form_data.get("parcelas_material") or 1)
     observacao        = form_data.get("observacao") or ""
-    mes_inicio        = form_data.get("mes_inicio") or date.today().strftime("%Y-%m")
 
-    # Cria o registro de matrícula
-    matricula = Matricula(
-        aluno_id            = aluno_id,
-        curso_id            = curso_id,
-        tipo_curso          = tipo_curso,
-        data_matricula      = data_matricula,
-        status              = StatusMatricula.ATIVA.value,
-        valor_matricula     = valor_matricula,
-        valor_mensalidade   = valor_mensalidade,
-        quantidade_parcelas = parcelas,
-        material_didatico   = material_didatico,
-        valor_material      = valor_material,
-        observacao          = observacao,
+    # mes_inicio a partir do campo data_primeira_mensalidade (formulário) ou mes_inicio
+    mes_inicio_raw = (
+        form_data.get("data_primeira_mensalidade") or
+        form_data.get("mes_inicio") or
+        date.today().strftime("%Y-%m")
     )
-    db.session.add(matricula)
+    # aceita tanto "YYYY-MM-DD" quanto "YYYY-MM"
+    try:
+        ano = int(mes_inicio_raw[:4])
+        mes = int(mes_inicio_raw[5:7])
+    except Exception:
+        ano, mes = date.today().year, date.today().month
 
-    # Atualiza curso_id do aluno (compatibilidade legada)
-    aluno.curso_id = curso_id
+    # data de vencimento do material
+    data_material_raw = form_data.get("data_material") or data_matricula
+    try:
+        ano_mat = int(data_material_raw[:4])
+        mes_mat = int(data_material_raw[5:7])
+    except Exception:
+        ano_mat, mes_mat = ano, mes
 
-    # Gera parcela de matrícula (se houver valor)
-    if valor_matricula > 0:
+    # ── Cria o registro de matrícula ─────────────────────────────────────────
+    # NÃO cria matrícula automática se o formulário for só de mensalidade avulsa
+    apenas_mensalidade = form_data.get("apenas_mensalidade") == "1"
+
+    if not apenas_mensalidade:
+        matricula = Matricula(
+            aluno_id            = aluno_id,
+            curso_id            = curso_id,
+            tipo_curso          = tipo_curso,
+            data_matricula      = data_matricula,
+            status              = StatusMatricula.ATIVA.value,
+            valor_matricula     = valor_matricula,
+            valor_mensalidade   = valor_mensalidade,
+            quantidade_parcelas = parcelas,
+            material_didatico   = material_didatico,
+            valor_material      = valor_material,
+            observacao          = observacao,
+        )
+        db.session.add(matricula)
+        # Atualiza curso_id legado do aluno apenas na criação de matrícula
+        aluno.curso_id = curso_id
+    else:
+        # Apenas lança parcelas — busca matrícula existente para o curso
+        matricula = Matricula.query.filter_by(
+            aluno_id=aluno_id, curso_id=curso_id
+        ).order_by(Matricula.id.desc()).first()
+        if not matricula:
+            raise ValueError("Aluno não possui matrícula neste curso. Crie a matrícula primeiro.")
+
+    # ── Parcela de matrícula ─────────────────────────────────────────────────
+    if not apenas_mensalidade and valor_matricula > 0:
         db.session.add(Mensalidade(
             aluno_id    = aluno_id,
+            curso_id    = curso_id,
             valor       = valor_matricula,
             vencimento  = data_matricula,
             status      = "Pendente",
@@ -98,12 +138,7 @@ def criar_matricula(form_data) -> int:
             parcela_ref = "Matrícula",
         ))
 
-    # Gera parcelas de mensalidade
-    try:
-        ano, mes = int(mes_inicio[:4]), int(mes_inicio[5:7])
-    except Exception:
-        ano, mes = date.today().year, date.today().month
-
+    # ── Parcelas de mensalidade ───────────────────────────────────────────────
     for i in range(1, parcelas + 1):
         venc_mes = mes + i - 1
         venc_ano = ano + (venc_mes - 1) // 12
@@ -111,6 +146,7 @@ def criar_matricula(form_data) -> int:
         vencimento = f"{venc_ano:04d}-{venc_mes:02d}-10"
         db.session.add(Mensalidade(
             aluno_id    = aluno_id,
+            curso_id    = curso_id,   # ← vincula ao curso correto
             valor       = valor_mensalidade,
             vencimento  = vencimento,
             status      = "Pendente",
@@ -118,16 +154,23 @@ def criar_matricula(form_data) -> int:
             parcela_ref = f"{i:02d}/{parcelas:02d}",
         ))
 
-    # Gera parcela de material (se houver)
+    # ── Parcelas de material (parcelável) ────────────────────────────────────
     if valor_material > 0:
-        db.session.add(Mensalidade(
-            aluno_id    = aluno_id,
-            valor       = valor_material,
-            vencimento  = data_matricula,
-            status      = "Pendente",
-            tipo        = "material",
-            parcela_ref = "Material Didático",
-        ))
+        for i in range(1, parcelas_material + 1):
+            venc_mes = mes_mat + i - 1
+            venc_ano = ano_mat + (venc_mes - 1) // 12
+            venc_mes = ((venc_mes - 1) % 12) + 1
+            vencimento = f"{venc_ano:04d}-{venc_mes:02d}-10"
+            ref = f"{i:02d}/{parcelas_material:02d}" if parcelas_material > 1 else "Material Didático"
+            db.session.add(Mensalidade(
+                aluno_id    = aluno_id,
+                curso_id    = curso_id,
+                valor       = round(valor_material / parcelas_material, 2),
+                vencimento  = vencimento,
+                status      = "Pendente",
+                tipo        = "material",
+                parcela_ref = ref,
+            ))
 
     db.session.commit()
     return matricula.id
