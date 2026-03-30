@@ -24,38 +24,25 @@ def financeiro():
     alunos   = Aluno.query.order_by(Aluno.nome).all()
     aluno_id = request.args.get("aluno_id", type=int)
     pendentes, pagas = [], []
-    total_pago = total_pagar = vencidas_total = 0
+    total_pago = total_pagar = saldo = 0
     hoje = date.today()
 
     if aluno_id:
-        pendentes  = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
-        pagas      = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
+        pendentes   = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pendente").order_by(Mensalidade.vencimento).all()
+        pagas       = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
         total_pago  = sum(m.valor for m in pagas)
         total_pagar = sum(m.valor for m in pendentes)
+        saldo       = total_pago - total_pagar
 
-        # Parcelas vencidas = pendentes com vencimento antes de hoje
-        def _eh_vencida(m):
-            if not m.vencimento:
-                return False
-            try:
-                from datetime import datetime
-                v = datetime.strptime(str(m.vencimento)[:10], "%Y-%m-%d").date()
-                return v < hoje
-            except (ValueError, TypeError):
-                return False
-
-        vencidas       = [m for m in pendentes if _eh_vencida(m)]
-        vencidas_total = sum(m.valor for m in vencidas)
-
-        # Enriquecer cada parcela com o nome do curso via matricula ativa
-        curso_map = {c.id: c.nome for c in Curso.query.all()}
-        mat_ativa = (Matricula.query
-                     .filter_by(aluno_id=aluno_id)
-                     .order_by(Matricula.id.desc())
-                     .first())
-        curso_nome_padrao = curso_map.get(mat_ativa.curso_id, "-") if mat_ativa else "-"
+        # Enriquece cada parcela com o nome do curso via matrícula mais recente
+        curso_map  = {c.id: c.nome for c in Curso.query.all()}
+        mat = (Matricula.query
+               .filter_by(aluno_id=aluno_id)
+               .order_by(Matricula.id.desc())
+               .first())
+        curso_nome = curso_map.get(mat.curso_id, "-") if mat else "-"
         for m in pendentes + pagas:
-            m.curso_nome = curso_nome_padrao
+            m.curso_nome = curso_nome
 
     return render_template("financeiro.html",
                            alunos=alunos,
@@ -64,7 +51,7 @@ def financeiro():
                            pagas=pagas,
                            total_pago=total_pago,
                            total_pagar=total_pagar,
-                           vencidas_total=vencidas_total,
+                           saldo=saldo,
                            hoje=hoje)
 
 
