@@ -398,12 +398,16 @@ td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
 .resumo-item { flex: 1; min-width: 140px; padding: 16px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 4px; }
 .resumo-label { font-size: var(--font-size-sm); text-transform: uppercase; letter-spacing: .5px; color: var(--color-text-muted); }
 .resumo-valor { font-size: 22px; font-weight: 700; }
-.resumo-item--pago  { background: var(--color-success-light); }
-.resumo-item--pago  .resumo-valor { color: var(--color-pago); }
-.resumo-item--pagar { background: var(--color-danger-light); }
-.resumo-item--pagar .resumo-valor { color: var(--color-atrasado); }
-.resumo-item--saldo { background: var(--color-primary-light); }
-.resumo-item--saldo .resumo-valor { color: var(--color-primary); }
+.resumo-item--pago     { background: var(--color-success-light); }
+.resumo-item--pago     .resumo-valor { color: var(--color-pago); }
+.resumo-item--pagar    { background: var(--color-danger-light); }
+.resumo-item--pagar    .resumo-valor { color: var(--color-atrasado); }
+.resumo-item--saldo    { background: var(--color-primary-light); }
+.resumo-item--saldo    .resumo-valor { color: var(--color-primary); }
+.resumo-item--azul     { background: var(--color-primary-light); }
+.resumo-item--azul     .resumo-valor { color: var(--color-primary); }
+.resumo-item--vencidas { background: var(--color-danger-light); }
+.resumo-item--vencidas .resumo-valor { color: var(--color-atrasado); }
 
 /* ── 23. BADGE TIPO PARCELA ─────────────────────────────────── */
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
