@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+{% block title %}Provas{% endblock %}
+
+{% block styles %}
+<style>
+.prova-badge       { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; }
+.prova-badge-ativa { background:#dcfce7; color:#15803d; }
+.prova-badge-rasc  { background:#f3f4f6; color:#6b7280; }
+.tipo-badge { display:inline-block; padding:1px 7px; border-radius:6px; font-size:11px; font-weight:600; }
+.tipo-multipla    { background:#dbeafe; color:#1d4ed8; }
+.tipo-vf          { background:#fef9c3; color:#a16207; }
+.tipo-dissertativa{ background:#f3e5f5; color:#7b1fa2; }
+.questao-card {
+    border:1px solid var(--color-border);
+    border-radius:var(--radius-md);
+    padding:16px 18px;
+    margin-bottom:12px;
+    background:var(--color-white);
+}
+.questao-card__header {
+    display:flex; align-items:flex-start;
+    justify-content:space-between; gap:12px;
+    margin-bottom:10px;
+}
+.questao-num { font-weight:700; color:var(--color-primary); min-width:24px; }
+.questao-enunciado { flex:1; font-size:var(--font-size-base); }
+.alt-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:13px; }
+.alt-item.correta { color:var(--color-success); font-weight:600; }
+.alt-correta-icon::before { content:'✓'; margin-right:2px; }
+.resultado-aprovado  { color:var(--color-success); font-weight:700; }
+.resultado-reprovado { color:var(--color-danger);  font-weight:700; }
+.resultado-andamento { color:var(--color-warning-dark); font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ══════════════════════════════════════════════════════════════════════
+   VIEW: LISTA DE PROVAS
+══════════════════════════════════════════════════════════════════════ #}
+{% if view == 'lista' %}
+
+<div class="card">
+    <div class="card-header--between">
+        <div class="card-header">
+            <span>📝</span>
+            <h2 style="margin:0">Provas</h2>
+        </div>
+        <a href="/provas/nova" class="btn btn-azul">+ Nova Prova</a>
+    </div>
+    <p class="card-subtitle">Gerencie as avaliações por curso e matéria.</p>
+
+    {# Filtro por curso #}
+    <form method="get" action="/provas" style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <select name="curso_id" style="height:36px;width:220px;margin-bottom:0;">
+            <option value="">Todos os cursos</option>
+            {% for c in cursos %}
+            <option value="{{ c.id }}" {% if curso_id_sel == c.id %}selected{% endif %}>{{ c.nome }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-azul">Filtrar</button>
+        {% if curso_id_sel %}<a href="/provas" class="btn btn-secondary" style="background:#e0e0e0;color:#333;">Limpar</a>{% endif %}
+    </form>
+
+    {% if provas %}
+    <div class="table-responsive">
+    <table class="tabela-excel">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Título</th>
+                <th>Curso</th>
+                <th>Matéria</th>
+                <th>Questões</th>
+                <th>Nota mín.</th>
+                <th>Tentativas</th>
+                <th>Tempo</th>
+                <th>Status</th>
+                <th class="acoes">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in provas %}
+        <tr>
+            <td>{{ p.id }}</td>
+            <td><strong>{{ p.titulo }}</strong>
+                {% if p.descricao %}<br><small style="color:#888">{{ p.descricao[:60] }}{% if p.descricao|length > 60 %}…{% endif %}</small>{% endif %}
+            </td>
+            <td>{{ p.curso.nome }}</td>
+            <td>{{ p.materia.nome if p.materia else '—' }}</td>
+            <td style="text-align:center">{{ p.total_questoes }}</td>
+            <td style="text-align:center">{{ p.nota_minima }}</td>
+            <td style="text-align:center">{{ p.tentativas }}x</td>
+            <td style="text-align:center">
+                {% if p.tempo_limite %}{{ p.tempo_limite }} min{% else %}—{% endif %}
+            </td>
+            <td style="text-align:center">
+                {% if p.ativa %}
+                    <span class="prova-badge prova-badge-ativa">Ativa</span>
+                {% else %}
+                    <span class="prova-badge prova-badge-rasc">Rascunho</span>
+                {% endif %}
+            </td>
+            <td class="acoes">
+                <a href="/provas/{{ p.id }}/questoes" class="btn btn-editar tooltip" data-tooltip="Questões">📋</a>
+                <a href="/provas/{{ p.id }}/editar"   class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                <a href="/provas/{{ p.id }}/resultados" class="btn btn-info tooltip" data-tooltip="Resultados">📊</a>
+                <form method="post" action="/provas/{{ p.id }}/toggle" style="display:inline">
+                    <button type="submit" class="btn {{ 'btn-lixeira' if p.ativa else 'btn-verde' }} tooltip"
+                            data-tooltip="{{ 'Desativar' if p.ativa else 'Ativar' }}">{{ '⏸' if p.ativa else '▶' }}</button>
+                </form>
+                <form method="post" action="/provas/{{ p.id }}/excluir" style="display:inline"
+                      onsubmit="return confirm('Excluir a prova e todas as questões?')">
+                    <button type="submit" class="btn btn-vermelho tooltip" data-tooltip="Excluir">🗑</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">📝 Nenhuma prova cadastrada ainda.<br>
+        <a href="/provas/nova" class="btn btn-azul" style="margin-top:12px">Criar primeira prova</a>
+    </div>
+    {% endif %}
+</div>
+
+
+{# ══════════════════════════════════════════════════════════════════════
+   VIEW: NOVA PROVA
+══════════════════════════════════════════════════════════════════════ #}
+{% elif view == 'nova' or view == 'editar' %}
+
+{% set editando = (view == 'editar') %}
+{% set form_action = '/provas/' ~ prova.id ~ '/editar' if editando else '/provas/nova' %}
+
+<div class="card" style="max-width:700px">
+    <div class="card-header">
+        <span>{{ '✏️' if editando else '📝' }}</span>
+        <h2 style="margin:0">{{ 'Editar Prova' if editando else 'Nova Prova' }}</h2>
+    </div>
+
+    <form method="post" action="{{ form_action }}">
+        <div class="grid-2">
+            <div class="campo grande">
+                <label>Título da prova *</label>
+                <input type="text" name="titulo" required maxlength="200"
+                       value="{{ prova.titulo if editando else '' }}"
+                       placeholder="Ex: Avaliação Bimestral — Módulo 1">
+            </div>
+            <div class="campo">
+                <label>Curso *</label>
+                <select name="curso_id" required>
+                    <option value="">Selecione…</option>
+                    {% for c in cursos %}
+                    <option value="{{ c.id }}"
+                        {% if editando and prova.curso_id == c.id %}selected
+                        {% endif %}>{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="campo">
+                <label>Matéria <small>(opcional)</small></label>
+                <select name="materia_id">
+                    <option value="">— Geral —</option>
+                    {% for m in materias %}
+                    <option value="{{ m.id }}"
+                        {% if editando and prova.materia_id == m.id %}selected
+                        {% endif %}>{{ m.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="campo">
+                <label>Nota mínima para aprovação</label>
+                <input type="number" name="nota_minima" step="0.1" min="0" max="10"
+                       value="{{ prova.nota_minima if editando else '6.0' }}">
+            </div>
+            <div class="campo">
+                <label>Número máximo de tentativas</label>
+                <input type="number" name="tentativas" min="1" max="10"
+                       value="{{ prova.tentativas if editando else '1' }}">
+            </div>
+            <div class="campo">
+                <label>Tempo limite (minutos) <small>(deixe vazio = sem limite)</small></label>
+                <input type="number" name="tempo_limite" min="1"
+                       value="{{ prova.tempo_limite if editando and prova.tempo_limite else '' }}"
+                       placeholder="Ex: 60">
+            </div>
+            <div class="campo grande">
+                <label>Descrição / instrução ao aluno <small>(opcional)</small></label>
+                <textarea name="descricao" class="observacao-grande" style="min-height:80px"
+                          placeholder="Ex: Leia cada questão com atenção…">{{ prova.descricao if editando and prova.descricao else '' }}</textarea>
+            </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 20px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600">
+                <input type="checkbox" name="ativa" value="1"
+                       {% if editando and prova.ativa %}checked{% elif not editando %}checked{% endif %}>
+                Prova ativa (visível para alunos)
+            </label>
+        </div>
+
+        <div class="acoes-form">
+            <button type="submit" class="btn btn-azul">{{ '💾 Salvar alterações' if editando else '✅ Criar prova e adicionar questões' }}</button>
+            <a href="/provas" class="btn" style="background:#e0e0e0;color:#333">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+
+{# ══════════════════════════════════════════════════════════════════════
+   VIEW: QUESTÕES DE UMA PROVA
+══════════════════════════════════════════════════════════════════════ #}
+{% elif view == 'questoes' %}
+
+<div class="breadcrumb">
+    <a href="/provas">Provas</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current">{{ prova.titulo }}</span>
+</div>
+
+<div class="grid-2" style="align-items:start">
+
+    {# ── Painel esquerdo: questões existentes ── #}
+    <div class="card">
+        <div class="card-header--between">
+            <div class="card-header" style="margin-bottom:0">
+                <span>📋</span>
+                <h3 style="margin:0">Questões ({{ prova.total_questoes }})</h3>
+            </div>
+            <span style="font-size:12px;color:#888">Total: {{ prova.total_pontos }} pts</span>
+        </div>
+        <p class="card-subtitle">Nota mínima: <strong>{{ prova.nota_minima }}</strong> | Tentativas: <strong>{{ prova.tentativas }}x</strong></p>
+
+        {% if prova.questoes %}
+        {% for q in prova.questoes %}
+        <div class="questao-card">
+            <div class="questao-card__header">
+                <span class="questao-num">{{ loop.index }}.</span>
+                <span class="questao-enunciado">{{ q.enunciado }}</span>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:80px">
+                    <span class="tipo-badge tipo-{{ q.tipo.replace('_','-') if q.tipo else 'multipla' }}"
+                    >{% if q.tipo == 'multipla_escolha' %}Múlt. escolha
+                     {% elif q.tipo == 'verdadeiro_falso' %}V / F
+                     {% else %}Dissertativa{% endif %}</span>
+                    <small style="color:#888">{{ q.pontos }} pt{{ 's' if q.pontos != 1 }}</small>
+                </div>
+            </div>
+
+            {% if q.alternativas %}
+            <div style="padding-left:28px">
+                {% for a in q.alternativas %}
+                <div class="alt-item {{ 'correta' if a.correta else '' }}">
+                    {% if a.correta %}<span class="alt-correta-icon"></span>{% else %}<span style="width:14px;display:inline-block"></span>{% endif %}
+                    {{ a.texto }}
+                </div>
+                {% endfor %}
+            </div>
+            {% elif q.tipo == 'dissertativa' %}
+            <div style="padding-left:28px;color:#aaa;font-size:12px">Resposta aberta (corrigida manualmente)</div>
+            {% endif %}
+
+            <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end">
+                {# Botão editar questão — abre modal inline #}
+                <button class="btn btn-editar btn-sm" onclick="abrirEditarQuestao({{ q.id }})">✏️ Editar</button>
+                <form method="post" action="/provas/{{ prova.id }}/questoes"
+                      onsubmit="return confirm('Remover esta questão?')">
+                    <input type="hidden" name="acao"      value="del_questao">
+                    <input type="hidden" name="questao_id" value="{{ q.id }}">
+                    <button type="submit" class="btn btn-vermelho btn-sm">🗑 Remover</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state" style="padding:20px 0">Nenhuma questão ainda. Adicione ao lado →</div>
+        {% endif %}
+
+        <div class="acoes-form" style="margin-top:16px">
+            <a href="/provas" class="btn" style="background:#e0e0e0;color:#333">← Voltar</a>
+            <a href="/provas/{{ prova.id }}/resultados" class="btn btn-info">📊 Ver resultados</a>
+        </div>
+    </div>
+
+    {# ── Painel direito: formulário nova questão ── #}
+    <div class="card">
+        <div class="card-header">
+            <span>➕</span>
+            <h3 style="margin:0">Adicionar Questão</h3>
+        </div>
+
+        <form method="post" action="/provas/{{ prova.id }}/questoes" id="formNovaQuestao">
+            <input type="hidden" name="acao" value="add_questao">
+
+            <div class="campo">
+                <label>Tipo de questão</label>
+                <select name="tipo" id="tipoQuestao" onchange="atualizarTipo()">
+                    <option value="multipla_escolha">Múltipla escolha</option>
+                    <option value="verdadeiro_falso">Verdadeiro ou Falso</option>
+                    <option value="dissertativa">Dissertativa (aberta)</option>
+                </select>
+            </div>
+
+            <div class="campo">
+                <label>Enunciado *</label>
+                <textarea name="enunciado" required class="observacao-grande" style="min-height:90px"
+                          placeholder="Digite a questão…"></textarea>
+            </div>
+
+            <div class="campo">
+                <label>Pontuação</label>
+                <input type="number" name="pontos" step="0.5" min="0.5" value="1.0" style="max-width:100px">
+            </div>
+
+            {# Alternativas — mostradas/ocultas via JS #}
+            <div id="blocoAlternativas">
+                <div class="secao" style="margin-top:14px">Alternativas <small>(marque a correta)</small></div>
+                <div id="listaAlternativas">
+                    {% for i in range(4) %}
+                    <div class="alt-linha" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                        <input type="checkbox" name="alt_correta" value="{{ i }}"
+                               title="Marcar como correta">
+                        <input type="text" name="alt_texto"
+                               placeholder="Alternativa {{ ['A','B','C','D'][i] }}"
+                               style="flex:1;margin-bottom:0">
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;margin-top:4px"
+                        onclick="adicionarAlternativa()">+ Alternativa</button>
+            </div>
+
+            <div id="blocoVF" style="display:none">
+                <div class="secao" style="margin-top:14px">Alternativas Verdadeiro / Falso</div>
+                <div style="display:flex;gap:16px;margin-top:8px">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                        <input type="checkbox" name="alt_correta" value="0"> Verdadeiro
+                        <input type="hidden" name="alt_texto" value="Verdadeiro">
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                        <input type="checkbox" name="alt_correta" value="1"> Falso
+                        <input type="hidden" name="alt_texto" value="Falso">
+                    </label>
+                </div>
+            </div>
+
+            <div id="blocoDissertat" style="display:none">
+                <div class="alerta" style="background:#f3e5f5;border:none;color:#7b1fa2;margin-top:12px">
+                    ✍️ Questão dissertativa — a correção será feita manualmente pelo instrutor na Etapa 4.
+                </div>
+            </div>
+
+            <div class="acoes-form">
+                <button type="submit" class="btn btn-azul">✅ Adicionar questão</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Modal editar questão (inline) #}
+<div class="modal-overlay" id="modalEditarQuestao">
+    <div class="modal" style="max-width:560px;text-align:left">
+        <h3>✏️ Editar Questão</h3>
+        <form method="post" action="/provas/{{ prova.id }}/questoes" id="formEditarQuestao">
+            <input type="hidden" name="acao"       value="edit_questao">
+            <input type="hidden" name="questao_id" id="editQuestaoId">
+            <div class="campo">
+                <label>Enunciado</label>
+                <textarea name="enunciado" id="editEnunciado" class="observacao-grande" style="min-height:80px"></textarea>
+            </div>
+            <div class="campo">
+                <label>Pontuação</label>
+                <input type="number" name="pontos" id="editPontos" step="0.5" min="0.5" style="max-width:100px">
+            </div>
+            <div id="editAlternativas"></div>
+            <div class="acoes-form">
+                <button type="submit" class="btn btn-azul">💾 Salvar</button>
+                <button type="button" class="btn" style="background:#e0e0e0;color:#333"
+                        onclick="fecharModal()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+{# ══════════════════════════════════════════════════════════════════════
+   VIEW: RESULTADOS
+══════════════════════════════════════════════════════════════════════ #}
+{% elif view == 'resultados' %}
+
+<div class="breadcrumb">
+    <a href="/provas">Provas</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="/provas/{{ prova.id }}/questoes">{{ prova.titulo }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current">Resultados</span>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span>📊</span>
+        <h2 style="margin:0">Resultados — {{ prova.titulo }}</h2>
+    </div>
+    <p class="card-subtitle">Curso: {{ prova.curso.nome }} | Nota mínima: {{ prova.nota_minima }}</p>
+
+    {% if respostas %}
+    <div class="table-responsive">
+    <table class="tabela-excel">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Aluno</th>
+                <th>Tentativa</th>
+                <th>Iniciado em</th>
+                <th>Finalizado em</th>
+                <th>Nota</th>
+                <th>Resultado</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in respostas %}
+        <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.aluno.nome }}</td>
+            <td style="text-align:center">{{ r.tentativa_num }}ª</td>
+            <td>{{ r.iniciado_em or '—' }}</td>
+            <td>{{ r.finalizado_em or '—' }}</td>
+            <td style="text-align:center;font-weight:700">
+                {% if r.nota_obtida is not none %}{{ '%.1f'|format(r.nota_obtida) }}{% else %}—{% endif %}
+            </td>
+            <td style="text-align:center">
+                {% if r.aprovado is none %}
+                    <span class="resultado-andamento">Em andamento</span>
+                {% elif r.aprovado %}
+                    <span class="resultado-aprovado">✅ Aprovado</span>
+                {% else %}
+                    <span class="resultado-reprovado">❌ Reprovado</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Nenhum aluno realizou esta prova ainda.</div>
+    {% endif %}
+
+    <div class="acoes-form">
+        <a href="/provas/{{ prova.id }}/questoes" class="btn" style="background:#e0e0e0;color:#333">← Questões</a>
+        <a href="/provas" class="btn btn-azul">Lista de provas</a>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Dados das questões para o modal de edição ──
+const questoesData = {
+    {% for q in prova.questoes if view == 'questoes' %}
+    {{ q.id }}: {
+        enunciado: {{ q.enunciado | tojson }},
+        pontos: {{ q.pontos }},
+        tipo: {{ q.tipo | tojson }},
+        alternativas: [
+            {% for a in q.alternativas %}
+            { id: {{ a.id }}, texto: {{ a.texto | tojson }}, correta: {{ a.correta }} },
+            {% endfor %}
+        ]
+    },
+    {% endfor %}
+};
+
+function abrirEditarQuestao(qId) {
+    const q = questoesData[qId];
+    if (!q) return;
+    document.getElementById('editQuestaoId').value  = qId;
+    document.getElementById('editEnunciado').value  = q.enunciado;
+    document.getElementById('editPontos').value     = q.pontos;
+
+    let html = '';
+    if (q.alternativas.length) {
+        html += '<div class="secao" style="margin-top:10px">Alternativas <small>(marque a correta)</small></div>';
+        q.alternativas.forEach((a, i) => {
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <input type="checkbox" name="alt_correta" value="${i}" ${a.correta ? 'checked' : ''}>
+                <input type="hidden"   name="alt_id"     value="${a.id}">
+                <input type="text"     name="alt_texto"  value="${a.texto.replace(/"/g,'&quot;')}" style="flex:1;margin-bottom:0">
+            </div>`;
+        });
+    }
+    document.getElementById('editAlternativas').innerHTML = html;
+    document.getElementById('modalEditarQuestao').classList.add('aberto');
+}
+
+function fecharModal() {
+    document.getElementById('modalEditarQuestao').classList.remove('aberto');
+}
+
+// Fecha modal ao clicar fora
+document.getElementById('modalEditarQuestao')?.addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+});
+
+// ── Trocar tipo de questão ──
+function atualizarTipo() {
+    const tipo = document.getElementById('tipoQuestao')?.value;
+    document.getElementById('blocoAlternativas').style.display =
+        tipo === 'multipla_escolha' ? '' : 'none';
+    document.getElementById('blocoVF').style.display =
+        tipo === 'verdadeiro_falso' ? '' : 'none';
+    document.getElementById('blocoDissertat').style.display =
+        tipo === 'dissertativa' ? '' : 'none';
+}
+
+// ── Adicionar linha de alternativa dinamicamente ──
+let altCount = 4;
+function adicionarAlternativa() {
+    const lista = document.getElementById('listaAlternativas');
+    const div   = document.createElement('div');
+    div.className = 'alt-linha';
+    div.style     = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
+    div.innerHTML = `<input type="checkbox" name="alt_correta" value="${altCount}" title="Marcar como correta">
+                     <input type="text" name="alt_texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}" style="flex:1;margin-bottom:0">`;
+    lista.appendChild(div);
+    altCount++;
+}
+</script>
+{% endblock %}

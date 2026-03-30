@@ -48,6 +48,7 @@ def create_app(config_class=Config):
     from routes.portal_aluno import portal_aluno_bp
     from routes.academico    import academico_bp
     from routes.backup       import backup_bp
+    from routes.provas       import provas_bp          # ← módulo de provas
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(cursos_bp)
@@ -59,6 +60,7 @@ def create_app(config_class=Config):
     app.register_blueprint(conteudos_bp)
     app.register_blueprint(academico_bp)
     app.register_blueprint(backup_bp)
+    app.register_blueprint(provas_bp)                  # ← registra provas
     app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
 
     @app.template_filter("moeda")

@@ -6,7 +6,7 @@ from enums import (
 )
 
 
-# ─ Constantes de domínio (retrocompat) ──────────────────────────────────────────────────
+# ─ Constantes de domínio (retrocompat) ──────────────────────────────────────
 PERFIS_VALIDOS   = PerfilUsuario.valores()
 STATUS_MATRICULA = StatusMatricula.valores()
 
@@ -127,9 +127,9 @@ class AcessoConteudoCurso(db.Model):
     id           = db.Column(db.Integer, primary_key=True)
     aluno_id     = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
     curso_id     = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
-    liberado     = db.Column(db.Integer, nullable=False, default=0)  # 0=bloqueado 1=liberado
-    liberado_por = db.Column(db.String(120))   # nome/usuario do admin
-    liberado_em  = db.Column(db.String(19))    # YYYY-MM-DD HH:MM:SS
+    liberado     = db.Column(db.Integer, nullable=False, default=0)
+    liberado_por = db.Column(db.String(120))
+    liberado_em  = db.Column(db.String(19))
 
 
 class Matricula(db.Model):
@@ -285,3 +285,117 @@ class ProgressoAula(db.Model):
     aluno_id    = db.Column(db.Integer, db.ForeignKey("alunos.id"))
     conteudo_id = db.Column(db.Integer, db.ForeignKey("conteudos.id"))
     concluido   = db.Column(db.Integer, default=0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MÓDULO DE PROVAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Prova(db.Model):
+    """Prova ou avaliação vinculada a um curso e opcionalmente a uma matéria."""
+    __tablename__ = "provas"
+    __table_args__ = (
+        db.Index("ix_provas_curso_id",   "curso_id"),
+        db.Index("ix_provas_materia_id", "materia_id"),
+    )
+    id           = db.Column(db.Integer, primary_key=True)
+    titulo       = db.Column(db.String(200), nullable=False)
+    descricao    = db.Column(db.Text)
+    curso_id     = db.Column(db.Integer, db.ForeignKey("cursos.id"),   nullable=False)
+    materia_id   = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=True)
+    tempo_limite = db.Column(db.Integer)           # minutos; NULL = sem limite
+    tentativas   = db.Column(db.Integer, default=1)
+    nota_minima  = db.Column(db.Float,   default=6.0)
+    ativa        = db.Column(db.Integer, default=1)  # 1=ativa 0=rascunho
+    criado_em    = db.Column(db.String(19))
+    criado_por   = db.Column(db.String(80))        # usuario que criou
+
+    curso    = db.relationship("Curso",   backref="provas",  lazy=True)
+    materia  = db.relationship("Materia", backref="provas",  lazy=True)
+    questoes = db.relationship("Questao", backref="prova",   lazy=True,
+                               cascade="all, delete-orphan",
+                               order_by="Questao.ordem")
+    respostas = db.relationship("RespostaProva", backref="prova", lazy=True,
+                                cascade="all, delete-orphan")
+
+    @property
+    def total_questoes(self):
+        return len(self.questoes)
+
+    @property
+    def total_pontos(self):
+        return sum(q.pontos for q in self.questoes)
+
+
+class Questao(db.Model):
+    """Questão pertencente a uma prova."""
+    __tablename__ = "questoes"
+    __table_args__ = (
+        db.Index("ix_questoes_prova_id", "prova_id"),
+    )
+    id        = db.Column(db.Integer, primary_key=True)
+    prova_id  = db.Column(db.Integer, db.ForeignKey("provas.id"), nullable=False)
+    enunciado = db.Column(db.Text, nullable=False)
+    # multipla_escolha | verdadeiro_falso | dissertativa
+    tipo      = db.Column(db.String(30), nullable=False, default="multipla_escolha")
+    ordem     = db.Column(db.Integer, default=1)
+    pontos    = db.Column(db.Float, default=1.0)
+
+    alternativas = db.relationship("Alternativa", backref="questao", lazy=True,
+                                   cascade="all, delete-orphan",
+                                   order_by="Alternativa.ordem")
+
+
+class Alternativa(db.Model):
+    """Alternativa de uma questão objetiva."""
+    __tablename__ = "alternativas"
+    __table_args__ = (
+        db.Index("ix_alternativas_questao_id", "questao_id"),
+    )
+    id         = db.Column(db.Integer, primary_key=True)
+    questao_id = db.Column(db.Integer, db.ForeignKey("questoes.id"), nullable=False)
+    texto      = db.Column(db.Text, nullable=False)
+    correta    = db.Column(db.Integer, default=0)  # 1 = correta
+    ordem      = db.Column(db.Integer, default=1)
+
+
+class RespostaProva(db.Model):
+    """Registro de uma tentativa do aluno em uma prova."""
+    __tablename__ = "respostas_prova"
+    __table_args__ = (
+        db.Index("ix_resp_prova_aluno_id", "aluno_id"),
+        db.Index("ix_resp_prova_prova_id", "prova_id"),
+    )
+    id            = db.Column(db.Integer, primary_key=True)
+    aluno_id      = db.Column(db.Integer, db.ForeignKey("alunos.id"),  nullable=False)
+    prova_id      = db.Column(db.Integer, db.ForeignKey("provas.id"),  nullable=False)
+    tentativa_num = db.Column(db.Integer, default=1)
+    iniciado_em   = db.Column(db.String(19))
+    finalizado_em = db.Column(db.String(19))
+    # NULL enquanto em andamento; preenchido ao finalizar
+    nota_obtida   = db.Column(db.Float)
+    aprovado      = db.Column(db.Integer)  # 1=aprovado 0=reprovado NULL=em andamento
+
+    aluno            = db.relationship("Aluno",       backref="respostas_prova", lazy=True)
+    respostas_questao = db.relationship("RespostaQuestao", backref="resposta_prova",
+                                        lazy=True, cascade="all, delete-orphan")
+
+
+class RespostaQuestao(db.Model):
+    """Resposta individual de uma questão dentro de uma tentativa."""
+    __tablename__ = "respostas_questao"
+    __table_args__ = (
+        db.UniqueConstraint("resposta_prova_id", "questao_id",
+                            name="uq_resp_questao"),
+        db.Index("ix_resp_questao_rp_id", "resposta_prova_id"),
+    )
+    id                = db.Column(db.Integer, primary_key=True)
+    resposta_prova_id = db.Column(db.Integer, db.ForeignKey("respostas_prova.id"), nullable=False)
+    questao_id        = db.Column(db.Integer, db.ForeignKey("questoes.id"),        nullable=False)
+    # Para objetivas: ID da alternativa escolhida
+    alternativa_id    = db.Column(db.Integer, db.ForeignKey("alternativas.id"),    nullable=True)
+    # Para dissertativas: texto digitado
+    texto_resposta    = db.Column(db.Text,    nullable=True)
+    # Corrigida manualmente pelo instrutor (dissertativas)
+    pontos_obtidos    = db.Column(db.Float,   nullable=True)
+    corrigida         = db.Column(db.Integer, default=0)
