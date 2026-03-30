@@ -75,12 +75,6 @@ body {
     font-size: 11px; font-weight: 700;
     padding: 2px 10px; border-radius: 999px;
 }
-.badge-provas {
-    display: inline-block; margin-top: 6px;
-    background: #c77dff; color: #fff;
-    font-size: 11px; font-weight: 700;
-    padding: 2px 10px; border-radius: 999px; letter-spacing: .4px;
-}
 .c1{color:#00c6ff;} .c2{color:#ffd700;} .c3{color:#00ff9d;}
 .c4{color:#c77dff;} .c5{color:#ff9f43;} .c6{color:#ff4d4d;}
 .c7{color:#a29bfe;} .c8{color:#25d366;} .c9{color:#fd79a8;}
@@ -119,32 +113,17 @@ body {
         <small>Resultados por mat&eacute;ria</small>
     </a>
 
-    <a href="/aluno/conteudo" class="home-card">
+    {# Card "Cursos" — unifica aulas, provas e atividades #}
+    <a href="/aluno/cursos" class="home-card">
         <i class="fas fa-play-circle c1"></i>
-        <span>Aulas</span>
-        <small>Materiais do curso</small>
-    </a>
-
-    <a href="/aluno/provas" class="home-card">
-        <i class="fas fa-file-alt c9"></i>
-        <span>Provas</span>
-        {% if provas_disp > 0 %}
-        <span class="badge-provas">{{ provas_disp }} dispon&iacute;vel{{ 'is' if provas_disp > 1 else '' }}</span>
-        {% else %}
-        <small>Exerc&iacute;cios e avalia&ccedil;&otilde;es</small>
-        {% endif %}
+        <span>Cursos</span>
+        <small>Aulas, provas e atividades</small>
     </a>
 
     <a href="/aluno/frequencia" class="home-card">
         <i class="fas fa-calendar-check c3"></i>
         <span>Frequ&ecirc;ncia</span>
         <small>Hist&oacute;rico de presen&ccedil;a</small>
-    </a>
-
-    <a href="/aluno/senha" class="home-card">
-        <i class="fas fa-lock c5"></i>
-        <span>Alterar Senha</span>
-        <small>Trocar senha do portal</small>
     </a>
 
     <a href="https://wa.me/5522998684334" target="_blank" rel="noopener" class="home-card">
