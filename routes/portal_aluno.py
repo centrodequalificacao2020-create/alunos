@@ -45,7 +45,7 @@ def aluno_logout():
     return redirect("/aluno/login")
 
 
-# ─── DASHBOARD ───────────────────────────────────────────────────────────────
+# ─── DASHBOARD ─────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
@@ -68,7 +68,7 @@ def aluno_dashboard():
     )
 
 
-# ─── FINANCEIRO ──────────────────────────────────────────────────────────────
+# ─── FINANCEIRO ─────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
@@ -79,7 +79,7 @@ def aluno_financeiro():
                            mensalidades=aluno.mensalidades)
 
 
-# ─── NOTAS / BOLETIM ─────────────────────────────────────────────────────────
+# ─── NOTAS / BOLETIM ───────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
@@ -88,26 +88,47 @@ def aluno_notas():
     matricula = aluno.matricula_ativa
     curso_id  = matricula.curso_id if matricula else None
 
-    # Só exibe notas que foram publicadas manualmente pelo instrutor/secretaria
+    # ── Notas de matéria: só exibe quando publicada=1 (lançamento manual) ──
     notas_dict = {}
     for n in aluno.notas:
-        if n.publicada:
+        if n.publicada:                         # publicada=0 → aluno não vê
             notas_dict.setdefault(n.materia_id, []).append(n)
 
+    # Matérias do curso ativo (para exibir mesmo sem nota lançada)
     materias = []
     if curso_id:
         materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
 
+    # ── Provas realizadas ─────────────────────────────────────────────────
+    from models import RespostaProva
+    # Todas as tentativas do aluno, ordenadas da mais recente para a mais antiga
+    provas_realizadas = (
+        RespostaProva.query
+        .filter_by(aluno_id=aluno.id)
+        .order_by(RespostaProva.prova_id, RespostaProva.tentativa_num.desc())
+        .all()
+    )
+
+    # melhor_por_prova: dict {prova_id: RespostaProva com maior nota_obtida}
+    # Usado no template para exibir o badge Aprovado/Reprovado com a melhor nota
+    melhor_por_prova = {}
+    for rp in provas_realizadas:
+        atual = melhor_por_prova.get(rp.prova_id)
+        if atual is None or (rp.nota_obtida or 0.0) > (atual.nota_obtida or 0.0):
+            melhor_por_prova[rp.prova_id] = rp
+
     return render_template(
         "aluno/notas.html",
-        aluno      = aluno,
-        matricula  = matricula,
-        notas_dict = notas_dict,
-        materias   = materias,
+        aluno             = aluno,
+        matricula         = matricula,
+        notas_dict        = notas_dict,
+        materias          = materias,
+        provas_realizadas = provas_realizadas,   # lista completa de tentativas
+        melhor_por_prova  = melhor_por_prova,    # {prova_id: melhor RespostaProva}
     )
 
 
-# ─── FREQUÊNCIA ──────────────────────────────────────────────────────────────
+# ─── FREQUÊNCIA ───────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
@@ -122,7 +143,7 @@ def aluno_frequencia():
                            total=total, presente=presente, pct=pct)
 
 
-# ─── CURSOS (ex-"Aulas") ─────────────────────────────────────────────────────
+# ─── CURSOS (ex-"Aulas") ──────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/cursos")
 @aluno_login_required
@@ -211,9 +232,9 @@ def aluno_curso_detalhe(curso_id):
             prova_id=p.id, aluno_id=aluno.id
         ).count()
         provas_visiveis.append({
-            "prova":     p,
+            "prova":            p,
             "tentativas_usadas": usadas,
-            "pode_fazer": usadas < p.tentativas,
+            "pode_fazer":       usadas < p.tentativas,
         })
 
     # Atividades do curso (liberadas via ativa=1)
@@ -225,17 +246,17 @@ def aluno_curso_detalhe(curso_id):
 
     return render_template(
         "aluno/curso_detalhe.html",
-        aluno            = aluno,
-        curso            = curso,
-        materias         = materias_visiveis,
-        conteudos        = conteudos,
-        provas           = provas_visiveis,
-        atividades       = atividades,
-        entregas_map     = entregas_map,
+        aluno        = aluno,
+        curso        = curso,
+        materias     = materias_visiveis,
+        conteudos    = conteudos,
+        provas       = provas_visiveis,
+        atividades   = atividades,
+        entregas_map = entregas_map,
     )
 
 
-# ─── ROTA LEGADA /conteudo — redireciona para /cursos ────────────────────────
+# ─── ROTA LEGADA /conteudo — redireciona para /cursos ───────────────────────
 
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
@@ -273,7 +294,7 @@ def concluir_aula_legado(conteudo_id):
     return redirect("/aluno/cursos")
 
 
-# ─── ENTREGA DE ATIVIDADE ────────────────────────────────────────────────────
+# ─── ENTREGA DE ATIVIDADE ─────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/atividade/<int:atividade_id>/entregar", methods=["POST"])
 @aluno_login_required
@@ -310,7 +331,7 @@ def entregar_atividade(atividade_id):
     return redirect(f"/aluno/cursos/{atividade.curso_id}")
 
 
-# ─── SERVIR ARQUIVO DE CONTEÚDO ───────────────────────────────────────────────
+# ─── SERVIR ARQUIVO DE CONTEÚDO ───────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
