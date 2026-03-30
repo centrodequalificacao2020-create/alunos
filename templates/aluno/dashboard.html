@@ -124,20 +124,20 @@ body {
 }
 .c1{color:#00c6ff;} .c2{color:#ffd700;} .c3{color:#00ff9d;}
 .c4{color:#c77dff;} .c5{color:#ff9f43;} .c6{color:#ff4d4d;}
-.c7{color:#a29bfe;} .c8{color:#25d366;}
+.c7{color:#a29bfe;} .c8{color:#25d366;} .c9{color:#fd79a8;}
 </style>
 
 <div class="aluno-header">
-    <h1>🎓 Bem-vindo, {{ aluno.nome.strip().split()[0] }}!</h1>
+    <h1>&#127891; Bem-vindo, {{ aluno.nome.strip().split()[0] }}!</h1>
     {% if matricula %}
     <p>{{ matricula.curso.nome if matricula.curso else '' }}</p>
     {% endif %}
     {% if ultimo_login %}
     <span class="ultimo-login">
         <i class="fas fa-clock"></i>
-        Último acesso:
+        &Uacute;ltimo acesso:
         {% set d = ultimo_login.login_em %}
-        {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}
+        {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} &agrave;s {{ d[11:16] }}
     </span>
     {% endif %}
 </div>
@@ -148,16 +148,16 @@ body {
         <i class="fas fa-dollar-sign c2"></i>
         <span>Financeiro</span>
         {% if atrasadas > 0 %}
-        <span class="badge-atraso">Você tem {{ atrasadas }} em atraso</span>
+        <span class="badge-atraso">Voc&ecirc; tem {{ atrasadas }} em atraso</span>
         {% else %}
-        <span class="badge-ok">Você está em dia ✔</span>
+        <span class="badge-ok">Voc&ecirc; est&aacute; em dia &#10004;</span>
         {% endif %}
     </a>
 
     <a href="/aluno/notas" class="home-card">
         <i class="fas fa-clipboard-list c4"></i>
         <span>Minhas Notas</span>
-        <small>Resultados por matéria</small>
+        <small>Resultados por mat&eacute;ria</small>
     </a>
 
     <a href="/aluno/conteudo" class="home-card">
@@ -166,10 +166,16 @@ body {
         <small>Materiais do curso</small>
     </a>
 
+    <a href="/aluno/provas" class="home-card">
+        <i class="fas fa-file-alt c9"></i>
+        <span>Provas</span>
+        <small>Exerc&iacute;cios e avalia&ccedil;&otilde;es</small>
+    </a>
+
     <a href="/aluno/frequencia" class="home-card">
         <i class="fas fa-calendar-check c3"></i>
-        <span>Frequência</span>
-        <small>Histórico de presença</small>
+        <span>Frequ&ecirc;ncia</span>
+        <small>Hist&oacute;rico de presen&ccedil;a</small>
     </a>
 
     <a href="/aluno/senha" class="home-card">
