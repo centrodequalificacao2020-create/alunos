@@ -8,6 +8,7 @@ from models import (
 from security import aluno_login_required, hash_senha, verificar_senha
 from datetime import date, datetime
 import os
+import re
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
@@ -16,26 +17,86 @@ def _get_aluno():
     return db.get_or_404(Aluno, session["aluno_id"])
 
 
-# ─── LOGIN / LOGOUT ──────────────────────────────────────────────────────────
+def _normalizar_cpf(cpf: str) -> str:
+    """Remove tudo que nao for digito: '123.456.789-00' -> '12345678900'."""
+    return re.sub(r"\D", "", cpf or "")
+
+
+def _buscar_aluno_por_login(identificador: str):
+    """
+    Tenta localizar o aluno pelo identificador informado.
+    Aceita:
+      - E-mail  (contém '@')
+      - CPF com mascara  ('123.456.789-00')
+      - CPF sem mascara  ('12345678900')
+    """
+    ident = identificador.strip()
+
+    if "@" in ident:
+        # --- busca por e-mail (case-insensitive) ---
+        return Aluno.query.filter(
+            db.func.lower(Aluno.email) == ident.lower()
+        ).first()
+
+    # --- busca por CPF ---
+    # Tenta primeiro com o valor exato digitado
+    aluno = Aluno.query.filter_by(cpf=ident).first()
+    if aluno:
+        return aluno
+
+    # Normaliza ambos os lados (remove mascara) e tenta de novo
+    cpf_limpo = _normalizar_cpf(ident)
+    if not cpf_limpo:
+        return None
+
+    # Busca todos os alunos cujo CPF normalizado bate
+    # (resolve casos em que o banco tem '123.456.789-00' e o usuario digitou '12345678900')
+    for a in Aluno.query.all():
+        if _normalizar_cpf(a.cpf or "") == cpf_limpo:
+            return a
+    return None
+
+
+# ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 def aluno_login():
     if request.method == "POST":
-        cpf   = request.form.get("cpf", "").strip()
-        senha = request.form.get("senha", "").strip()
-        aluno = Aluno.query.filter_by(cpf=cpf).first()
-        if not aluno or not aluno.senha or not verificar_senha(senha, aluno.senha):
-            flash("CPF ou senha incorretos.", "erro")
+        identificador = request.form.get("cpf", "").strip()   # campo mantém name="cpf"
+        senha         = request.form.get("senha", "").strip()
+
+        aluno = _buscar_aluno_por_login(identificador)
+
+        if not aluno:
+            flash("Usuário não encontrado. Verifique o CPF ou e-mail digitado.", "erro")
             return redirect("/aluno/login")
+
+        if not aluno.senha:
+            flash(
+                "Sua senha ainda não foi definida. "
+                "Entre em contato com a secretaria para receber sua senha de acesso.",
+                "erro"
+            )
+            return redirect("/aluno/login")
+
+        if not verificar_senha(senha, aluno.senha):
+            flash("Senha incorreta. Tente novamente.", "erro")
+            return redirect("/aluno/login")
+
+        # Login bem-sucedido — registra histórico
         from models import LoginHistoricoAluno
         db.session.add(LoginHistoricoAluno(
-            aluno_id=aluno.id,
-            login_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            aluno_id   = aluno.id,
+            login_em   = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ip         = request.remote_addr,
+            user_agent = request.user_agent.string[:300] if request.user_agent else None,
         ))
         db.session.commit()
+
         session["aluno_id"] = aluno.id
         session["perfil"]   = "aluno"
         return redirect("/aluno/dashboard")
+
     return render_template("aluno/login.html")
 
 
@@ -68,7 +129,7 @@ def aluno_dashboard():
     )
 
 
-# ─── FINANCEIRO ─────────────────────────────────────────────────────────────────
+# ─── FINANCEIRO ──────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
@@ -79,7 +140,7 @@ def aluno_financeiro():
                            mensalidades=aluno.mensalidades)
 
 
-# ─── NOTAS / BOLETIM ───────────────────────────────────────────────────────────────
+# ─── NOTAS / BOLETIM ─────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
@@ -88,20 +149,16 @@ def aluno_notas():
     matricula = aluno.matricula_ativa
     curso_id  = matricula.curso_id if matricula else None
 
-    # ── Notas de matéria: só exibe quando publicada=1 (lançamento manual) ──
     notas_dict = {}
     for n in aluno.notas:
-        if n.publicada:                         # publicada=0 → aluno não vê
+        if n.publicada:
             notas_dict.setdefault(n.materia_id, []).append(n)
 
-    # Matérias do curso ativo (para exibir mesmo sem nota lançada)
     materias = []
     if curso_id:
         materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
 
-    # ── Provas realizadas ─────────────────────────────────────────────────
     from models import RespostaProva
-    # Todas as tentativas do aluno, ordenadas da mais recente para a mais antiga
     provas_realizadas = (
         RespostaProva.query
         .filter_by(aluno_id=aluno.id)
@@ -109,8 +166,6 @@ def aluno_notas():
         .all()
     )
 
-    # melhor_por_prova: dict {prova_id: RespostaProva com maior nota_obtida}
-    # Usado no template para exibir o badge Aprovado/Reprovado com a melhor nota
     melhor_por_prova = {}
     for rp in provas_realizadas:
         atual = melhor_por_prova.get(rp.prova_id)
@@ -123,8 +178,8 @@ def aluno_notas():
         matricula         = matricula,
         notas_dict        = notas_dict,
         materias          = materias,
-        provas_realizadas = provas_realizadas,   # lista completa de tentativas
-        melhor_por_prova  = melhor_por_prova,    # {prova_id: melhor RespostaProva}
+        provas_realizadas = provas_realizadas,
+        melhor_por_prova  = melhor_por_prova,
     )
 
 
@@ -143,12 +198,11 @@ def aluno_frequencia():
                            total=total, presente=presente, pct=pct)
 
 
-# ─── CURSOS (ex-"Aulas") ──────────────────────────────────────────────────────────
+# ─── CURSOS ───────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/cursos")
 @aluno_login_required
 def aluno_cursos():
-    """Lista os cursos em que o aluno tem matrícula ativa."""
     aluno = _get_aluno()
     matriculas_ativas = [
         m for m in aluno.matriculas if m.status.upper() == "ATIVA"
@@ -170,10 +224,8 @@ def aluno_cursos():
 @portal_aluno_bp.route("/cursos/<int:curso_id>")
 @aluno_login_required
 def aluno_curso_detalhe(curso_id):
-    """Conteúdo, provas e atividades de um curso específico."""
     aluno = _get_aluno()
 
-    # Verifica matrícula ativa no curso
     matricula = next(
         (m for m in aluno.matriculas
          if m.curso_id == curso_id and m.status.upper() == "ATIVA"), None
@@ -182,7 +234,6 @@ def aluno_curso_detalhe(curso_id):
         flash("Você não está matriculado neste curso.", "erro")
         return redirect("/aluno/cursos")
 
-    # Verifica acesso liberado ao curso
     acesso = AcessoConteudoCurso.query.filter_by(
         aluno_id=aluno.id, curso_id=curso_id, liberado=1
     ).first()
@@ -192,16 +243,14 @@ def aluno_curso_detalhe(curso_id):
 
     curso = db.get_or_404(Curso, curso_id)
 
-    # Matérias liberadas individualmente para este aluno neste curso
     ids_liberados = {
         ml.materia_id for ml in MateriaLiberada.query.filter_by(
             aluno_id=aluno.id, liberado=1
         ).all()
     }
-    todas_materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
+    todas_materias   = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
     materias_visiveis = [m for m in todas_materias if m.id in ids_liberados]
 
-    # Conteúdos apenas das matérias liberadas
     conteudos_raw = []
     if materias_visiveis:
         conteudos_raw = (
@@ -216,15 +265,14 @@ def aluno_curso_detalhe(curso_id):
     }
     conteudos = [(c, progressos_map.get(c.id)) for c in conteudos_raw]
 
-    # Provas liberadas individualmente para este aluno neste curso
     from models import Prova, RespostaProva
     ids_provas_liberadas = {
         pl.prova_id for pl in ProvaLiberada.query.filter_by(
             aluno_id=aluno.id, liberado=1
         ).all()
     }
-    provas_do_curso = Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
-    provas_visiveis = []
+    provas_do_curso  = Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
+    provas_visiveis  = []
     for p in provas_do_curso:
         if p.id not in ids_provas_liberadas:
             continue
@@ -232,13 +280,12 @@ def aluno_curso_detalhe(curso_id):
             prova_id=p.id, aluno_id=aluno.id
         ).count()
         provas_visiveis.append({
-            "prova":            p,
+            "prova":             p,
             "tentativas_usadas": usadas,
-            "pode_fazer":       usadas < p.tentativas,
+            "pode_fazer":        usadas < p.tentativas,
         })
 
-    # Atividades do curso (liberadas via ativa=1)
-    atividades = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
+    atividades  = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
     entregas_map = {
         e.atividade_id: e
         for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
@@ -256,7 +303,7 @@ def aluno_curso_detalhe(curso_id):
     )
 
 
-# ─── ROTA LEGADA /conteudo — redireciona para /cursos ───────────────────────
+# ─── ROTA LEGADA /conteudo ───────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
@@ -294,7 +341,7 @@ def concluir_aula_legado(conteudo_id):
     return redirect("/aluno/cursos")
 
 
-# ─── ENTREGA DE ATIVIDADE ─────────────────────────────────────────────────────
+# ─── ENTREGA DE ATIVIDADE ───────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/atividade/<int:atividade_id>/entregar", methods=["POST"])
 @aluno_login_required
@@ -331,7 +378,7 @@ def entregar_atividade(atividade_id):
     return redirect(f"/aluno/cursos/{atividade.curso_id}")
 
 
-# ─── SERVIR ARQUIVO DE CONTEÚDO ───────────────────────────────────────────────────
+# ─── SERVIR ARQUIVO DE CONTEÚDO ────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
