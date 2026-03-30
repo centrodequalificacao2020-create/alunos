@@ -111,7 +111,7 @@ body {
 }
 .c1{color:#00c6ff;} .c2{color:#ffd700;} .c3{color:#00ff9d;}
 .c4{color:#c77dff;} .c5{color:#ff9f43;} .c6{color:#ff4d4d;}
-.c7{color:#a29bfe;}
+.c7{color:#a29bfe;} .c8{color:#25d366;}
 </style>
 
 <div class="aluno-header">
@@ -129,7 +129,7 @@ body {
         {% if pendentes > 0 %}
         <span class="badge-pendente">{{ pendentes }} PENDENTE{{ 'S' if pendentes > 1 }}</span>
         {% else %}
-        <span class="badge-ok">Em dia ✔</span>
+        <span class="badge-ok">Você está em dia ✔</span>
         {% endif %}
     </a>
 
@@ -157,10 +157,10 @@ body {
         <small>Trocar senha do portal</small>
     </a>
 
-    <a href="/aluno/logout" class="home-card">
-        <i class="fas fa-sign-out-alt c6"></i>
-        <span>Sair</span>
-        <small>Encerrar sessão</small>
+    <a href="https://wa.me/5522998684334" target="_blank" rel="noopener" class="home-card">
+        <i class="fab fa-whatsapp c8"></i>
+        <span>Suporte</span>
+        <small>Falar com a secretaria</small>
     </a>
 
 </div>
