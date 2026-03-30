@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v13)
+   SISTEMA ESCOLAR — style.css  (v14)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ───────────────────────────────────────────────────── */
@@ -42,7 +42,6 @@
     --color-orange-light: #fff3e0;
     --color-dark:         #37474f;
     --color-dark-light:   #eceff1;
-    /* Token de fundo para a coluna sticky — sobrescrito pelo tema escuro */
     --acoes-bg: var(--color-white);
     --radius-sm:  4px;
     --radius-md:  8px;
@@ -188,7 +187,6 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
 .btn-pdf     { background: #c0392b; color: var(--color-white); }
 .btn-secondary { background: rgba(255,255,255,.15); color: var(--color-white); border: 1px solid rgba(255,255,255,.3); }
 
-/* Botões de ícone (só emoji, sem texto) na coluna ações de tabelas genéricas */
 .acoes .btn {
     width: 36px;
     height: 32px;
@@ -196,7 +194,6 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
     margin: 0 2px;
     font-size: 15px;
 }
-/* Coluna de ações com botões de TEXTO (ficha aluno, etc.) */
 .acoes-texto {
     text-align: center;
     vertical-align: middle;
@@ -233,13 +230,11 @@ td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
 }
 .tabela-excel thead th.acoes { position: sticky; right: 0; z-index: 3; background: var(--color-primary); }
 .tabela-excel td { padding: 8px 14px; }
-/* Coluna sticky ícone — usa variável para suportar tema claro e escuro */
 .tabela-excel td.acoes {
     background: var(--acoes-bg);
     position: sticky; right: 0; z-index: 1;
     box-shadow: -2px 0 5px rgba(0,0,0,.15);
 }
-/* Coluna sticky texto (ficha aluno) — idem, mas sem width fixo */
 .tabela-excel thead th.acoes-texto { position: sticky; right: 0; z-index: 3; background: var(--color-primary); }
 .tabela-excel td.acoes-texto {
     background: var(--acoes-bg);
@@ -249,6 +244,22 @@ td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
 .tabela-excel tbody tr:hover td { background: var(--color-primary-light); }
 .tabela-excel tbody tr:hover td.acoes,
 .tabela-excel tbody tr:hover td.acoes-texto { background: var(--color-primary-light); }
+
+/* ── 9b. LINHA VENCIDA (financeiro) ──────────────────────────── */
+.tabela-excel tbody tr.parcela-vencida td {
+    background: #fff0f0;
+    color: var(--color-danger);
+    font-weight: 600;
+}
+.tabela-excel tbody tr.parcela-vencida td.acoes {
+    background: #fff0f0;
+}
+.tabela-excel tbody tr.parcela-vencida:hover td {
+    background: #ffd6d6;
+}
+.tabela-excel tbody tr.parcela-vencida:hover td.acoes {
+    background: #ffd6d6;
+}
 
 /* ── 10. STATUS ──────────────────────────────────────────── */
 .status-ativo      { color: var(--color-status-ativa);      font-weight: 600; }
@@ -511,7 +522,7 @@ td.acoes { text-align: center; white-space: nowrap; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-overlay { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 32px; color: var(--color-text-muted); font-size: var(--font-size-base); }
 
-/* ── 30. MEDIA QUERIES ────────────────────────────────────── */
+/* ── 30. MEDIA QUERIES ───────────────────────────────────── */
 @media (max-width: 600px) {
     main { padding: 16px; }
     .card { padding: 16px; }
@@ -553,7 +564,6 @@ body.tema-aluno {
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
     min-height: 100vh;
     color: #f0f4f8;
-    /* Sobrescreve o fundo da coluna sticky para o tema escuro */
     --acoes-bg: #1a2f45;
 }
 body.tema-aluno header { background: rgba(13, 33, 59, 0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.10); }
