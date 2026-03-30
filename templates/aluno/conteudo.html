@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Conteúdo das Aulas{% endblock %}
+{% block title %}Conteúdo — {{ curso.nome }}{% endblock %}
 
 {% block styles %}
 <style>
@@ -28,7 +28,6 @@
 #pdf-container canvas {
     display:block; margin:0 auto 12px;
     box-shadow:0 2px 8px rgba(0,0,0,.5);
-    /* impede selecionar / arrastar o canvas */
     -webkit-user-select:none; user-select:none;
     pointer-events:none;
 }
@@ -36,7 +35,6 @@
     display:none; align-items:center; gap:10px;
     background:#3d3d3d; padding:8px 12px;
     border-radius:8px 8px 0 0; color:#fff; font-size:13px;
-    /* sem botão de download — barra apenas de navegação */
 }
 .pdf-toolbar button {
     background:#555; border:none; color:#fff; padding:4px 10px;
@@ -57,9 +55,17 @@
 {% endblock %}
 
 {% block content %}
+
+<!-- Breadcrumb de volta para seleção de cursos -->
+<nav class="breadcrumb" style="margin-bottom: 20px;">
+    <a href="/aluno/conteudo">&#127963; Minhas Aulas</a>
+    <span class="breadcrumb-sep">&#8250;</span>
+    <span class="breadcrumb-current">{{ curso.nome }}</span>
+</nav>
+
 <div class="card-header" style="margin-bottom:16px;">
     <span>&#128218;</span>
-    <h2>Conteúdo das Aulas</h2>
+    <h2>{{ curso.nome }}</h2>
 </div>
 
 {% set total = conteudos|length %}
@@ -102,38 +108,31 @@
     <div class="player">
         <h3 id="tituloAula" style="margin-bottom:12px;">Selecione uma aula</h3>
 
-        <!-- Toolbar de navegação PDF (sem download) -->
         <div class="pdf-toolbar" id="pdfToolbar">
             <button onclick="pdfPaginaAnterior()">&#9664; Anterior</button>
             <span id="pdfPagInfo">Pág 1 / 1</span>
             <button onclick="pdfProximaPagina()">Próxima &#9654;</button>
         </div>
 
-        <!-- Canvas do PDF.js -->
         <div id="pdf-container"></div>
-
-        <!-- Player de vídeo / outros -->
         <div id="conteudoAula"></div>
-
         <div id="botaoConclusao" style="margin-top:20px;"></div>
     </div>
 
 </div>
 {% else %}
 <div class="card">
-    <p class="empty-state">Nenhum conteúdo disponível para o seu curso ainda.</p>
+    <p class="empty-state">Nenhum conteúdo disponível para este curso ainda.</p>
 </div>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
-<!-- PDF.js via CDN (sem worker externo — usa fake worker para simplicidade) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// -------- estado PDF --------
 let pdfDoc      = null;
 let paginaAtual = 1;
 let totalPaginas = 1;
@@ -145,23 +144,15 @@ async function renderizarPagina(num) {
     try {
         const container = document.getElementById('pdf-container');
         container.innerHTML = '';
-
         const pagina  = await pdfDoc.getPage(num);
         const escala  = Math.min(container.clientWidth / pagina.getViewport({scale:1}).width, 1.8);
         const viewport = pagina.getViewport({scale: escala});
-
         const canvas  = document.createElement('canvas');
         canvas.height = viewport.height;
         canvas.width  = viewport.width;
         container.appendChild(canvas);
-
-        await pagina.render({
-            canvasContext: canvas.getContext('2d'),
-            viewport
-        }).promise;
-
-        document.getElementById('pdfPagInfo').textContent =
-            `Pág ${num} / ${totalPaginas}`;
+        await pagina.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        document.getElementById('pdfPagInfo').textContent = `Pág ${num} / ${totalPaginas}`;
     } finally {
         renderizando = false;
     }
@@ -178,36 +169,27 @@ async function carregarPDF(conteudoId) {
     const container = document.getElementById('pdf-container');
     const toolbar   = document.getElementById('pdfToolbar');
     const area      = document.getElementById('conteudoAula');
-
     area.innerHTML      = '';
     container.innerHTML = '<p style="color:#ccc;padding:20px;">Carregando PDF...</p>';
     container.style.display = 'block';
     toolbar.style.display   = 'flex';
-
     try {
-        // Busca os bytes via fetch (com credenciais de sessão)
-        // A URL não é exposta como src de <iframe> nem como href de <a>
         const resp = await fetch(`/aluno/arquivo/${conteudoId}`, {
             credentials: 'same-origin',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
         const arrayBuffer = await resp.arrayBuffer();
-
-        // Carrega no PDF.js a partir dos bytes — sem criar URL de objeto
         pdfDoc       = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
         totalPaginas = pdfDoc.numPages;
         paginaAtual  = 1;
         await renderizarPagina(paginaAtual);
-
     } catch (e) {
         container.innerHTML = `<p style="color:#f88;padding:20px;">Erro ao carregar o PDF: ${e.message}</p>`;
         toolbar.style.display = 'none';
     }
 }
 
-// -------- utilidades de vídeo --------
 function ehVideo(src) {
     return src && (
         src.includes('youtube.com') || src.includes('youtu.be') ||
@@ -236,7 +218,6 @@ function embedUrl(src) {
     return src;
 }
 
-// -------- abre uma aula --------
 const aulas = document.querySelectorAll('.aula');
 
 function ocultarPDF() {
@@ -259,16 +240,12 @@ function abrirAula(el) {
 
     aulas.forEach(a => a.classList.remove('ativa'));
     el.classList.add('ativa');
-
     ocultarPDF();
     area.innerHTML = '';
 
     if (tipo === 'pdf') {
-        // PDF renderizado pelo PDF.js — sem iframe, sem download
         carregarPDF(id);
-
     } else if (tipo === 'video' || (tipo !== 'pdf' && video)) {
-        // Vídeo externo (YouTube, Vimeo) ou arquivo de vídeo local
         if (/\.(mp4|webm|ogg)$/i.test(video)) {
             area.innerHTML = `
                 <video class="video-frame" controls style="background:#000;"
@@ -284,12 +261,9 @@ function abrirAula(el) {
                     referrerpolicy="strict-origin-when-cross-origin">
                 </iframe>`;
         }
-
     } else if (tipo === 'arquivo') {
-        // Outros arquivos (ex: imagem, zip) — link simples
         area.innerHTML = `
             <p><a href="/aluno/arquivo/${id}" target="_blank" class="btn btn-azul">&#128196; Abrir arquivo</a></p>`;
-
     } else {
         area.innerHTML = '<p class="empty-state">Nenhum conteúdo disponível para esta aula.</p>';
     }
@@ -298,12 +272,12 @@ function abrirAula(el) {
         ? `<span style="color:#2ecc71;font-weight:bold">&#10004; Aula concluída</span>`
         : `<a href="/aluno/concluir/${id}" class="btn btn-azul">&#10004; Marcar como concluída</a>`;
 
-    localStorage.setItem('ultimaAula', id);
+    localStorage.setItem('ultimaAula_{{ curso.id }}', id);
 }
 
 aulas.forEach(a => a.addEventListener('click', function () { abrirAula(this); }));
 
-const ultima = localStorage.getItem('ultimaAula');
+const ultima = localStorage.getItem('ultimaAula_{{ curso.id }}');
 if (ultima) {
     const aula = document.querySelector(`[data-id="${ultima}"]`);
     if (aula) abrirAula(aula);
@@ -312,7 +286,6 @@ if (ultima) {
     abrirAula(aulas[0]);
 }
 
-// Bloqueia atalho de teclado Ctrl+S / Cmd+S dentro do player
 document.addEventListener('keydown', e => {
     const emPDF = document.getElementById('pdf-container').style.display === 'block';
     if (emPDF && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {

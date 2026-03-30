@@ -1,7 +1,7 @@
 import os
 from datetime import date
 from flask import Blueprint, render_template, request, redirect, session, flash, abort, send_file, make_response, Response
-from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria, Nota
+from models import Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula, ProgressoAula, CursoMateria, Nota, Curso
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
 from app import limiter
@@ -10,7 +10,21 @@ from app import limiter
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 
+def _matriculas_ativas(aluno_id):
+    """Retorna todas as matrículas ativas do aluno, com o curso carregado."""
+    return (
+        Matricula.query
+        .filter(
+            Matricula.aluno_id == aluno_id,
+            db.func.upper(Matricula.status) == "ATIVA"
+        )
+        .order_by(Matricula.id.desc())
+        .all()
+    )
+
+
 def _matricula_ativa(aluno_id):
+    """Retorna a matrícula ativa mais recente do aluno (retrocompatibilidade)."""
     return (
         Matricula.query
         .filter(
@@ -23,18 +37,20 @@ def _matricula_ativa(aluno_id):
 
 
 def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
-    matricula = _matricula_ativa(aluno_id)
-    if not matricula:
-        return False
-    vinculo = (
-        db.session.query(CursoMateria)
-        .filter(
-            CursoMateria.materia_id == conteudo.materia_id,
-            CursoMateria.curso_id   == matricula.curso_id,
+    """Verifica se o aluno tem matrícula ativa em algum curso que contenha essa matéria."""
+    matriculas = _matriculas_ativas(aluno_id)
+    for mat in matriculas:
+        vinculo = (
+            db.session.query(CursoMateria)
+            .filter(
+                CursoMateria.materia_id == conteudo.materia_id,
+                CursoMateria.curso_id   == mat.curso_id,
+            )
+            .first()
         )
-        .first()
-    )
-    return vinculo is not None
+        if vinculo:
+            return True
+    return False
 
 
 def _contar_atrasadas(mensalidades):
@@ -137,29 +153,89 @@ def notas_aluno():
                            matricula=matricula, notas=notas, media=media)
 
 
+# ── PASSO 1: selecionar o curso ────────────────────────────────────────────────
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
-def conteudo_aluno():
-    aluno     = db.get_or_404(Aluno, session["aluno_id"])
-    matricula = _matricula_ativa(aluno.id)
-    conteudos = []
+def conteudo_cursos():
+    """Exibe um card por curso em que o aluno está matriculado."""
+    aluno      = db.get_or_404(Aluno, session["aluno_id"])
+    matriculas = _matriculas_ativas(aluno.id)
 
-    if matricula:
-        conteudos = (
-            db.session.query(Conteudo, ProgressoAula)
-            .outerjoin(
-                ProgressoAula,
-                (ProgressoAula.conteudo_id == Conteudo.id) &
-                (ProgressoAula.aluno_id    == aluno.id)
-            )
+    # Enriquece cada matrícula com o objeto Curso e o progresso geral
+    cursos_info = []
+    for mat in matriculas:
+        curso = Curso.query.get(mat.curso_id)
+        if not curso:
+            continue
+
+        # Total de conteúdos do curso
+        total = (
+            db.session.query(Conteudo)
             .join(Materia,      Materia.id      == Conteudo.materia_id)
             .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .filter(CursoMateria.curso_id == matricula.curso_id)
-            .order_by(Materia.nome, Conteudo.data)
-            .all()
+            .filter(CursoMateria.curso_id == curso.id)
+            .count()
         )
+        # Conteúdos concluídos pelo aluno neste curso
+        concluidos = (
+            db.session.query(ProgressoAula)
+            .join(Conteudo, Conteudo.id == ProgressoAula.conteudo_id)
+            .join(Materia,  Materia.id  == Conteudo.materia_id)
+            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+            .filter(
+                CursoMateria.curso_id       == curso.id,
+                ProgressoAula.aluno_id      == aluno.id,
+                ProgressoAula.concluido     == 1
+            )
+            .count()
+        )
+        pct = round(concluidos / total * 100) if total > 0 else 0
 
-    return render_template("aluno/conteudo.html", aluno=aluno, conteudos=conteudos)
+        cursos_info.append({
+            "curso":      curso,
+            "matricula":  mat,
+            "total":      total,
+            "concluidos": concluidos,
+            "pct":        pct,
+        })
+
+    return render_template("aluno/conteudo_cursos.html", aluno=aluno, cursos_info=cursos_info)
+
+
+# ── PASSO 2: player de aulas do curso selecionado ─────────────────────────────
+@portal_aluno_bp.route("/conteudo/<int:curso_id>")
+@aluno_login_required
+def conteudo_aluno(curso_id):
+    """Exibe as aulas do curso escolhido."""
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+
+    # Garante que o aluno está matriculado neste curso
+    matricula = Matricula.query.filter(
+        Matricula.aluno_id == aluno.id,
+        Matricula.curso_id == curso_id,
+        db.func.upper(Matricula.status) == "ATIVA"
+    ).first()
+    if not matricula:
+        abort(403)
+
+    curso = db.get_or_404(Curso, curso_id)
+
+    conteudos = (
+        db.session.query(Conteudo, ProgressoAula)
+        .outerjoin(
+            ProgressoAula,
+            (ProgressoAula.conteudo_id == Conteudo.id) &
+            (ProgressoAula.aluno_id    == aluno.id)
+        )
+        .join(Materia,      Materia.id      == Conteudo.materia_id)
+        .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+        .filter(CursoMateria.curso_id == curso_id)
+        .order_by(Materia.nome, Conteudo.data)
+        .all()
+    )
+
+    return render_template("aluno/conteudo.html",
+                           aluno=aluno, curso=curso, conteudos=conteudos)
 
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
@@ -185,7 +261,6 @@ def abrir_arquivo_conteudo(conteudo_id):
 
     arquivo = conteudo.arquivo.strip()
 
-    # URLs externas: redireciona normalmente (ex: Google Drive)
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
         return redirect(arquivo)
 
@@ -204,17 +279,13 @@ def abrir_arquivo_conteudo(conteudo_id):
             mime, _ = mimetypes.guess_type(candidato)
             mime = mime or "application/octet-stream"
 
-            # Le os bytes - nunca expoe o caminho real na resposta
             with open(candidato, "rb") as f:
                 dados = f.read()
 
             response = Response(dados, mimetype=mime)
-            # inline = exibe no browser; sem 'filename' evita dialogo de download
             response.headers["Content-Disposition"] = "inline"
-            # Impede que o PDF seja aberto em iframe de outro dominio
             response.headers["X-Frame-Options"]     = "SAMEORIGIN"
             response.headers["X-Content-Type-Options"] = "nosniff"
-            # Sem cache no cliente (evita salvar via cache do browser)
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"]        = "no-cache"
             return response
@@ -225,6 +296,16 @@ def abrir_arquivo_conteudo(conteudo_id):
 @portal_aluno_bp.route("/concluir/<int:conteudo_id>")
 @aluno_login_required
 def concluir_aula(conteudo_id):
+    conteudo = db.get_or_404(Conteudo, conteudo_id)
+
+    # Descobre o curso_id para redirecionar de volta
+    materia = Materia.query.get(conteudo.materia_id)
+    curso_id = None
+    if materia:
+        cm = CursoMateria.query.filter_by(materia_id=materia.id).first()
+        if cm:
+            curso_id = cm.curso_id
+
     p = ProgressoAula.query.filter_by(
         aluno_id=session["aluno_id"], conteudo_id=conteudo_id).first()
     if not p:
@@ -237,6 +318,9 @@ def concluir_aula(conteudo_id):
     else:
         p.concluido = 1
     db.session.commit()
+
+    if curso_id:
+        return redirect(f"/aluno/conteudo/{curso_id}")
     return redirect("/aluno/conteudo")
 
 
