@@ -1,11 +1,12 @@
-from flask import Blueprint, render_template, session, redirect, flash, request
+from flask import Blueprint, render_template, session, redirect, flash, request, send_from_directory, abort
 from db import db
 from models import (
     Aluno, Matricula, Mensalidade, Nota, Frequencia,
-    Materia, Conteudo, ProgressoAula, AcessoConteudoCurso
+    Materia, Conteudo, ProgressoAula, AcessoConteudoCurso, Curso
 )
 from security import aluno_login_required, hash_senha, verificar_senha
 from datetime import date, datetime
+import os
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
@@ -57,7 +58,6 @@ def aluno_dashboard():
         if m.status.upper() in ("PENDENTE", "ATRASADO") and m.vencimento and m.vencimento < hoje
     )
 
-    # Contagem de provas disponíveis para o aluno (sem disparar erro se tabela vazia)
     provas_disp = 0
     try:
         from models import Prova, RespostaProva
@@ -117,7 +117,6 @@ def aluno_notas():
     if curso_id:
         materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
 
-    # Provas realizadas para o boletim
     provas_realizadas = []
     melhor_por_prova  = {}
     try:
@@ -175,6 +174,7 @@ def aluno_frequencia():
 def aluno_conteudo():
     aluno     = _get_aluno()
     matricula = aluno.matricula_ativa
+
     if not matricula:
         return render_template("aluno/conteudo_cursos.html", aluno=aluno, cursos=[])
 
@@ -185,16 +185,29 @@ def aluno_conteudo():
         flash("Seu acesso ao conteúdo ainda não foi liberado. Fale com a secretaria.", "erro")
         return redirect("/aluno/dashboard")
 
-    materias  = Materia.query.filter_by(curso_id=matricula.curso_id, ativa=1).all()
-    conteudos = Conteudo.query.filter(
-        Conteudo.materia_id.in_([m.id for m in materias])
-    ).all()
-    progressos = {p.conteudo_id: p for p in
-                  ProgressoAula.query.filter_by(aluno_id=aluno.id).all()}
+    curso    = db.get_or_404(Curso, matricula.curso_id)
+    materias = Materia.query.filter_by(curso_id=matricula.curso_id, ativa=1).all()
+
+    # Monta lista de conteúdos ordenados por matéria/id como tuplas (conteudo, progresso)
+    conteudos_raw = (
+        Conteudo.query
+        .filter(Conteudo.materia_id.in_([m.id for m in materias]))
+        .order_by(Conteudo.materia_id, Conteudo.id)
+        .all()
+    )
+    progressos_map = {
+        p.conteudo_id: p
+        for p in ProgressoAula.query.filter_by(aluno_id=aluno.id).all()
+    }
+    # Lista de tuplas (conteudo, progresso_ou_None) — exatamente o que o template espera
+    conteudos = [(c, progressos_map.get(c.id)) for c in conteudos_raw]
+
     return render_template(
         "aluno/conteudo.html",
-        aluno=aluno, materias=materias,
-        conteudos=conteudos, progressos=progressos,
+        aluno     = aluno,
+        curso     = curso,
+        materias  = materias,
+        conteudos = conteudos,
     )
 
 
@@ -211,6 +224,50 @@ def concluir_aula(conteudo_id):
         ))
         db.session.commit()
     return redirect("/aluno/conteudo")
+
+
+# Rota legada referenciada no JS do template (/aluno/concluir/<id>)
+@portal_aluno_bp.route("/concluir/<int:conteudo_id>", methods=["GET", "POST"])
+@aluno_login_required
+def concluir_aula_legado(conteudo_id):
+    aluno = _get_aluno()
+    prog  = ProgressoAula.query.filter_by(
+        aluno_id=aluno.id, conteudo_id=conteudo_id
+    ).first()
+    if not prog:
+        db.session.add(ProgressoAula(
+            aluno_id=aluno.id, conteudo_id=conteudo_id, concluido=1
+        ))
+        db.session.commit()
+    return redirect("/aluno/conteudo")
+
+
+# ─── SERVIR ARQUIVO DE CONTEÚDO (PDF / download) ─────────────────────────────
+
+@portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
+@aluno_login_required
+def servir_arquivo(conteudo_id):
+    """Serve o arquivo de um conteúdo apenas para alunos autenticados com acesso."""
+    from flask import current_app
+    aluno    = _get_aluno()
+    conteudo = db.get_or_404(Conteudo, conteudo_id)
+
+    if not conteudo.arquivo:
+        abort(404)
+
+    # Verifica se o aluno tem matrícula no curso da matéria
+    materia = db.session.get(Materia, conteudo.materia_id)
+    if materia:
+        cursos_aluno = [
+            m.curso_id for m in aluno.matriculas
+            if m.status.upper() == "ATIVA"
+        ]
+        if materia.curso_id not in cursos_aluno:
+            abort(403)
+
+    upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
+    filename      = os.path.basename(conteudo.arquivo)
+    return send_from_directory(upload_folder, filename)
 
 
 # ─── TROCAR SENHA ────────────────────────────────────────────────────────────
