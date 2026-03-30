@@ -4,7 +4,7 @@ from models import Aluno, Mensalidade, Matricula, Curso
 from security import login_required, verificar_senha
 from services.pdf_service import gerar_recibo, gerar_carne
 from services.matricula_service import criar_matricula
-from datetime import date
+from datetime import date, datetime
 from flask import send_file, make_response
 from sqlalchemy import distinct
 
@@ -24,7 +24,7 @@ def financeiro():
     alunos   = Aluno.query.order_by(Aluno.nome).all()
     aluno_id = request.args.get("aluno_id", type=int)
     pendentes, pagas = [], []
-    total_pago = total_pagar = saldo = 0
+    total_pago = total_pagar = vencidas_total = 0
     hoje = date.today()
 
     if aluno_id:
@@ -32,7 +32,15 @@ def financeiro():
         pagas       = Mensalidade.query.filter_by(aluno_id=aluno_id, status="Pago").order_by(Mensalidade.vencimento).all()
         total_pago  = sum(m.valor for m in pagas)
         total_pagar = sum(m.valor for m in pendentes)
-        saldo       = total_pago - total_pagar
+
+        # Calcula total de parcelas vencidas (pendentes com vencimento antes de hoje)
+        def _vencida(m):
+            try:
+                return datetime.strptime(str(m.vencimento)[:10], "%Y-%m-%d").date() < hoje
+            except (ValueError, TypeError):
+                return False
+
+        vencidas_total = sum(m.valor for m in pendentes if _vencida(m))
 
         # Enriquece cada parcela com o nome do curso via matrícula mais recente
         curso_map  = {c.id: c.nome for c in Curso.query.all()}
@@ -51,7 +59,7 @@ def financeiro():
                            pagas=pagas,
                            total_pago=total_pago,
                            total_pagar=total_pagar,
-                           saldo=saldo,
+                           vencidas_total=vencidas_total,
                            hoje=hoje)
 
 

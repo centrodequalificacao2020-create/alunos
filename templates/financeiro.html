@@ -66,13 +66,13 @@ document.addEventListener('click', function(e) {
             <span class="resumo-label">Total pago</span>
             <span class="resumo-valor">R$ {{ "%.2f"|format(total_pago or 0) }}</span>
         </div>
-        <div class="resumo-item resumo-item--pagar">
+        <div class="resumo-item resumo-item--azul">
             <span class="resumo-label">A pagar</span>
             <span class="resumo-valor">R$ {{ "%.2f"|format(total_pagar or 0) }}</span>
         </div>
-        <div class="resumo-item resumo-item--saldo">
-            <span class="resumo-label">Saldo restante</span>
-            <span class="resumo-valor">R$ {{ "%.2f"|format(saldo or 0) }}</span>
+        <div class="resumo-item resumo-item--vencidas">
+            <span class="resumo-label">Parcelas vencidas</span>
+            <span class="resumo-valor">R$ {{ "%.2f"|format(vencidas_total or 0) }}</span>
         </div>
     </div>
 </div>
