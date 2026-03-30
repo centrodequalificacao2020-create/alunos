@@ -1,9 +1,10 @@
 from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, flash, jsonify, session
 from db import db
-from models import Aluno, Curso, Mensalidade, Matricula, AcessoConteudoCurso
+from models import Aluno, Curso, Mensalidade, Matricula
 from security import login_required, verificar_senha, hash_senha
-from sqlalchemy import func
+from sqlalchemy import func, text
+from sqlalchemy.exc import OperationalError
 
 
 aluno_bp = Blueprint("aluno", __name__)
@@ -11,6 +12,37 @@ aluno_bp = Blueprint("aluno", __name__)
 
 def _cpf_limpo(cpf: str) -> str:
     return (cpf or "").replace(".", "").replace("-", "").replace(" ", "").strip()
+
+
+def _get_acesso(aluno_id, curso_id):
+    """Busca registro de acesso ao conteudo. Retorna None se tabela nao existir."""
+    try:
+        from models import AcessoConteudoCurso
+        return AcessoConteudoCurso.query.filter_by(
+            aluno_id=aluno_id, curso_id=curso_id
+        ).first()
+    except OperationalError:
+        return None
+
+
+def _toggle_acesso(aluno_id, curso_id, acao, admin_nome):
+    """Cria/atualiza registro de acesso. Retorna False se tabela nao existir."""
+    try:
+        from models import AcessoConteudoCurso
+        acesso = AcessoConteudoCurso.query.filter_by(
+            aluno_id=aluno_id, curso_id=curso_id
+        ).first()
+        if acesso is None:
+            acesso = AcessoConteudoCurso(aluno_id=aluno_id, curso_id=curso_id)
+            db.session.add(acesso)
+        acesso.liberado     = 1 if acao == "liberar" else 0
+        acesso.liberado_por = admin_nome
+        acesso.liberado_em  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        db.session.commit()
+        return True
+    except OperationalError:
+        db.session.rollback()
+        return False
 
 
 @aluno_bp.route("/cadastro", methods=["GET", "POST"])
@@ -36,12 +68,9 @@ def cadastro():
                 for a in paginacao.items:
                     a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
                 return render_template("cadastro.html",
-                                       alunos=paginacao.items,
-                                       cursos=cursos,
+                                       alunos=paginacao.items, cursos=cursos,
                                        inadimplentes=len(inadimplentes_ids),
-                                       paginacao=paginacao,
-                                       busca="",
-                                       status="")
+                                       paginacao=paginacao, busca="", status="")
 
         senha_inicial = cpf or _cpf_limpo(f.get("email", ""))
         if not senha_inicial:
@@ -75,7 +104,6 @@ def cadastro():
         )
         return redirect("/cadastro")
 
-    # GET
     page   = request.args.get("page", 1, type=int)
     busca  = request.args.get("q", "").strip()
     status = request.args.get("status", "").strip()
@@ -83,10 +111,8 @@ def cadastro():
     hoje = date.today().isoformat()
     inadimplentes_ids = {
         r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
-        .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje)
-        .all()
+        .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje).all()
     }
-
     query = Aluno.query.order_by(Aluno.nome)
     if busca:
         query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
@@ -96,18 +122,14 @@ def cadastro():
         query = query.filter(Aluno.status == status)
 
     paginacao = query.paginate(page=page, per_page=20, error_out=False)
-    alunos    = paginacao.items
-    for a in alunos:
+    for a in paginacao.items:
         a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
 
     cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("cadastro.html",
-                           alunos=alunos,
-                           cursos=cursos,
+                           alunos=paginacao.items, cursos=cursos,
                            inadimplentes=len(inadimplentes_ids),
-                           paginacao=paginacao,
-                           busca=busca,
-                           status=status)
+                           paginacao=paginacao, busca=busca, status=status)
 
 
 @aluno_bp.route("/aluno/<int:id>/pendencias")
@@ -127,15 +149,22 @@ def excluir_aluno(id):
     if not user or not verificar_senha(senha, user.senha):
         flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
         return redirect("/cadastro")
-    a = db.get_or_404(Aluno, id)
+    a    = db.get_or_404(Aluno, id)
     nome = a.nome
     TurmaAluno.query.filter_by(aluno_id=id).delete()
     Nota.query.filter_by(aluno_id=id).delete()
     Frequencia.query.filter_by(aluno_id=id).delete()
     ProgressoAula.query.filter_by(aluno_id=id).delete()
-    AcessoConteudoCurso.query.filter_by(aluno_id=id).delete()
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
+    # tenta remover acesso_conteudo se a tabela existir
+    try:
+        db.session.execute(
+            text("DELETE FROM acesso_conteudo_curso WHERE aluno_id = :aid"),
+            {"aid": id}
+        )
+    except OperationalError:
+        db.session.rollback()
     db.session.delete(a)
     db.session.commit()
     flash(f"Aluno \u201c{nome}\u201d exclu\u00eddo com sucesso.", "sucesso")
@@ -149,7 +178,6 @@ def editar_aluno(id):
     if request.method == "POST":
         f   = request.form
         cpf = _cpf_limpo(f.get("cpf", ""))
-
         if cpf:
             existente = Aluno.query.filter(
                 func.replace(func.replace(func.replace(Aluno.cpf, ".", ""), "-", ""), " ", "") == cpf,
@@ -183,7 +211,6 @@ def editar_aluno(id):
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
             a.senha = hash_senha(nova_senha)
-
         if not a.senha:
             fallback = cpf or _cpf_limpo(a.email or "")
             if fallback:
@@ -210,11 +237,7 @@ def ficha_aluno(aluno_id):
     for m in matriculas:
         curso        = db.session.get(Curso, m.curso_id)
         m.curso_nome = curso.nome if curso else "\u2014"
-        # acesso ao conteudo para este curso
-        acesso = AcessoConteudoCurso.query.filter_by(
-            aluno_id=aluno_id, curso_id=m.curso_id
-        ).first()
-        m.acesso_conteudo = acesso  # pode ser None (nao configurado = bloqueado)
+        m.acesso_conteudo = _get_acesso(aluno_id, m.curso_id)
 
     ids_ativos = {
         m.curso_id for m in matriculas
@@ -224,7 +247,6 @@ def ficha_aluno(aluno_id):
         c for c in Curso.query.order_by(Curso.nome).all()
         if c.id not in ids_ativos
     ]
-
     return render_template(
         "ficha_aluno.html",
         aluno=aluno,
@@ -236,31 +258,20 @@ def ficha_aluno(aluno_id):
 @aluno_bp.route("/aluno/<int:aluno_id>/acesso_conteudo/<int:curso_id>", methods=["POST"])
 @login_required
 def toggle_acesso_conteudo(aluno_id, curso_id):
-    """Libera ou bloqueia o acesso ao conteudo de um curso para um aluno."""
-    acao = request.form.get("acao", "liberar")  # 'liberar' | 'bloquear'
-
-    admin_nome = session.get("usuario_nome") or session.get("usuario") or "admin"
-
-    acesso = AcessoConteudoCurso.query.filter_by(
-        aluno_id=aluno_id, curso_id=curso_id
-    ).first()
-
-    if acesso is None:
-        acesso = AcessoConteudoCurso(aluno_id=aluno_id, curso_id=curso_id)
-        db.session.add(acesso)
-
-    if acao == "liberar":
-        acesso.liberado     = 1
-        acesso.liberado_por = admin_nome
-        acesso.liberado_em  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        flash("Acesso ao conte\u00fado liberado com sucesso.", "sucesso")
+    acao = request.form.get("acao", "liberar")
+    # pega nome do admin logado de qualquer chave de sessao possivel
+    admin_nome = (
+        session.get("nome")
+        or session.get("usuario_nome")
+        or session.get("usuario")
+        or "admin"
+    )
+    ok = _toggle_acesso(aluno_id, curso_id, acao, admin_nome)
+    if ok:
+        msg = "Acesso ao conte\u00fado liberado." if acao == "liberar" else "Acesso ao conte\u00fado bloqueado."
+        flash(msg, "sucesso" if acao == "liberar" else "aviso")
     else:
-        acesso.liberado     = 0
-        acesso.liberado_por = admin_nome
-        acesso.liberado_em  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        flash("Acesso ao conte\u00fado bloqueado.", "aviso")
-
-    db.session.commit()
+        flash("Execute python migrate_acesso_conteudo.py no servidor para habilitar este recurso.", "erro")
     return redirect(f"/aluno/{aluno_id}")
 
 
@@ -269,28 +280,22 @@ def toggle_acesso_conteudo(aluno_id, curso_id):
 def matricular_aluno():
     aluno_id = request.form.get("aluno_id", type=int)
     curso_id = request.form.get("curso_id", type=int)
-
     if not aluno_id or not curso_id:
         flash("Selecione um curso para matricular.", "erro")
         return redirect(f"/aluno/{aluno_id}")
 
-    ja_matriculado = Matricula.query.filter_by(
-        aluno_id=aluno_id, curso_id=curso_id
-    ).filter(func.upper(Matricula.status) == "ATIVA").first()
-
-    if ja_matriculado:
+    ja = Matricula.query.filter_by(aluno_id=aluno_id, curso_id=curso_id)\
+                        .filter(func.upper(Matricula.status) == "ATIVA").first()
+    if ja:
         flash("O aluno j\u00e1 possui matr\u00edcula ativa neste curso.", "erro")
         return redirect(f"/aluno/{aluno_id}")
 
     nova = Matricula(
-        aluno_id       = aluno_id,
-        curso_id       = curso_id,
-        status         = "Ativa",
-        data_matricula = date.today().isoformat(),
+        aluno_id=aluno_id, curso_id=curso_id,
+        status="Ativa", data_matricula=date.today().isoformat(),
     )
     db.session.add(nova)
     db.session.commit()
-
     curso = db.session.get(Curso, curso_id)
     flash(f"Aluno matriculado em \u201c{curso.nome}\u201d com sucesso.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
@@ -299,14 +304,17 @@ def matricular_aluno():
 @aluno_bp.route("/excluir_matricula/<int:matricula_id>", methods=["POST"])
 @login_required
 def excluir_matricula(matricula_id):
-    m = db.get_or_404(Matricula, matricula_id)
+    m          = db.get_or_404(Matricula, matricula_id)
     aluno_id   = m.aluno_id
     curso      = db.session.get(Curso, m.curso_id)
     nome_curso = curso.nome if curso else "curso"
-    # remove tambem o registro de acesso ao conteudo
-    AcessoConteudoCurso.query.filter_by(
-        aluno_id=aluno_id, curso_id=m.curso_id
-    ).delete()
+    try:
+        db.session.execute(
+            text("DELETE FROM acesso_conteudo_curso WHERE aluno_id=:a AND curso_id=:c"),
+            {"a": aluno_id, "c": m.curso_id}
+        )
+    except OperationalError:
+        db.session.rollback()
     db.session.delete(m)
     db.session.commit()
     flash(f"Matr\u00edcula em \u201c{nome_curso}\u201d exclu\u00edda com sucesso.", "sucesso")

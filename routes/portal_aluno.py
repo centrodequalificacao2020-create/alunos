@@ -1,14 +1,14 @@
 import os
 from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, session, flash, abort, make_response, Response
+from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response
 from models import (
     Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula,
-    ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno,
-    AcessoConteudoCurso
+    ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno
 )
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
 from app import limiter
+from sqlalchemy.exc import OperationalError
 
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
@@ -39,11 +39,17 @@ def _matricula_ativa(aluno_id):
 
 
 def _curso_liberado(aluno_id, curso_id):
-    """Retorna True se o admin liberou o acesso ao conteudo deste curso."""
-    acesso = AcessoConteudoCurso.query.filter_by(
-        aluno_id=aluno_id, curso_id=curso_id
-    ).first()
-    return acesso is not None and acesso.liberado == 1
+    """Retorna True se o admin liberou acesso. Retorna True se a tabela nao existir (modo permissivo)."""
+    try:
+        from models import AcessoConteudoCurso
+        acesso = AcessoConteudoCurso.query.filter_by(
+            aluno_id=aluno_id, curso_id=curso_id
+        ).first()
+        # sem registro = bloqueado por padrao
+        return acesso is not None and acesso.liberado == 1
+    except OperationalError:
+        # tabela nao existe ainda: modo permissivo (libera tudo)
+        return True
 
 
 def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
@@ -56,8 +62,7 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
             .filter(
                 CursoMateria.materia_id == conteudo.materia_id,
                 CursoMateria.curso_id   == mat.curso_id,
-            )
-            .first()
+            ).first()
         )
         if vinculo:
             return True
@@ -73,20 +78,22 @@ def _contar_atrasadas(mensalidades):
 
 
 def _registrar_login(aluno_id):
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
-    if ip and "," in ip:
-        ip = ip.split(",")[0].strip()
-    ua = (request.headers.get("User-Agent") or "")[:300]
-    db.session.add(LoginHistoricoAluno(
-        aluno_id   = aluno_id,
-        login_em   = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        ip         = ip,
-        user_agent = ua
-    ))
-    db.session.commit()
+    try:
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        if ip and "," in ip:
+            ip = ip.split(",")[0].strip()
+        ua = (request.headers.get("User-Agent") or "")[:300]
+        db.session.add(LoginHistoricoAluno(
+            aluno_id=aluno_id,
+            login_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ip=ip, user_agent=ua
+        ))
+        db.session.commit()
+    except OperationalError:
+        db.session.rollback()  # tabela ainda nao existe, ignora silenciosamente
 
 
-# ──────────────────── ROTAS ─────────────────────────────────────────────────
+# ──────────────────────── ROTAS ────────────────────────────────────────────
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
@@ -121,13 +128,17 @@ def dashboard_aluno():
     atrasadas    = _contar_atrasadas(mensalidades)
     val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
 
-    logins = (
-        LoginHistoricoAluno.query
-        .filter_by(aluno_id=aluno.id)
-        .order_by(LoginHistoricoAluno.login_em.desc())
-        .limit(2).all()
-    )
-    ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
+    ultimo_login = None
+    try:
+        logins = (
+            LoginHistoricoAluno.query
+            .filter_by(aluno_id=aluno.id)
+            .order_by(LoginHistoricoAluno.login_em.desc())
+            .limit(2).all()
+        )
+        ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
+    except OperationalError:
+        pass
 
     return render_template("aluno/dashboard.html", aluno=aluno,
         matricula=matricula, atrasadas=atrasadas, valor_pendente=val_pend,
@@ -160,9 +171,8 @@ def frequencia_aluno():
 def notas_aluno():
     aluno     = db.get_or_404(Aluno, session["aluno_id"])
     matricula = _matricula_ativa(aluno.id)
-    notas     = []
-    media     = None
-
+    notas = []
+    media = None
     if matricula:
         rows = (
             db.session.query(Materia, Nota)
@@ -174,14 +184,12 @@ def notas_aluno():
                 (Nota.curso_id   == matricula.curso_id)
             )
             .filter(CursoMateria.curso_id == matricula.curso_id, Materia.ativa == 1)
-            .order_by(Materia.nome)
-            .all()
+            .order_by(Materia.nome).all()
         )
         notas = [(nota, materia) for materia, nota in rows]
         valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
         if valores:
             media = round(sum(valores) / len(valores), 1)
-
     return render_template("aluno/notas.html", aluno=aluno,
                            matricula=matricula, notas=notas, media=media)
 
@@ -200,25 +208,27 @@ def conteudo_cursos():
         liberado = _curso_liberado(aluno.id, curso.id)
         total = concluidos = 0
         if liberado:
-            total = (
-                db.session.query(Conteudo)
-                .join(Materia,      Materia.id      == Conteudo.materia_id)
-                .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-                .filter(CursoMateria.curso_id == curso.id)
-                .count()
-            )
-            concluidos = (
-                db.session.query(ProgressoAula)
-                .join(Conteudo, Conteudo.id == ProgressoAula.conteudo_id)
-                .join(Materia,  Materia.id  == Conteudo.materia_id)
-                .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-                .filter(
-                    CursoMateria.curso_id       == curso.id,
-                    ProgressoAula.aluno_id      == aluno.id,
-                    ProgressoAula.concluido     == 1
+            try:
+                total = (
+                    db.session.query(Conteudo)
+                    .join(Materia,      Materia.id == Conteudo.materia_id)
+                    .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+                    .filter(CursoMateria.curso_id == curso.id)
+                    .count()
                 )
-                .count()
-            )
+                concluidos = (
+                    db.session.query(ProgressoAula)
+                    .join(Conteudo, Conteudo.id == ProgressoAula.conteudo_id)
+                    .join(Materia,  Materia.id  == Conteudo.materia_id)
+                    .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+                    .filter(
+                        CursoMateria.curso_id   == curso.id,
+                        ProgressoAula.aluno_id  == aluno.id,
+                        ProgressoAula.concluido == 1
+                    ).count()
+                )
+            except OperationalError:
+                pass
         pct = round(concluidos / total * 100) if total > 0 else 0
         cursos_info.append({
             "curso":        curso,
@@ -227,7 +237,7 @@ def conteudo_cursos():
             "concluidos":   concluidos,
             "pct":          pct,
             "liberado":     liberado,
-            "data_cadastro": mat.data_cadastro,
+            "data_cadastro": getattr(mat, "data_cadastro", None),
         })
 
     return render_template("aluno/conteudo_cursos.html", aluno=aluno, cursos_info=cursos_info)
@@ -255,7 +265,7 @@ def conteudo_aluno(curso_id):
             (ProgressoAula.conteudo_id == Conteudo.id) &
             (ProgressoAula.aluno_id    == aluno.id)
         )
-        .join(Materia,      Materia.id      == Conteudo.materia_id)
+        .join(Materia,      Materia.id == Conteudo.materia_id)
         .join(CursoMateria, CursoMateria.materia_id == Materia.id)
         .filter(CursoMateria.curso_id == curso_id)
         .order_by(Materia.nome, Conteudo.data)
