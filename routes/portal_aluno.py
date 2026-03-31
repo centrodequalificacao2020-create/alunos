@@ -59,7 +59,7 @@ def _registrar_historico(aluno_id):
         ))
         db.session.commit()
     except OperationalError:
-        db.session.rollback()   # tabela ainda não existe — ignora
+        db.session.rollback()
     except Exception:
         db.session.rollback()
 
@@ -90,7 +90,6 @@ def aluno_login():
             flash("Senha incorreta. Tente novamente.", "erro")
             return redirect("/aluno/login")
 
-        # Histórico de login — não bloqueia o login se a tabela não existir
         _registrar_historico(aluno.id)
 
         session["aluno_id"] = aluno.id
@@ -115,16 +114,19 @@ def aluno_dashboard():
     matricula = aluno.matricula_ativa
     hoje      = date.today().isoformat()
 
+    # Protege status None em mensalidades
     atrasadas = sum(
         1 for m in aluno.mensalidades
-        if m.status.upper() in ("PENDENTE", "ATRASADO") and m.vencimento and m.vencimento < hoje
+        if (m.status or "").upper() in ("PENDENTE", "ATRASADO")
+        and m.vencimento and m.vencimento < hoje
     )
 
-    # ultimo_login pode não existir se a tabela login_historico_aluno não foi criada
     ultimo_login = None
     try:
         ultimo_login = aluno.ultimo_login
     except OperationalError:
+        pass
+    except Exception:
         pass
 
     return render_template(
@@ -196,19 +198,25 @@ def aluno_notas():
     if curso_id:
         materias = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
 
-    from models import RespostaProva
-    provas_realizadas = (
-        RespostaProva.query
-        .filter_by(aluno_id=aluno.id)
-        .order_by(RespostaProva.prova_id, RespostaProva.tentativa_num.desc())
-        .all()
-    )
-
-    melhor_por_prova = {}
-    for rp in provas_realizadas:
-        atual = melhor_por_prova.get(rp.prova_id)
-        if atual is None or (rp.nota_obtida or 0.0) > (atual.nota_obtida or 0.0):
-            melhor_por_prova[rp.prova_id] = rp
+    # Protege caso a tabela respostas_prova ainda não exista no banco
+    provas_realizadas = []
+    melhor_por_prova  = {}
+    try:
+        from models import RespostaProva
+        provas_realizadas = (
+            RespostaProva.query
+            .filter_by(aluno_id=aluno.id)
+            .order_by(RespostaProva.prova_id, RespostaProva.tentativa_num.desc())
+            .all()
+        )
+        for rp in provas_realizadas:
+            atual = melhor_por_prova.get(rp.prova_id)
+            if atual is None or (rp.nota_obtida or 0.0) > (atual.nota_obtida or 0.0):
+                melhor_por_prova[rp.prova_id] = rp
+    except OperationalError:
+        pass
+    except Exception:
+        pass
 
     return render_template(
         "aluno/notas.html",
@@ -229,7 +237,7 @@ def aluno_frequencia():
     aluno = _get_aluno()
     freqs = sorted(aluno.frequencias, key=lambda f: f.data or "", reverse=True)
     total    = len(freqs)
-    presente = sum(1 for f in freqs if f.status == "presente")
+    presente = sum(1 for f in freqs if (f.status or "") == "presente")
     pct      = round(presente / total * 100) if total else 0
     return render_template("aluno/frequencia.html",
                            aluno=aluno, frequencias=freqs,
@@ -243,7 +251,8 @@ def aluno_frequencia():
 def aluno_cursos():
     aluno = _get_aluno()
     matriculas_ativas = [
-        m for m in aluno.matriculas if m.status.upper() == "ATIVA"
+        m for m in aluno.matriculas
+        if (m.status or "").upper() == "ATIVA"
     ]
     cursos_com_acesso = []
     for m in matriculas_ativas:
@@ -266,7 +275,7 @@ def aluno_curso_detalhe(curso_id):
 
     matricula = next(
         (m for m in aluno.matriculas
-         if m.curso_id == curso_id and m.status.upper() == "ATIVA"), None
+         if m.curso_id == curso_id and (m.status or "").upper() == "ATIVA"), None
     )
     if not matricula:
         flash("Você não está matriculado neste curso.", "erro")
@@ -303,31 +312,45 @@ def aluno_curso_detalhe(curso_id):
     }
     conteudos = [(c, progressos_map.get(c.id)) for c in conteudos_raw]
 
-    from models import Prova, RespostaProva
-    ids_provas_liberadas = {
-        pl.prova_id for pl in ProvaLiberada.query.filter_by(
-            aluno_id=aluno.id, liberado=1
-        ).all()
-    }
-    provas_do_curso = Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
+    # Provas — protege caso tabelas não existam ainda
     provas_visiveis = []
-    for p in provas_do_curso:
-        if p.id not in ids_provas_liberadas:
-            continue
-        usadas = RespostaProva.query.filter_by(
-            prova_id=p.id, aluno_id=aluno.id
-        ).count()
-        provas_visiveis.append({
-            "prova":             p,
-            "tentativas_usadas": usadas,
-            "pode_fazer":        usadas < p.tentativas,
-        })
+    try:
+        from models import Prova, RespostaProva
+        ids_provas_liberadas = {
+            pl.prova_id for pl in ProvaLiberada.query.filter_by(
+                aluno_id=aluno.id, liberado=1
+            ).all()
+        }
+        provas_do_curso = Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
+        for p in provas_do_curso:
+            if p.id not in ids_provas_liberadas:
+                continue
+            usadas = RespostaProva.query.filter_by(
+                prova_id=p.id, aluno_id=aluno.id
+            ).count()
+            provas_visiveis.append({
+                "prova":             p,
+                "tentativas_usadas": usadas,
+                "pode_fazer":        usadas < p.tentativas,
+            })
+    except OperationalError:
+        pass
+    except Exception:
+        pass
 
-    atividades   = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
-    entregas_map = {
-        e.atividade_id: e
-        for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
-    }
+    # Atividades — protege caso tabelas não existam ainda
+    atividades   = []
+    entregas_map = {}
+    try:
+        atividades = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
+        entregas_map = {
+            e.atividade_id: e
+            for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
+        }
+    except OperationalError:
+        pass
+    except Exception:
+        pass
 
     return render_template(
         "aluno/curso_detalhe.html",
@@ -432,7 +455,7 @@ def servir_arquivo(conteudo_id):
     if materia:
         cursos_aluno = [
             m.curso_id for m in aluno.matriculas
-            if m.status.upper() == "ATIVA"
+            if (m.status or "").upper() == "ATIVA"
         ]
         if materia.curso_id not in cursos_aluno:
             abort(403)
