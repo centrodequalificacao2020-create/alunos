@@ -35,6 +35,21 @@
     display:inline-block; background:#7b1fa2; color:#fff;
     padding:3px 12px; border-radius:999px; font-size:12px; font-weight:700;
 }
+/* tabs */
+.pea-tabs {
+    display:flex; gap:0;
+    border-bottom:2px solid var(--color-border,#e0e0e0);
+    margin-bottom:20px;
+}
+.pea-tab {
+    padding:10px 22px; font-weight:600; font-size:14px;
+    text-decoration:none; color:var(--color-text-muted,#666);
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+}
+.pea-tab.ativo {
+    color:var(--color-primary,#2980b9);
+    border-bottom-color:var(--color-primary,#2980b9);
+}
 </style>
 {% endblock %}
 
@@ -49,10 +64,18 @@
     <div class="card-header--between">
         <div class="card-header">
             <span>&#128221;</span>
-            <h2 style="margin:0">Provas</h2>
+            <h2 style="margin:0">Provas &amp; Exerc&#237;cios</h2>
         </div>
         <a href="/provas/nova" class="btn btn-azul">+ Nova Prova</a>
     </div>
+
+    {# ─── Tabs ─── #}
+    <div class="pea-tabs">
+        <a href="/provas"     class="pea-tab ativo">&#128221; Provas</a>
+        <a href="/exercicios" class="pea-tab">&#9998; Exerc&#237;cios</a>
+        <a href="/atividades" class="pea-tab">&#128203; Atividades</a>
+    </div>
+
     <p class="card-subtitle">Gerencie as avalia&ccedil;&otilde;es por curso e mat&eacute;ria.</p>
 
     <form method="get" action="/provas" style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">

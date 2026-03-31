@@ -35,13 +35,39 @@ tr:hover td{ background:var(--color-hover,#fafafa); }
   border:none; cursor:pointer; text-decoration:none; }
 .btn-excluir{ background:#fde8e8; color:#c0392b; }
 .btn-entregas{ background:#e8f4fd; color:#2980b9; }
+/* tabs */
+.pea-tabs {
+    display:flex; gap:0;
+    border-bottom:2px solid var(--color-border,#e0e0e0);
+    margin-bottom:20px;
+}
+.pea-tab {
+    padding:10px 22px; font-weight:600; font-size:14px;
+    text-decoration:none; color:var(--color-text-muted,#666);
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+}
+.pea-tab.ativo {
+    color:var(--color-primary,#2980b9);
+    border-bottom-color:var(--color-primary,#2980b9);
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="card-header">
-  <span>&#128203;</span>
-  <h2>Atividades</h2>
+<div class="card">
+  <div class="card-header--between">
+    <div class="card-header">
+      <span>&#128203;</span>
+      <h2 style="margin:0">Provas &amp; Exerc&#237;cios</h2>
+    </div>
+  </div>
+
+  {# ─── Tabs ─── #}
+  <div class="pea-tabs">
+    <a href="/provas"     class="pea-tab">&#128221; Provas</a>
+    <a href="/exercicios" class="pea-tab">&#9998; Exerc&#237;cios</a>
+    <a href="/atividades" class="pea-tab ativo">&#128203; Atividades</a>
+  </div>
 </div>
 
 {# ── Formulário de criação ── #}
@@ -52,8 +78,8 @@ tr:hover td{ background:var(--color-hover,#fafafa); }
     <div class="form-grid">
 
       <div>
-        <label class="form-label">Título *</label>
-        <input type="text" name="titulo" placeholder="Ex: Lista de Exercícios 1" required>
+        <label class="form-label">T&#237;tulo *</label>
+        <input type="text" name="titulo" placeholder="Ex: Lista de Exerc&#237;cios 1" required>
       </div>
 
       <div>
@@ -67,9 +93,9 @@ tr:hover td{ background:var(--color-hover,#fafafa); }
       </div>
 
       <div>
-        <label class="form-label">Matéria (opcional)</label>
+        <label class="form-label">Mat&#233;ria (opcional)</label>
         <select name="materia_id" id="sel-materia">
-          <option value="">Todas as matérias</option>
+          <option value="">Todas as mat&#233;rias</option>
           {% for m in materias %}
           <option value="{{ m.id }}" data-curso="{{ m.curso_id }}">{{ m.nome }}</option>
           {% endfor %}
@@ -77,15 +103,15 @@ tr:hover td{ background:var(--color-hover,#fafafa); }
       </div>
 
       <div class="form-grid-full">
-        <label class="form-label">Descrição / instruções</label>
-        <textarea name="descricao" rows="2" placeholder="Instruções gerais da atividade..."></textarea>
+        <label class="form-label">Descri&#231;&#227;o / instru&#231;&#245;es</label>
+        <textarea name="descricao" rows="2" placeholder="Instru&#231;&#245;es gerais da atividade..."></textarea>
       </div>
 
       <div class="form-grid-full">
         <label class="form-label">Enunciados / Quest&otilde;es *</label>
         <div id="enunciados-container">
           <div class="enunciado-item">
-            <textarea name="enunciado[]" placeholder="Enunciado da questão 1..." rows="3" required></textarea>
+            <textarea name="enunciado[]" placeholder="Enunciado da quest&#227;o 1..." rows="3" required></textarea>
             <button type="button" class="btn-rem-enunc" onclick="removerEnunciado(this)" title="Remover">&#10005;</button>
           </div>
         </div>
@@ -108,12 +134,12 @@ tr:hover td{ background:var(--color-hover,#fafafa); }
   <thead>
     <tr>
       <th>#</th>
-      <th>Título</th>
+      <th>T&#237;tulo</th>
       <th>Curso</th>
-      <th>Matéria</th>
+      <th>Mat&#233;ria</th>
       <th>Enunciados</th>
       <th>Status</th>
-      <th>Ações</th>
+      <th>A&#231;&#245;es</th>
     </tr>
   </thead>
   <tbody>
@@ -123,8 +149,8 @@ tr:hover td{ background:var(--color-hover,#fafafa); }
     <td><strong>{{ atv.titulo }}</strong>
       {% if atv.descricao %}<br><small style="opacity:.5">{{ atv.descricao[:60] }}...</small>{% endif %}
     </td>
-    <td>{{ atv.curso.nome if atv.curso else '—' }}</td>
-    <td>{{ atv.materia.nome if atv.materia else '—' }}</td>
+    <td>{{ atv.curso.nome if atv.curso else '&#8212;' }}</td>
+    <td>{{ atv.materia.nome if atv.materia else '&#8212;' }}</td>
     <td style="text-align:center">{{ atv.questoes|length }}</td>
     <td>
       <span class="badge badge-ativa">Ativa</span>
@@ -170,8 +196,8 @@ function adicionarEnunciado(){
   const div  = document.createElement('div');
   div.className = 'enunciado-item';
   div.innerHTML = `
-    <textarea name="enunciado[]" placeholder="Enunciado da questão ${num}..." rows="3"></textarea>
-    <button type="button" class="btn-rem-enunc" onclick="removerEnunciado(this)" title="Remover">✕</button>`;
+    <textarea name="enunciado[]" placeholder="Enunciado da quest\u00e3o ${num}..." rows="3"></textarea>
+    <button type="button" class="btn-rem-enunc" onclick="removerEnunciado(this)" title="Remover">&#10005;</button>`;
   cont.appendChild(div);
 }
 

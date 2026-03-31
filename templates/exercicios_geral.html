@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Exerc&#237;cios{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+.prova-badge       { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; }
+.prova-badge-ativa { background:#dcfce7; color:#15803d; }
+.prova-badge-rasc  { background:#f3f4f6; color:#6b7280; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ─── Tabs nav ─── #}
+<div class="card">
+  <div class="card-header--between">
+    <div class="card-header">
+      <span>&#128203;</span>
+      <h2 style="margin:0">Provas &amp; Exerc&#237;cios</h2>
+    </div>
+  </div>
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--color-border,#e0e0e0);margin-bottom:20px">
+    <a href="/provas"      style="padding:10px 22px;font-weight:600;font-size:14px;text-decoration:none;color:var(--color-text-muted,#666);border-bottom:2px solid transparent;margin-bottom:-2px">&#128221; Provas</a>
+    <a href="/exercicios"  style="padding:10px 22px;font-weight:600;font-size:14px;text-decoration:none;color:var(--color-primary,#2980b9);border-bottom:2px solid var(--color-primary,#2980b9);margin-bottom:-2px">&#9998; Exerc&#237;cios</a>
+    <a href="/atividades"  style="padding:10px 22px;font-weight:600;font-size:14px;text-decoration:none;color:var(--color-text-muted,#666);border-bottom:2px solid transparent;margin-bottom:-2px">&#128203; Atividades</a>
+  </div>
+
+  {# ─── Formulário novo exercício ─── #}
+  <details open style="margin-bottom:20px">
+    <summary style="cursor:pointer;font-weight:700;font-size:15px;margin-bottom:14px"><i class="fas fa-plus-circle"></i> Novo Exerc&#237;cio</summary>
+    <form method="POST" action="/exercicios" enctype="multipart/form-data" style="padding:4px 0 0 0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid-2">
+        <div class="campo grande">
+          <label>T&#237;tulo *</label>
+          <input type="text" name="titulo" required placeholder="Ex: Lista de Exerc&#237;cios 1">
+        </div>
+        <div class="campo">
+          <label>Ordem</label>
+          <input type="number" name="ordem" value="1" min="1" style="max-width:100px">
+        </div>
+        <div class="campo">
+          <label>Curso *</label>
+          <select name="curso_id" id="sel-curso-ex" required>
+            <option value="">Selecione o curso&hellip;</option>
+            {% for c in cursos %}
+            <option value="{{ c.id }}">{{ c.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label>Mat&#233;ria *</label>
+          <select name="materia_id" id="sel-materia-ex" required>
+            <option value="">Selecione a mat&#233;ria&hellip;</option>
+            {% for m in materias %}
+            <option value="{{ m.id }}" data-curso="{{ m.curso_id }}">{{ m.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo grande">
+          <label>Descri&#231;&#227;o / Enunciado</label>
+          <textarea name="descricao" rows="3" placeholder="Descri&#231;&#227;o opcional&hellip;"></textarea>
+        </div>
+        <div class="campo grande">
+          <label>Arquivo (PDF, imagem, Word)</label>
+          <input type="file" name="arquivo" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.doc">
+        </div>
+      </div>
+      <div class="acoes-form">
+        <button type="submit" class="btn btn-azul"><i class="fas fa-save"></i> Salvar Exerc&#237;cio</button>
+      </div>
+    </form>
+  </details>
+
+  {# ─── Filtro ─── #}
+  <form method="get" action="/exercicios" style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <select name="curso_id" style="height:36px;width:220px">
+      <option value="">Todos os cursos</option>
+      {% for c in cursos %}
+      <option value="{{ c.id }}" {% if curso_id_sel == c.id %}selected{% endif %}>{{ c.nome }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-azul">Filtrar</button>
+    {% if curso_id_sel %}<a href="/exercicios" class="btn btn-secondary" style="background:#e0e0e0;color:#333">Limpar</a>{% endif %}
+  </form>
+
+  {# ─── Lista ─── #}
+  {% if exercicios %}
+  <div class="table-responsive">
+  <table class="tabela-excel">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>T&#237;tulo</th>
+        <th>Mat&#233;ria</th>
+        <th>Arquivo</th>
+        <th class="acoes">A&#231;&#245;es</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for ex in exercicios %}
+    <tr>
+      <td>{{ ex.id }}</td>
+      <td>
+        <strong>{{ ex.titulo }}</strong>
+        {% if ex.descricao %}<br><small style="color:#888">{{ ex.descricao[:60] }}{% if ex.descricao|length > 60 %}&hellip;{% endif %}</small>{% endif %}
+      </td>
+      <td>{{ ex.materia.nome if ex.materia else '&mdash;' }}</td>
+      <td style="text-align:center">
+        {% if ex.arquivo %}
+          <a href="/exercicios/{{ ex.id }}/arquivo" target="_blank" class="btn btn-editar tooltip" data-tooltip="Ver arquivo">&#128196;</a>
+        {% else %}
+          <span style="opacity:.35">&mdash;</span>
+        {% endif %}
+      </td>
+      <td class="acoes">
+        <button class="btn btn-editar tooltip" data-tooltip="Editar"
+          onclick="abrirEditar({{ ex.id }}, '{{ ex.titulo|e }}', {{ ex.ordem }}, `{{ (ex.descricao or '')|e }}`)">
+          &#9999;&#65039;
+        </button>
+        <form method="POST" action="/exercicios/{{ ex.id }}/excluir" style="display:inline"
+              onsubmit="return confirm('Remover este exerc&#237;cio?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="redirect_to" value="/exercicios">
+          <button type="submit" class="btn btn-vermelho tooltip" data-tooltip="Remover">&#128465;</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state">&#9998; Nenhum exerc&#237;cio cadastrado ainda.</div>
+  {% endif %}
+</div>
+
+{# ─── Modal editar ─── #}
+<div class="modal-overlay" id="modalEditar">
+  <div class="modal" style="max-width:520px;text-align:left">
+    <h3>&#9999;&#65039; Editar Exerc&#237;cio</h3>
+    <form method="POST" id="formEditar" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="redirect_to" value="/exercicios">
+      <div class="grid-2">
+        <div class="campo grande">
+          <label>T&#237;tulo *</label>
+          <input type="text" name="titulo" id="editTitulo" required>
+        </div>
+        <div class="campo">
+          <label>Ordem</label>
+          <input type="number" name="ordem" id="editOrdem" min="1" style="max-width:100px">
+        </div>
+        <div class="campo grande">
+          <label>Descri&#231;&#227;o</label>
+          <textarea name="descricao" id="editDescricao" rows="3"></textarea>
+        </div>
+        <div class="campo grande">
+          <label>Substituir arquivo (opcional)</label>
+          <input type="file" name="arquivo" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.doc">
+        </div>
+      </div>
+      <div class="acoes-form">
+        <button type="submit" class="btn btn-azul"><i class="fas fa-save"></i> Salvar</button>
+        <button type="button" onclick="fecharEditar()" class="btn" style="background:#e0e0e0;color:#333">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const materiasJsonEx = {{ materias_json | tojson }};
+
+document.getElementById('sel-curso-ex').addEventListener('change', function(){
+  const cursoId = parseInt(this.value);
+  const sel = document.getElementById('sel-materia-ex');
+  Array.from(sel.options).forEach(opt => {
+    if(!opt.value){ opt.style.display=''; return; }
+    opt.style.display = (!cursoId || parseInt(opt.dataset.curso)===cursoId) ? '' : 'none';
+  });
+  sel.value = '';
+});
+
+function abrirEditar(id, titulo, ordem, descricao){
+  document.getElementById('editTitulo').value    = titulo;
+  document.getElementById('editOrdem').value     = ordem;
+  document.getElementById('editDescricao').value = descricao;
+  document.getElementById('formEditar').action   = `/exercicios/${id}/editar`;
+  document.getElementById('modalEditar').classList.add('aberto');
+}
+function fecharEditar(){
+  document.getElementById('modalEditar').classList.remove('aberto');
+}
+document.getElementById('modalEditar').addEventListener('click', function(e){
+  if(e.target === this) fecharEditar();
+});
+</script>
+{% endblock %}

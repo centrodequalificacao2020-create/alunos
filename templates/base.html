@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- CSRF: token disponível para requisições fetch/AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Sistema Escolar{% endblock %} — CQP</title>
+    <title>{% block title %}Sistema Escolar{% endblock %} &mdash; CQP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15">
     {% block styles %}{% endblock %}
 </head>
@@ -55,6 +55,8 @@
                 <a href="/notas"      class="{{ 'active' if request.path == '/notas'      }}">Notas</a>
                 <a href="/frequencia" class="{{ 'active' if request.path == '/frequencia' }}">Frequ&#234;ncia</a>
                 <a href="/provas"     class="{{ 'active' if request.path.startswith('/provas') }}">Provas</a>
+                <a href="/exercicios" class="{{ 'active' if request.path.startswith('/exercicios') }}">Exerc&#237;cios</a>
+                <a href="/atividades" class="{{ 'active' if request.path.startswith('/atividades') }}">Atividades</a>
             {% endif %}
 
             {% if full_access or meio_access %}
