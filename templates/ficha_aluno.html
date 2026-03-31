@@ -70,7 +70,7 @@
 
 {# ===== MATRÍCULAS ===== #}
 <div class="card" style="margin-top:20px">
-    <h3>📋 Matrículas &amp; Acesso ao Conteúdo</h3>
+    <h3>📋 Matrículas</h3>
 
     {% if cursos_disponiveis %}
     <form method="POST" action="/matricular_aluno" class="toolbar-matricula">
@@ -104,8 +104,6 @@
             </thead>
             <tbody>
                 {% for m in matriculas %}
-                {% set ac = m.acesso_conteudo %}
-                {% set liberado = ac and ac.liberado == 1 %}
                 <tr>
                     <td><strong>{{ m.curso_nome }}</strong></td>
                     <td>{{ m.data_matricula or '-' }}</td>
@@ -118,45 +116,12 @@
                     </td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
 
-                    {# ---- toggle acesso conteúdo (libera o portal geral do curso) ---- #}
                     <td style="text-align:center;vertical-align:middle;">
-                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
-                            {# Botão liberar/bloquear acesso geral #}
-                            <form method="POST"
-                                  action="/aluno/{{ aluno.id }}/acesso_conteudo/{{ m.curso_id }}"
-                                  style="display:inline">
-                                {% if liberado %}
-                                <input type="hidden" name="acao" value="bloquear">
-                                <button type="submit"
-                                        class="btn btn-sm"
-                                        style="background:#00c37710;color:#00c377;border:1px solid #00c377;min-width:110px;"
-                                        title="Clique para bloquear">
-                                    🟢 Liberado
-                                </button>
-                                {% else %}
-                                <input type="hidden" name="acao" value="liberar">
-                                <button type="submit"
-                                        class="btn btn-sm"
-                                        style="background:#ff4d4d10;color:#ff6b6b;border:1px solid #ff4d4d;min-width:110px;"
-                                        title="Clique para liberar">
-                                    🔴 Bloqueado
-                                </button>
-                                {% endif %}
-                            </form>
-                            {# Botão liberar conteúdos (matérias/provas/exercícios) #}
-                            <a href="/liberacoes/aluno/{{ aluno.id }}?curso_id={{ m.curso_id }}"
-                               class="btn btn-sm"
-                               style="background:#6f42c110;color:#9b59b6;border:1px solid #6f42c1;min-width:110px;text-align:center;">
-                               📚 Liberar conteúdos
-                            </a>
-                        </div>
-                        {% if liberado and ac.liberado_em %}
-                        {% set le = ac.liberado_em %}
-                        <div style="font-size:10px;color:var(--color-text-muted);margin-top:3px;text-align:center">
-                            por {{ ac.liberado_por or '?' }}<br>
-                            {{ le[8:10] }}/{{ le[5:7] }}/{{ le[0:4] }} {{ le[11:16] }}
-                        </div>
-                        {% endif %}
+                        <a href="/liberacoes/aluno/{{ aluno.id }}?curso_id={{ m.curso_id }}"
+                           class="btn btn-sm"
+                           style="background:#6f42c110;color:#9b59b6;border:1px solid #6f42c1;min-width:130px;text-align:center;">
+                           📚 Liberar conteúdos
+                        </a>
                     </td>
 
                     <td class="acoes-texto">
