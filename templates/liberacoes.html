@@ -8,7 +8,7 @@ body{
   background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
   min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff;
 }
-.wrap{ max-width:940px; margin:auto; padding:30px 20px 80px; }
+.wrap{ max-width:960px; margin:auto; padding:30px 20px 80px; }
 .page-header{ margin-bottom:28px; }
 .page-header h1{ margin:0 0 4px; font-size:22px; }
 .voltar{ color:rgba(255,255,255,.5); font-size:13px; text-decoration:none;
@@ -37,22 +37,46 @@ body{
   background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
   border-radius:16px; padding:22px 24px; margin-bottom:24px;
 }
+.curso-header{
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:10px; margin-bottom:18px;
+  padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,.08);
+}
 .curso-titulo{
   font-size:15px; font-weight:800; text-transform:uppercase;
-  letter-spacing:1px; opacity:.55; margin-bottom:16px;
-  display:flex; align-items:center; gap:8px;
+  letter-spacing:1px; display:flex; align-items:center; gap:8px;
+}
+.curso-status{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700;
+}
+.curso-status.ok  { background:rgba(0,255,157,.12); color:#00ff9d; border:1px solid rgba(0,255,157,.35); }
+.curso-status.lock{ background:rgba(255,77,77,.12);  color:#ff4d4d; border:1px solid rgba(255,77,77,.35); }
+.secao-header{
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:8px;
+  margin:18px 0 10px;
 }
 .secao-label{
   font-size:11px; font-weight:700; text-transform:uppercase;
-  letter-spacing:1.5px; opacity:.4; margin:16px 0 10px;
+  letter-spacing:1.5px; opacity:.5;
   display:flex; align-items:center; gap:6px;
 }
-.secao-label::after{ content:''; flex:1; height:1px; background:rgba(255,255,255,.08); }
+.btn-massa{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 12px; border-radius:7px; font-size:11px; font-weight:700;
+  border:none; cursor:pointer; transition:.2s;
+}
+.btn-massa.lib { background:rgba(0,255,157,.13); color:#00ff9d; border:1px solid rgba(0,255,157,.4); }
+.btn-massa.lib:hover{ background:rgba(0,255,157,.25); }
+.btn-massa.blk { background:rgba(255,77,77,.1);  color:#ff4d4d; border:1px solid rgba(255,77,77,.4); }
+.btn-massa.blk:hover{ background:rgba(255,77,77,.22); }
+.btn-massa-grupo{ display:flex; gap:6px; flex-wrap:wrap; }
 .lib-item{
   display:flex; align-items:center; justify-content:space-between;
   gap:12px; flex-wrap:wrap;
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
-  border-radius:12px; padding:12px 16px; margin-bottom:8px; transition:background .2s;
+  border-radius:12px; padding:11px 15px; margin-bottom:7px; transition:background .2s;
 }
 .lib-item:hover{ background:rgba(255,255,255,.07); }
 .lib-item-nome{ font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
@@ -60,26 +84,33 @@ body{
   display:flex; align-items:center; justify-content:space-between;
   gap:12px; flex-wrap:wrap;
   background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06);
-  border-radius:10px; padding:9px 14px; margin:4px 0 4px 24px;
+  border-radius:10px; padding:8px 13px; margin:3px 0 3px 24px;
 }
 .ex-item-nome{ font-size:13px; font-weight:500; display:flex; align-items:center; gap:7px; opacity:.85; }
 .badge-lib{
   display:inline-flex; align-items:center; gap:5px;
-  padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
+  padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700;
 }
 .badge-lib.ok  { background:rgba(0,255,157,.12); color:#00ff9d; border:1px solid #00ff9d; }
 .badge-lib.lock{ background:rgba(255,77,77,.1);  color:#ff4d4d; border:1px solid #ff4d4d; }
 .btn-lib{
   display:inline-flex; align-items:center; gap:6px;
-  padding:6px 14px; border-radius:8px; font-size:12px; font-weight:700;
+  padding:5px 13px; border-radius:8px; font-size:12px; font-weight:700;
   border:none; cursor:pointer; transition:.2s;
 }
 .btn-liberar { background:rgba(0,255,157,.15); color:#00ff9d; border:1px solid rgba(0,255,157,.4); }
 .btn-liberar:hover{ background:rgba(0,255,157,.28); }
 .btn-bloquear{ background:rgba(255,77,77,.12);  color:#ff4d4d; border:1px solid rgba(255,77,77,.4); }
 .btn-bloquear:hover{ background:rgba(255,77,77,.25); }
+.btn-danger{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:7px 16px; border-radius:9px; font-size:12px; font-weight:700;
+  background:rgba(255,77,77,.15); color:#ff4d4d;
+  border:1px solid rgba(255,77,77,.5); cursor:pointer; transition:.2s;
+}
+.btn-danger:hover{ background:rgba(255,77,77,.3); }
 .vazio{ background:rgba(255,255,255,.03); border:1px dashed rgba(255,255,255,.1);
-  border-radius:10px; padding:14px 18px; color:rgba(255,255,255,.3); font-size:13px;
+  border-radius:10px; padding:12px 16px; color:rgba(255,255,255,.3); font-size:13px;
   display:flex; align-items:center; gap:8px; }
 </style>
 {% endblock %}
@@ -87,11 +118,11 @@ body{
 {% block content %}
 <div class="wrap">
   <div class="page-header">
-    <a href="/ficha_aluno/{{ aluno.id }}" class="voltar">
+    <a href="/aluno/{{ aluno.id }}" class="voltar">
       <i class="fas fa-arrow-left"></i> Voltar para a Ficha
     </a>
     <h1 style="margin-top:8px">
-      &#128275; Libera&ccedil;&otilde;es
+      &#128275; Liberações
       {% if curso_filtrado %}
         &mdash; <span style="opacity:.7;font-size:17px">{{ curso_filtrado.nome }}</span>
       {% endif %}
@@ -115,18 +146,58 @@ body{
   {% if not cursos_data %}
     <div class="vazio" style="margin-top:24px">
       <i class="fas fa-info-circle"></i>
-      Este aluno n&atilde;o possui matr&iacute;cula ativa em nenhum curso.
+      Este aluno não possui matrícula ativa em nenhum curso.
     </div>
   {% endif %}
 
   {% for cd in cursos_data %}
+  {% set total_mat = cd.materias|length %}
+  {% set lib_mat   = cd.materias|selectattr('id','in', cd.ids_mat_lib|map(attribute=0)|list)|list|length %}
+
   <div class="curso-card">
-    <div class="curso-titulo">
-      <i class="fas fa-graduation-cap"></i> {{ cd.curso.nome }}
+
+    {# ── Cabeçalho do curso ── #}
+    <div class="curso-header">
+      <div class="curso-titulo">
+        <i class="fas fa-graduation-cap"></i> {{ cd.curso.nome }}
+        {% if cd.curso_liberado %}
+          <span class="curso-status ok"><i class="fas fa-unlock"></i> Acesso Liberado</span>
+        {% else %}
+          <span class="curso-status lock"><i class="fas fa-lock"></i> Acesso Bloqueado</span>
+        {% endif %}
+      </div>
+      {# Botão bloquear curso inteiro #}
+      <form method="POST" action="/liberacoes/curso/bloquear"
+            onsubmit="return confirm('Bloquear TODO o acesso a este curso?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+        <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+        <button type="submit" class="btn-danger">
+          <i class="fas fa-ban"></i> Bloquear Curso
+        </button>
+      </form>
     </div>
 
-    {# ── Matérias ────────────────────────────────────────────── #}
-    <div class="secao-label"><i class="fas fa-book"></i> Mat&eacute;rias</div>
+    {# ── Matérias ── #}
+    <div class="secao-header">
+      <div class="secao-label"><i class="fas fa-book"></i> Matérias</div>
+      <div class="btn-massa-grupo">
+        <form method="POST" action="/liberacoes/materia/todas">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="liberar">
+          <button type="submit" class="btn-massa lib"><i class="fas fa-unlock"></i> Liberar todas</button>
+        </form>
+        <form method="POST" action="/liberacoes/materia/todas">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="bloquear">
+          <button type="submit" class="btn-massa blk"><i class="fas fa-lock"></i> Bloquear todas</button>
+        </form>
+      </div>
+    </div>
 
     {% if cd.materias %}
       {% for mat in cd.materias %}
@@ -180,11 +251,56 @@ body{
       {% endif %}
       {% endfor %}
     {% else %}
-      <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma mat&eacute;ria cadastrada neste curso.</div>
+      <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma matéria cadastrada neste curso.</div>
     {% endif %}
 
-    {# ── Provas ────────────────────────────────────────────── #}
-    <div class="secao-label" style="margin-top:20px"><i class="fas fa-file-alt"></i> Provas</div>
+    {# ── Exercícios (botão em massa) ── #}
+    {% set total_ex = [] %}
+    {% for mat in cd.materias %}{% if cd.exercicios_por_mat.get(mat.id) %}{% for _ in cd.exercicios_por_mat[mat.id] %}{% if total_ex.append(1) %}{% endif %}{% endfor %}{% endif %}{% endfor %}
+    {% if total_ex %}
+    <div class="secao-header" style="margin-top:6px">
+      <div class="secao-label"><i class="fas fa-pencil-alt"></i> Exercícios (em massa)</div>
+      <div class="btn-massa-grupo">
+        <form method="POST" action="/liberacoes/exercicio/todos">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="liberar">
+          <button type="submit" class="btn-massa lib"><i class="fas fa-unlock"></i> Liberar todos</button>
+        </form>
+        <form method="POST" action="/liberacoes/exercicio/todos">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="bloquear">
+          <button type="submit" class="btn-massa blk"><i class="fas fa-lock"></i> Bloquear todos</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Provas ── #}
+    <div class="secao-header" style="margin-top:18px">
+      <div class="secao-label"><i class="fas fa-file-alt"></i> Provas</div>
+      {% if cd.provas %}
+      <div class="btn-massa-grupo">
+        <form method="POST" action="/liberacoes/prova/todas">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="liberar">
+          <button type="submit" class="btn-massa lib"><i class="fas fa-unlock"></i> Liberar todas</button>
+        </form>
+        <form method="POST" action="/liberacoes/prova/todas">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="bloquear">
+          <button type="submit" class="btn-massa blk"><i class="fas fa-lock"></i> Bloquear todas</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
 
     {% if cd.provas %}
       {% for pv in cd.provas %}
@@ -193,9 +309,7 @@ body{
         <div class="lib-item-nome">
           <i class="fas fa-{{ 'lock-open' if lib else 'lock' }}" style="opacity:.6"></i>
           {{ pv.titulo }}
-          {% if pv.materia %}
-            <span style="font-size:11px;opacity:.4">({{ pv.materia.nome }})</span>
-          {% endif %}
+          {% if pv.materia %}<span style="font-size:11px;opacity:.4">({{ pv.materia.nome }})</span>{% endif %}
           <span class="badge-lib {{ 'ok' if lib else 'lock' }}">
             <i class="fas fa-{{ 'check' if lib else 'ban' }}"></i>
             {{ 'Liberada' if lib else 'Bloqueada' }}
@@ -215,6 +329,52 @@ body{
       {% endfor %}
     {% else %}
       <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma prova cadastrada neste curso.</div>
+    {% endif %}
+
+    {# ── Atividades ── #}
+    {% if cd.atividades %}
+    <div class="secao-header" style="margin-top:18px">
+      <div class="secao-label"><i class="fas fa-tasks"></i> Atividades</div>
+      <div class="btn-massa-grupo">
+        <form method="POST" action="/liberacoes/atividade/todas">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="liberar">
+          <button type="submit" class="btn-massa lib"><i class="fas fa-unlock"></i> Liberar todas</button>
+        </form>
+        <form method="POST" action="/liberacoes/atividade/todas">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+          <input type="hidden" name="curso_id" value="{{ cd.curso.id }}">
+          <input type="hidden" name="acao" value="bloquear">
+          <button type="submit" class="btn-massa blk"><i class="fas fa-lock"></i> Bloquear todas</button>
+        </form>
+      </div>
+    </div>
+    {% for atv in cd.atividades %}
+    {% set atv_lib = atv.id in cd.ids_atv_lib %}
+    <div class="lib-item">
+      <div class="lib-item-nome">
+        <i class="fas fa-{{ 'lock-open' if atv_lib else 'lock' }}" style="opacity:.6"></i>
+        {{ atv.titulo }}
+        <span class="badge-lib {{ 'ok' if atv_lib else 'lock' }}">
+          <i class="fas fa-{{ 'check' if atv_lib else 'ban' }}"></i>
+          {{ 'Liberada' if atv_lib else 'Bloqueada' }}
+        </span>
+      </div>
+      <form method="POST" action="/liberacoes/atividade">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="aluno_id"     value="{{ aluno.id }}">
+        <input type="hidden" name="atividade_id" value="{{ atv.id }}">
+        <input type="hidden" name="acao" value="{{ 'bloquear' if atv_lib else 'liberar' }}">
+        <button type="submit" class="btn-lib {{ 'btn-bloquear' if atv_lib else 'btn-liberar' }}">
+          <i class="fas fa-{{ 'lock' if atv_lib else 'lock-open' }}"></i>
+          {{ 'Bloquear' if atv_lib else 'Liberar' }}
+        </button>
+      </form>
+    </div>
+    {% endfor %}
     {% endif %}
 
   </div>{# /curso-card #}
