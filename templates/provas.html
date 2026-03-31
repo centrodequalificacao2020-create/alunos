@@ -101,7 +101,7 @@
 <div class="card">
     <div class="card-header--between">
         <div class="card-header">
-            <span>&#128221;</span>
+            <span>📝</span>
             <h2 style="margin:0">Provas &amp; Exerc&#237;cios</h2>
         </div>
         <a href="/provas/nova" class="btn btn-azul">+ Nova Prova</a>
@@ -186,7 +186,7 @@
     </table>
     </div>
     {% else %}
-    <div class="empty-state">&#128221; Nenhuma prova cadastrada ainda.<br>
+    <div class="empty-state">📝 Nenhuma prova cadastrada ainda.<br>
         <a href="/provas/nova" class="btn btn-azul" style="margin-top:12px">Criar primeira prova</a>
     </div>
     {% endif %}
@@ -203,7 +203,7 @@
 
 <div class="card" style="max-width:700px">
     <div class="card-header">
-        <span>{{ '&#9999;&#65039;' if editando else '&#128221;' }}</span>
+        <span>{{ '✏️' if editando else '📝' }}</span>
         <h2 style="margin:0">{{ 'Editar Prova' if editando else 'Nova Prova' }}</h2>
     </div>
 
@@ -265,7 +265,7 @@
         </div>
 
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">{{ '&#128190; Salvar altera&ccedil;&otilde;es' if editando else '&#9989; Criar prova e adicionar quest&otilde;es' }}</button>
+            <button type="submit" class="btn btn-azul">{{ '💾 Salvar alterações' if editando else '✅ Criar prova e adicionar questões' }}</button>
             <a href="/provas" class="btn" style="background:#e0e0e0;color:#333">Cancelar</a>
         </div>
     </form>
@@ -288,7 +288,7 @@
     <div class="card">
         <div class="card-header--between">
             <div class="card-header" style="margin-bottom:0">
-                <span>&#128203;</span>
+                <span>📋</span>
                 <h3 style="margin:0">Quest&otilde;es ({{ prova.total_questoes }})</h3>
             </div>
             <span style="font-size:12px;color:#888">Total: {{ prova.total_pontos }} pts</span>
@@ -346,7 +346,7 @@
 
     <div class="card">
         <div class="card-header">
-            <span>&#10133;</span>
+            <span>➕</span>
             <h3 style="margin:0">Adicionar Quest&atilde;o</h3>
         </div>
 
@@ -464,7 +464,7 @@
 <div class="card">
     <div class="card-header--between">
         <div class="card-header">
-            <span>&#128202;</span>
+            <span>📊</span>
             <h2 style="margin:0">Resultados &mdash; {{ prova.titulo }}</h2>
         </div>
         {% if pendentes %}
