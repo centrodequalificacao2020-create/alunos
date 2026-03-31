@@ -373,6 +373,7 @@
                 <input type="number" name="pontos" step="0.5" min="0.5" value="1.0" style="max-width:100px">
             </div>
 
+            {# Bloco múltipla escolha #}
             <div id="blocoAlternativas">
                 <div class="secao" style="margin-top:14px">Alternativas <small>(marque a correta)</small></div>
                 <div id="listaAlternativas">
@@ -389,16 +390,17 @@
                         onclick="adicionarAlternativa()">+ Alternativa</button>
             </div>
 
+            {# Bloco verdadeiro/falso — inputs ficam disabled quando oculto #}
             <div id="blocoVF" style="display:none">
                 <div class="secao" style="margin-top:14px">Alternativas Verdadeiro / Falso</div>
                 <div style="display:flex;gap:16px;margin-top:8px">
                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                        <input type="checkbox" name="alt_correta" value="0"> Verdadeiro
-                        <input type="hidden" name="alt_texto" value="Verdadeiro">
+                        <input type="checkbox" name="alt_correta" value="0" disabled> Verdadeiro
+                        <input type="hidden" name="alt_texto" value="Verdadeiro" disabled>
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                        <input type="checkbox" name="alt_correta" value="1"> Falso
-                        <input type="hidden" name="alt_texto" value="Falso">
+                        <input type="checkbox" name="alt_correta" value="1" disabled> Falso
+                        <input type="hidden" name="alt_texto" value="Falso" disabled>
                     </label>
                 </div>
             </div>
@@ -612,11 +614,29 @@ document.getElementById('modalEditarQuestao')?.addEventListener('click', functio
     if (e.target === this) fecharModal();
 });
 
+/**
+ * Atualiza visibilidade dos blocos de alternativas conforme o tipo selecionado.
+ * IMPORTANTE: inputs dos blocos ocultos são desabilitados para não serem
+ * incluídos no POST — evita que os hidden de V/F contaminem múltipla escolha.
+ */
 function atualizarTipo() {
     const tipo = document.getElementById('tipoQuestao')?.value;
-    document.getElementById('blocoAlternativas').style.display = tipo === 'multipla_escolha' ? '' : 'none';
-    document.getElementById('blocoVF').style.display           = tipo === 'verdadeiro_falso'  ? '' : 'none';
-    document.getElementById('blocoDissertat').style.display    = tipo === 'dissertativa'      ? '' : 'none';
+
+    const blocos = {
+        multipla_escolha: document.getElementById('blocoAlternativas'),
+        verdadeiro_falso:  document.getElementById('blocoVF'),
+        dissertativa:      document.getElementById('blocoDissertat'),
+    };
+
+    Object.entries(blocos).forEach(([key, bloco]) => {
+        if (!bloco) return;
+        const ativo = (key === tipo);
+        bloco.style.display = ativo ? '' : 'none';
+        // Habilita/desabilita todos os inputs do bloco
+        bloco.querySelectorAll('input, textarea, select').forEach(el => {
+            el.disabled = !ativo;
+        });
+    });
 }
 
 let altCount = 4;
@@ -625,9 +645,12 @@ function adicionarAlternativa() {
     const div   = document.createElement('div');
     div.className = 'alt-linha';
     div.innerHTML = `<input type="checkbox" name="alt_correta" value="${altCount}" title="Marcar como correta">
-                     <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}">` ;
+                     <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}">`;
     lista.appendChild(div);
     altCount++;
 }
+
+// Garante estado correto ao carregar a página
+document.addEventListener('DOMContentLoaded', atualizarTipo);
 </script>
 {% endblock %}
