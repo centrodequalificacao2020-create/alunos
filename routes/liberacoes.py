@@ -9,25 +9,12 @@ from datetime import datetime
 
 liberacoes_bp = Blueprint("liberacoes", __name__)
 
-PERFIS_PERMITIDOS = {"ADMIN", "SECRETARIA", "INSTRUTOR"}
-
-
-def _check_perfil():
-    perfil = (session.get("perfil") or "").upper()
-    if perfil not in PERFIS_PERMITIDOS:
-        flash("Acesso negado.", "erro")
-        return False
-    return True
-
 
 # ─── PAINEL DE LIBERAÇÕES DE UM ALUNO ────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/aluno/<int:aluno_id>")
 @login_required
 def painel_liberacoes(aluno_id):
-    if not _check_perfil():
-        return redirect("/dashboard")
-
     aluno = db.get_or_404(Aluno, aluno_id)
 
     # Filtro opcional por curso_id via query string
@@ -99,9 +86,6 @@ def painel_liberacoes(aluno_id):
 @liberacoes_bp.route("/liberacoes/materia", methods=["POST"])
 @login_required
 def toggle_materia():
-    if not _check_perfil():
-        return redirect("/dashboard")
-
     aluno_id   = int(request.form.get("aluno_id",   0))
     materia_id = int(request.form.get("materia_id", 0))
     curso_id   = int(request.form.get("curso_id",   0))
@@ -146,9 +130,6 @@ def toggle_materia():
 @liberacoes_bp.route("/liberacoes/prova", methods=["POST"])
 @login_required
 def toggle_prova():
-    if not _check_perfil():
-        return redirect("/dashboard")
-
     aluno_id = int(request.form.get("aluno_id", 0))
     prova_id = int(request.form.get("prova_id", 0))
     acao     = request.form.get("acao", "liberar")
@@ -179,9 +160,8 @@ def toggle_prova():
         ))
 
     db.session.commit()
-    prova = db.session.get(Prova, prova_id)
-    nome  = prova.titulo if prova else f"ID {prova_id}"
-    # tenta manter o filtro de curso no redirect
+    prova    = db.session.get(Prova, prova_id)
+    nome     = prova.titulo if prova else f"ID {prova_id}"
     curso_id = prova.curso_id if prova else 0
     flash(f"Prova '{nome}' {'liberada' if liberado_val else 'bloqueada'}.",
           "sucesso" if liberado_val else "aviso")
@@ -194,9 +174,6 @@ def toggle_prova():
 @liberacoes_bp.route("/liberacoes/exercicio", methods=["POST"])
 @login_required
 def toggle_exercicio():
-    if not _check_perfil():
-        return redirect("/dashboard")
-
     aluno_id     = int(request.form.get("aluno_id",     0))
     exercicio_id = int(request.form.get("exercicio_id", 0))
     acao         = request.form.get("acao", "liberar")
@@ -229,7 +206,6 @@ def toggle_exercicio():
     db.session.commit()
     ex   = db.session.get(Exercicio, exercicio_id)
     nome = ex.titulo if ex else f"ID {exercicio_id}"
-    # tenta manter o filtro de curso no redirect
     curso_id = ex.materia.curso_materias[0].curso_id if (ex and ex.materia and ex.materia.curso_materias) else 0
     flash(f"Exercício '{nome}' {'liberado' if liberado_val else 'bloqueado'}.",
           "sucesso" if liberado_val else "aviso")
