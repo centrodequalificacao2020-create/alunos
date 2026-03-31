@@ -63,6 +63,12 @@ body {
 .home-card:hover i{ transform: scale(1.2) rotate(5deg); }
 .home-card span   { font-weight: 600; font-size: 15px; color: #fff; letter-spacing: .5px; display: block; }
 .home-card small  { display: block; margin-top: 6px; font-size: 12px; color: rgba(255,255,255,.6); }
+.home-card.card-sair {
+    background: linear-gradient(145deg, rgba(255,77,77,.25), rgba(180,0,0,.15));
+}
+.home-card.card-sair:hover {
+    background: linear-gradient(145deg, rgba(255,77,77,.45), rgba(180,0,0,.30));
+}
 .badge-atraso {
     display: inline-block; margin-top: 6px;
     background: #ff4d4d; color: #fff;
@@ -113,7 +119,6 @@ body {
         <small>Resultados por mat&eacute;ria</small>
     </a>
 
-    {# Card "Cursos" — unifica aulas, provas e atividades #}
     <a href="/aluno/cursos" class="home-card">
         <i class="fas fa-play-circle c1"></i>
         <span>Cursos</span>
@@ -130,6 +135,12 @@ body {
         <i class="fab fa-whatsapp c8"></i>
         <span>Suporte</span>
         <small>Falar com a secretaria</small>
+    </a>
+
+    <a href="/aluno/logout" class="home-card card-sair">
+        <i class="fas fa-sign-out-alt c6"></i>
+        <span>Sair</span>
+        <small>Encerrar sess&atilde;o</small>
     </a>
 
 </div>

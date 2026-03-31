@@ -28,7 +28,7 @@
             <a href="/aluno/dashboard" class="{{ 'active' if request.path == '/aluno/dashboard' }}">In&#237;cio</a>
             <a href="/aluno/conteudo"  class="{{ 'active' if request.path.startswith('/aluno/conteudo') }}">Aulas</a>
             <a href="/aluno/provas"    class="{{ 'active' if request.path.startswith('/aluno/provas') }}">Provas</a>
-            <a href="/aluno/senha"     class="{{ 'active' if request.path == '/aluno/senha' }}">&#128274; Senha</a>
+            <a href="/aluno/senha"     class="{{ 'active' if request.path == '/aluno/senha' }}">Senha</a>
             <a href="/aluno/logout">Sair</a>
 
         {% elif session.usuario_id %}
