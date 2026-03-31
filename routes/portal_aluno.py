@@ -7,6 +7,7 @@ from models import (
 )
 from security import aluno_login_required, hash_senha, verificar_senha
 from datetime import date, datetime
+from sqlalchemy.exc import OperationalError
 import os
 import re
 
@@ -18,51 +19,57 @@ def _get_aluno():
 
 
 def _normalizar_cpf(cpf: str) -> str:
-    """Remove tudo que nao for digito: '123.456.789-00' -> '12345678900'."""
     return re.sub(r"\D", "", cpf or "")
 
 
 def _buscar_aluno_por_login(identificador: str):
     """
-    Tenta localizar o aluno pelo identificador informado.
-    Aceita:
-      - E-mail  (contém '@')
-      - CPF com mascara  ('123.456.789-00')
-      - CPF sem mascara  ('12345678900')
+    Aceita CPF com ou sem máscara, ou e-mail.
     """
     ident = identificador.strip()
 
     if "@" in ident:
-        # --- busca por e-mail (case-insensitive) ---
         return Aluno.query.filter(
             db.func.lower(Aluno.email) == ident.lower()
         ).first()
 
-    # --- busca por CPF ---
-    # Tenta primeiro com o valor exato digitado
     aluno = Aluno.query.filter_by(cpf=ident).first()
     if aluno:
         return aluno
 
-    # Normaliza ambos os lados (remove mascara) e tenta de novo
     cpf_limpo = _normalizar_cpf(ident)
     if not cpf_limpo:
         return None
 
-    # Busca todos os alunos cujo CPF normalizado bate
-    # (resolve casos em que o banco tem '123.456.789-00' e o usuario digitou '12345678900')
     for a in Aluno.query.all():
         if _normalizar_cpf(a.cpf or "") == cpf_limpo:
             return a
     return None
 
 
-# ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────────
+def _registrar_historico(aluno_id):
+    """Insere login no histórico; ignora silenciosamente se a tabela não existir."""
+    try:
+        from models import LoginHistoricoAluno
+        db.session.add(LoginHistoricoAluno(
+            aluno_id   = aluno_id,
+            login_em   = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ip         = request.remote_addr,
+            user_agent = request.user_agent.string[:300] if request.user_agent else None,
+        ))
+        db.session.commit()
+    except OperationalError:
+        db.session.rollback()   # tabela ainda não existe — ignora
+    except Exception:
+        db.session.rollback()
+
+
+# ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 def aluno_login():
     if request.method == "POST":
-        identificador = request.form.get("cpf", "").strip()   # campo mantém name="cpf"
+        identificador = request.form.get("cpf", "").strip()
         senha         = request.form.get("senha", "").strip()
 
         aluno = _buscar_aluno_por_login(identificador)
@@ -83,15 +90,8 @@ def aluno_login():
             flash("Senha incorreta. Tente novamente.", "erro")
             return redirect("/aluno/login")
 
-        # Login bem-sucedido — registra histórico
-        from models import LoginHistoricoAluno
-        db.session.add(LoginHistoricoAluno(
-            aluno_id   = aluno.id,
-            login_em   = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            ip         = request.remote_addr,
-            user_agent = request.user_agent.string[:300] if request.user_agent else None,
-        ))
-        db.session.commit()
+        # Histórico de login — não bloqueia o login se a tabela não existir
+        _registrar_historico(aluno.id)
 
         session["aluno_id"] = aluno.id
         session["perfil"]   = "aluno"
@@ -106,7 +106,7 @@ def aluno_logout():
     return redirect("/aluno/login")
 
 
-# ─── DASHBOARD ─────────────────────────────────────────────────────────────────────
+# ─── DASHBOARD ────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
@@ -120,16 +120,54 @@ def aluno_dashboard():
         if m.status.upper() in ("PENDENTE", "ATRASADO") and m.vencimento and m.vencimento < hoje
     )
 
+    # ultimo_login pode não existir se a tabela login_historico_aluno não foi criada
+    ultimo_login = None
+    try:
+        ultimo_login = aluno.ultimo_login
+    except OperationalError:
+        pass
+
     return render_template(
         "aluno/dashboard.html",
         aluno        = aluno,
         matricula    = matricula,
         atrasadas    = atrasadas,
-        ultimo_login = aluno.ultimo_login,
+        ultimo_login = ultimo_login,
     )
 
 
-# ─── FINANCEIRO ──────────────────────────────────────────────────────────────────
+# ─── TROCA DE SENHA ───────────────────────────────────────────────────────────
+
+@portal_aluno_bp.route("/senha", methods=["GET", "POST"])
+@aluno_login_required
+def aluno_senha():
+    aluno = _get_aluno()
+    if request.method == "POST":
+        atual   = request.form.get("senha_atual",   "").strip()
+        nova    = request.form.get("senha_nova",    "").strip()
+        confirm = request.form.get("senha_confirm", "").strip()
+
+        if not verificar_senha(atual, aluno.senha or ""):
+            flash("Senha atual incorreta.", "erro")
+            return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+        if len(nova) < 6:
+            flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
+            return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+        if nova != confirm:
+            flash("As senhas não conferem.", "erro")
+            return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+        aluno.senha = hash_senha(nova)
+        db.session.commit()
+        flash("Senha alterada com sucesso!", "sucesso")
+        return redirect("/aluno/dashboard")
+
+    return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+
+# ─── FINANCEIRO ───────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
@@ -140,7 +178,7 @@ def aluno_financeiro():
                            mensalidades=aluno.mensalidades)
 
 
-# ─── NOTAS / BOLETIM ─────────────────────────────────────────────────────────────
+# ─── NOTAS / BOLETIM ──────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
@@ -183,7 +221,7 @@ def aluno_notas():
     )
 
 
-# ─── FREQUÊNCIA ───────────────────────────────────────────────────────────────────
+# ─── FREQUÊNCIA ───────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
@@ -198,7 +236,7 @@ def aluno_frequencia():
                            total=total, presente=presente, pct=pct)
 
 
-# ─── CURSOS ───────────────────────────────────────────────────────────────────────
+# ─── CURSOS ───────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/cursos")
 @aluno_login_required
@@ -248,7 +286,7 @@ def aluno_curso_detalhe(curso_id):
             aluno_id=aluno.id, liberado=1
         ).all()
     }
-    todas_materias   = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
+    todas_materias    = Materia.query.filter_by(curso_id=curso_id, ativa=1).all()
     materias_visiveis = [m for m in todas_materias if m.id in ids_liberados]
 
     conteudos_raw = []
@@ -271,8 +309,8 @@ def aluno_curso_detalhe(curso_id):
             aluno_id=aluno.id, liberado=1
         ).all()
     }
-    provas_do_curso  = Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
-    provas_visiveis  = []
+    provas_do_curso = Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
+    provas_visiveis = []
     for p in provas_do_curso:
         if p.id not in ids_provas_liberadas:
             continue
@@ -285,7 +323,7 @@ def aluno_curso_detalhe(curso_id):
             "pode_fazer":        usadas < p.tentativas,
         })
 
-    atividades  = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
+    atividades   = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
     entregas_map = {
         e.atividade_id: e
         for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
@@ -303,7 +341,7 @@ def aluno_curso_detalhe(curso_id):
     )
 
 
-# ─── ROTA LEGADA /conteudo ───────────────────────────────────────────────────────────
+# ─── ROTA LEGADA /conteudo ────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
@@ -341,7 +379,7 @@ def concluir_aula_legado(conteudo_id):
     return redirect("/aluno/cursos")
 
 
-# ─── ENTREGA DE ATIVIDADE ───────────────────────────────────────────────────────────
+# ─── ENTREGA DE ATIVIDADE ─────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/atividade/<int:atividade_id>/entregar", methods=["POST"])
 @aluno_login_required
@@ -378,7 +416,7 @@ def entregar_atividade(atividade_id):
     return redirect(f"/aluno/cursos/{atividade.curso_id}")
 
 
-# ─── SERVIR ARQUIVO DE CONTEÚDO ────────────────────────────────────────────────────────
+# ─── SERVIR ARQUIVO DE CONTEÚDO ───────────────────────────────────────────────
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
