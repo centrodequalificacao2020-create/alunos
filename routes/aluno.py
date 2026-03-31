@@ -227,6 +227,7 @@ def editar_aluno(id):
 @aluno_bp.route("/aluno/<int:aluno_id>")
 @login_required
 def ficha_aluno(aluno_id):
+    from models import RespostaProva, RespostaExercicio, Prova, Exercicio
     aluno      = db.get_or_404(Aluno, aluno_id)
     matriculas = (
         Matricula.query
@@ -247,12 +248,72 @@ def ficha_aluno(aluno_id):
         c for c in Curso.query.order_by(Curso.nome).all()
         if c.id not in ids_ativos
     ]
+
+    # Tentativas de provas
+    try:
+        tentativas_provas = (
+            RespostaProva.query
+            .filter_by(aluno_id=aluno_id)
+            .order_by(RespostaProva.finalizado_em.desc())
+            .all()
+        )
+        for tp in tentativas_provas:
+            p = db.session.get(Prova, tp.prova_id)
+            tp.prova_titulo = p.titulo if p else f"Prova #{tp.prova_id}"
+    except Exception:
+        tentativas_provas = []
+
+    # Tentativas de exercícios
+    try:
+        tentativas_exercicios = (
+            RespostaExercicio.query
+            .filter_by(aluno_id=aluno_id)
+            .order_by(RespostaExercicio.finalizado_em.desc())
+            .all()
+        )
+        for te in tentativas_exercicios:
+            ex = db.session.get(Exercicio, te.exercicio_id)
+            te.exercicio_titulo = ex.titulo if ex else f"Exercício #{te.exercicio_id}"
+    except Exception:
+        tentativas_exercicios = []
+
     return render_template(
         "ficha_aluno.html",
         aluno=aluno,
         matriculas=matriculas,
         cursos_disponiveis=cursos_disponiveis,
+        tentativas_provas=tentativas_provas,
+        tentativas_exercicios=tentativas_exercicios,
     )
+
+
+@aluno_bp.route("/aluno/<int:aluno_id>/tentativa_prova/<int:resp_id>/excluir", methods=["POST"])
+@login_required
+def excluir_tentativa_prova(aluno_id, resp_id):
+    from models import RespostaProva, RespostaQuestao
+    rp = db.get_or_404(RespostaProva, resp_id)
+    if rp.aluno_id != aluno_id:
+        flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+    RespostaQuestao.query.filter_by(resposta_prova_id=resp_id).delete()
+    db.session.delete(rp)
+    db.session.commit()
+    flash("Tentativa de prova exclu\u00edda.", "sucesso")
+    return redirect(f"/aluno/{aluno_id}")
+
+
+@aluno_bp.route("/aluno/<int:aluno_id>/tentativa_exercicio/<int:resp_id>/excluir", methods=["POST"])
+@login_required
+def excluir_tentativa_exercicio(aluno_id, resp_id):
+    from models import RespostaExercicio
+    re = db.get_or_404(RespostaExercicio, resp_id)
+    if re.aluno_id != aluno_id:
+        flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+    db.session.delete(re)
+    db.session.commit()
+    flash("Tentativa de exerc\u00edcio exclu\u00edda.", "sucesso")
+    return redirect(f"/aluno/{aluno_id}")
 
 
 @aluno_bp.route("/aluno/<int:aluno_id>/acesso_conteudo/<int:curso_id>", methods=["POST"])

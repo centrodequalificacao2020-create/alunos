@@ -145,4 +145,132 @@
     <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
     {% endif %}
 </div>
+
+{# ===== TENTATIVAS DE PROVAS ===== #}
+<div class="card" style="margin-top:20px">
+    <h3>📝 Tentativas de Provas</h3>
+    {% if tentativas_provas %}
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Prova</th>
+                    <th>Tentativa</th>
+                    <th>Realizada em</th>
+                    <th>Nota</th>
+                    <th>Situação</th>
+                    <th style="text-align:center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tp in tentativas_provas %}
+                <tr>
+                    <td style="font-size:12px;color:var(--color-text-muted);">{{ tp.id }}</td>
+                    <td><strong>{{ tp.prova_titulo }}</strong></td>
+                    <td style="text-align:center;">{{ tp.tentativa_num }}</td>
+                    <td style="font-size:12px;">
+                        {% if tp.finalizado_em %}
+                            {% set d = tp.finalizado_em %}
+                            {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+                            {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="text-align:center;font-weight:600;">
+                        {% if tp.nota_obtida is not none %}
+                            {{ tp.nota_obtida }}
+                        {% else %}
+                            <span style="color:var(--color-text-muted);font-style:italic;">Pendente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if tp.aprovado == 1 %}
+                            <span class="status-ativo">Aprovado</span>
+                        {% elif tp.aprovado == 0 %}
+                            <span class="status-inativo">Reprovado</span>
+                        {% else %}
+                            <span style="color:var(--color-text-muted);font-size:12px;">Aguard. correção</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:center;">
+                        <form method="POST"
+                              action="/aluno/{{ aluno.id }}/tentativa_prova/{{ tp.id }}/excluir"
+                              onsubmit="return confirm('Excluir esta tentativa da prova {{ tp.prova_titulo|replace(\"'\",\"\\'\") }}? Esta ação libera uma tentativa para o aluno.')">
+                            <button type="submit" class="btn btn-sm btn-vermelho tooltip"
+                                    data-tooltip="Excluir tentativa">🗑️ Apagar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">Nenhuma tentativa de prova registrada.</p>
+    {% endif %}
+</div>
+
+{# ===== TENTATIVAS DE EXERCÍCIOS ===== #}
+<div class="card" style="margin-top:20px">
+    <h3>🏋️ Tentativas de Exercícios</h3>
+    {% if tentativas_exercicios %}
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Exercício</th>
+                    <th>Tentativa</th>
+                    <th>Realizado em</th>
+                    <th>Nota</th>
+                    <th>Situação</th>
+                    <th style="text-align:center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for te in tentativas_exercicios %}
+                <tr>
+                    <td style="font-size:12px;color:var(--color-text-muted);">{{ te.id }}</td>
+                    <td><strong>{{ te.exercicio_titulo }}</strong></td>
+                    <td style="text-align:center;">{{ te.tentativa_num }}</td>
+                    <td style="font-size:12px;">
+                        {% if te.finalizado_em %}
+                            {% set d = te.finalizado_em %}
+                            {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+                            {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="text-align:center;font-weight:600;">
+                        {% if te.nota_obtida is not none %}
+                            {{ te.nota_obtida }}
+                        {% else %}
+                            <span style="color:var(--color-text-muted);font-style:italic;">Pendente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if te.aprovado == 1 %}
+                            <span class="status-ativo">Aprovado</span>
+                        {% elif te.aprovado == 0 %}
+                            <span class="status-inativo">Reprovado</span>
+                        {% else %}
+                            <span style="color:var(--color-text-muted);font-size:12px;">Aguard. correção</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:center;">
+                        <form method="POST"
+                              action="/aluno/{{ aluno.id }}/tentativa_exercicio/{{ te.id }}/excluir"
+                              onsubmit="return confirm('Excluir esta tentativa do exercício {{ te.exercicio_titulo|replace(\"'\",\"\\'\") }}? Esta ação libera uma tentativa para o aluno.')">
+                            <button type="submit" class="btn btn-sm btn-vermelho tooltip"
+                                    data-tooltip="Excluir tentativa">🗑️ Apagar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">Nenhuma tentativa de exercício registrada.</p>
+    {% endif %}
+</div>
 {% endblock %}
