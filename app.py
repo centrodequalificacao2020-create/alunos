@@ -48,6 +48,7 @@ def create_app(config_class=Config):
     from routes.atividades   import atividades_bp
     from routes.liberacoes   import liberacoes_bp
     from routes.admin_utils  import admin_utils_bp
+    from routes.exercicios   import exercicios_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(cursos_bp)
@@ -64,6 +65,7 @@ def create_app(config_class=Config):
     app.register_blueprint(atividades_bp)
     app.register_blueprint(liberacoes_bp)
     app.register_blueprint(admin_utils_bp)
+    app.register_blueprint(exercicios_bp)
     app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
 
     @app.template_filter("moeda")
