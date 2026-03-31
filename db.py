@@ -6,14 +6,10 @@ db = SQLAlchemy()
 def init_db(app):
     db.init_app(app)
     with app.app_context():
-        # Importa todos os models para que o SQLAlchemy os registre
-        # antes de chamar create_all.
-        # O try/except garante que erros em tabelas novas (ex: provas)
-        # nao derrubem o startup quando a tabela ainda nao existe no banco.
         try:
             import models  # noqa: F401
-        except Exception:
-            pass
+        except Exception as e:
+            app.logger.warning(f"models import warning: {e}")
         try:
             db.create_all()
         except Exception as e:

@@ -1,5 +1,5 @@
 from db import db
-from datetime import datetime, date
+from datetime import datetime
 from enums import (
     PerfilUsuario, StatusMatricula, StatusAluno,
     StatusMensalidade, StatusFrequencia, ResultadoNota
@@ -34,9 +34,9 @@ class Curso(db.Model):
     valor_total     = db.Column(db.Float, default=0)
     tipo            = db.Column(db.String(60))
     duracao         = db.Column(db.String(60))
-    alunos          = db.relationship("Aluno",     backref="curso",  lazy=True)
-    matriculas      = db.relationship("Matricula", backref="curso",  lazy=True)
-    materias        = db.relationship("Materia",   backref="curso",  lazy=True)
+    alunos          = db.relationship("Aluno",     back_populates="curso_rel", lazy=True)
+    matriculas      = db.relationship("Matricula", backref="curso", lazy=True)
+    materias        = db.relationship("Materia",   backref="curso", lazy=True)
 
 
 class Turma(db.Model):
@@ -47,8 +47,8 @@ class Turma(db.Model):
     tipo       = db.Column(db.String(20), nullable=False)
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"))
     curso      = db.relationship("Curso", backref="turmas")
-    alunos     = db.relationship("TurmaAluno", backref="turma", lazy=True,
-                                 cascade="all, delete-orphan")
+    alunos_turma = db.relationship("TurmaAluno", backref="turma", lazy=True,
+                                   cascade="all, delete-orphan")
 
 
 class TurmaAluno(db.Model):
@@ -57,7 +57,6 @@ class TurmaAluno(db.Model):
     id       = db.Column(db.Integer, primary_key=True)
     turma_id = db.Column(db.Integer, db.ForeignKey("turmas.id"), nullable=False)
     aluno_id = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    aluno    = db.relationship("Aluno", backref="turmas")
 
 
 class LoginHistoricoAluno(db.Model):
@@ -97,26 +96,24 @@ class Aluno(db.Model):
     responsavel_telefone   = db.Column(db.String(20))
     responsavel_parentesco = db.Column(db.String(40))
     senha                  = db.Column(db.String(256))
-    mensalidades           = db.relationship("Mensalidade", backref="aluno", lazy=True)
-    matriculas             = db.relationship("Matricula",   backref="aluno", lazy=True)
-    frequencias            = db.relationship("Frequencia",  backref="aluno", lazy=True)
-    notas                  = db.relationship("Nota",        backref="aluno", lazy=True)
-    login_historico        = db.relationship(
+
+    curso_rel    = db.relationship("Curso",      back_populates="alunos", lazy=True, foreign_keys=[curso_id])
+    mensalidades = db.relationship("Mensalidade", backref="aluno", lazy=True)
+    matriculas   = db.relationship("Matricula",   backref="aluno", lazy=True)
+    frequencias  = db.relationship("Frequencia",  backref="aluno", lazy=True)
+    notas        = db.relationship("Nota",         backref="aluno", lazy=True)
+    login_historico = db.relationship(
         "LoginHistoricoAluno", backref="aluno", lazy=True,
         cascade="all, delete-orphan",
         primaryjoin="Aluno.id == LoginHistoricoAluno.aluno_id",
         foreign_keys="[LoginHistoricoAluno.aluno_id]",
     )
-    # materias_liberadas removido do backref direto para evitar
-    # erro de startup quando a tabela materias_liberadas nao existe
 
     @property
     def matricula_ativa(self):
         return next(
-            (
-                m for m in self.matriculas
-                if (m.status or "").strip().upper() == StatusMatricula.ATIVA.value
-            ),
+            (m for m in self.matriculas
+             if (m.status or "").strip().upper() == StatusMatricula.ATIVA.value),
             None
         )
 
@@ -124,18 +121,6 @@ class Aluno(db.Model):
     def curso_ativo(self):
         m = self.matricula_ativa
         return m.curso if m else None
-
-    @property
-    def ultimo_login(self):
-        try:
-            return (
-                LoginHistoricoAluno.query
-                .filter_by(aluno_id=self.id)
-                .order_by(LoginHistoricoAluno.login_em.desc())
-                .first()
-            )
-        except Exception:
-            return None
 
 
 class AcessoConteudoCurso(db.Model):
@@ -166,7 +151,6 @@ class MateriaLiberada(db.Model):
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
-    materia      = db.relationship("Materia", backref="liberacoes", lazy=True)
 
 
 class ProvaLiberada(db.Model):
@@ -178,12 +162,10 @@ class ProvaLiberada(db.Model):
     )
     id           = db.Column(db.Integer, primary_key=True)
     aluno_id     = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    # FK para provas usa string para evitar erro de ordem de definicao
     prova_id     = db.Column(db.Integer, db.ForeignKey("provas.id"), nullable=False)
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
-    prova        = db.relationship("Prova", backref="liberacoes", lazy=True)
 
 
 class Matricula(db.Model):
@@ -401,6 +383,10 @@ class Prova(db.Model):
                                    order_by="Questao.ordem")
     respostas    = db.relationship("RespostaProva", backref="prova", lazy=True,
                                    cascade="all, delete-orphan")
+    liberacoes   = db.relationship("ProvaLiberada",
+                                   primaryjoin="Prova.id == ProvaLiberada.prova_id",
+                                   foreign_keys="[ProvaLiberada.prova_id]",
+                                   backref="prova", lazy=True)
 
     @property
     def total_questoes(self):
