@@ -169,7 +169,6 @@ class ProvaLiberada(db.Model):
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
-    # tentativas extras concedidas pelo instrutor
     extra_tentativas = db.Column(db.Integer, default=0)
 
 
@@ -187,7 +186,6 @@ class ExercicioLiberado(db.Model):
     liberado      = db.Column(db.Integer, nullable=False, default=1)
     liberado_por  = db.Column(db.String(120))
     liberado_em   = db.Column(db.String(19))
-    # tentativas extras concedidas pelo instrutor
     extra_tentativas = db.Column(db.Integer, default=0)
 
 
@@ -344,11 +342,11 @@ class Exercicio(db.Model):
     materia_id   = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
     titulo       = db.Column(db.String(200), nullable=False)
     descricao    = db.Column(db.Text)
-    arquivo      = db.Column(db.String(300))   # PDF ou imagem de apoio
+    arquivo      = db.Column(db.String(300))
     ordem        = db.Column(db.Integer, default=1)
     ativo        = db.Column(db.Integer, default=1)
-    tentativas   = db.Column(db.Integer, default=1)  # max tentativas padrao
-    tempo_limite = db.Column(db.Integer, nullable=True)  # minutos; None = sem limite
+    tentativas   = db.Column(db.Integer, default=1)
+    tempo_limite = db.Column(db.Integer, nullable=True)
     criado_em    = db.Column(db.String(19))
     criado_por   = db.Column(db.String(80))
     liberacoes   = db.relationship("ExercicioLiberado",
@@ -406,16 +404,56 @@ class RespostaExercicio(db.Model):
         db.Index("ix_resp_ex_exercicio_id", "exercicio_id"),
     )
     id            = db.Column(db.Integer, primary_key=True)
-    aluno_id      = db.Column(db.Integer, db.ForeignKey("alunos.id"),    nullable=False)
+    aluno_id      = db.Column(db.Integer, db.ForeignKey("alunos.id"),     nullable=False)
     exercicio_id  = db.Column(db.Integer, db.ForeignKey("exercicios.id"), nullable=False)
     tentativa_num = db.Column(db.Integer, default=1)
     iniciado_em   = db.Column(db.String(19))
     finalizado_em = db.Column(db.String(19))
-    # resultado imediato (nao vai para o boletim)
     total_questoes   = db.Column(db.Integer, default=0)
     acertos          = db.Column(db.Integer, default=0)
     percentual       = db.Column(db.Float,   default=0.0)
     aluno = db.relationship("Aluno", backref="respostas_exercicio", lazy=True)
+    # respostas individuais por questao
+    respostas_questao = db.relationship(
+        "RespostaExercicioQuestao",
+        backref="resposta_exercicio",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
+
+
+class RespostaExercicioQuestao(db.Model):
+    """Resposta individual de uma questao de exercicio — equivalente a RespostaQuestao para provas."""
+    __tablename__ = "respostas_exercicio_questao"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "resposta_exercicio_id", "questao_id",
+            name="uq_resp_ex_questao",
+        ),
+        db.Index("ix_resp_ex_q_resp_id",   "resposta_exercicio_id"),
+        db.Index("ix_resp_ex_q_questao_id", "questao_id"),
+    )
+    id                    = db.Column(db.Integer, primary_key=True)
+    resposta_exercicio_id = db.Column(
+        db.Integer,
+        db.ForeignKey("respostas_exercicio.id"),
+        nullable=False,
+    )
+    questao_id            = db.Column(
+        db.Integer,
+        db.ForeignKey("exercicio_questoes.id"),
+        nullable=False,
+    )
+    alternativa_id        = db.Column(
+        db.Integer,
+        db.ForeignKey("exercicio_alternativas.id"),
+        nullable=True,
+    )
+    acertou               = db.Column(db.Integer, default=0)   # 1 = correto, 0 = errado
+    # relationships para facilitar joins
+    questao      = db.relationship("ExercicioQuestao",    lazy="joined")
+    alternativa  = db.relationship("ExercicioAlternativa", lazy="joined",
+                                   foreign_keys=[alternativa_id])
 
 
 class Nota(db.Model):

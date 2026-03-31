@@ -49,7 +49,6 @@ def _ids_materias_liberadas(aluno_id, curso_id):
 
 
 def _curso_tem_acesso(aluno_id, curso_id):
-    """Curso é acessível se o aluno tiver ao menos 1 matéria liberada."""
     return len(_ids_materias_liberadas(aluno_id, curso_id)) > 0
 
 
@@ -276,7 +275,6 @@ def curso_detalhe(curso_id):
 
     curso = db.get_or_404(Curso, curso_id)
 
-    # Matérias liberadas
     ids_mat_lib = _ids_materias_liberadas(aluno.id, curso_id)
     materias_do_curso = (
         db.session.query(Materia)
@@ -286,7 +284,6 @@ def curso_detalhe(curso_id):
     )
     materias_liberadas = [m for m in materias_do_curso if m.id in ids_mat_lib]
 
-    # Conteúdos das matérias liberadas
     ids_materias_visiveis = {m.id for m in materias_liberadas}
     conteudos_raw = (
         db.session.query(Conteudo, ProgressoAula)
@@ -309,7 +306,6 @@ def curso_detalhe(curso_id):
         for item in conteudos_por_mat.get(mat.id, []):
             conteudos.append(item)
 
-    # Exercícios liberados — com info de tentativas
     exercicios_por_mat = {}
     try:
         from models import Exercicio, ExercicioLiberado, RespostaExercicio
@@ -338,7 +334,6 @@ def curso_detalhe(curso_id):
     except Exception:
         pass
 
-    # Provas liberadas
     provas = []
     try:
         from models import Prova, ProvaLiberada, RespostaProva
@@ -358,7 +353,6 @@ def curso_detalhe(curso_id):
     except Exception:
         pass
 
-    # Atividades liberadas
     atividades   = []
     entregas_map = {}
     try:
@@ -400,7 +394,7 @@ def curso_detalhe(curso_id):
     )
 
 
-# ─── REALIZAR EXERCÍCIO (exibir questões) ─────────────────────────────────────
+# ─── REALIZAR EXERCÍCIO ──────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/exercicio/<int:ex_id>")
 @aluno_login_required
@@ -417,8 +411,8 @@ def realizar_exercicio(ex_id):
         flash("Este exercício não está liberado para você.", "erro")
         return redirect("/aluno/cursos")
 
-    usadas    = RespostaExercicio.query.filter_by(exercicio_id=ex_id, aluno_id=aluno_id).count()
-    max_tent  = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
+    usadas   = RespostaExercicio.query.filter_by(exercicio_id=ex_id, aluno_id=aluno_id).count()
+    max_tent = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
     if usadas >= max_tent:
         flash("Você já esgotou todas as tentativas neste exercício.", "erro")
         return redirect("/aluno/cursos")
@@ -429,19 +423,22 @@ def realizar_exercicio(ex_id):
 
     return render_template(
         "aluno/realizar_exercicio.html",
-        aluno         = aluno,
-        exercicio     = ex,
-        usadas        = usadas,
+        aluno          = aluno,
+        exercicio      = ex,
+        usadas         = usadas,
         max_tentativas = max_tent,
     )
 
 
-# ─── RESPONDER EXERCÍCIO (processar respostas) ────────────────────────────────
+# ─── RESPONDER EXERCÍCIO ────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/responder", methods=["POST"])
 @aluno_login_required
 def responder_exercicio(ex_id):
-    from models import Exercicio, ExercicioLiberado, RespostaExercicio, ExercicioAlternativa
+    from models import (
+        Exercicio, ExercicioLiberado, RespostaExercicio,
+        ExercicioAlternativa, RespostaExercicioQuestao,
+    )
     aluno_id = session["aluno_id"]
 
     ex = db.get_or_404(Exercicio, ex_id)
@@ -457,13 +454,28 @@ def responder_exercicio(ex_id):
         flash("Tentativas esgotadas.", "erro")
         return redirect("/aluno/cursos")
 
-    # Calcular acertos
-    acertos       = 0
+    # ── Criar o registro pai primeiro (flush para obter o id) ──
+    tentativa_num  = usadas + 1
+    agora          = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     total_questoes = len(ex.questoes)
-    gabarito      = []   # lista para exibir no resultado
 
+    resp = RespostaExercicio(
+        aluno_id       = aluno_id,
+        exercicio_id   = ex_id,
+        tentativa_num  = tentativa_num,
+        iniciado_em    = agora,
+        finalizado_em  = agora,
+        total_questoes = total_questoes,
+        acertos        = 0,
+        percentual     = 0.0,
+    )
+    db.session.add(resp)
+    db.session.flush()   # gera resp.id sem commitar
+
+    # ── Processar cada questão e gravar RespostaExercicioQuestao ──
+    acertos = 0
     for q in ex.questoes:
-        alt_id_str   = request.form.get(f"questao_{q.id}")
+        alt_id_str    = request.form.get(f"questao_{q.id}")
         alt_escolhida = None
         correta_alt   = None
         acertou       = False
@@ -479,70 +491,57 @@ def responder_exercicio(ex_id):
                 acertou  = True
                 acertos += 1
 
-        gabarito.append({
-            "questao":     q,
-            "escolhida":   alt_escolhida,
-            "correta":     correta_alt,
-            "acertou":     acertou,
-        })
+        db.session.add(RespostaExercicioQuestao(
+            resposta_exercicio_id = resp.id,
+            questao_id            = q.id,
+            alternativa_id        = alt_escolhida.id if alt_escolhida else None,
+            acertou               = 1 if acertou else 0,
+        ))
 
-    percentual = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
-    tentativa_num = usadas + 1
-
-    resp = RespostaExercicio(
-        aluno_id       = aluno_id,
-        exercicio_id   = ex_id,
-        tentativa_num  = tentativa_num,
-        iniciado_em    = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        finalizado_em  = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        total_questoes = total_questoes,
-        acertos        = acertos,
-        percentual     = percentual,
-    )
-    db.session.add(resp)
+    # ── Atualizar totais no registro pai ──
+    percentual   = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
+    resp.acertos   = acertos
+    resp.percentual = percentual
     db.session.commit()
 
-    # Salvar gabarito na sessão para exibir no resultado
-    session[f"ex_resultado_{ex_id}"] = {
-        "resp_id":       resp.id,
-        "acertos":       acertos,
-        "total":         total_questoes,
-        "percentual":    percentual,
-        "tentativa_num": tentativa_num,
-        "gabarito": [
-            {
-                "enunciado":    g["questao"].enunciado,
-                "tipo":         g["questao"].tipo,
-                "acertou":      g["acertou"],
-                "escolhida":    g["escolhida"].texto if g["escolhida"] else None,
-                "correta":      g["correta"].texto   if g["correta"]   else None,
-            }
-            for g in gabarito
-        ]
-    }
-
-    return redirect(f"/aluno/exercicio/{ex_id}/resultado")
+    # Redireciona passando apenas o resp.id na URL — sem colocar gabarito na sessão
+    return redirect(f"/aluno/exercicio/{ex_id}/resultado/{resp.id}")
 
 
 # ─── RESULTADO DO EXERCÍCIO ───────────────────────────────────────────────────
 
-@portal_aluno_bp.route("/exercicio/<int:ex_id>/resultado")
+@portal_aluno_bp.route("/exercicio/<int:ex_id>/resultado/<int:resp_id>")
 @aluno_login_required
-def resultado_exercicio(ex_id):
-    from models import Exercicio
-    aluno    = db.get_or_404(Aluno, session["aluno_id"])
+def resultado_exercicio(ex_id, resp_id):
+    from models import Exercicio, RespostaExercicio, RespostaExercicioQuestao, ExercicioAlternativa
+    aluno_id = session["aluno_id"]
+    aluno    = db.get_or_404(Aluno, aluno_id)
     ex       = db.get_or_404(Exercicio, ex_id)
-    dados    = session.pop(f"ex_resultado_{ex_id}", None)
+    resp     = db.get_or_404(RespostaExercicio, resp_id)
 
-    if not dados:
-        flash("Nenhum resultado encontrado. Realize o exercício primeiro.", "aviso")
-        return redirect("/aluno/cursos")
+    # Garante que o resultado pertence ao aluno
+    if resp.aluno_id != aluno_id or resp.exercicio_id != ex_id:
+        abort(403)
+
+    # Monta gabarito a partir do banco
+    gabarito = []
+    for rq in sorted(resp.respostas_questao, key=lambda r: r.questao.ordem):
+        q            = rq.questao
+        correta_alt  = next((a for a in q.alternativas if a.correta), None)
+        escolhida    = rq.alternativa  # joined load
+        gabarito.append({
+            "questao":   q,
+            "escolhida": escolhida,
+            "correta":   correta_alt,
+            "acertou":   bool(rq.acertou),
+        })
 
     return render_template(
         "aluno/resultado_exercicio.html",
         aluno     = aluno,
         exercicio = ex,
-        dados     = dados,
+        resp      = resp,
+        gabarito  = gabarito,
     )
 
 
