@@ -50,6 +50,28 @@
     color:var(--color-primary,#2980b9);
     border-bottom-color:var(--color-primary,#2980b9);
 }
+/* botões de ação da tabela — sem emoji, cores distintas */
+.btn-acao-questoes  { background:#3b82f6; color:#fff; border:none; }
+.btn-acao-questoes:hover  { background:#2563eb; color:#fff; }
+.btn-acao-editar    { background:#f59e0b; color:#fff; border:none; }
+.btn-acao-editar:hover    { background:#d97706; color:#fff; }
+.btn-acao-resultados{ background:#8b5cf6; color:#fff; border:none; }
+.btn-acao-resultados:hover{ background:#7c3aed; color:#fff; }
+.btn-acao-ativar    { background:#10b981; color:#fff; border:none; }
+.btn-acao-ativar:hover    { background:#059669; color:#fff; }
+.btn-acao-desativar { background:#6b7280; color:#fff; border:none; }
+.btn-acao-desativar:hover { background:#4b5563; color:#fff; }
+.btn-acao-excluir   { background:#ef4444; color:#fff; border:none; }
+.btn-acao-excluir:hover   { background:#dc2626; color:#fff; }
+/* campo de alternativa — garante que seja editável */
+.alt-input-texto {
+    flex:1; margin-bottom:0;
+    background:#fff !important;
+    color:#222 !important;
+    pointer-events:auto !important;
+    user-select:text !important;
+    -webkit-user-select:text !important;
+}
 </style>
 {% endblock %}
 
@@ -71,9 +93,9 @@
 
     {# ─── Tabs ─── #}
     <div class="pea-tabs">
-        <a href="/provas"     class="pea-tab ativo">&#128221; Provas</a>
-        <a href="/exercicios" class="pea-tab">&#9998; Exerc&#237;cios</a>
-        <a href="/atividades" class="pea-tab">&#128203; Atividades</a>
+        <a href="/provas"     class="pea-tab ativo">Provas</a>
+        <a href="/exercicios" class="pea-tab">Exerc&#237;cios</a>
+        <a href="/atividades" class="pea-tab">Atividades</a>
     </div>
 
     <p class="card-subtitle">Gerencie as avalia&ccedil;&otilde;es por curso e mat&eacute;ria.</p>
@@ -129,16 +151,18 @@
                 {% endif %}
             </td>
             <td class="acoes">
-                <a href="/provas/{{ p.id }}/questoes"   class="btn btn-editar tooltip" data-tooltip="Quest&otilde;es">&#128203;</a>
-                <a href="/provas/{{ p.id }}/editar"     class="btn btn-editar tooltip" data-tooltip="Editar">&#9999;&#65039;</a>
-                <a href="/provas/{{ p.id }}/resultados" class="btn btn-info tooltip" data-tooltip="Resultados">&#128202;</a>
+                <a href="/provas/{{ p.id }}/questoes"   class="btn btn-sm btn-acao-questoes">Quest&otilde;es</a>
+                <a href="/provas/{{ p.id }}/editar"     class="btn btn-sm btn-acao-editar">Editar</a>
+                <a href="/provas/{{ p.id }}/resultados" class="btn btn-sm btn-acao-resultados">Resultados</a>
                 <form method="post" action="/provas/{{ p.id }}/toggle" style="display:inline">
-                    <button type="submit" class="btn {{ 'btn-lixeira' if p.ativa else 'btn-verde' }} tooltip"
-                            data-tooltip="{{ 'Desativar' if p.ativa else 'Ativar' }}">{{ '&#9208;' if p.ativa else '&#9654;' }}</button>
+                    <button type="submit"
+                            class="btn btn-sm {{ 'btn-acao-desativar' if p.ativa else 'btn-acao-ativar' }}">
+                        {{ 'Desativar' if p.ativa else 'Ativar' }}
+                    </button>
                 </form>
                 <form method="post" action="/provas/{{ p.id }}/excluir" style="display:inline"
                       onsubmit="return confirm('Excluir a prova e todas as quest&otilde;es?')">
-                    <button type="submit" class="btn btn-vermelho tooltip" data-tooltip="Excluir">&#128465;</button>
+                    <button type="submit" class="btn btn-sm btn-acao-excluir">Excluir</button>
                 </form>
             </td>
         </tr>
@@ -285,12 +309,12 @@
             {% endif %}
 
             <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end">
-                <button class="btn btn-editar btn-sm" onclick="abrirEditarQuestao({{ q.id }})">&#9999;&#65039; Editar</button>
+                <button class="btn btn-sm btn-acao-editar" onclick="abrirEditarQuestao({{ q.id }})">Editar</button>
                 <form method="post" action="/provas/{{ prova.id }}/questoes"
                       onsubmit="return confirm('Remover esta quest&atilde;o?')">
                     <input type="hidden" name="acao"       value="del_questao">
                     <input type="hidden" name="questao_id" value="{{ q.id }}">
-                    <button type="submit" class="btn btn-vermelho btn-sm">&#128465; Remover</button>
+                    <button type="submit" class="btn btn-sm btn-acao-excluir">Remover</button>
                 </form>
             </div>
         </div>
@@ -301,7 +325,7 @@
 
         <div class="acoes-form" style="margin-top:16px">
             <a href="/provas" class="btn" style="background:#e0e0e0;color:#333">&larr; Voltar</a>
-            <a href="/provas/{{ prova.id }}/resultados" class="btn btn-info">&#128202; Ver resultados</a>
+            <a href="/provas/{{ prova.id }}/resultados" class="btn btn-acao-resultados">Ver resultados</a>
         </div>
     </div>
 
@@ -311,7 +335,7 @@
             <h3 style="margin:0">Adicionar Quest&atilde;o</h3>
         </div>
 
-        <form method="post" action="/provas/{{ prova.id }}/questoes" id="formNovaQuestao">
+        <form method="post" action="/provas/{{ prova.id }}/questoes" id="formNovaQuestao" autocomplete="off">
             <input type="hidden" name="acao" value="add_questao">
 
             <div class="campo">
@@ -341,8 +365,8 @@
                     <div class="alt-linha" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
                         <input type="checkbox" name="alt_correta" value="{{ i }}" title="Marcar como correta">
                         <input type="text" name="alt_texto"
-                               placeholder="Alternativa {{ ['A','B','C','D'][i] }}"
-                               style="flex:1;margin-bottom:0">
+                               class="alt-input-texto"
+                               placeholder="Alternativa {{ ['A','B','C','D'][i] }}">
                     </div>
                     {% endfor %}
                 </div>
@@ -366,12 +390,12 @@
 
             <div id="blocoDissertat" style="display:none">
                 <div class="alerta" style="background:#f3e5f5;border:none;color:#7b1fa2;margin-top:12px">
-                    &#9997;&#65039; Quest&atilde;o dissertativa &mdash; a corre&ccedil;&atilde;o ser&aacute; feita manualmente pelo instrutor.
+                    Quest&atilde;o dissertativa &mdash; a corre&ccedil;&atilde;o ser&aacute; feita manualmente pelo instrutor.
                 </div>
             </div>
 
             <div class="acoes-form">
-                <button type="submit" class="btn btn-azul">&#9989; Adicionar quest&atilde;o</button>
+                <button type="submit" class="btn btn-azul">Adicionar quest&atilde;o</button>
             </div>
         </form>
     </div>
@@ -379,8 +403,8 @@
 
 <div class="modal-overlay" id="modalEditarQuestao">
     <div class="modal" style="max-width:560px;text-align:left">
-        <h3>&#9999;&#65039; Editar Quest&atilde;o</h3>
-        <form method="post" action="/provas/{{ prova.id }}/questoes" id="formEditarQuestao">
+        <h3>Editar Quest&atilde;o</h3>
+        <form method="post" action="/provas/{{ prova.id }}/questoes" id="formEditarQuestao" autocomplete="off">
             <input type="hidden" name="acao"       value="edit_questao">
             <input type="hidden" name="questao_id" id="editQuestaoId">
             <div class="campo">
@@ -393,7 +417,7 @@
             </div>
             <div id="editAlternativas"></div>
             <div class="acoes-form">
-                <button type="submit" class="btn btn-azul">&#128190; Salvar</button>
+                <button type="submit" class="btn btn-azul">Salvar</button>
                 <button type="button" class="btn" style="background:#e0e0e0;color:#333" onclick="fecharModal()">Cancelar</button>
             </div>
         </form>
@@ -421,7 +445,7 @@
             <h2 style="margin:0">Resultados &mdash; {{ prova.titulo }}</h2>
         </div>
         {% if pendentes %}
-        <span class="badge-pendentes">&#9201; {{ pendentes }} aguardando corre&ccedil;&atilde;o</span>
+        <span class="badge-pendentes">{{ pendentes }} aguardando corre&ccedil;&atilde;o</span>
         {% endif %}
     </div>
     <p class="card-subtitle">Curso: {{ prova.curso.nome }} | Nota m&iacute;nima: {{ prova.nota_minima }}</p>
@@ -452,17 +476,17 @@
             </td>
             <td style="text-align:center">
                 {% if r.nota_obtida is none %}
-                    <span class="resultado-pendente">&#9711; Aguardando</span>
+                    <span class="resultado-pendente">Aguardando</span>
                 {% elif r.aprovado %}
-                    <span class="resultado-aprovado">&#9989; Aprovado</span>
+                    <span class="resultado-aprovado">Aprovado</span>
                 {% else %}
-                    <span class="resultado-reprovado">&#10060; Reprovado</span>
+                    <span class="resultado-reprovado">Reprovado</span>
                 {% endif %}
             </td>
             <td class="acoes">
-                <a href="/provas/corrigir/{{ r.id }}" class="btn btn-editar tooltip"
-                   data-tooltip="{% if r.nota_obtida is none %}Corrigir dissertativas{% else %}Rever corre&ccedil;&atilde;o{% endif %}">
-                   {% if r.nota_obtida is none %}&#9997;&#65039; Corrigir{% else %}&#128270; Ver{% endif %}
+                <a href="/provas/corrigir/{{ r.id }}"
+                   class="btn btn-sm {{ 'btn-acao-editar' if r.nota_obtida is none else 'btn-acao-resultados' }}">
+                   {{ 'Corrigir' if r.nota_obtida is none else 'Ver' }}
                 </a>
             </td>
         </tr>
@@ -517,7 +541,8 @@ function abrirEditarQuestao(qId) {
             html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
                 <input type="checkbox" name="alt_correta" value="${i}" ${a.correta ? 'checked' : ''}>
                 <input type="hidden"   name="alt_id"     value="${a.id}">
-                <input type="text"     name="alt_texto"  value="${a.texto.replace(/"/g,'&quot;')}" style="flex:1;margin-bottom:0">
+                <input type="text"     name="alt_texto"  class="alt-input-texto"
+                       value="${a.texto.replace(/"/g,'&quot;')}">
             </div>`;
         });
     }
@@ -547,7 +572,7 @@ function adicionarAlternativa() {
     div.className = 'alt-linha';
     div.style     = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
     div.innerHTML = `<input type="checkbox" name="alt_correta" value="${altCount}" title="Marcar como correta">
-                     <input type="text" name="alt_texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}" style="flex:1;margin-bottom:0">`;
+                     <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}">`;
     lista.appendChild(div);
     altCount++;
 }
