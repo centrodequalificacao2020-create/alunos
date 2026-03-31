@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, session, redirect, flash, request
 from db import db
 from models import (
     Aluno, Matricula, Materia, Prova, Exercicio,
-    MateriaLiberada, ProvaLiberada, ExercicioLiberado, CursoMateria
+    MateriaLiberada, ProvaLiberada, ExercicioLiberado, CursoMateria, Curso
 )
 from security import login_required
 from datetime import datetime
@@ -29,11 +29,18 @@ def painel_liberacoes(aluno_id):
         return redirect("/dashboard")
 
     aluno = db.get_or_404(Aluno, aluno_id)
+
+    # Filtro opcional por curso_id via query string
+    curso_id_filtro = request.args.get("curso_id", type=int)
+    curso_filtrado  = db.session.get(Curso, curso_id_filtro) if curso_id_filtro else None
+
     matriculas_ativas = [
         m for m in aluno.matriculas if m.status.upper() == "ATIVA"
     ]
+    if curso_id_filtro:
+        matriculas_ativas = [m for m in matriculas_ativas if m.curso_id == curso_id_filtro]
 
-    # IDs já liberados (matéria inclui curso_id agora)
+    # IDs já liberados
     ids_mat_lib = {
         (ml.materia_id, ml.curso_id)
         for ml in MateriaLiberada.query.filter_by(aluno_id=aluno_id, liberado=1).all()
@@ -54,7 +61,6 @@ def painel_liberacoes(aluno_id):
         curso = m.curso
         if not curso:
             continue
-        # Matérias vinculadas a este curso
         materias = (
             db.session.query(Materia)
             .join(CursoMateria, CursoMateria.materia_id == Materia.id)
@@ -63,7 +69,6 @@ def painel_liberacoes(aluno_id):
         )
         provas = Prova.query.filter_by(curso_id=curso.id, ativa=1).all()
 
-        # Exercícios agrupados por matéria
         exercicios_por_mat = {}
         for mat in materias:
             exs = Exercicio.query.filter_by(materia_id=mat.id, ativo=1)\
@@ -72,19 +77,20 @@ def painel_liberacoes(aluno_id):
                 exercicios_por_mat[mat.id] = exs
 
         cursos_data.append({
-            "curso":             curso,
-            "materias":          materias,
-            "provas":            provas,
+            "curso":              curso,
+            "materias":           materias,
+            "provas":             provas,
             "exercicios_por_mat": exercicios_por_mat,
-            "ids_mat_lib":       ids_mat_lib,
-            "ids_prova_lib":     ids_prova_lib,
-            "ids_ex_lib":        ids_ex_lib,
+            "ids_mat_lib":        ids_mat_lib,
+            "ids_prova_lib":      ids_prova_lib,
+            "ids_ex_lib":         ids_ex_lib,
         })
 
     return render_template(
         "liberacoes.html",
-        aluno       = aluno,
-        cursos_data = cursos_data,
+        aluno          = aluno,
+        cursos_data    = cursos_data,
+        curso_filtrado = curso_filtrado,
     )
 
 
@@ -132,7 +138,7 @@ def toggle_materia():
     nome    = materia.nome if materia else f"ID {materia_id}"
     flash(f"Matéria '{nome}' {'liberada' if liberado_val else 'bloqueada'}.",
           "sucesso" if liberado_val else "aviso")
-    return redirect(f"/liberacoes/aluno/{aluno_id}")
+    return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}")
 
 
 # ─── TOGGLE PROVA ───────────────────────────────────────────────────────────────
@@ -175,9 +181,12 @@ def toggle_prova():
     db.session.commit()
     prova = db.session.get(Prova, prova_id)
     nome  = prova.titulo if prova else f"ID {prova_id}"
+    # tenta manter o filtro de curso no redirect
+    curso_id = prova.curso_id if prova else 0
     flash(f"Prova '{nome}' {'liberada' if liberado_val else 'bloqueada'}.",
           "sucesso" if liberado_val else "aviso")
-    return redirect(f"/liberacoes/aluno/{aluno_id}")
+    redirect_url = f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}" if curso_id else f"/liberacoes/aluno/{aluno_id}"
+    return redirect(redirect_url)
 
 
 # ─── TOGGLE EXERCÍCIO ─────────────────────────────────────────────────────────
@@ -220,6 +229,9 @@ def toggle_exercicio():
     db.session.commit()
     ex   = db.session.get(Exercicio, exercicio_id)
     nome = ex.titulo if ex else f"ID {exercicio_id}"
+    # tenta manter o filtro de curso no redirect
+    curso_id = ex.materia.curso_materias[0].curso_id if (ex and ex.materia and ex.materia.curso_materias) else 0
     flash(f"Exercício '{nome}' {'liberado' if liberado_val else 'bloqueado'}.",
           "sucesso" if liberado_val else "aviso")
-    return redirect(f"/liberacoes/aluno/{aluno_id}")
+    redirect_url = f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}" if curso_id else f"/liberacoes/aluno/{aluno_id}"
+    return redirect(redirect_url)
