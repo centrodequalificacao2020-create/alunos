@@ -139,7 +139,7 @@ class AcessoConteudoCurso(db.Model):
 
 
 class MateriaLiberada(db.Model):
-    """Libera uma matéria para um aluno dentro de um curso específico."""
+    """Libera uma materia para um aluno dentro de um curso especifico."""
     __tablename__ = "materias_liberadas"
     __table_args__ = (
         db.UniqueConstraint("aluno_id", "materia_id", "curso_id", name="uq_materia_liberada"),
@@ -169,10 +169,12 @@ class ProvaLiberada(db.Model):
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
+    # tentativas extras concedidas pelo instrutor
+    extra_tentativas = db.Column(db.Integer, default=0)
 
 
 class ExercicioLiberado(db.Model):
-    """Libera um exercício de matéria para um aluno específico."""
+    """Libera um exercicio para um aluno especifico."""
     __tablename__ = "exercicios_liberados"
     __table_args__ = (
         db.UniqueConstraint("aluno_id", "exercicio_id", name="uq_exercicio_liberado"),
@@ -185,6 +187,26 @@ class ExercicioLiberado(db.Model):
     liberado      = db.Column(db.Integer, nullable=False, default=1)
     liberado_por  = db.Column(db.String(120))
     liberado_em   = db.Column(db.String(19))
+    # tentativas extras concedidas pelo instrutor
+    extra_tentativas = db.Column(db.Integer, default=0)
+
+
+class AtividadeLiberada(db.Model):
+    """Controla tentativas extras de atividade por aluno."""
+    __tablename__ = "atividades_liberadas"
+    __table_args__ = (
+        db.UniqueConstraint("aluno_id", "atividade_id", name="uq_atividade_liberada"),
+        db.Index("ix_atv_lib_aluno",     "aluno_id"),
+        db.Index("ix_atv_lib_atividade", "atividade_id"),
+    )
+    id            = db.Column(db.Integer, primary_key=True)
+    aluno_id      = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    atividade_id  = db.Column(db.Integer, db.ForeignKey("atividades.id"), nullable=False)
+    liberado_por  = db.Column(db.String(120))
+    liberado_em   = db.Column(db.String(19))
+    extra_tentativas = db.Column(db.Integer, default=0)
+    aluno        = db.relationship("Aluno",     backref="atividades_liberadas", lazy=True)
+    atividade    = db.relationship("Atividade", backref="liberacoes",           lazy=True)
 
 
 class Matricula(db.Model):
@@ -313,23 +335,87 @@ class Conteudo(db.Model):
 
 
 class Exercicio(db.Model):
-    """Exercício vinculado a uma matéria. Pode ter arquivo (PDF/imagem) e/ou enunciado."""
+    """Exercicio vinculado a uma materia. Funciona como mini-prova (questoes + resultado imediato, sem lancar nota no boletim)."""
     __tablename__ = "exercicios"
     __table_args__ = (
         db.Index("ix_exercicios_materia_id", "materia_id"),
     )
+    id           = db.Column(db.Integer, primary_key=True)
+    materia_id   = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    titulo       = db.Column(db.String(200), nullable=False)
+    descricao    = db.Column(db.Text)
+    arquivo      = db.Column(db.String(300))   # PDF ou imagem de apoio
+    ordem        = db.Column(db.Integer, default=1)
+    ativo        = db.Column(db.Integer, default=1)
+    tentativas   = db.Column(db.Integer, default=1)  # max tentativas padrao
+    tempo_limite = db.Column(db.Integer, nullable=True)  # minutos; None = sem limite
+    criado_em    = db.Column(db.String(19))
+    criado_por   = db.Column(db.String(80))
+    liberacoes   = db.relationship("ExercicioLiberado",
+                                   backref="exercicio", lazy=True,
+                                   cascade="all, delete-orphan")
+    questoes     = db.relationship("ExercicioQuestao", backref="exercicio", lazy=True,
+                                   cascade="all, delete-orphan",
+                                   order_by="ExercicioQuestao.ordem")
+    respostas    = db.relationship("RespostaExercicio", backref="exercicio", lazy=True,
+                                   cascade="all, delete-orphan")
+
+    @property
+    def total_questoes(self):
+        return len(self.questoes)
+
+    @property
+    def total_pontos(self):
+        return sum(q.pontos for q in self.questoes)
+
+
+class ExercicioQuestao(db.Model):
+    """Questao de um exercicio (mesma estrutura das questoes de prova)."""
+    __tablename__ = "exercicio_questoes"
+    __table_args__ = (
+        db.Index("ix_ex_questao_exercicio_id", "exercicio_id"),
+    )
+    id           = db.Column(db.Integer, primary_key=True)
+    exercicio_id = db.Column(db.Integer, db.ForeignKey("exercicios.id"), nullable=False)
+    enunciado    = db.Column(db.Text, nullable=False)
+    tipo         = db.Column(db.String(30), nullable=False, default="multipla_escolha")
+    ordem        = db.Column(db.Integer, default=1)
+    pontos       = db.Column(db.Float, default=1.0)
+    alternativas = db.relationship("ExercicioAlternativa", backref="questao", lazy=True,
+                                   cascade="all, delete-orphan",
+                                   order_by="ExercicioAlternativa.ordem")
+
+
+class ExercicioAlternativa(db.Model):
+    __tablename__ = "exercicio_alternativas"
+    __table_args__ = (
+        db.Index("ix_ex_alt_questao_id", "questao_id"),
+    )
     id         = db.Column(db.Integer, primary_key=True)
-    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
-    titulo     = db.Column(db.String(200), nullable=False)
-    descricao  = db.Column(db.Text)
-    arquivo    = db.Column(db.String(300))   # PDF ou imagem
+    questao_id = db.Column(db.Integer, db.ForeignKey("exercicio_questoes.id"), nullable=False)
+    texto      = db.Column(db.Text, nullable=False)
+    correta    = db.Column(db.Integer, default=0)
     ordem      = db.Column(db.Integer, default=1)
-    ativo      = db.Column(db.Integer, default=1)
-    criado_em  = db.Column(db.String(19))
-    criado_por = db.Column(db.String(80))
-    liberacoes = db.relationship("ExercicioLiberado",
-                                 backref="exercicio", lazy=True,
-                                 cascade="all, delete-orphan")
+
+
+class RespostaExercicio(db.Model):
+    """Resultado de uma tentativa de exercicio por aluno. NAO e lancado no boletim."""
+    __tablename__ = "respostas_exercicio"
+    __table_args__ = (
+        db.Index("ix_resp_ex_aluno_id",    "aluno_id"),
+        db.Index("ix_resp_ex_exercicio_id", "exercicio_id"),
+    )
+    id            = db.Column(db.Integer, primary_key=True)
+    aluno_id      = db.Column(db.Integer, db.ForeignKey("alunos.id"),    nullable=False)
+    exercicio_id  = db.Column(db.Integer, db.ForeignKey("exercicios.id"), nullable=False)
+    tentativa_num = db.Column(db.Integer, default=1)
+    iniciado_em   = db.Column(db.String(19))
+    finalizado_em = db.Column(db.String(19))
+    # resultado imediato (nao vai para o boletim)
+    total_questoes   = db.Column(db.Integer, default=0)
+    acertos          = db.Column(db.Integer, default=0)
+    percentual       = db.Column(db.Float,   default=0.0)
+    aluno = db.relationship("Aluno", backref="respostas_exercicio", lazy=True)
 
 
 class Nota(db.Model):
