@@ -244,61 +244,35 @@ def notas_aluno():
                            matricula=matricula, notas=notas, media=media)
 
 
-# ─── CONTEÚDO ─────────────────────────────────────────────────────────────────
+# ─── CURSOS (lista) ───────────────────────────────────────────────────────────
 
-@portal_aluno_bp.route("/conteudo")
+@portal_aluno_bp.route("/cursos")
 @aluno_login_required
-def conteudo_cursos():
+def cursos_aluno():
     aluno      = db.get_or_404(Aluno, session["aluno_id"])
     matriculas = _matriculas_ativas(aluno.id)
 
-    cursos_info = []
+    cursos_com_acesso = []
     for mat in matriculas:
         curso = db.session.get(Curso, mat.curso_id)
         if not curso:
             continue
-        liberado   = _curso_liberado(aluno.id, curso.id)
-        total      = 0
-        concluidos = 0
-        if liberado:
-            try:
-                total = (
-                    db.session.query(Conteudo)
-                    .join(Materia,      Materia.id == Conteudo.materia_id)
-                    .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-                    .filter(CursoMateria.curso_id == curso.id)
-                    .count()
-                )
-                concluidos = (
-                    db.session.query(ProgressoAula)
-                    .join(Conteudo, Conteudo.id == ProgressoAula.conteudo_id)
-                    .join(Materia,  Materia.id  == Conteudo.materia_id)
-                    .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-                    .filter(
-                        CursoMateria.curso_id   == curso.id,
-                        ProgressoAula.aluno_id  == aluno.id,
-                        ProgressoAula.concluido == 1
-                    ).count()
-                )
-            except OperationalError:
-                pass
-        pct = round(concluidos / total * 100) if total > 0 else 0
-        cursos_info.append({
-            "curso":         curso,
-            "matricula":     mat,
-            "total":         total,
-            "concluidos":    concluidos,
-            "pct":           pct,
-            "liberado":      liberado,
-            "data_cadastro": getattr(mat, "data_cadastro", None),
+        liberado = _curso_liberado(aluno.id, curso.id)
+        cursos_com_acesso.append({
+            "curso":     curso,
+            "matricula": mat,
+            "liberado":  liberado,
         })
 
-    return render_template("aluno/conteudo_cursos.html", aluno=aluno, cursos_info=cursos_info)
+    return render_template("aluno/cursos.html", aluno=aluno,
+                           cursos_com_acesso=cursos_com_acesso)
 
 
-@portal_aluno_bp.route("/conteudo/<int:curso_id>")
+# ─── CURSO DETALHE ────────────────────────────────────────────────────────────
+
+@portal_aluno_bp.route("/cursos/<int:curso_id>")
 @aluno_login_required
-def conteudo_aluno(curso_id):
+def curso_detalhe(curso_id):
     aluno = db.get_or_404(Aluno, session["aluno_id"])
     matricula = Matricula.query.filter(
         Matricula.aluno_id == aluno.id,
@@ -310,7 +284,7 @@ def conteudo_aluno(curso_id):
     if not _curso_liberado(aluno.id, curso_id):
         flash("O acesso ao conteúdo deste curso ainda não foi liberado. "
               "Entre em contato com a secretaria.", "aviso")
-        return redirect("/aluno/conteudo")
+        return redirect("/aluno/cursos")
 
     curso = db.get_or_404(Curso, curso_id)
     conteudos = (
@@ -328,7 +302,7 @@ def conteudo_aluno(curso_id):
     )
 
     # Provas liberadas para este aluno neste curso
-    provas_info = []
+    provas = []
     try:
         from models import Prova, ProvaLiberada, RespostaProva
         ids_liberadas = {
@@ -339,7 +313,7 @@ def conteudo_aluno(curso_id):
             if p.id not in ids_liberadas:
                 continue
             usadas = RespostaProva.query.filter_by(prova_id=p.id, aluno_id=aluno.id).count()
-            provas_info.append({
+            provas.append({
                 "prova":             p,
                 "tentativas_usadas": usadas,
                 "pode_fazer":        usadas < (p.tentativas or 1),
@@ -364,10 +338,24 @@ def conteudo_aluno(curso_id):
     except Exception:
         pass
 
-    return render_template("aluno/conteudo.html",
+    return render_template("aluno/curso_detalhe.html",
                            aluno=aluno, curso=curso, conteudos=conteudos,
-                           provas_info=provas_info,
+                           provas=provas,
                            atividades=atividades, entregas_map=entregas_map)
+
+
+# ─── CONTEÚDO (rotas antigas mantidas por compatibilidade) ────────────────────
+
+@portal_aluno_bp.route("/conteudo")
+@aluno_login_required
+def conteudo_cursos():
+    return redirect("/aluno/cursos")
+
+
+@portal_aluno_bp.route("/conteudo/<int:curso_id>")
+@aluno_login_required
+def conteudo_aluno(curso_id):
+    return redirect(f"/aluno/cursos/{curso_id}")
 
 
 # ─── ARQUIVO ──────────────────────────────────────────────────────────────────
@@ -410,7 +398,7 @@ def abrir_arquivo_conteudo(conteudo_id):
 
 # ─── CONCLUIR AULA ────────────────────────────────────────────────────────────
 
-@portal_aluno_bp.route("/concluir/<int:conteudo_id>")
+@portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>")
 @aluno_login_required
 def concluir_aula(conteudo_id):
     conteudo = db.get_or_404(Conteudo, conteudo_id)
@@ -429,7 +417,7 @@ def concluir_aula(conteudo_id):
     else:
         p.concluido = 1
     db.session.commit()
-    return redirect(f"/aluno/conteudo/{curso_id}" if curso_id else "/aluno/conteudo")
+    return redirect(f"/aluno/cursos/{curso_id}" if curso_id else "/aluno/cursos")
 
 
 # ─── ENTREGAR ATIVIDADE ───────────────────────────────────────────────────────
@@ -466,11 +454,11 @@ def entregar_atividade(atividade_id):
         entrega.status = "entregue"
         db.session.commit()
         flash("Atividade entregue com sucesso!", "sucesso")
-        return redirect(f"/aluno/conteudo/{atividade.curso_id}")
+        return redirect(f"/aluno/cursos/{atividade.curso_id}")
     except OperationalError:
         db.session.rollback()
         flash("Erro ao entregar atividade. Tente novamente.", "erro")
-        return redirect("/aluno/conteudo")
+        return redirect("/aluno/cursos")
 
 
 # ─── TROCAR SENHA ─────────────────────────────────────────────────────────────
