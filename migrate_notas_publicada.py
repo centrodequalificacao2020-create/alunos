@@ -10,27 +10,25 @@ import sqlite3
 import os
 import sys
 
-# Localiza o banco de dados pelo mesmo caminho que o app usa
-DB_PATH = os.environ.get("DATABASE_URL", "instance/escola.db")
-if DB_PATH.startswith("sqlite:///"):
-    DB_PATH = DB_PATH[len("sqlite:///"):]
+BASEDIR = os.path.abspath(os.path.dirname(__file__))
+
+# Banco fica na raiz do projeto: cqp.db
+# DATABASE_URL do .env tem precedencia, caso esteja configurado diferente
+env_url = os.environ.get("DATABASE_URL", "")
+if env_url.startswith("sqlite:///"):
+    DB_PATH = env_url[len("sqlite:///"):]
+else:
+    DB_PATH = os.path.join(BASEDIR, "cqp.db")
 
 if not os.path.exists(DB_PATH):
-    # Tenta caminhos alternativos comuns
-    for alt in ("escola.db", "instance/escola.db", "/home/CQP/alunos/instance/escola.db"):
-        if os.path.exists(alt):
-            DB_PATH = alt
-            break
-    else:
-        print(f"[ERRO] Banco nao encontrado: {DB_PATH}")
-        sys.exit(1)
+    print(f"[ERRO] Banco nao encontrado: {DB_PATH}")
+    sys.exit(1)
 
 print(f"Banco de dados: {DB_PATH}")
 
 conn = sqlite3.connect(DB_PATH)
 cur  = conn.cursor()
 
-# Verifica se a coluna ja existe
 cur.execute("PRAGMA table_info(notas)")
 colunas = [row[1] for row in cur.fetchall()]
 print(f"Colunas atuais de 'notas': {colunas}")
