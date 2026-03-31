@@ -40,6 +40,12 @@
 }
 .perc-acerto  { color:#15803d; font-weight:700; }
 .perc-erro    { color:#b91c1c; font-weight:700; }
+/* BUG3-FIX: estilos para gabarito detalhado na view resultados */
+.gab-row td { vertical-align:top; padding:8px 6px; }
+.gab-acertou  { color:#15803d; font-weight:600; }
+.gab-errou    { color:#b91c1c; font-weight:600; }
+.gab-nao-resp { color:#888; font-style:italic; }
+.gab-correta  { color:#15803d; font-size:12px; }
 </style>
 {% endblock %}
 
@@ -253,6 +259,7 @@
         </thead>
         <tbody>
         {% for r in respostas %}
+        {# linha agregada #}
         <tr>
             <td>{{ r.aluno.nome }}</td>
             <td style="text-align:center">{{ r.tentativa_num }}</td>
@@ -265,7 +272,6 @@
                 </span>
             </td>
             <td class="acoes">
-                {# Formulário de extra tentativa #}
                 <form method="post" action="/exercicios/{{ exercicio.id }}/extra-tentativas"
                       style="display:inline;">
                     <input type="hidden" name="aluno_id" value="{{ r.aluno_id }}">
@@ -273,8 +279,57 @@
                     <button type="submit" class="btn btn-sm btn-acao-extra"
                             title="Conceder 1 tentativa extra">+Tentativa</button>
                 </form>
+                {# BUG3-FIX: botao para expandir/recolher gabarito detalhado #}
+                {% if r.respostas_questao %}
+                <button type="button" class="btn btn-sm btn-acao-questoes"
+                        onclick="toggleGabarito({{ r.id }})" title="Ver gabarito">Gabarito</button>
+                {% endif %}
             </td>
         </tr>
+        {# BUG3-FIX: linha de gabarito detalhado (oculta por padrao) #}
+        {% if r.respostas_questao %}
+        <tr id="gab-{{ r.id }}" style="display:none;background:#f8fafc">
+            <td colspan="7" style="padding:0">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead>
+                        <tr style="background:#e0e7ef">
+                            <th style="padding:6px 10px;text-align:left;width:40px">#</th>
+                            <th style="padding:6px 10px;text-align:left">Quest&atilde;o</th>
+                            <th style="padding:6px 10px;text-align:left">Resposta do aluno</th>
+                            <th style="padding:6px 10px;text-align:left">Resposta correta</th>
+                            <th style="padding:6px 10px;text-align:center">Resultado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for rq in r.respostas_questao | sort(attribute='questao.ordem') %}
+                    <tr class="gab-row">
+                        <td style="padding:6px 10px;color:#999">{{ loop.index }}</td>
+                        <td style="padding:6px 10px">{{ rq.questao.enunciado }}</td>
+                        <td style="padding:6px 10px">
+                            {% if rq.alternativa %}
+                                {{ rq.alternativa.texto }}
+                            {% else %}
+                                <span class="gab-nao-resp">N&atilde;o respondida</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:6px 10px" class="gab-correta">
+                            {% set correta = rq.questao.alternativas | selectattr('correta') | first | default(none) %}
+                            {{ correta.texto if correta else '&mdash;' }}
+                        </td>
+                        <td style="padding:6px 10px;text-align:center">
+                            {% if rq.acertou %}
+                                <span class="gab-acertou">&#10003; Certo</span>
+                            {% else %}
+                                <span class="gab-errou">&#10007; Errado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {% endif %}
         {% endfor %}
         </tbody>
     </table>
@@ -360,6 +415,13 @@ function adicionarAlternativa() {
                             placeholder="Alternativa ${String.fromCharCode(65+altCount)}">`;
     lista.appendChild(div);
     altCount++;
+}
+
+// BUG3-FIX: toggle gabarito detalhado do instrutor
+function toggleGabarito(respId) {
+    const row = document.getElementById('gab-' + respId);
+    if (!row) return;
+    row.style.display = row.style.display === 'none' ? '' : 'none';
 }
 </script>
 {% endblock %}

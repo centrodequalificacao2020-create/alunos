@@ -306,6 +306,8 @@ def curso_detalhe(curso_id):
         for item in conteudos_por_mat.get(mat.id, []):
             conteudos.append(item)
 
+    # BUG5-FIX: nao silencia OperationalError (tabela ausente deve aparecer como erro
+    # explicito, nao como lista vazia)
     exercicios_por_mat = {}
     try:
         from models import Exercicio, ExercicioLiberado, RespostaExercicio
@@ -324,15 +326,15 @@ def curso_detalhe(curso_id):
                 ).count()
                 max_tent = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
                 exs_mat.append({
-                    "exercicio":        ex,
+                    "exercicio":         ex,
                     "tentativas_usadas": usadas,
-                    "max_tentativas":   max_tent,
-                    "pode_fazer":       usadas < max_tent,
+                    "max_tentativas":    max_tent,
+                    "pode_fazer":        usadas < max_tent,
                 })
             if exs_mat:
                 exercicios_por_mat[mat.id] = exs_mat
-    except Exception:
-        pass
+    except OperationalError as e:
+        flash(f"Erro ao carregar exercícios: {e}. Execute a migração pendente.", "erro")
 
     provas = []
     try:
@@ -454,57 +456,59 @@ def responder_exercicio(ex_id):
         flash("Tentativas esgotadas.", "erro")
         return redirect("/aluno/cursos")
 
-    # ── Criar o registro pai primeiro (flush para obter o id) ──
     tentativa_num  = usadas + 1
     agora          = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     total_questoes = len(ex.questoes)
 
-    resp = RespostaExercicio(
-        aluno_id       = aluno_id,
-        exercicio_id   = ex_id,
-        tentativa_num  = tentativa_num,
-        iniciado_em    = agora,
-        finalizado_em  = agora,
-        total_questoes = total_questoes,
-        acertos        = 0,
-        percentual     = 0.0,
-    )
-    db.session.add(resp)
-    db.session.flush()   # gera resp.id sem commitar
+    # BUG4-FIX: flush/commit dentro de try-except com rollback explicito
+    try:
+        resp = RespostaExercicio(
+            aluno_id       = aluno_id,
+            exercicio_id   = ex_id,
+            tentativa_num  = tentativa_num,
+            iniciado_em    = agora,
+            finalizado_em  = agora,
+            total_questoes = total_questoes,
+            acertos        = 0,
+            percentual     = 0.0,
+        )
+        db.session.add(resp)
+        db.session.flush()  # gera resp.id sem commitar
 
-    # ── Processar cada questão e gravar RespostaExercicioQuestao ──
-    acertos = 0
-    for q in ex.questoes:
-        alt_id_str    = request.form.get(f"questao_{q.id}")
-        alt_escolhida = None
-        correta_alt   = None
-        acertou       = False
+        acertos = 0
+        for q in ex.questoes:
+            alt_id_str    = request.form.get(f"questao_{q.id}")
+            alt_escolhida = None
+            acertou       = False
 
-        if q.tipo in ("multipla_escolha", "verdadeiro_falso"):
-            correta_alt = next((a for a in q.alternativas if a.correta), None)
-            if alt_id_str:
-                try:
-                    alt_escolhida = db.session.get(ExercicioAlternativa, int(alt_id_str))
-                except (ValueError, TypeError):
-                    alt_escolhida = None
-            if alt_escolhida and correta_alt and alt_escolhida.id == correta_alt.id:
-                acertou  = True
-                acertos += 1
+            if q.tipo in ("multipla_escolha", "verdadeiro_falso"):
+                correta_alt = next((a for a in q.alternativas if a.correta), None)
+                if alt_id_str:
+                    try:
+                        alt_escolhida = db.session.get(ExercicioAlternativa, int(alt_id_str))
+                    except (ValueError, TypeError):
+                        alt_escolhida = None
+                if alt_escolhida and correta_alt and alt_escolhida.id == correta_alt.id:
+                    acertou  = True
+                    acertos += 1
 
-        db.session.add(RespostaExercicioQuestao(
-            resposta_exercicio_id = resp.id,
-            questao_id            = q.id,
-            alternativa_id        = alt_escolhida.id if alt_escolhida else None,
-            acertou               = 1 if acertou else 0,
-        ))
+            db.session.add(RespostaExercicioQuestao(
+                resposta_exercicio_id = resp.id,
+                questao_id            = q.id,
+                alternativa_id        = alt_escolhida.id if alt_escolhida else None,
+                acertou               = 1 if acertou else 0,
+            ))
 
-    # ── Atualizar totais no registro pai ──
-    percentual   = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
-    resp.acertos   = acertos
-    resp.percentual = percentual
-    db.session.commit()
+        percentual      = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
+        resp.acertos    = acertos
+        resp.percentual = percentual
+        db.session.commit()
 
-    # Redireciona passando apenas o resp.id na URL — sem colocar gabarito na sessão
+    except Exception as e:
+        db.session.rollback()
+        flash("Erro ao processar suas respostas. Tente novamente.", "erro")
+        return redirect(f"/aluno/exercicio/{ex_id}")
+
     return redirect(f"/aluno/exercicio/{ex_id}/resultado/{resp.id}")
 
 
@@ -513,25 +517,25 @@ def responder_exercicio(ex_id):
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/resultado/<int:resp_id>")
 @aluno_login_required
 def resultado_exercicio(ex_id, resp_id):
-    from models import Exercicio, RespostaExercicio, RespostaExercicioQuestao, ExercicioAlternativa
+    from models import Exercicio, RespostaExercicio
     aluno_id = session["aluno_id"]
     aluno    = db.get_or_404(Aluno, aluno_id)
     ex       = db.get_or_404(Exercicio, ex_id)
     resp     = db.get_or_404(RespostaExercicio, resp_id)
 
-    # Garante que o resultado pertence ao aluno
+    # Garante que o resultado pertence ao aluno e esta finalizado (BUG6-FIX)
     if resp.aluno_id != aluno_id or resp.exercicio_id != ex_id:
         abort(403)
+    if not resp.finalizado_em:
+        abort(404)
 
-    # Monta gabarito a partir do banco
     gabarito = []
     for rq in sorted(resp.respostas_questao, key=lambda r: r.questao.ordem):
-        q            = rq.questao
-        correta_alt  = next((a for a in q.alternativas if a.correta), None)
-        escolhida    = rq.alternativa  # joined load
+        q           = rq.questao
+        correta_alt = next((a for a in q.alternativas if a.correta), None)
         gabarito.append({
             "questao":   q,
-            "escolhida": escolhida,
+            "escolhida": rq.alternativa,
             "correta":   correta_alt,
             "acertou":   bool(rq.acertou),
         })
