@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v15)
+   SISTEMA ESCOLAR — style.css  (v16)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ───────────────────────────────────────────────────── */
@@ -149,6 +149,35 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
 .campo-valido   { border-color: var(--color-success) !important; }
 .campo-invalido { border-color: var(--color-danger)  !important; }
 
+/* ── 7c. INPUT ALTERNATIVA (questoes/provas) ──────────────
+   Anula as regras de form input{width:100%;margin-bottom:16px}
+   para que o flex:1 funcione dentro de .alt-linha
+──────────────────────────────────────────────────────────── */
+.alt-input-texto {
+    flex: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin-bottom: 0 !important;
+    height: 32px !important;
+    padding: 5px 8px !important;
+    font-size: var(--font-size-base) !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: var(--radius-sm) !important;
+    background: #fff !important;
+    color: var(--color-text) !important;
+    cursor: text !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    display: block !important;
+}
+.alt-input-texto:focus {
+    outline: none !important;
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 3px rgba(21,101,192,.15) !important;
+}
+
 /* ── 8. BOTÕES ──────────────────────────────────────────── */
 .btn {
     display: inline-flex;
@@ -228,7 +257,7 @@ td.acoes-texto {
     text-align: center;
     vertical-align: middle;
     white-space: nowrap;
-    min-width: 220px;
+    min-width: 260px;
     padding: 8px 14px;
 }
 

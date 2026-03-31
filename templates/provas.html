@@ -50,39 +50,19 @@
     color:var(--color-primary,#2980b9);
     border-bottom-color:var(--color-primary,#2980b9);
 }
-/* FIX: botoes de acao — sem quebra de linha, tamanho minimo da celula */
-.btn-acao-questoes  { background:#3b82f6; color:#fff; border:none; white-space:nowrap; }
+/* botoes de acao com texto — cores */
+.btn-acao-questoes  { background:#3b82f6; color:#fff; border:none; }
 .btn-acao-questoes:hover  { background:#2563eb; color:#fff; }
-.btn-acao-editar    { background:#f59e0b; color:#fff; border:none; white-space:nowrap; }
+.btn-acao-editar    { background:#f59e0b; color:#fff; border:none; }
 .btn-acao-editar:hover    { background:#d97706; color:#fff; }
-.btn-acao-resultados{ background:#8b5cf6; color:#fff; border:none; white-space:nowrap; }
+.btn-acao-resultados{ background:#8b5cf6; color:#fff; border:none; }
 .btn-acao-resultados:hover{ background:#7c3aed; color:#fff; }
-.btn-acao-ativar    { background:#10b981; color:#fff; border:none; white-space:nowrap; }
+.btn-acao-ativar    { background:#10b981; color:#fff; border:none; }
 .btn-acao-ativar:hover    { background:#059669; color:#fff; }
-.btn-acao-desativar { background:#6b7280; color:#fff; border:none; white-space:nowrap; }
+.btn-acao-desativar { background:#6b7280; color:#fff; border:none; }
 .btn-acao-desativar:hover { background:#4b5563; color:#fff; }
-.btn-acao-excluir   { background:#ef4444; color:#fff; border:none; white-space:nowrap; }
+.btn-acao-excluir   { background:#ef4444; color:#fff; border:none; }
 .btn-acao-excluir:hover   { background:#dc2626; color:#fff; }
-/* FIX: celula acoes nao comprime os botoes */
-td.acoes {
-    white-space:nowrap;
-    min-width:260px;
-}
-/* FIX: campo de alternativa editavel no modal */
-.alt-input-texto {
-    flex:1; margin-bottom:0;
-    background:#fff !important;
-    color:#222 !important;
-    pointer-events:auto !important;
-    user-select:text !important;
-    -webkit-user-select:text !important;
-    cursor:text !important;
-    opacity:1 !important;
-    border:1px solid #d1d5db !important;
-    border-radius:4px !important;
-    padding:5px 8px !important;
-    font-size:14px !important;
-}
 /* botao remover alternativa no modal */
 .btn-rm-alt {
     flex-shrink:0;
@@ -90,8 +70,24 @@ td.acoes {
     border:none; border-radius:4px;
     padding:4px 8px; font-size:13px;
     cursor:pointer; line-height:1;
+    margin-bottom:0 !important;
+    height:auto !important;
+    width:auto !important;
 }
 .btn-rm-alt:hover { background:#fca5a5; }
+/* linha de alternativa — layout flex correto */
+.alt-linha {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.alt-linha input[type="checkbox"] {
+    flex-shrink: 0;
+    width: auto !important;
+    height: auto !important;
+    margin-bottom: 0 !important;
+}
 </style>
 {% endblock %}
 
@@ -144,7 +140,7 @@ td.acoes {
                 <th>Tentativas</th>
                 <th>Tempo</th>
                 <th>Status</th>
-                <th class="acoes">A&ccedil;&otilde;es</th>
+                <th class="acoes-texto">A&ccedil;&otilde;es</th>
             </tr>
         </thead>
         <tbody>
@@ -169,7 +165,7 @@ td.acoes {
                     <span class="prova-badge prova-badge-rasc">Rascunho</span>
                 {% endif %}
             </td>
-            <td class="acoes">
+            <td class="acoes-texto">
                 <a href="/provas/{{ p.id }}/questoes"   class="btn btn-sm btn-acao-questoes">Quest&otilde;es</a>
                 <a href="/provas/{{ p.id }}/editar"     class="btn btn-sm btn-acao-editar">Editar</a>
                 <a href="/provas/{{ p.id }}/resultados" class="btn btn-sm btn-acao-resultados">Resultados</a>
@@ -381,7 +377,7 @@ td.acoes {
                 <div class="secao" style="margin-top:14px">Alternativas <small>(marque a correta)</small></div>
                 <div id="listaAlternativas">
                     {% for i in range(4) %}
-                    <div class="alt-linha" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <div class="alt-linha">
                         <input type="checkbox" name="alt_correta" value="{{ i }}" title="Marcar como correta">
                         <input type="text" name="alt_texto"
                                class="alt-input-texto"
@@ -435,9 +431,7 @@ td.acoes {
                 <label>Pontua&ccedil;&atilde;o</label>
                 <input type="number" name="pontos" id="editPontos" step="0.5" min="0.5" style="max-width:100px">
             </div>
-            {# FIX: container de alternativas editaveis gerado pelo JS #}
             <div id="editAlternativas"></div>
-            {# FIX: botao para adicionar nova alternativa no modal de edicao #}
             <div id="editBlocoAddAlt" style="margin-top:6px;display:none">
                 <button type="button" class="btn btn-sm"
                         style="background:#e3f2fd;color:#1565c0"
@@ -488,7 +482,7 @@ td.acoes {
                 <th>Enviada em</th>
                 <th>Nota</th>
                 <th>Resultado</th>
-                <th class="acoes">A&ccedil;&otilde;es</th>
+                <th class="acoes-texto">A&ccedil;&otilde;es</th>
             </tr>
         </thead>
         <tbody>
@@ -510,7 +504,7 @@ td.acoes {
                     <span class="resultado-reprovado">Reprovado</span>
                 {% endif %}
             </td>
-            <td class="acoes">
+            <td class="acoes-texto">
                 <a href="/provas/corrigir/{{ r.id }}"
                    class="btn btn-sm {{ 'btn-acao-editar' if r.nota_obtida is none else 'btn-acao-resultados' }}">
                    {{ 'Corrigir' if r.nota_obtida is none else 'Ver' }}
@@ -553,7 +547,6 @@ const questoesData = {
     {% endif %}
 };
 
-// FIX: contador global de novas alternativas adicionadas no modal
 let modalAltCount = 0;
 
 function abrirEditarQuestao(qId) {
@@ -568,16 +561,15 @@ function abrirEditarQuestao(qId) {
 
     let html = '';
     if (q.alternativas.length) {
-        // FIX: mostra secao de alternativas e botao de adicionar
         blocoAdd.style.display = '';
         html += '<div class="secao" style="margin-top:10px">Alternativas <small>(marque a correta &mdash; <span style="color:#dc2626">&#10007;</span> remove)</small></div>';
         q.alternativas.forEach((a, i) => {
-            // FIX: input editavel + botao remover alternativa
-            html += `<div class="alt-linha" id="alt-linha-${a.id}" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            const textoEscapado = a.texto.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            html += `<div class="alt-linha" id="alt-linha-${a.id}">
                 <input type="checkbox" name="alt_correta" value="${i}" ${a.correta ? 'checked' : ''}>
                 <input type="hidden"   name="alt_id"     value="${a.id}">
                 <input type="text"     name="alt_texto"  class="alt-input-texto"
-                       value="${a.texto.replace(/&quot;/g,'"').replace(/"/g,'&quot;')}">
+                       value="${textoEscapado}">
                 <button type="button" class="btn-rm-alt" title="Remover alternativa"
                         onclick="removerAltLinha('alt-linha-${a.id}')">&times;</button>
             </div>`;
@@ -589,25 +581,21 @@ function abrirEditarQuestao(qId) {
     document.getElementById('modalEditarQuestao').classList.add('aberto');
 }
 
-// FIX: remove visualmente a linha e desativa os campos para nao enviar no submit
 function removerAltLinha(linhaId) {
     const linha = document.getElementById(linhaId);
     if (!linha) return;
-    // desativa todos os inputs para que nao sejam enviados
     linha.querySelectorAll('input').forEach(el => el.disabled = true);
     linha.style.opacity = '0.35';
     linha.style.pointerEvents = 'none';
     linha.style.textDecoration = 'line-through';
 }
 
-// FIX: adicionar nova alternativa dentro do modal de edicao
 function adicionarAltModal() {
     const container = document.getElementById('editAlternativas');
     const idx = 'novo_' + modalAltCount++;
     const div = document.createElement('div');
     div.className = 'alt-linha';
     div.id = 'alt-linha-' + idx;
-    div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
     div.innerHTML = `<input type="checkbox" name="alt_correta" value="nova_${idx}">
         <input type="hidden" name="alt_id" value="">
         <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Nova alternativa">
@@ -636,9 +624,8 @@ function adicionarAlternativa() {
     const lista = document.getElementById('listaAlternativas');
     const div   = document.createElement('div');
     div.className = 'alt-linha';
-    div.style     = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
     div.innerHTML = `<input type="checkbox" name="alt_correta" value="${altCount}" title="Marcar como correta">
-                     <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}">`;
+                     <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}">` ;
     lista.appendChild(div);
     altCount++;
 }
