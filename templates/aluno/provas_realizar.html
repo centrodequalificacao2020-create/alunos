@@ -135,6 +135,7 @@ html,body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff;
     {% endif %}
 
     <form method="POST" id="formProva">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="iniciado_em" id="iniciado_em">
 
         {% for q in questoes %}
