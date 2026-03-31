@@ -11,11 +11,10 @@ from logging_config import configure_logging
 # Instância global — blueprints importam este objeto para usar @limiter.limit()
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[],          # sem limite global — só nas rotas explícitas
-    storage_uri="memory://",    # in-memory; trocar por Redis em produção
+    default_limits=[],
+    storage_uri="memory://",
 )
 
-# Proteção CSRF global — protege automaticamente todos os formulários POST
 csrf = CSRFProtect()
 
 
@@ -28,15 +27,11 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Extensões
     init_db(app)
     limiter.init_app(app)
-    csrf.init_app(app)          # ← CSRF ativo em toda a aplicação
-
-    # Logging
+    csrf.init_app(app)
     configure_logging(app)
 
-    # Blueprints
     from routes.auth         import auth_bp
     from routes.cursos       import cursos_bp
     from routes.aluno        import aluno_bp
@@ -48,6 +43,11 @@ def create_app(config_class=Config):
     from routes.portal_aluno import portal_aluno_bp
     from routes.academico    import academico_bp
     from routes.backup       import backup_bp
+    from routes.provas       import provas_bp
+    from routes.provas_aluno import provas_aluno_bp
+    from routes.atividades   import atividades_bp
+    from routes.liberacoes   import liberacoes_bp
+    from routes.admin_utils  import admin_utils_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(cursos_bp)
@@ -59,6 +59,11 @@ def create_app(config_class=Config):
     app.register_blueprint(conteudos_bp)
     app.register_blueprint(academico_bp)
     app.register_blueprint(backup_bp)
+    app.register_blueprint(provas_bp)
+    app.register_blueprint(provas_aluno_bp)
+    app.register_blueprint(atividades_bp)
+    app.register_blueprint(liberacoes_bp)
+    app.register_blueprint(admin_utils_bp)
     app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
 
     @app.template_filter("moeda")
@@ -72,7 +77,6 @@ def create_app(config_class=Config):
         decimal = int(round((v - inteiro) * 100))
         return f"R$ {inteiro:,d},{decimal:02d}".replace(",", ".")
 
-    # Gera pasta de uploads
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     return app
