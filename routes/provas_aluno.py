@@ -7,17 +7,13 @@ provas_aluno_bp = Blueprint("provas_aluno", __name__)
 
 
 def _cursos_ativos(aluno_id):
-    """Retorna lista de curso_id com matrícula ATIVA."""
-    # Import local para evitar ImportError se tabela nao existir ainda
+    """Retorna lista de curso_id com matrícula ATIVA (comparação em Python — portável)."""
     from models import Matricula
     try:
+        matriculas = Matricula.query.filter_by(aluno_id=aluno_id).all()
         return [
-            m.curso_id for m in
-            Matricula.query.filter(
-                Matricula.aluno_id == aluno_id,
-                db.func.upper(Matricula.status) == "ATIVA"
-            ).all()
-            if m.curso_id
+            m.curso_id for m in matriculas
+            if (m.status or "").strip().upper() == "ATIVA" and m.curso_id
         ]
     except Exception:
         return []
@@ -46,6 +42,26 @@ def _ultima_tentativa(prova_id, aluno_id):
         return None
 
 
+def _prova_liberada_para(prova_id, aluno_id):
+    """Verifica se a prova foi explicitamente liberada para o aluno."""
+    from models import ProvaLiberada
+    try:
+        pl = ProvaLiberada.query.filter_by(
+            prova_id=prova_id, aluno_id=aluno_id, liberado=1
+        ).first()
+        return pl is not None
+    except Exception:
+        # Se a tabela ainda não existir, permite acesso (modo degradado)
+        return True
+
+
+def _calcular_nota(nota_total, pontos_max):
+    """Calcula nota na escala 0-10. Retorna 0.0 se pontos_max <= 0."""
+    if not pontos_max or pontos_max <= 0.0:
+        return 0.0
+    return round((nota_total / pontos_max) * 10, 2)
+
+
 # ── LISTAGEM DE PROVAS ───────────────────────────────────────────────────────
 
 @provas_aluno_bp.route("/provas")
@@ -67,12 +83,14 @@ def listar_provas_aluno():
             .all()
         )
     except Exception:
-        # Tabela ainda nao existe no banco — exibe pagina vazia sem 500
         return render_template("aluno/provas_lista.html",
                                aluno=aluno, provas=[])
 
     provas = []
     for prova in provas_raw:
+        # Só exibe provas liberadas para este aluno
+        if not _prova_liberada_para(prova.id, aluno.id):
+            continue
         tentativas_feitas = _tentativas_usadas(prova.id, aluno.id)
         pode_fazer        = tentativas_feitas < prova.tentativas
         ultima            = _ultima_tentativa(prova.id, aluno.id)
@@ -96,11 +114,18 @@ def realizar_prova(prova_id):
     aluno = db.get_or_404(Aluno, session["aluno_id"])
     prova = db.get_or_404(Prova, prova_id)
 
+    # ── Verificação 1: prova ativa e aluno matriculado no curso ──────────────
     cursos_aluno = _cursos_ativos(aluno.id)
     if not prova.ativa or prova.curso_id not in cursos_aluno:
         flash("Esta prova não está disponível para você.", "erro")
         return redirect("/aluno/provas")
 
+    # ── Verificação 2: prova liberada individualmente para este aluno ─────────
+    if not _prova_liberada_para(prova_id, aluno.id):
+        flash("Esta prova ainda não foi liberada para você. Aguarde a secretaria.", "erro")
+        return redirect("/aluno/provas")
+
+    # ── Verificação 3: tentativas disponíveis ────────────────────────────────
     tentativas_feitas = _tentativas_usadas(prova_id, aluno.id)
     if tentativas_feitas >= prova.tentativas:
         flash("Você já utilizou todas as tentativas desta prova.", "erro")
@@ -135,7 +160,9 @@ def realizar_prova(prova_id):
         tem_dissertativa = False
 
         for questao in questoes:
-            pontos_max += questao.pontos
+            # Bug 1 fix: garante que pontos seja float positivo (mínimo 0)
+            pts_questao = max(0.0, float(questao.pontos or 0.0))
+            pontos_max += pts_questao
             campo       = f"questao_{questao.id}"
 
             if questao.tipo == "dissertativa":
@@ -155,7 +182,7 @@ def realizar_prova(prova_id):
                     questao_id=questao.id, correta=1
                 ).first()
                 acertou     = alt_id is not None and correta is not None and alt_id == correta.id
-                pts_obtidos = questao.pontos if acertou else 0.0
+                pts_obtidos = pts_questao if acertou else 0.0
                 nota_total += pts_obtidos
 
                 db.session.add(RespostaQuestao(
@@ -170,7 +197,8 @@ def realizar_prova(prova_id):
             resp_prova.nota_obtida = None
             resp_prova.aprovado    = None
         else:
-            nota_final             = round((nota_total / pontos_max) * 10, 2) if pontos_max else 0.0
+            # Bug 1 fix: usa _calcular_nota que trata pontos_max <= 0
+            nota_final             = _calcular_nota(nota_total, pontos_max)
             resp_prova.nota_obtida = nota_final
             resp_prova.aprovado    = 1 if nota_final >= prova.nota_minima else 0
 
@@ -199,6 +227,7 @@ def resultado_prova_aluno(prova_id, resp_id):
     prova      = db.get_or_404(Prova, prova_id)
     resp_prova = db.get_or_404(RespostaProva, resp_id)
 
+    # Garante que o aluno só veja seu próprio resultado
     if resp_prova.aluno_id != aluno.id:
         abort(403)
 

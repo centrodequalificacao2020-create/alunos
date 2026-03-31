@@ -10,6 +10,13 @@ from datetime import datetime
 provas_bp = Blueprint("provas", __name__)
 
 
+def _calcular_nota(total_pontos, pontos_max):
+    """Nota na escala 0-10. Retorna 0.0 se pontos_max <= 0 (evita div/zero)."""
+    if not pontos_max or pontos_max <= 0.0:
+        return 0.0
+    return round((total_pontos / pontos_max) * 10, 2)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # LISTAGEM
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,10 +46,10 @@ def nova_prova():
     materias = Materia.query.filter_by(ativa=1).order_by(Materia.nome).all()
 
     if request.method == "POST":
-        f     = request.form
+        f      = request.form
         titulo = f.get("titulo", "").strip()
         if not titulo:
-            flash("T\u00edtulo \u00e9 obrigat\u00f3rio.", "erro")
+            flash("Título é obrigatório.", "erro")
             return redirect("/provas/nova")
 
         prova = Prova(
@@ -59,7 +66,7 @@ def nova_prova():
         )
         db.session.add(prova)
         db.session.commit()
-        flash(f"Prova \u201c{prova.titulo}\u201d criada. Adicione as quest\u00f5es.", "sucesso")
+        flash(f"Prova \u201c{prova.titulo}\u201d criada. Adicione as questões.", "sucesso")
         return redirect(f"/provas/{prova.id}/questoes")
 
     return render_template("provas.html", cursos=cursos, materias=materias, view="nova")
@@ -104,7 +111,7 @@ def excluir_prova(id):
     prova = db.get_or_404(Prova, id)
     db.session.delete(prova)
     db.session.commit()
-    flash("Prova exclu\u00edda.", "sucesso")
+    flash("Prova excluída.", "sucesso")
     return redirect("/provas")
 
 
@@ -123,9 +130,15 @@ def gerenciar_questoes(id):
         if acao == "add_questao":
             enunciado = request.form.get("enunciado", "").strip()
             tipo      = request.form.get("tipo", "multipla_escolha")
-            pontos    = float(request.form.get("pontos", 1.0))
+            # Bug 1 fix: garante pontos >= 0.1 para evitar divisão por zero na nota
+            try:
+                pontos = float(request.form.get("pontos", 1.0))
+            except (ValueError, TypeError):
+                pontos = 1.0
+            pontos = max(0.1, pontos)
+
             if not enunciado:
-                flash("Enunciado n\u00e3o pode ser vazio.", "erro")
+                flash("Enunciado não pode ser vazio.", "erro")
                 return redirect(f"/provas/{id}/questoes")
 
             ordem = (db.session.query(db.func.max(Questao.ordem))
@@ -149,18 +162,18 @@ def gerenciar_questoes(id):
                     ))
 
             db.session.commit()
-            flash("Quest\u00e3o adicionada.", "sucesso")
+            flash("Questão adicionada.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
         elif acao == "del_questao":
             q_id = int(request.form.get("questao_id"))
             q    = db.get_or_404(Questao, q_id)
             if q.prova_id != id:
-                flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
+                flash("Operação inválida.", "erro")
                 return redirect(f"/provas/{id}/questoes")
             db.session.delete(q)
             db.session.commit()
-            flash("Quest\u00e3o removida.", "sucesso")
+            flash("Questão removida.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
         elif acao == "edit_questao":
@@ -169,7 +182,11 @@ def gerenciar_questoes(id):
             enun = request.form.get("enunciado", "").strip()
             if enun:
                 q.enunciado = enun
-            q.pontos = float(request.form.get("pontos", q.pontos))
+            try:
+                novos_pontos = float(request.form.get("pontos", q.pontos))
+            except (ValueError, TypeError):
+                novos_pontos = q.pontos
+            q.pontos = max(0.1, novos_pontos)
 
             textos   = request.form.getlist("alt_texto")
             corretas = request.form.getlist("alt_correta")
@@ -183,14 +200,14 @@ def gerenciar_questoes(id):
                     alt.texto   = texto
                     alt.correta = 1 if str(idx) in corretas else 0
             db.session.commit()
-            flash("Quest\u00e3o atualizada.", "sucesso")
+            flash("Questão atualizada.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
     return render_template("provas.html", prova=prova, view="questoes")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RESULTADOS DE UMA PROVA (admin) — lista todas as tentativas
+# RESULTADOS DE UMA PROVA (admin)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/resultados")
@@ -203,7 +220,6 @@ def resultados_prova(id):
         .order_by(RespostaProva.finalizado_em.desc())
         .all()
     )
-    # conta pendentes de correção
     pendentes = sum(1 for r in respostas if r.nota_obtida is None)
     return render_template("provas.html",
                            prova=prova, respostas=respostas,
@@ -211,7 +227,7 @@ def resultados_prova(id):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CORRIGIR TENTATIVA DISSERTATIVA (admin/instrutor)
+# CORRIGIR TENTATIVA DISSERTATIVA
 # ─────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/corrigir/<int:resp_id>", methods=["GET", "POST"])
@@ -234,13 +250,13 @@ def corrigir_tentativa(resp_id):
         pontos_max   = 0.0
 
         for rq, q in respostas:
-            pontos_max += q.pontos
+            pts_questao = max(0.0, float(q.pontos or 0.0))
+            pontos_max += pts_questao
             if q.tipo == "dissertativa":
                 campo = f"pontos_{rq.id}"
-                pts   = request.form.get(campo, "")
                 try:
-                    pts = float(pts)
-                    pts = max(0.0, min(pts, q.pontos))  # clipa entre 0 e máximo
+                    pts = float(request.form.get(campo, 0))
+                    pts = max(0.0, min(pts, pts_questao))
                 except (ValueError, TypeError):
                     pts = 0.0
                 rq.pontos_obtidos = pts
@@ -249,19 +265,19 @@ def corrigir_tentativa(resp_id):
             else:
                 total_pontos += (rq.pontos_obtidos or 0.0)
 
-        nota_final = round((total_pontos / pontos_max) * 10, 2) if pontos_max else 0.0
+        # Bug 1 fix: usa _calcular_nota
+        nota_final = _calcular_nota(total_pontos, pontos_max)
         resp_prova.nota_obtida = nota_final
         resp_prova.aprovado    = 1 if nota_final >= prova.nota_minima else 0
         db.session.commit()
 
         flash(
-            f"Corre\u00e7\u00e3o salva! Aluno {aluno.nome} — "
+            f"Correção salva! Aluno {aluno.nome} — "
             f"Nota: {nota_final} ({'Aprovado' if resp_prova.aprovado else 'Reprovado'}).",
             "sucesso"
         )
         return redirect(f"/provas/{prova.id}/resultados")
 
-    # Monta gabarito com alternativas para exibir lado a lado
     gabarito = []
     for rq, q in respostas:
         correta   = Alternativa.query.filter_by(questao_id=q.id, correta=1).first()
@@ -287,7 +303,7 @@ def corrigir_tentativa(resp_id):
 def toggle_prova(id):
     prova = db.get_or_404(Prova, id)
     if prova.total_questoes == 0 and prova.ativa == 0:
-        flash("Adicione ao menos uma quest\u00e3o antes de ativar a prova.", "erro")
+        flash("Adicione ao menos uma questão antes de ativar a prova.", "erro")
         return redirect("/provas")
     prova.ativa = 0 if prova.ativa else 1
     db.session.commit()
@@ -297,7 +313,7 @@ def toggle_prova(id):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# API JSON — estatísticas da prova (para uso futuro em dashboard)
+# API JSON — estatísticas
 # ─────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/stats.json")
