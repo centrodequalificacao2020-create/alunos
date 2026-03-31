@@ -15,6 +15,7 @@
     <p class="card-subtitle">{{ aluno.nome }}</p>
 
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="grid-1">
             <div class="campo">
@@ -103,6 +104,10 @@
         {% include 'partials/form_endereco.html' %}
 
         <h3 class="secao">🔐 Acesso ao Portal do Aluno</h3>
+        <p style="font-size:13px;color:#666;margin-bottom:12px;">
+            A senha inicial é o <strong>CPF sem pontos e traço</strong>.
+            Use os campos abaixo para definir uma nova senha.
+        </p>
         <div class="grid-4">
             <div class="campo">
                 <label for="senha_portal">Nova senha do portal</label>
