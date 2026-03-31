@@ -20,6 +20,7 @@
     margin-bottom:10px;
 }
 .questao-num { font-weight:700; color:var(--color-primary); min-width:24px; }
+.questao-enunciado { flex:1; font-size:var(--font-size-base); }
 .alt-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:13px; }
 .alt-item.correta { color:var(--color-success); font-weight:600; }
 .alt-correta-icon::before { content:'\2713'; margin-right:2px; }
@@ -40,12 +41,36 @@
 }
 .perc-acerto  { color:#15803d; font-weight:700; }
 .perc-erro    { color:#b91c1c; font-weight:700; }
-/* BUG3-FIX: estilos para gabarito detalhado na view resultados */
 .gab-row td { vertical-align:top; padding:8px 6px; }
 .gab-acertou  { color:#15803d; font-weight:600; }
 .gab-errou    { color:#b91c1c; font-weight:600; }
 .gab-nao-resp { color:#888; font-style:italic; }
 .gab-correta  { color:#15803d; font-size:12px; }
+/* botao remover alternativa no modal */
+.btn-rm-alt {
+    flex-shrink:0;
+    background:#fee2e2; color:#dc2626;
+    border:none; border-radius:4px;
+    padding:4px 8px; font-size:13px;
+    cursor:pointer; line-height:1;
+    margin-bottom:0 !important;
+    height:auto !important;
+    width:auto !important;
+}
+.btn-rm-alt:hover { background:#fca5a5; }
+/* linha de alternativa — layout flex correto */
+.alt-linha {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.alt-linha input[type="checkbox"] {
+    flex-shrink: 0;
+    width: auto !important;
+    height: auto !important;
+    margin-bottom: 0 !important;
+}
 </style>
 {% endblock %}
 
@@ -88,7 +113,7 @@
         <div class="questao-card">
             <div class="questao-card__header">
                 <span class="questao-num">{{ loop.index }}.</span>
-                <span style="flex:1">{{ q.enunciado }}</span>
+                <span class="questao-enunciado">{{ q.enunciado }}</span>
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:80px">
                     <span class="tipo-badge tipo-{{ q.tipo.replace('_','-') if q.tipo else 'multipla' }}">
                         {% if q.tipo == 'multipla_escolha' %}M&uacute;lt. escolha
@@ -140,7 +165,7 @@
             <h3 style="margin:0">Adicionar Quest&atilde;o</h3>
         </div>
 
-        <form method="post" action="/exercicios/{{ exercicio.id }}/questoes" autocomplete="off">
+        <form method="post" action="/exercicios/{{ exercicio.id }}/questoes" id="formNovaQuestao" autocomplete="off">
             <input type="hidden" name="acao" value="add_questao">
 
             <div class="campo">
@@ -163,13 +188,15 @@
                 <input type="number" name="pontos" step="0.5" min="0.5" value="1.0" style="max-width:100px">
             </div>
 
+            {# Bloco múltipla escolha #}
             <div id="blocoAlternativas">
                 <div class="secao" style="margin-top:14px">Alternativas <small>(marque a correta)</small></div>
                 <div id="listaAlternativas">
                     {% for i in range(4) %}
-                    <div class="alt-linha" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <div class="alt-linha">
                         <input type="checkbox" name="alt_correta" value="{{ i }}" title="Marcar como correta">
-                        <input type="text" name="alt_texto" class="alt-input-texto"
+                        <input type="text" name="alt_texto"
+                               class="alt-input-texto"
                                placeholder="Alternativa {{ ['A','B','C','D'][i] }}">
                     </div>
                     {% endfor %}
@@ -178,16 +205,17 @@
                         onclick="adicionarAlternativa()">+ Alternativa</button>
             </div>
 
+            {# Bloco verdadeiro/falso — inputs ficam disabled quando oculto #}
             <div id="blocoVF" style="display:none">
                 <div class="secao" style="margin-top:14px">Alternativas Verdadeiro / Falso</div>
                 <div style="display:flex;gap:16px;margin-top:8px">
                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                        <input type="checkbox" name="alt_correta" value="0"> Verdadeiro
-                        <input type="hidden" name="alt_texto" value="Verdadeiro">
+                        <input type="checkbox" name="alt_correta" value="0" disabled> Verdadeiro
+                        <input type="hidden" name="alt_texto" value="Verdadeiro" disabled>
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                        <input type="checkbox" name="alt_correta" value="1"> Falso
-                        <input type="hidden" name="alt_texto" value="Falso">
+                        <input type="checkbox" name="alt_correta" value="1" disabled> Falso
+                        <input type="hidden" name="alt_texto" value="Falso" disabled>
                     </label>
                 </div>
             </div>
@@ -209,7 +237,7 @@
 <div class="modal-overlay" id="modalEditarQuestao">
     <div class="modal" style="max-width:560px;text-align:left">
         <h3>Editar Quest&atilde;o</h3>
-        <form method="post" action="/exercicios/{{ exercicio.id }}/questoes" autocomplete="off">
+        <form method="post" action="/exercicios/{{ exercicio.id }}/questoes" id="formEditarQuestao" autocomplete="off">
             <input type="hidden" name="acao"       value="edit_questao">
             <input type="hidden" name="questao_id" id="editQuestaoId">
             <div class="campo">
@@ -221,7 +249,12 @@
                 <input type="number" name="pontos" id="editPontos" step="0.5" min="0.5" style="max-width:100px">
             </div>
             <div id="editAlternativas"></div>
-            <div class="acoes-form">
+            <div id="editBlocoAddAlt" style="margin-top:6px;display:none">
+                <button type="button" class="btn btn-sm"
+                        style="background:#e3f2fd;color:#1565c0"
+                        onclick="adicionarAltModal()">+ Alternativa</button>
+            </div>
+            <div class="acoes-form" style="margin-top:16px">
                 <button type="submit" class="btn btn-azul">Salvar</button>
                 <button type="button" class="btn" style="background:#e0e0e0;color:#333"
                         onclick="fecharModal()">Cancelar</button>
@@ -259,7 +292,6 @@
         </thead>
         <tbody>
         {% for r in respostas %}
-        {# linha agregada #}
         <tr>
             <td>{{ r.aluno.nome }}</td>
             <td style="text-align:center">{{ r.tentativa_num }}</td>
@@ -279,14 +311,12 @@
                     <button type="submit" class="btn btn-sm btn-acao-extra"
                             title="Conceder 1 tentativa extra">+Tentativa</button>
                 </form>
-                {# BUG3-FIX: botao para expandir/recolher gabarito detalhado #}
                 {% if r.respostas_questao %}
                 <button type="button" class="btn btn-sm btn-acao-questoes"
                         onclick="toggleGabarito({{ r.id }})" title="Ver gabarito">Gabarito</button>
                 {% endif %}
             </td>
         </tr>
-        {# BUG3-FIX: linha de gabarito detalhado (oculta por padrao) #}
         {% if r.respostas_questao %}
         <tr id="gab-{{ r.id }}" style="display:none;background:#f8fafc">
             <td colspan="7" style="padding:0">
@@ -366,27 +396,61 @@ const questoesData = {
     {% endif %}
 };
 
+let modalAltCount = 0;
+
 function abrirEditarQuestao(qId) {
     const q = questoesData[qId];
     if (!q) return;
+    modalAltCount = 0;
     document.getElementById('editQuestaoId').value = qId;
     document.getElementById('editEnunciado').value = q.enunciado;
     document.getElementById('editPontos').value    = q.pontos;
 
+    const blocoAdd = document.getElementById('editBlocoAddAlt');
+
     let html = '';
     if (q.alternativas.length) {
-        html += '<div class="secao" style="margin-top:10px">Alternativas <small>(marque a correta)</small></div>';
+        blocoAdd.style.display = '';
+        html += '<div class="secao" style="margin-top:10px">Alternativas <small>(marque a correta &mdash; <span style="color:#dc2626">&#10007;</span> remove)</small></div>';
         q.alternativas.forEach((a, i) => {
-            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            const textoEscapado = a.texto.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            html += `<div class="alt-linha" id="alt-linha-${a.id}">
                 <input type="checkbox" name="alt_correta" value="${i}" ${a.correta ? 'checked' : ''}>
                 <input type="hidden"   name="alt_id"     value="${a.id}">
                 <input type="text"     name="alt_texto"  class="alt-input-texto"
-                       value="${a.texto.replace(/"/g,'&quot;')}">
+                       value="${textoEscapado}">
+                <button type="button" class="btn-rm-alt" title="Remover alternativa"
+                        onclick="removerAltLinha('alt-linha-${a.id}')">&times;</button>
             </div>`;
         });
+    } else {
+        blocoAdd.style.display = 'none';
     }
     document.getElementById('editAlternativas').innerHTML = html;
     document.getElementById('modalEditarQuestao').classList.add('aberto');
+}
+
+function removerAltLinha(linhaId) {
+    const linha = document.getElementById(linhaId);
+    if (!linha) return;
+    linha.querySelectorAll('input').forEach(el => el.disabled = true);
+    linha.style.opacity = '0.35';
+    linha.style.pointerEvents = 'none';
+    linha.style.textDecoration = 'line-through';
+}
+
+function adicionarAltModal() {
+    const container = document.getElementById('editAlternativas');
+    const idx = 'novo_' + modalAltCount++;
+    const div = document.createElement('div');
+    div.className = 'alt-linha';
+    div.id = 'alt-linha-' + idx;
+    div.innerHTML = `<input type="checkbox" name="alt_correta" value="nova_${idx}">
+        <input type="hidden" name="alt_id" value="">
+        <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Nova alternativa">
+        <button type="button" class="btn-rm-alt" title="Remover"
+                onclick="removerAltLinha('alt-linha-${idx}')">&times;</button>`;
+    container.appendChild(div);
 }
 
 function fecharModal() {
@@ -397,11 +461,27 @@ document.getElementById('modalEditarQuestao')?.addEventListener('click', functio
     if (e.target === this) fecharModal();
 });
 
+/**
+ * Atualiza visibilidade dos blocos de alternativas conforme o tipo selecionado.
+ * Inputs dos blocos ocultos são desabilitados para não serem incluídos no POST.
+ */
 function atualizarTipo() {
     const tipo = document.getElementById('tipoQuestao')?.value;
-    document.getElementById('blocoAlternativas').style.display = tipo === 'multipla_escolha' ? '' : 'none';
-    document.getElementById('blocoVF').style.display           = tipo === 'verdadeiro_falso'  ? '' : 'none';
-    document.getElementById('blocoDissertat').style.display    = tipo === 'dissertativa'      ? '' : 'none';
+
+    const blocos = {
+        multipla_escolha: document.getElementById('blocoAlternativas'),
+        verdadeiro_falso:  document.getElementById('blocoVF'),
+        dissertativa:      document.getElementById('blocoDissertat'),
+    };
+
+    Object.entries(blocos).forEach(([key, bloco]) => {
+        if (!bloco) return;
+        const ativo = (key === tipo);
+        bloco.style.display = ativo ? '' : 'none';
+        bloco.querySelectorAll('input, textarea, select').forEach(el => {
+            el.disabled = !ativo;
+        });
+    });
 }
 
 let altCount = 4;
@@ -409,19 +489,19 @@ function adicionarAlternativa() {
     const lista = document.getElementById('listaAlternativas');
     const div   = document.createElement('div');
     div.className = 'alt-linha';
-    div.style     = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
     div.innerHTML = `<input type="checkbox" name="alt_correta" value="${altCount}" title="Marcar como correta">
-                     <input type="text" name="alt_texto" class="alt-input-texto"
-                            placeholder="Alternativa ${String.fromCharCode(65+altCount)}">`;
+                     <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Alternativa ${String.fromCharCode(65+altCount)}">`;
     lista.appendChild(div);
     altCount++;
 }
 
-// BUG3-FIX: toggle gabarito detalhado do instrutor
 function toggleGabarito(respId) {
     const row = document.getElementById('gab-' + respId);
     if (!row) return;
     row.style.display = row.style.display === 'none' ? '' : 'none';
 }
+
+// Garante estado correto ao carregar a página
+document.addEventListener('DOMContentLoaded', atualizarTipo);
 </script>
 {% endblock %}
