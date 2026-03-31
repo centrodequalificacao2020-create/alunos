@@ -10,7 +10,6 @@ from db import db
 from app import limiter
 from sqlalchemy.exc import OperationalError
 
-
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 
@@ -88,6 +87,32 @@ def _registrar_login(aluno_id):
         db.session.commit()
     except OperationalError:
         db.session.rollback()
+    except Exception:
+        db.session.rollback()
+
+
+def _buscar_aluno_por_login(identificador: str):
+    """Aceita CPF (com ou sem mascara) ou e-mail."""
+    import re
+    ident = identificador.strip()
+    if not ident:
+        return None
+    # e-mail
+    if "@" in ident:
+        return Aluno.query.filter(
+            db.func.lower(Aluno.email) == ident.lower()
+        ).first()
+    # CPF exato
+    aluno = Aluno.query.filter_by(cpf=ident).first()
+    if aluno:
+        return aluno
+    # CPF sem mascara
+    cpf_limpo = re.sub(r"\D", "", ident)
+    if cpf_limpo:
+        for a in Aluno.query.all():
+            if re.sub(r"\D", "", a.cpf or "") == cpf_limpo:
+                return a
+    return None
 
 
 # ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────
@@ -96,17 +121,35 @@ def _registrar_login(aluno_id):
 @limiter.limit("10 per minute")
 def login_aluno():
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        senha = request.form.get("senha", "")
-        aluno = Aluno.query.filter_by(email=email).first()
-        if aluno and aluno.senha and verificar_senha(senha, aluno.senha):
-            session.clear()
-            session.permanent = True
-            session["aluno_id"] = aluno.id
-            session["perfil"]   = "aluno"
-            _registrar_login(aluno.id)
-            return redirect("/aluno/dashboard")
-        flash("E-mail ou senha incorretos.", "erro")
+        # campo "cpf" no template aceita CPF ou e-mail
+        identificador = request.form.get("cpf", "").strip()
+        senha         = request.form.get("senha", "")
+
+        aluno = _buscar_aluno_por_login(identificador)
+
+        if not aluno:
+            flash("Usuário não encontrado. Verifique o CPF ou e-mail digitado.", "erro")
+            return redirect("/aluno/login")
+
+        if not aluno.senha:
+            flash(
+                "Sua senha ainda não foi definida. "
+                "Entre em contato com a secretaria para receber sua senha de acesso.",
+                "erro"
+            )
+            return redirect("/aluno/login")
+
+        if not verificar_senha(senha, aluno.senha):
+            flash("Senha incorreta. Tente novamente.", "erro")
+            return redirect("/aluno/login")
+
+        session.clear()
+        session.permanent = True
+        session["aluno_id"] = aluno.id
+        session["perfil"]   = "aluno"
+        _registrar_login(aluno.id)
+        return redirect("/aluno/dashboard")
+
     return render_template("aluno/login.html")
 
 
@@ -137,6 +180,8 @@ def dashboard_aluno():
         )
         ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
     except OperationalError:
+        pass
+    except Exception:
         pass
 
     return render_template("aluno/dashboard.html", aluno=aluno,
@@ -199,7 +244,7 @@ def notas_aluno():
                            matricula=matricula, notas=notas, media=media)
 
 
-# ─── CONTEÚDOS ────────────────────────────────────────────────────────────────
+# ─── CONTEÚDO ─────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
@@ -212,8 +257,9 @@ def conteudo_cursos():
         curso = db.session.get(Curso, mat.curso_id)
         if not curso:
             continue
-        liberado = _curso_liberado(aluno.id, curso.id)
-        total = concluidos = 0
+        liberado   = _curso_liberado(aluno.id, curso.id)
+        total      = 0
+        concluidos = 0
         if liberado:
             try:
                 total = (
@@ -238,12 +284,12 @@ def conteudo_cursos():
                 pass
         pct = round(concluidos / total * 100) if total > 0 else 0
         cursos_info.append({
-            "curso":        curso,
-            "matricula":    mat,
-            "total":        total,
-            "concluidos":   concluidos,
-            "pct":          pct,
-            "liberado":     liberado,
+            "curso":         curso,
+            "matricula":     mat,
+            "total":         total,
+            "concluidos":    concluidos,
+            "pct":           pct,
+            "liberado":      liberado,
             "data_cadastro": getattr(mat, "data_cadastro", None),
         })
 
@@ -262,8 +308,10 @@ def conteudo_aluno(curso_id):
     if not matricula:
         abort(403)
     if not _curso_liberado(aluno.id, curso_id):
-        flash("O acesso ao conte\u00fado deste curso ainda n\u00e3o foi liberado. Entre em contato com a secretaria.", "aviso")
+        flash("O acesso ao conteúdo deste curso ainda não foi liberado. "
+              "Entre em contato com a secretaria.", "aviso")
         return redirect("/aluno/conteudo")
+
     curso = db.get_or_404(Curso, curso_id)
     conteudos = (
         db.session.query(Conteudo, ProgressoAula)
@@ -322,7 +370,7 @@ def conteudo_aluno(curso_id):
                            atividades=atividades, entregas_map=entregas_map)
 
 
-# ─── ARQUIVO DE CONTEÚDO ──────────────────────────────────────────────────────
+# ─── ARQUIVO ──────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
@@ -410,7 +458,9 @@ def entregar_atividade(atividade_id):
         for idx, campo in enumerate(["arquivo1", "arquivo2", "arquivo3"], 1):
             f = request.files.get(campo)
             if f and f.filename:
-                fname = secure_filename(f"{aluno.id}_atv{atividade_id}_{idx}_{f.filename}")
+                fname = secure_filename(
+                    f"{aluno.id}_atv{atividade_id}_{idx}_{f.filename}"
+                )
                 f.save(os.path.join(upload_folder, fname))
                 setattr(entrega, campo, fname)
         entrega.status = "entregue"
@@ -440,7 +490,7 @@ def trocar_senha():
             flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         if nova != confirma:
-            flash("As senhas n\u00e3o conferem.", "erro")
+            flash("As senhas não conferem.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         aluno.senha = hash_senha(nova)
         db.session.commit()
