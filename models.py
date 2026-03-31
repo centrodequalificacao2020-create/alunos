@@ -6,7 +6,7 @@ from enums import (
 )
 
 
-# ─ Constantes de domínio (retrocompat) ──────────────────────────────────────
+# ─ Constantes de domínio (retrocompat) ─────────────────────────────────────────
 PERFIS_VALIDOS   = PerfilUsuario.valores()
 STATUS_MATRICULA = StatusMatricula.valores()
 
@@ -62,6 +62,19 @@ class TurmaAluno(db.Model):
     aluno    = db.relationship("Aluno", backref="turmas")
 
 
+class LoginHistoricoAluno(db.Model):
+    __tablename__ = "login_historico_aluno"
+    __table_args__ = (
+        db.Index("ix_login_hist_aluno_id", "aluno_id"),
+        db.Index("ix_login_hist_login_em", "login_em"),
+    )
+    id         = db.Column(db.Integer, primary_key=True)
+    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    login_em   = db.Column(db.String(19), nullable=False)
+    ip         = db.Column(db.String(45))
+    user_agent = db.Column(db.String(300))
+
+
 class Aluno(db.Model):
     __tablename__ = "alunos"
     id                     = db.Column(db.Integer, primary_key=True)
@@ -90,10 +103,13 @@ class Aluno(db.Model):
     matriculas             = db.relationship("Matricula",   backref="aluno", lazy=True)
     frequencias            = db.relationship("Frequencia",  backref="aluno", lazy=True)
     notas                  = db.relationship("Nota",        backref="aluno", lazy=True)
-    login_historico        = db.relationship("LoginHistoricoAluno", backref="aluno",
-                                             lazy=True, cascade="all, delete-orphan",
-                                             order_by="LoginHistoricoAluno.login_em.desc()")
-    # ─── liberações de matéria por aluno ──────────────────────────────────
+    # order_by como objeto evita bug de interpretacao de string no SQLAlchemy
+    login_historico        = db.relationship(
+        "LoginHistoricoAluno", backref="aluno", lazy=True,
+        cascade="all, delete-orphan",
+        primaryjoin="Aluno.id == LoginHistoricoAluno.aluno_id",
+        foreign_keys="[LoginHistoricoAluno.aluno_id]",
+    )
     materias_liberadas     = db.relationship("MateriaLiberada", backref="aluno",
                                              lazy=True, cascade="all, delete-orphan")
 
@@ -111,12 +127,16 @@ class Aluno(db.Model):
 
     @property
     def ultimo_login(self):
-        return (
-            LoginHistoricoAluno.query
-            .filter_by(aluno_id=self.id)
-            .order_by(LoginHistoricoAluno.login_em.desc())
-            .first()
-        )
+        """Retorna o registro de login mais recente ou None se a tabela nao existir."""
+        try:
+            return (
+                LoginHistoricoAluno.query
+                .filter_by(aluno_id=self.id)
+                .order_by(LoginHistoricoAluno.login_em.desc())
+                .first()
+            )
+        except Exception:
+            return None
 
 
 class AcessoConteudoCurso(db.Model):
@@ -136,11 +156,6 @@ class AcessoConteudoCurso(db.Model):
 
 
 class MateriaLiberada(db.Model):
-    """
-    Liberação individual de matéria para um aluno.
-    A secretaria/instrutor libera matéria a matéria — o aluno SÓ vê
-    as matérias (e seus conteúdos) que estiverem com liberado=1.
-    """
     __tablename__ = "materias_liberadas"
     __table_args__ = (
         db.UniqueConstraint("aluno_id", "materia_id", name="uq_materia_liberada"),
@@ -153,15 +168,10 @@ class MateriaLiberada(db.Model):
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
-
-    materia = db.relationship("Materia", backref="liberacoes", lazy=True)
+    materia      = db.relationship("Materia", backref="liberacoes", lazy=True)
 
 
 class ProvaLiberada(db.Model):
-    """
-    Liberação individual de prova para um aluno.
-    A prova só aparece no portal do aluno se houver um registro liberado=1.
-    """
     __tablename__ = "provas_liberadas"
     __table_args__ = (
         db.UniqueConstraint("aluno_id", "prova_id", name="uq_prova_liberada"),
@@ -174,8 +184,7 @@ class ProvaLiberada(db.Model):
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
-
-    prova = db.relationship("Prova", backref="liberacoes", lazy=True)
+    prova        = db.relationship("Prova", backref="liberacoes", lazy=True)
 
 
 class Matricula(db.Model):
@@ -206,19 +215,6 @@ class Matricula(db.Model):
         session.add(self)
 
 
-class LoginHistoricoAluno(db.Model):
-    __tablename__ = "login_historico_aluno"
-    __table_args__ = (
-        db.Index("ix_login_hist_aluno_id", "aluno_id"),
-        db.Index("ix_login_hist_login_em", "login_em"),
-    )
-    id         = db.Column(db.Integer, primary_key=True)
-    aluno_id   = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    login_em   = db.Column(db.String(19), nullable=False)
-    ip         = db.Column(db.String(45))
-    user_agent = db.Column(db.String(300))
-
-
 class Mensalidade(db.Model):
     __tablename__ = "mensalidades"
     __table_args__ = (
@@ -228,7 +224,6 @@ class Mensalidade(db.Model):
     )
     id                = db.Column(db.Integer, primary_key=True)
     aluno_id          = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    # curso_id registra a qual curso pertence cada parcela
     curso_id          = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=True)
     valor             = db.Column(db.Float, nullable=False)
     vencimento        = db.Column(db.String(10), nullable=False)
@@ -238,8 +233,7 @@ class Mensalidade(db.Model):
     data_pagamento    = db.Column(db.String(10))
     forma_pagamento   = db.Column(db.String(40))
     usuario_pagamento = db.Column(db.String(80))
-
-    curso_rel = db.relationship("Curso", foreign_keys=[curso_id], lazy=True)
+    curso_rel         = db.relationship("Curso", foreign_keys=[curso_id], lazy=True)
 
 
 class Despesa(db.Model):
@@ -326,7 +320,6 @@ class Nota(db.Model):
     curso_id   = db.Column(db.Integer, db.ForeignKey("cursos.id"),   nullable=False)
     nota       = db.Column(db.Float)
     resultado  = db.Column(db.String(40))
-    # publicada=1 significa que o aluno pode ver a nota no portal
     publicada  = db.Column(db.Integer, default=0)
 
 
@@ -339,12 +332,7 @@ class ProgressoAula(db.Model):
     concluido   = db.Column(db.Integer, default=0)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ATIVIDADES (enunciados + anexos do aluno)
-# ─────────────────────────────────────────────────────────────────────────────
-
 class Atividade(db.Model):
-    """Atividade com um ou mais enunciados, vinculada a curso/matéria."""
     __tablename__ = "atividades"
     id           = db.Column(db.Integer, primary_key=True)
     titulo       = db.Column(db.String(200), nullable=False)
@@ -354,17 +342,15 @@ class Atividade(db.Model):
     ativa        = db.Column(db.Integer, default=1)
     criado_em    = db.Column(db.String(19))
     criado_por   = db.Column(db.String(80))
-
-    curso    = db.relationship("Curso",   backref="atividades", lazy=True)
-    materia  = db.relationship("Materia", backref="atividades", lazy=True)
-    questoes = db.relationship("AtividadeQuestao", backref="atividade", lazy=True,
-                               cascade="all, delete-orphan", order_by="AtividadeQuestao.ordem")
-    entregas = db.relationship("EntregaAtividade", backref="atividade", lazy=True,
-                               cascade="all, delete-orphan")
+    curso        = db.relationship("Curso",   backref="atividades", lazy=True)
+    materia      = db.relationship("Materia", backref="atividades", lazy=True)
+    questoes     = db.relationship("AtividadeQuestao", backref="atividade", lazy=True,
+                                   cascade="all, delete-orphan", order_by="AtividadeQuestao.ordem")
+    entregas     = db.relationship("EntregaAtividade", backref="atividade", lazy=True,
+                                   cascade="all, delete-orphan")
 
 
 class AtividadeQuestao(db.Model):
-    """Enunciado/questão dentro de uma atividade."""
     __tablename__ = "atividade_questoes"
     id           = db.Column(db.Integer, primary_key=True)
     atividade_id = db.Column(db.Integer, db.ForeignKey("atividades.id"), nullable=False)
@@ -373,33 +359,26 @@ class AtividadeQuestao(db.Model):
 
 
 class EntregaAtividade(db.Model):
-    """Entrega do aluno para uma atividade (até 3 arquivos)."""
     __tablename__ = "entregas_atividade"
     __table_args__ = (
         db.UniqueConstraint("aluno_id", "atividade_id", name="uq_entrega_atividade"),
         db.Index("ix_entrega_aluno",     "aluno_id"),
         db.Index("ix_entrega_atividade", "atividade_id"),
     )
-    id              = db.Column(db.Integer, primary_key=True)
-    aluno_id        = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    atividade_id    = db.Column(db.Integer, db.ForeignKey("atividades.id"), nullable=False)
-    arquivo1        = db.Column(db.String(300))
-    arquivo2        = db.Column(db.String(300))
-    arquivo3        = db.Column(db.String(300))
-    entregue_em     = db.Column(db.String(19))
-    status          = db.Column(db.String(20), default="entregue")  # entregue | corrigida
-    nota            = db.Column(db.Float)
-    feedback        = db.Column(db.Text)
+    id           = db.Column(db.Integer, primary_key=True)
+    aluno_id     = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    atividade_id = db.Column(db.Integer, db.ForeignKey("atividades.id"), nullable=False)
+    arquivo1     = db.Column(db.String(300))
+    arquivo2     = db.Column(db.String(300))
+    arquivo3     = db.Column(db.String(300))
+    entregue_em  = db.Column(db.String(19))
+    status       = db.Column(db.String(20), default="entregue")
+    nota         = db.Column(db.Float)
+    feedback     = db.Column(db.Text)
+    aluno        = db.relationship("Aluno", backref="entregas_atividade", lazy=True)
 
-    aluno    = db.relationship("Aluno",      backref="entregas_atividade", lazy=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MÓDULO DE PROVAS
-# ─────────────────────────────────────────────────────────────────────────────
 
 class Prova(db.Model):
-    """Prova ou avaliação vinculada a um curso e opcionalmente a uma matéria."""
     __tablename__ = "provas"
     __table_args__ = (
         db.Index("ix_provas_curso_id",   "curso_id"),
@@ -416,14 +395,13 @@ class Prova(db.Model):
     ativa        = db.Column(db.Integer, default=1)
     criado_em    = db.Column(db.String(19))
     criado_por   = db.Column(db.String(80))
-
-    curso    = db.relationship("Curso",   backref="provas",  lazy=True)
-    materia  = db.relationship("Materia", backref="provas",  lazy=True)
-    questoes = db.relationship("Questao", backref="prova",   lazy=True,
-                               cascade="all, delete-orphan",
-                               order_by="Questao.ordem")
-    respostas = db.relationship("RespostaProva", backref="prova", lazy=True,
-                                cascade="all, delete-orphan")
+    curso        = db.relationship("Curso",   backref="provas",  lazy=True)
+    materia      = db.relationship("Materia", backref="provas",  lazy=True)
+    questoes     = db.relationship("Questao", backref="prova",   lazy=True,
+                                   cascade="all, delete-orphan",
+                                   order_by="Questao.ordem")
+    respostas    = db.relationship("RespostaProva", backref="prova", lazy=True,
+                                   cascade="all, delete-orphan")
 
     @property
     def total_questoes(self):
@@ -439,13 +417,12 @@ class Questao(db.Model):
     __table_args__ = (
         db.Index("ix_questoes_prova_id", "prova_id"),
     )
-    id        = db.Column(db.Integer, primary_key=True)
-    prova_id  = db.Column(db.Integer, db.ForeignKey("provas.id"), nullable=False)
-    enunciado = db.Column(db.Text, nullable=False)
-    tipo      = db.Column(db.String(30), nullable=False, default="multipla_escolha")
-    ordem     = db.Column(db.Integer, default=1)
-    pontos    = db.Column(db.Float, default=1.0)
-
+    id           = db.Column(db.Integer, primary_key=True)
+    prova_id     = db.Column(db.Integer, db.ForeignKey("provas.id"), nullable=False)
+    enunciado    = db.Column(db.Text, nullable=False)
+    tipo         = db.Column(db.String(30), nullable=False, default="multipla_escolha")
+    ordem        = db.Column(db.Integer, default=1)
+    pontos       = db.Column(db.Float, default=1.0)
     alternativas = db.relationship("Alternativa", backref="questao", lazy=True,
                                    cascade="all, delete-orphan",
                                    order_by="Alternativa.ordem")
@@ -477,8 +454,7 @@ class RespostaProva(db.Model):
     finalizado_em = db.Column(db.String(19))
     nota_obtida   = db.Column(db.Float)
     aprovado      = db.Column(db.Integer)
-
-    aluno             = db.relationship("Aluno",       backref="respostas_prova", lazy=True)
+    aluno             = db.relationship("Aluno",           backref="respostas_prova", lazy=True)
     respostas_questao = db.relationship("RespostaQuestao", backref="resposta_prova",
                                         lazy=True, cascade="all, delete-orphan")
 
