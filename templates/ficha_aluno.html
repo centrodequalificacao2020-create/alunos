@@ -8,7 +8,12 @@
             <h2>{{ aluno.nome }}</h2>
             <p class="card-subtitle">Ficha completa do aluno</p>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <a href="/liberacoes/aluno/{{ aluno.id }}"
+               class="btn btn-azul"
+               style="background:#6f42c1;border-color:#6f42c1;">
+               📚 Liberações
+            </a>
             <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno">✏️</a>
             <a href="/cadastro" class="btn btn-azul">← Voltar</a>
         </div>
@@ -43,7 +48,6 @@
                 border:1px solid #dee2e6;
                 display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
 
-        {# — Portal ativo/inativo — #}
         <div>
             <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
                        text-transform:uppercase;letter-spacing:.5px;">Portal do Aluno</p>
@@ -54,10 +58,8 @@
             {% endif %}
         </div>
 
-        {# separador visual #}
         <div style="width:1px;height:36px;background:#dee2e6;flex-shrink:0;"></div>
 
-        {# — Último login — #}
         <div>
             <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
                        text-transform:uppercase;letter-spacing:.5px;">Último Login</p>
@@ -65,7 +67,7 @@
                 {% set d = ul.login_em %}
                 <p style="margin:5px 0 0;font-size:14px;font-weight:700;color:#212529;">
                     {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
-                    <span style="color:#495057;">às {{ d[11:16] }}</span>
+                    <span style="color:#495057;">&#224;s {{ d[11:16] }}</span>
                 </p>
                 {% if ul.ip %}
                 <p style="margin:2px 0 0;font-size:11px;color:#6c757d;font-family:monospace;">
@@ -126,7 +128,7 @@
                         {% if m.data_cadastro %}
                             {% set dc = m.data_cadastro %}
                             {{ dc[8:10] }}/{{ dc[5:7] }}/{{ dc[0:4] }}
-                            {% if dc|length >= 16 %}às {{ dc[11:16] }}{% endif %}
+                            {% if dc|length >= 16 %}&#224;s {{ dc[11:16] }}{% endif %}
                         {% else %}-{% endif %}
                     </td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
