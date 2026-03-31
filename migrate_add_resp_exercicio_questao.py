@@ -6,7 +6,9 @@ Executar UMA vez após o deploy da etapa6:
 import sqlite3
 import os
 
-DB_PATH = os.environ.get("DATABASE_URL", "instance/app.db").replace("sqlite:///", "")
+# Caminho real do banco — mesma lógica do config.py
+BASEDIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH = os.environ.get("DATABASE_URL", "").replace("sqlite:///", "") or os.path.join(BASEDIR, "cqp.db")
 
 CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS respostas_exercicio_questao (
@@ -36,7 +38,6 @@ if __name__ == "__main__":
     try:
         conn.executescript(CREATE_SQL)
         conn.commit()
-        # Verifica se a tabela existe
         cur = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='respostas_exercicio_questao'"
         )
