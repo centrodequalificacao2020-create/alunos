@@ -50,7 +50,6 @@
     color:var(--color-primary,#2980b9);
     border-bottom-color:var(--color-primary,#2980b9);
 }
-/* botoes de acao com texto — cores */
 .btn-acao-questoes  { background:#3b82f6; color:#fff; border:none; }
 .btn-acao-questoes:hover  { background:#2563eb; color:#fff; }
 .btn-acao-editar    { background:#f59e0b; color:#fff; border:none; }
@@ -63,7 +62,6 @@
 .btn-acao-desativar:hover { background:#4b5563; color:#fff; }
 .btn-acao-excluir   { background:#ef4444; color:#fff; border:none; }
 .btn-acao-excluir:hover   { background:#dc2626; color:#fff; }
-/* botao remover alternativa no modal */
 .btn-rm-alt {
     flex-shrink:0;
     background:#fee2e2; color:#dc2626;
@@ -75,7 +73,6 @@
     width:auto !important;
 }
 .btn-rm-alt:hover { background:#fca5a5; }
-/* linha de alternativa — layout flex correto */
 .alt-linha {
     display: flex;
     align-items: center;
@@ -101,7 +98,6 @@
 <div class="card">
     <div class="card-header--between">
         <div class="card-header">
-            <span>📝</span>
             <h2 style="margin:0">Provas &amp; Exerc&#237;cios</h2>
         </div>
         <a href="/provas/nova" class="btn btn-azul">+ Nova Prova</a>
@@ -186,7 +182,7 @@
     </table>
     </div>
     {% else %}
-    <div class="empty-state">📝 Nenhuma prova cadastrada ainda.<br>
+    <div class="empty-state">Nenhuma prova cadastrada ainda.<br>
         <a href="/provas/nova" class="btn btn-azul" style="margin-top:12px">Criar primeira prova</a>
     </div>
     {% endif %}
@@ -203,7 +199,6 @@
 
 <div class="card" style="max-width:700px">
     <div class="card-header">
-        <span>{{ '✏️' if editando else '📝' }}</span>
         <h2 style="margin:0">{{ 'Editar Prova' if editando else 'Nova Prova' }}</h2>
     </div>
 
@@ -265,7 +260,7 @@
         </div>
 
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">{{ '💾 Salvar alterações' if editando else '✅ Criar prova e adicionar questões' }}</button>
+            <button type="submit" class="btn btn-azul">{{ 'Salvar alterações' if editando else 'Criar prova e adicionar questões' }}</button>
             <a href="/provas" class="btn" style="background:#e0e0e0;color:#333">Cancelar</a>
         </div>
     </form>
@@ -288,7 +283,6 @@
     <div class="card">
         <div class="card-header--between">
             <div class="card-header" style="margin-bottom:0">
-                <span>📋</span>
                 <h3 style="margin:0">Quest&otilde;es ({{ prova.total_questoes }})</h3>
             </div>
             <span style="font-size:12px;color:#888">Total: {{ prova.total_pontos }} pts</span>
@@ -346,7 +340,6 @@
 
     <div class="card">
         <div class="card-header">
-            <span>➕</span>
             <h3 style="margin:0">Adicionar Quest&atilde;o</h3>
         </div>
 
@@ -373,7 +366,6 @@
                 <input type="number" name="pontos" step="0.5" min="0.5" value="1.0" style="max-width:100px">
             </div>
 
-            {# Bloco múltipla escolha #}
             <div id="blocoAlternativas">
                 <div class="secao" style="margin-top:14px">Alternativas <small>(marque a correta)</small></div>
                 <div id="listaAlternativas">
@@ -390,7 +382,6 @@
                         onclick="adicionarAlternativa()">+ Alternativa</button>
             </div>
 
-            {# Bloco verdadeiro/falso — inputs ficam disabled quando oculto #}
             <div id="blocoVF" style="display:none">
                 <div class="secao" style="margin-top:14px">Alternativas Verdadeiro / Falso</div>
                 <div style="display:flex;gap:16px;margin-top:8px">
@@ -464,7 +455,6 @@
 <div class="card">
     <div class="card-header--between">
         <div class="card-header">
-            <span>📊</span>
             <h2 style="margin:0">Resultados &mdash; {{ prova.titulo }}</h2>
         </div>
         {% if pendentes %}
@@ -614,11 +604,6 @@ document.getElementById('modalEditarQuestao')?.addEventListener('click', functio
     if (e.target === this) fecharModal();
 });
 
-/**
- * Atualiza visibilidade dos blocos de alternativas conforme o tipo selecionado.
- * IMPORTANTE: inputs dos blocos ocultos são desabilitados para não serem
- * incluídos no POST — evita que os hidden de V/F contaminem múltipla escolha.
- */
 function atualizarTipo() {
     const tipo = document.getElementById('tipoQuestao')?.value;
 
@@ -632,7 +617,6 @@ function atualizarTipo() {
         if (!bloco) return;
         const ativo = (key === tipo);
         bloco.style.display = ativo ? '' : 'none';
-        // Habilita/desabilita todos os inputs do bloco
         bloco.querySelectorAll('input, textarea, select').forEach(el => {
             el.disabled = !ativo;
         });
@@ -650,7 +634,6 @@ function adicionarAlternativa() {
     altCount++;
 }
 
-// Garante estado correto ao carregar a página
 document.addEventListener('DOMContentLoaded', atualizarTipo);
 </script>
 {% endblock %}
