@@ -61,12 +61,12 @@ def create_app(config_class=Config):
     app.register_blueprint(academico_bp)
     app.register_blueprint(backup_bp)
     app.register_blueprint(provas_bp)
-    app.register_blueprint(provas_aluno_bp)
     app.register_blueprint(atividades_bp)
     app.register_blueprint(liberacoes_bp)
     app.register_blueprint(admin_utils_bp)
     app.register_blueprint(exercicios_bp)
     app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
+    app.register_blueprint(provas_aluno_bp, url_prefix="/aluno")
 
     @app.template_filter("moeda")
     def filtro_moeda(valor):
