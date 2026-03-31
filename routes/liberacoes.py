@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, session, redirect, flash, request
 from db import db
 from models import (
-    Aluno, Matricula, Materia, Prova,
-    MateriaLiberada, ProvaLiberada
+    Aluno, Matricula, Materia, Prova, Exercicio,
+    MateriaLiberada, ProvaLiberada, ExercicioLiberado, CursoMateria
 )
 from security import login_required
 from datetime import datetime
@@ -20,7 +20,7 @@ def _check_perfil():
     return True
 
 
-# ─── PAINEL DE LIBERAÇÕES DE UM ALUNO ─────────────────────────────────────
+# ─── PAINEL DE LIBERAÇÕES DE UM ALUNO ────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/aluno/<int:aluno_id>")
 @login_required
@@ -29,48 +29,66 @@ def painel_liberacoes(aluno_id):
         return redirect("/dashboard")
 
     aluno = db.get_or_404(Aluno, aluno_id)
-
-    # Todos os cursos com matrícula ativa do aluno
     matriculas_ativas = [
         m for m in aluno.matriculas if m.status.upper() == "ATIVA"
     ]
 
-    # IDs já liberados
+    # IDs já liberados (matéria inclui curso_id agora)
     ids_mat_lib = {
-        ml.materia_id for ml in MateriaLiberada.query.filter_by(
-            aluno_id=aluno_id, liberado=1
-        ).all()
+        (ml.materia_id, ml.curso_id)
+        for ml in MateriaLiberada.query.filter_by(aluno_id=aluno_id, liberado=1).all()
     }
     ids_prova_lib = {
         pl.prova_id for pl in ProvaLiberada.query.filter_by(
             aluno_id=aluno_id, liberado=1
         ).all()
     }
+    ids_ex_lib = {
+        el.exercicio_id for el in ExercicioLiberado.query.filter_by(
+            aluno_id=aluno_id, liberado=1
+        ).all()
+    }
 
-    # Monta estrutura por curso
     cursos_data = []
     for m in matriculas_ativas:
         curso = m.curso
         if not curso:
             continue
-        materias = Materia.query.filter_by(curso_id=curso.id, ativa=1).all()
-        provas   = Prova.query.filter_by(curso_id=curso.id, ativa=1).all()
+        # Matérias vinculadas a este curso
+        materias = (
+            db.session.query(Materia)
+            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+            .filter(CursoMateria.curso_id == curso.id, Materia.ativa == 1)
+            .order_by(Materia.nome).all()
+        )
+        provas = Prova.query.filter_by(curso_id=curso.id, ativa=1).all()
+
+        # Exercícios agrupados por matéria
+        exercicios_por_mat = {}
+        for mat in materias:
+            exs = Exercicio.query.filter_by(materia_id=mat.id, ativo=1)\
+                                 .order_by(Exercicio.ordem).all()
+            if exs:
+                exercicios_por_mat[mat.id] = exs
+
         cursos_data.append({
-            "curso":           curso,
-            "materias":        materias,
-            "provas":          provas,
-            "ids_mat_lib":     ids_mat_lib,
-            "ids_prova_lib":   ids_prova_lib,
+            "curso":             curso,
+            "materias":          materias,
+            "provas":            provas,
+            "exercicios_por_mat": exercicios_por_mat,
+            "ids_mat_lib":       ids_mat_lib,
+            "ids_prova_lib":     ids_prova_lib,
+            "ids_ex_lib":        ids_ex_lib,
         })
 
     return render_template(
         "liberacoes.html",
-        aluno        = aluno,
-        cursos_data  = cursos_data,
+        aluno       = aluno,
+        cursos_data = cursos_data,
     )
 
 
-# ─── TOGGLE MATÉRIA ─────────────────────────────────────────────────────────────
+# ─── TOGGLE MATÉRIA (por curso) ─────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/materia", methods=["POST"])
 @login_required
@@ -80,9 +98,10 @@ def toggle_materia():
 
     aluno_id   = int(request.form.get("aluno_id",   0))
     materia_id = int(request.form.get("materia_id", 0))
-    acao       = request.form.get("acao", "liberar")  # "liberar" | "bloquear"
+    curso_id   = int(request.form.get("curso_id",   0))
+    acao       = request.form.get("acao", "liberar")
 
-    if not aluno_id or not materia_id:
+    if not aluno_id or not materia_id or not curso_id:
         flash("Dados inválidos.", "erro")
         return redirect(request.referrer or "/dashboard")
 
@@ -91,7 +110,7 @@ def toggle_materia():
     operador     = session.get("usuario") or session.get("nome") or "sistema"
 
     registro = MateriaLiberada.query.filter_by(
-        aluno_id=aluno_id, materia_id=materia_id
+        aluno_id=aluno_id, materia_id=materia_id, curso_id=curso_id
     ).first()
 
     if registro:
@@ -102,17 +121,17 @@ def toggle_materia():
         db.session.add(MateriaLiberada(
             aluno_id     = aluno_id,
             materia_id   = materia_id,
+            curso_id     = curso_id,
             liberado     = liberado_val,
             liberado_por = operador,
             liberado_em  = agora,
         ))
 
     db.session.commit()
-
     materia = db.session.get(Materia, materia_id)
     nome    = materia.nome if materia else f"ID {materia_id}"
-    msg     = f"Matéria ‘{nome}’ {'liberada' if liberado_val else 'bloqueada'} com sucesso."
-    flash(msg, "sucesso" if liberado_val else "aviso")
+    flash(f"Matéria '{nome}' {'liberada' if liberado_val else 'bloqueada'}.",
+          "sucesso" if liberado_val else "aviso")
     return redirect(f"/liberacoes/aluno/{aluno_id}")
 
 
@@ -126,7 +145,7 @@ def toggle_prova():
 
     aluno_id = int(request.form.get("aluno_id", 0))
     prova_id = int(request.form.get("prova_id", 0))
-    acao     = request.form.get("acao", "liberar")  # "liberar" | "bloquear"
+    acao     = request.form.get("acao", "liberar")
 
     if not aluno_id or not prova_id:
         flash("Dados inválidos.", "erro")
@@ -154,9 +173,53 @@ def toggle_prova():
         ))
 
     db.session.commit()
-
     prova = db.session.get(Prova, prova_id)
     nome  = prova.titulo if prova else f"ID {prova_id}"
-    msg   = f"Prova ‘{nome}’ {'liberada' if liberado_val else 'bloqueada'} com sucesso."
-    flash(msg, "sucesso" if liberado_val else "aviso")
+    flash(f"Prova '{nome}' {'liberada' if liberado_val else 'bloqueada'}.",
+          "sucesso" if liberado_val else "aviso")
+    return redirect(f"/liberacoes/aluno/{aluno_id}")
+
+
+# ─── TOGGLE EXERCÍCIO ─────────────────────────────────────────────────────────
+
+@liberacoes_bp.route("/liberacoes/exercicio", methods=["POST"])
+@login_required
+def toggle_exercicio():
+    if not _check_perfil():
+        return redirect("/dashboard")
+
+    aluno_id     = int(request.form.get("aluno_id",     0))
+    exercicio_id = int(request.form.get("exercicio_id", 0))
+    acao         = request.form.get("acao", "liberar")
+
+    if not aluno_id or not exercicio_id:
+        flash("Dados inválidos.", "erro")
+        return redirect(request.referrer or "/dashboard")
+
+    liberado_val = 1 if acao == "liberar" else 0
+    agora        = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    operador     = session.get("usuario") or session.get("nome") or "sistema"
+
+    registro = ExercicioLiberado.query.filter_by(
+        aluno_id=aluno_id, exercicio_id=exercicio_id
+    ).first()
+
+    if registro:
+        registro.liberado     = liberado_val
+        registro.liberado_por = operador
+        registro.liberado_em  = agora
+    else:
+        db.session.add(ExercicioLiberado(
+            aluno_id     = aluno_id,
+            exercicio_id = exercicio_id,
+            liberado     = liberado_val,
+            liberado_por = operador,
+            liberado_em  = agora,
+        ))
+
+    db.session.commit()
+    ex   = db.session.get(Exercicio, exercicio_id)
+    nome = ex.titulo if ex else f"ID {exercicio_id}"
+    flash(f"Exercício '{nome}' {'liberado' if liberado_val else 'bloqueado'}.",
+          "sucesso" if liberado_val else "aviso")
     return redirect(f"/liberacoes/aluno/{aluno_id}")

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Exercícios — {{ materia.nome }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+body{
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  min-height:100vh; font-family:'Segoe UI',sans-serif; color:#fff;
+}
+.wrap{ max-width:860px; margin:auto; padding:30px 20px 80px; }
+.page-header{ margin-bottom:28px; }
+.voltar{ color:rgba(255,255,255,.5); font-size:13px; text-decoration:none;
+  display:inline-flex; align-items:center; gap:5px; transition:.2s; }
+.voltar:hover{ color:#fff; }
+.badge-curso{
+  display:inline-block; background:rgba(0,180,219,.15);
+  border:1px solid rgba(0,180,219,.35); color:#00b4db;
+  border-radius:999px; font-size:11px; font-weight:700;
+  padding:3px 10px; margin:0 4px 4px 0;
+}
+/* card ex */
+.ex-card{
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  border-radius:14px; padding:18px 20px; margin-bottom:14px;
+}
+.ex-titulo{ font-size:15px; font-weight:700; margin-bottom:6px; }
+.ex-desc{ font-size:13px; opacity:.55; margin-bottom:10px; }
+.ex-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.btn{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:6px 14px; border-radius:8px; font-size:12px; font-weight:700;
+  border:none; cursor:pointer; transition:.2s; text-decoration:none;
+}
+.btn-primary{ background:rgba(0,180,219,.2); color:#00b4db; border:1px solid rgba(0,180,219,.4); }
+.btn-primary:hover{ background:rgba(0,180,219,.35); }
+.btn-danger { background:rgba(255,77,77,.12); color:#ff4d4d; border:1px solid rgba(255,77,77,.35); }
+.btn-danger:hover{ background:rgba(255,77,77,.25); }
+.btn-success{ background:rgba(0,255,157,.12); color:#00ff9d; border:1px solid rgba(0,255,157,.35); }
+.btn-success:hover{ background:rgba(0,255,157,.25); }
+/* form novo */
+.form-card{
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12);
+  border-radius:16px; padding:24px; margin-bottom:28px;
+}
+.form-card h3{ margin:0 0 18px; font-size:16px; }
+.form-row{ display:grid; grid-template-columns:1fr 80px; gap:12px; margin-bottom:12px; }
+.form-row.full{ grid-template-columns:1fr; }
+label{ font-size:12px; font-weight:700; opacity:.5; text-transform:uppercase;
+  letter-spacing:1px; display:block; margin-bottom:4px; }
+input[type=text], textarea, input[type=number], input[type=file]{
+  width:100%; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15);
+  border-radius:8px; padding:8px 12px; color:#fff; font-size:13px; box-sizing:border-box;
+}
+textarea{ resize:vertical; min-height:70px; }
+/* modal editar */
+.modal-overlay{
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.75); z-index:1000;
+  align-items:center; justify-content:center;
+}
+.modal-overlay.open{ display:flex; }
+.modal{
+  background:#1a2a35; border:1px solid rgba(255,255,255,.15);
+  border-radius:18px; padding:28px; width:100%; max-width:520px;
+  max-height:90vh; overflow-y:auto;
+}
+.flash-sucesso{ background:rgba(0,255,157,.1); border:1px solid rgba(0,255,157,.3);
+  color:#00ff9d; border-radius:10px; padding:10px 16px; margin-bottom:14px; font-size:14px; }
+.flash-erro{ background:rgba(255,77,77,.1); border:1px solid rgba(255,77,77,.3);
+  color:#ff4d4d; border-radius:10px; padding:10px 16px; margin-bottom:14px; font-size:14px; }
+.flash-aviso{ background:rgba(255,193,7,.1); border:1px solid rgba(255,193,7,.3);
+  color:#ffc107; border-radius:10px; padding:10px 16px; margin-bottom:14px; font-size:14px; }
+.vazio{ background:rgba(255,255,255,.03); border:1px dashed rgba(255,255,255,.1);
+  border-radius:12px; padding:20px; color:rgba(255,255,255,.3); font-size:14px;
+  display:flex; align-items:center; gap:8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-header">
+    <a href="/materias" class="voltar"><i class="fas fa-arrow-left"></i> Matérias</a>
+    <h1 style="margin:8px 0 4px; font-size:22px">✏️ Exercícios &mdash; {{ materia.nome }}</h1>
+    <div>
+      {% for c in cursos %}
+        <span class="badge-curso"><i class="fas fa-graduation-cap"></i> {{ c.nome }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash-{{ cat }}"><i class="fas fa-info-circle"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ── Formulário novo exercício ─────────────────────────────────────────────── #}
+  <div class="form-card">
+    <h3><i class="fas fa-plus-circle" style="opacity:.7"></i> Novo Exercício</h3>
+    <form method="POST" action="/materias/{{ materia.id }}/exercicios/criar"
+          enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <div>
+          <label>Título *</label>
+          <input type="text" name="titulo" required placeholder="Ex: Lista de exercícios 1">
+        </div>
+        <div>
+          <label>Ordem</label>
+          <input type="number" name="ordem" value="{{ (exercicios|length) + 1 }}" min="1">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div>
+          <label>Descrição / Enunciado</label>
+          <textarea name="descricao" placeholder="Descrição opcional..."></textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div>
+          <label>Arquivo (PDF, imagem, Word)</label>
+          <input type="file" name="arquivo" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.doc">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success">
+        <i class="fas fa-save"></i> Salvar Exercício
+      </button>
+    </form>
+  </div>
+
+  {# ── Lista ──────────────────────────────────────────────────────────────────── #}
+  {% if exercicios %}
+    {% for ex in exercicios %}
+    <div class="ex-card">
+      <div class="ex-titulo">
+        <span style="opacity:.4; font-size:11px; margin-right:6px">#{{ ex.ordem }}</span>
+        {{ ex.titulo }}
+      </div>
+      {% if ex.descricao %}<div class="ex-desc">{{ ex.descricao }}</div>{% endif %}
+      <div class="ex-actions">
+        {% if ex.arquivo %}
+          <a href="/exercicios/{{ ex.id }}/arquivo" target="_blank" class="btn btn-primary">
+            <i class="fas fa-file"></i> Ver arquivo
+          </a>
+        {% endif %}
+        <button onclick="abrirEditar({{ ex.id }}, '{{ ex.titulo|e }}', {{ ex.ordem }}, `{{ (ex.descricao or '')|e }}`)" class="btn btn-primary">
+          <i class="fas fa-edit"></i> Editar
+        </button>
+        <form method="POST" action="/exercicios/{{ ex.id }}/excluir" style="display:inline"
+              onsubmit="return confirm('Remover este exercício?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Remover
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="vazio"><i class="fas fa-info-circle"></i> Nenhum exercício cadastrado ainda.</div>
+  {% endif %}
+</div>
+
+{# ── Modal editar ──────────────────────────────────────────────────────────────── #}
+<div class="modal-overlay" id="modalEditar">
+  <div class="modal">
+    <h3 style="margin:0 0 18px"><i class="fas fa-edit" style="opacity:.7"></i> Editar Exercício</h3>
+    <form method="POST" id="formEditar" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <div>
+          <label>Título *</label>
+          <input type="text" name="titulo" id="editTitulo" required>
+        </div>
+        <div>
+          <label>Ordem</label>
+          <input type="number" name="ordem" id="editOrdem" min="1">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div>
+          <label>Descrição</label>
+          <textarea name="descricao" id="editDescricao"></textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div>
+          <label>Substituir arquivo (opcional)</label>
+          <input type="file" name="arquivo" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx,.doc">
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:4px">
+        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
+        <button type="button" onclick="fecharEditar()" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirEditar(id, titulo, ordem, descricao){
+  document.getElementById('editTitulo').value  = titulo;
+  document.getElementById('editOrdem').value   = ordem;
+  document.getElementById('editDescricao').value = descricao;
+  document.getElementById('formEditar').action = `/exercicios/${id}/editar`;
+  document.getElementById('modalEditar').classList.add('open');
+}
+function fecharEditar(){
+  document.getElementById('modalEditar').classList.remove('open');
+}
+document.getElementById('modalEditar').addEventListener('click', function(e){
+  if(e.target === this) fecharEditar();
+});
+</script>
+{% endblock %}

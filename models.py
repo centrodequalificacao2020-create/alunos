@@ -139,15 +139,18 @@ class AcessoConteudoCurso(db.Model):
 
 
 class MateriaLiberada(db.Model):
+    """Libera uma matéria para um aluno dentro de um curso específico."""
     __tablename__ = "materias_liberadas"
     __table_args__ = (
-        db.UniqueConstraint("aluno_id", "materia_id", name="uq_materia_liberada"),
+        db.UniqueConstraint("aluno_id", "materia_id", "curso_id", name="uq_materia_liberada"),
         db.Index("ix_mat_lib_aluno",   "aluno_id"),
         db.Index("ix_mat_lib_materia", "materia_id"),
+        db.Index("ix_mat_lib_curso",   "curso_id"),
     )
     id           = db.Column(db.Integer, primary_key=True)
     aluno_id     = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
     materia_id   = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    curso_id     = db.Column(db.Integer, db.ForeignKey("cursos.id"), nullable=False)
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
@@ -166,6 +169,22 @@ class ProvaLiberada(db.Model):
     liberado     = db.Column(db.Integer, nullable=False, default=1)
     liberado_por = db.Column(db.String(120))
     liberado_em  = db.Column(db.String(19))
+
+
+class ExercicioLiberado(db.Model):
+    """Libera um exercício de matéria para um aluno específico."""
+    __tablename__ = "exercicios_liberados"
+    __table_args__ = (
+        db.UniqueConstraint("aluno_id", "exercicio_id", name="uq_exercicio_liberado"),
+        db.Index("ix_ex_lib_aluno",     "aluno_id"),
+        db.Index("ix_ex_lib_exercicio", "exercicio_id"),
+    )
+    id            = db.Column(db.Integer, primary_key=True)
+    aluno_id      = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    exercicio_id  = db.Column(db.Integer, db.ForeignKey("exercicios.id"), nullable=False)
+    liberado      = db.Column(db.Integer, nullable=False, default=1)
+    liberado_por  = db.Column(db.String(120))
+    liberado_em   = db.Column(db.String(19))
 
 
 class Matricula(db.Model):
@@ -265,6 +284,9 @@ class Materia(db.Model):
     conteudos = db.relationship("Conteudo", backref="materia", lazy=True,
                                 cascade="all, delete-orphan")
     notas     = db.relationship("Nota", backref="materia", lazy=True)
+    exercicios = db.relationship("Exercicio", backref="materia", lazy=True,
+                                 cascade="all, delete-orphan",
+                                 order_by="Exercicio.ordem")
 
 
 class CursoMateria(db.Model):
@@ -288,6 +310,26 @@ class Conteudo(db.Model):
     arquivo    = db.Column(db.String(300))
     video      = db.Column(db.String(300))
     data       = db.Column(db.String(10))
+
+
+class Exercicio(db.Model):
+    """Exercício vinculado a uma matéria. Pode ter arquivo (PDF/imagem) e/ou enunciado."""
+    __tablename__ = "exercicios"
+    __table_args__ = (
+        db.Index("ix_exercicios_materia_id", "materia_id"),
+    )
+    id         = db.Column(db.Integer, primary_key=True)
+    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    titulo     = db.Column(db.String(200), nullable=False)
+    descricao  = db.Column(db.Text)
+    arquivo    = db.Column(db.String(300))   # PDF ou imagem
+    ordem      = db.Column(db.Integer, default=1)
+    ativo      = db.Column(db.Integer, default=1)
+    criado_em  = db.Column(db.String(19))
+    criado_por = db.Column(db.String(80))
+    liberacoes = db.relationship("ExercicioLiberado",
+                                 backref="exercicio", lazy=True,
+                                 cascade="all, delete-orphan")
 
 
 class Nota(db.Model):
