@@ -50,20 +50,25 @@
     color:var(--color-primary,#2980b9);
     border-bottom-color:var(--color-primary,#2980b9);
 }
-/* botões de ação da tabela — sem emoji, cores distintas */
-.btn-acao-questoes  { background:#3b82f6; color:#fff; border:none; }
+/* FIX: botoes de acao — sem quebra de linha, tamanho minimo da celula */
+.btn-acao-questoes  { background:#3b82f6; color:#fff; border:none; white-space:nowrap; }
 .btn-acao-questoes:hover  { background:#2563eb; color:#fff; }
-.btn-acao-editar    { background:#f59e0b; color:#fff; border:none; }
+.btn-acao-editar    { background:#f59e0b; color:#fff; border:none; white-space:nowrap; }
 .btn-acao-editar:hover    { background:#d97706; color:#fff; }
-.btn-acao-resultados{ background:#8b5cf6; color:#fff; border:none; }
+.btn-acao-resultados{ background:#8b5cf6; color:#fff; border:none; white-space:nowrap; }
 .btn-acao-resultados:hover{ background:#7c3aed; color:#fff; }
-.btn-acao-ativar    { background:#10b981; color:#fff; border:none; }
+.btn-acao-ativar    { background:#10b981; color:#fff; border:none; white-space:nowrap; }
 .btn-acao-ativar:hover    { background:#059669; color:#fff; }
-.btn-acao-desativar { background:#6b7280; color:#fff; border:none; }
+.btn-acao-desativar { background:#6b7280; color:#fff; border:none; white-space:nowrap; }
 .btn-acao-desativar:hover { background:#4b5563; color:#fff; }
-.btn-acao-excluir   { background:#ef4444; color:#fff; border:none; }
+.btn-acao-excluir   { background:#ef4444; color:#fff; border:none; white-space:nowrap; }
 .btn-acao-excluir:hover   { background:#dc2626; color:#fff; }
-/* campo de alternativa — garante que seja editável */
+/* FIX: celula acoes nao comprime os botoes */
+td.acoes {
+    white-space:nowrap;
+    min-width:260px;
+}
+/* FIX: campo de alternativa editavel no modal */
 .alt-input-texto {
     flex:1; margin-bottom:0;
     background:#fff !important;
@@ -71,15 +76,30 @@
     pointer-events:auto !important;
     user-select:text !important;
     -webkit-user-select:text !important;
+    cursor:text !important;
+    opacity:1 !important;
+    border:1px solid #d1d5db !important;
+    border-radius:4px !important;
+    padding:5px 8px !important;
+    font-size:14px !important;
 }
+/* botao remover alternativa no modal */
+.btn-rm-alt {
+    flex-shrink:0;
+    background:#fee2e2; color:#dc2626;
+    border:none; border-radius:4px;
+    padding:4px 8px; font-size:13px;
+    cursor:pointer; line-height:1;
+}
+.btn-rm-alt:hover { background:#fca5a5; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-{# ══════════════════════════════════════════════════════════════════════
+{# ======================================================================
    VIEW: LISTA DE PROVAS
-══════════════════════════════════════════════════════════════════════ #}
+====================================================================== #}
 {% if view == 'lista' %}
 
 <div class="card">
@@ -91,7 +111,6 @@
         <a href="/provas/nova" class="btn btn-azul">+ Nova Prova</a>
     </div>
 
-    {# ─── Tabs ─── #}
     <div class="pea-tabs">
         <a href="/provas"     class="pea-tab ativo">Provas</a>
         <a href="/exercicios" class="pea-tab">Exerc&#237;cios</a>
@@ -178,9 +197,9 @@
 </div>
 
 
-{# ══════════════════════════════════════════════════════════════════════
+{# ======================================================================
    VIEW: NOVA / EDITAR PROVA
-══════════════════════════════════════════════════════════════════════ #}
+====================================================================== #}
 {% elif view == 'nova' or view == 'editar' %}
 
 {% set editando = (view == 'editar') %}
@@ -257,9 +276,9 @@
 </div>
 
 
-{# ══════════════════════════════════════════════════════════════════════
-   VIEW: QUESTÕES DE UMA PROVA
-══════════════════════════════════════════════════════════════════════ #}
+{# ======================================================================
+   VIEW: QUESTOES DE UMA PROVA
+====================================================================== #}
 {% elif view == 'questoes' %}
 
 <div class="breadcrumb">
@@ -401,6 +420,7 @@
     </div>
 </div>
 
+{# Modal editar questao #}
 <div class="modal-overlay" id="modalEditarQuestao">
     <div class="modal" style="max-width:560px;text-align:left">
         <h3>Editar Quest&atilde;o</h3>
@@ -415,8 +435,15 @@
                 <label>Pontua&ccedil;&atilde;o</label>
                 <input type="number" name="pontos" id="editPontos" step="0.5" min="0.5" style="max-width:100px">
             </div>
+            {# FIX: container de alternativas editaveis gerado pelo JS #}
             <div id="editAlternativas"></div>
-            <div class="acoes-form">
+            {# FIX: botao para adicionar nova alternativa no modal de edicao #}
+            <div id="editBlocoAddAlt" style="margin-top:6px;display:none">
+                <button type="button" class="btn btn-sm"
+                        style="background:#e3f2fd;color:#1565c0"
+                        onclick="adicionarAltModal()">+ Alternativa</button>
+            </div>
+            <div class="acoes-form" style="margin-top:16px">
                 <button type="submit" class="btn btn-azul">Salvar</button>
                 <button type="button" class="btn" style="background:#e0e0e0;color:#333" onclick="fecharModal()">Cancelar</button>
             </div>
@@ -425,9 +452,9 @@
 </div>
 
 
-{# ══════════════════════════════════════════════════════════════════════
-   VIEW: RESULTADOS (com botão corrigir dissertativas)
-══════════════════════════════════════════════════════════════════════ #}
+{# ======================================================================
+   VIEW: RESULTADOS
+====================================================================== #}
 {% elif view == 'resultados' %}
 
 <div class="breadcrumb">
@@ -509,7 +536,6 @@
 
 {% block scripts %}
 <script>
-{# Só serializa questões quando estamos na view de edição de questões E prova existe #}
 const questoesData = {
     {% if view == 'questoes' and prova is defined %}
     {% for q in prova.questoes %}
@@ -527,27 +553,67 @@ const questoesData = {
     {% endif %}
 };
 
+// FIX: contador global de novas alternativas adicionadas no modal
+let modalAltCount = 0;
+
 function abrirEditarQuestao(qId) {
     const q = questoesData[qId];
     if (!q) return;
+    modalAltCount = 0;
     document.getElementById('editQuestaoId').value = qId;
     document.getElementById('editEnunciado').value = q.enunciado;
     document.getElementById('editPontos').value    = q.pontos;
 
+    const blocoAdd = document.getElementById('editBlocoAddAlt');
+
     let html = '';
     if (q.alternativas.length) {
-        html += '<div class="secao" style="margin-top:10px">Alternativas <small>(marque a correta)</small></div>';
+        // FIX: mostra secao de alternativas e botao de adicionar
+        blocoAdd.style.display = '';
+        html += '<div class="secao" style="margin-top:10px">Alternativas <small>(marque a correta &mdash; <span style="color:#dc2626">&#10007;</span> remove)</small></div>';
         q.alternativas.forEach((a, i) => {
-            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            // FIX: input editavel + botao remover alternativa
+            html += `<div class="alt-linha" id="alt-linha-${a.id}" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
                 <input type="checkbox" name="alt_correta" value="${i}" ${a.correta ? 'checked' : ''}>
                 <input type="hidden"   name="alt_id"     value="${a.id}">
                 <input type="text"     name="alt_texto"  class="alt-input-texto"
-                       value="${a.texto.replace(/"/g,'&quot;')}">
+                       value="${a.texto.replace(/&quot;/g,'"').replace(/"/g,'&quot;')}">
+                <button type="button" class="btn-rm-alt" title="Remover alternativa"
+                        onclick="removerAltLinha('alt-linha-${a.id}')">&times;</button>
             </div>`;
         });
+    } else {
+        blocoAdd.style.display = 'none';
     }
     document.getElementById('editAlternativas').innerHTML = html;
     document.getElementById('modalEditarQuestao').classList.add('aberto');
+}
+
+// FIX: remove visualmente a linha e desativa os campos para nao enviar no submit
+function removerAltLinha(linhaId) {
+    const linha = document.getElementById(linhaId);
+    if (!linha) return;
+    // desativa todos os inputs para que nao sejam enviados
+    linha.querySelectorAll('input').forEach(el => el.disabled = true);
+    linha.style.opacity = '0.35';
+    linha.style.pointerEvents = 'none';
+    linha.style.textDecoration = 'line-through';
+}
+
+// FIX: adicionar nova alternativa dentro do modal de edicao
+function adicionarAltModal() {
+    const container = document.getElementById('editAlternativas');
+    const idx = 'novo_' + modalAltCount++;
+    const div = document.createElement('div');
+    div.className = 'alt-linha';
+    div.id = 'alt-linha-' + idx;
+    div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
+    div.innerHTML = `<input type="checkbox" name="alt_correta" value="nova_${idx}">
+        <input type="hidden" name="alt_id" value="">
+        <input type="text" name="alt_texto" class="alt-input-texto" placeholder="Nova alternativa">
+        <button type="button" class="btn-rm-alt" title="Remover"
+                onclick="removerAltLinha('alt-linha-${idx}')">&times;</button>`;
+    container.appendChild(div);
 }
 
 function fecharModal() {
