@@ -124,17 +124,29 @@ body{
 .ex-card{
   background:rgba(255,180,0,.05); border:1px solid rgba(255,180,0,.15);
   border-radius:12px; padding:16px 18px; margin-bottom:10px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:14px; flex-wrap:wrap;
 }
-.ex-titulo{ font-size:14px; font-weight:700; margin-bottom:6px; }
-.ex-desc{ font-size:13px; opacity:.5; margin-bottom:10px; }
+.ex-info{ flex:1; min-width:0; }
+.ex-titulo{ font-size:14px; font-weight:700; margin-bottom:4px; }
+.ex-desc{ font-size:13px; opacity:.5; margin-bottom:8px; }
+.ex-meta{ font-size:12px; opacity:.4; display:flex; gap:14px; flex-wrap:wrap; }
+.btn-ex-realizar{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,180,0,.15); color:#ffb400;
+  border:1px solid rgba(255,180,0,.4);
+  padding:8px 18px; border-radius:10px; font-size:13px; font-weight:700;
+  text-decoration:none; transition:.2s; white-space:nowrap;
+}
+.btn-ex-realizar:hover{ background:rgba(255,180,0,.28); }
 .btn-ex-arquivo{
   display:inline-flex; align-items:center; gap:6px;
-  background:rgba(255,180,0,.12); color:#ffb400;
-  border:1px solid rgba(255,180,0,.35);
-  padding:7px 16px; border-radius:9px; font-size:12px; font-weight:700;
+  background:rgba(255,180,0,.07); color:#ffb400;
+  border:1px solid rgba(255,180,0,.2);
+  padding:6px 14px; border-radius:9px; font-size:12px; font-weight:700;
   text-decoration:none; transition:.2s;
 }
-.btn-ex-arquivo:hover{ background:rgba(255,180,0,.25); }
+.btn-ex-arquivo:hover{ background:rgba(255,180,0,.18); }
 
 /* ─ ATIVIDADES ────────────────────────────────────────────────────── */
 .atv-card{
@@ -197,10 +209,9 @@ body{
     <button class="tab-btn ativo" onclick="trocarTab('aulas',this)">
       <i class="fas fa-play-circle"></i> Aulas
     </button>
-    {% set total_ex = exercicios_por_mat.values()|sum(attribute='__len__', start=0) %}
     <button class="tab-btn" onclick="trocarTab('exercicios',this)">
       <i class="fas fa-pencil-alt"></i> Exerc&iacute;cios
-      {% if exercicios_por_mat %}<span style="opacity:.5">({{ exercicios_por_mat.values()|map('length')|sum }})</span>{% endif %}
+      {% if exercicios_por_mat %}<span style="opacity:.5">({{ exercicios_por_mat.values()|map(attribute='__len__')|sum }}{# somar listas de dicts #}{% set ns=namespace(c=0) %}{% for lst in exercicios_por_mat.values() %}{% set ns.c = ns.c + lst|length %}{% endfor %}){% endif %}
     </button>
     <button class="tab-btn" onclick="trocarTab('provas',this)">
       <i class="fas fa-file-alt"></i> Provas
@@ -275,24 +286,42 @@ body{
 
   {# ─────────────── TAB EXERCÍCIOS ────────────────────────────── #}
   <div id="tab-exercicios" class="tab-pane">
-    {% set tem_ex = exercicios_por_mat and exercicios_por_mat.values()|selectattr('__len__')|list %}
     {% if exercicios_por_mat %}
       {% for mat in materias_liberadas %}
         {% set exs = exercicios_por_mat.get(mat.id, []) %}
         {% if exs %}
           <div class="ex-secao-titulo"><i class="fas fa-book"></i> {{ mat.nome }}</div>
-          {% for ex in exs %}
+          {% for item in exs %}
+          {% set ex = item.exercicio %}
           <div class="ex-card">
-            <div class="ex-titulo">
-              <span style="opacity:.4; font-size:11px; margin-right:6px">#{{ ex.ordem }}</span>
-              {{ ex.titulo }}
+            <div class="ex-info">
+              <div class="ex-titulo">
+                <span style="opacity:.4;font-size:11px;margin-right:6px">#{{ ex.ordem }}</span>
+                {{ ex.titulo }}
+              </div>
+              {% if ex.descricao %}<div class="ex-desc">{{ ex.descricao }}</div>{% endif %}
+              <div class="ex-meta">
+                <span><i class="fas fa-list-ol"></i> {{ ex.questoes|length }} quest&otilde;es</span>
+                {% if ex.tempo_limite %}
+                  <span><i class="fas fa-clock"></i> {{ ex.tempo_limite }} min</span>
+                {% endif %}
+                <span><i class="fas fa-redo"></i> {{ item.tentativas_usadas }}/{{ item.max_tentativas }} tentativa(s)</span>
+              </div>
+              {% if ex.arquivo %}
+                <a href="/aluno/exercicio/{{ ex.id }}/arquivo" target="_blank" class="btn-ex-arquivo" style="margin-top:8px;display:inline-flex">
+                  <i class="fas fa-file"></i> Material de apoio
+                </a>
+              {% endif %}
             </div>
-            {% if ex.descricao %}<div class="ex-desc">{{ ex.descricao }}</div>{% endif %}
-            {% if ex.arquivo %}
-              <a href="/aluno/exercicio/{{ ex.id }}/arquivo" target="_blank" class="btn-ex-arquivo">
-                <i class="fas fa-file"></i> Ver / Baixar arquivo
-              </a>
-            {% endif %}
+            <div>
+              {% if item.pode_fazer %}
+                <a href="/aluno/exercicio/{{ ex.id }}" class="btn-ex-realizar">
+                  <i class="fas fa-pen"></i> Realizar
+                </a>
+              {% else %}
+                <span class="pill-esgotada"><i class="fas fa-ban"></i> Esgotado</span>
+              {% endif %}
+            </div>
           </div>
           {% endfor %}
         {% endif %}
