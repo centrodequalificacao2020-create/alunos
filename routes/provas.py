@@ -1,9 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, flash, session, jsonify
 from db import db
-from models import (
-    Prova, Questao, Alternativa, RespostaProva, RespostaQuestao,
-    Curso, Materia, Aluno
-)
 from security import login_required
 from datetime import datetime
 
@@ -17,31 +13,36 @@ def _calcular_nota(total_pontos, pontos_max):
     return round((total_pontos / pontos_max) * 10, 2)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # LISTAGEM
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas")
 @login_required
 def listar_provas():
+    from models import Prova, Curso
     curso_id = request.args.get("curso_id", type=int)
-    q = Prova.query.order_by(Prova.id.desc())
-    if curso_id:
-        q = q.filter_by(curso_id=curso_id)
-    provas = q.all()
+    try:
+        q = Prova.query.order_by(Prova.id.desc())
+        if curso_id:
+            q = q.filter_by(curso_id=curso_id)
+        provas = q.all()
+    except Exception:
+        provas = []
     cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("provas.html",
                            provas=provas, cursos=cursos,
                            curso_id_sel=curso_id, view="lista")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # CRIAR PROVA
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/nova", methods=["GET", "POST"])
 @login_required
 def nova_prova():
+    from models import Prova, Curso, Materia
     cursos   = Curso.query.order_by(Curso.nome).all()
     materias = Materia.query.filter_by(ativa=1).order_by(Materia.nome).all()
 
@@ -66,19 +67,20 @@ def nova_prova():
         )
         db.session.add(prova)
         db.session.commit()
-        flash(f"Prova \u201c{prova.titulo}\u201d criada. Adicione as questões.", "sucesso")
+        flash(f"Prova \u201c{prova.titulo}\u201d criada. Adicione as quest\u00f5es.", "sucesso")
         return redirect(f"/provas/{prova.id}/questoes")
 
     return render_template("provas.html", cursos=cursos, materias=materias, view="nova")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # EDITAR PROVA
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_prova(id):
+    from models import Prova, Curso, Materia
     prova    = db.get_or_404(Prova, id)
     cursos   = Curso.query.order_by(Curso.nome).all()
     materias = Materia.query.filter_by(ativa=1).order_by(Materia.nome).all()
@@ -101,13 +103,14 @@ def editar_prova(id):
                            cursos=cursos, materias=materias, view="editar")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # EXCLUIR PROVA
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/excluir", methods=["POST"])
 @login_required
 def excluir_prova(id):
+    from models import Prova
     prova = db.get_or_404(Prova, id)
     db.session.delete(prova)
     db.session.commit()
@@ -115,13 +118,14 @@ def excluir_prova(id):
     return redirect("/provas")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # GERENCIAR QUESTÕES
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/questoes", methods=["GET", "POST"])
 @login_required
 def gerenciar_questoes(id):
+    from models import Prova, Questao, Alternativa
     prova = db.get_or_404(Prova, id)
 
     if request.method == "POST":
@@ -130,7 +134,6 @@ def gerenciar_questoes(id):
         if acao == "add_questao":
             enunciado = request.form.get("enunciado", "").strip()
             tipo      = request.form.get("tipo", "multipla_escolha")
-            # Bug 1 fix: garante pontos >= 0.1 para evitar divisão por zero na nota
             try:
                 pontos = float(request.form.get("pontos", 1.0))
             except (ValueError, TypeError):
@@ -206,33 +209,38 @@ def gerenciar_questoes(id):
     return render_template("provas.html", prova=prova, view="questoes")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # RESULTADOS DE UMA PROVA (admin)
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/resultados")
 @login_required
 def resultados_prova(id):
-    prova     = db.get_or_404(Prova, id)
-    respostas = (
-        RespostaProva.query
-        .filter_by(prova_id=id)
-        .order_by(RespostaProva.finalizado_em.desc())
-        .all()
-    )
+    from models import Prova, RespostaProva
+    prova = db.get_or_404(Prova, id)
+    try:
+        respostas = (
+            RespostaProva.query
+            .filter_by(prova_id=id)
+            .order_by(RespostaProva.finalizado_em.desc())
+            .all()
+        )
+    except Exception:
+        respostas = []
     pendentes = sum(1 for r in respostas if r.nota_obtida is None)
     return render_template("provas.html",
                            prova=prova, respostas=respostas,
                            pendentes=pendentes, view="resultados")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # CORRIGIR TENTATIVA DISSERTATIVA
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/corrigir/<int:resp_id>", methods=["GET", "POST"])
 @login_required
 def corrigir_tentativa(resp_id):
+    from models import Prova, Questao, Alternativa, RespostaProva, RespostaQuestao, Aluno
     resp_prova = db.get_or_404(RespostaProva, resp_id)
     prova      = db.get_or_404(Prova, resp_prova.prova_id)
     aluno      = db.get_or_404(Aluno, resp_prova.aluno_id)
@@ -265,7 +273,6 @@ def corrigir_tentativa(resp_id):
             else:
                 total_pontos += (rq.pontos_obtidos or 0.0)
 
-        # Bug 1 fix: usa _calcular_nota
         nota_final = _calcular_nota(total_pontos, pontos_max)
         resp_prova.nota_obtida = nota_final
         resp_prova.aprovado    = 1 if nota_final >= prova.nota_minima else 0
@@ -294,13 +301,14 @@ def corrigir_tentativa(resp_id):
                            aluno=aluno, gabarito=gabarito)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # TOGGLE ATIVA/RASCUNHO
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/toggle", methods=["POST"])
 @login_required
 def toggle_prova(id):
+    from models import Prova
     prova = db.get_or_404(Prova, id)
     if prova.total_questoes == 0 and prova.ativa == 0:
         flash("Adicione ao menos uma questão antes de ativar a prova.", "erro")
@@ -312,15 +320,19 @@ def toggle_prova(id):
     return redirect("/provas")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 # API JSON — estatísticas
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/stats.json")
 @login_required
 def stats_prova(id):
-    prova     = db.get_or_404(Prova, id)
-    respostas = RespostaProva.query.filter_by(prova_id=id).all()
+    from models import Prova, RespostaProva
+    prova = db.get_or_404(Prova, id)
+    try:
+        respostas = RespostaProva.query.filter_by(prova_id=id).all()
+    except Exception:
+        respostas = []
     notas     = [r.nota_obtida for r in respostas if r.nota_obtida is not None]
     aprovados = sum(1 for r in respostas if r.aprovado == 1)
     pendentes = sum(1 for r in respostas if r.nota_obtida is None)
