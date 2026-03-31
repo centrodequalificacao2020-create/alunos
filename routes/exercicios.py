@@ -26,67 +26,33 @@ def _upload_folder():
     return os.path.join(current_app.root_path, "static", "uploads", "exercicios")
 
 
+def _materias_json():
+    materias = Materia.query.order_by(Materia.nome).all()
+    return materias, [{"id": m.id, "nome": m.nome, "curso_id": m.curso_id} for m in materias]
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # LISTAGEM GERAL
 # ─────────────────────────────────────────────────────────────────────────
 
-@exercicios_bp.route("/exercicios", methods=["GET", "POST"])
+@exercicios_bp.route("/exercicios")
 @login_required
 def exercicios_geral():
-    cursos   = Curso.query.order_by(Curso.nome).all()
-    materias = Materia.query.order_by(Materia.nome).all()
-    curso_id_sel = request.args.get("curso_id", type=int)
+    cursos        = Curso.query.order_by(Curso.nome).all()
+    materias, materias_json = _materias_json()
+    curso_id_sel  = request.args.get("curso_id", type=int)
 
-    query = Exercicio.query.filter_by(ativo=1)
+    # FIX: mostra todos (ativo=0 e ativo=1), igual às provas
+    query = Exercicio.query
     if curso_id_sel:
-        mids = [m.id for m in materias if any(
-            cm.curso_id == curso_id_sel
-            for cm in CursoMateria.query.filter_by(materia_id=m.id).all()
-        )]
+        mids = [
+            m.id for m in materias
+            if any(cm.curso_id == curso_id_sel
+                   for cm in CursoMateria.query.filter_by(materia_id=m.id).all())
+        ]
         query = query.filter(Exercicio.materia_id.in_(mids)) if mids else query.filter(False)
-    exercicios = query.order_by(Exercicio.materia_id, Exercicio.ordem).all()
+    exercicios = query.order_by(Exercicio.id.desc()).all()
 
-    if request.method == "POST":
-        titulo       = request.form.get("titulo", "").strip()
-        descricao    = request.form.get("descricao", "").strip()
-        materia_id   = request.form.get("materia_id", type=int)
-        ordem        = request.form.get("ordem", 1, type=int)
-        tentativas   = request.form.get("tentativas", 1, type=int)
-        tempo_limite = request.form.get("tempo_limite", type=int)
-
-        if not titulo or not materia_id:
-            flash("Título e matéria são obrigatórios.", "erro")
-            return redirect("/exercicios")
-
-        arquivo_nome = None
-        f = request.files.get("arquivo")
-        if f and f.filename and _allowed(f.filename):
-            pasta = _upload_folder()
-            os.makedirs(pasta, exist_ok=True)
-            nome_seguro = secure_filename(
-                f"{materia_id}_{int(datetime.now().timestamp())}_{f.filename}"
-            )
-            f.save(os.path.join(pasta, nome_seguro))
-            arquivo_nome = f"exercicios/{nome_seguro}"
-
-        ex = Exercicio(
-            materia_id   = materia_id,
-            titulo       = titulo,
-            descricao    = descricao or None,
-            arquivo      = arquivo_nome,
-            ordem        = ordem,
-            tentativas   = max(1, tentativas or 1),
-            tempo_limite = tempo_limite or None,
-            ativo        = 1,
-            criado_em    = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            criado_por   = session.get("usuario") or "",
-        )
-        db.session.add(ex)
-        db.session.commit()
-        flash(f"Exercício '{titulo}' criado! Adicione as questões.", "sucesso")
-        return redirect(f"/exercicios/{ex.id}/questoes")
-
-    materias_json = [{"id": m.id, "nome": m.nome, "curso_id": m.curso_id} for m in materias]
     return render_template(
         "exercicios_geral.html",
         cursos        = cursos,
@@ -94,11 +60,151 @@ def exercicios_geral():
         materias_json = materias_json,
         exercicios    = exercicios,
         curso_id_sel  = curso_id_sel,
+        view          = "lista",
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# GERENCIAR QUESTOES DE UM EXERCICIO (admin/instrutor)
+# CRIAR EXERCICIO  (GET renderiza form, POST salva)
+# ─────────────────────────────────────────────────────────────────────────
+
+@exercicios_bp.route("/exercicios/novo", methods=["GET", "POST"])
+@login_required
+def novo_exercicio():
+    cursos        = Curso.query.order_by(Curso.nome).all()
+    materias, materias_json = _materias_json()
+
+    if request.method == "POST":
+        f            = request.form
+        titulo       = f.get("titulo", "").strip()
+        materia_id   = f.get("materia_id", type=int)
+        curso_id     = f.get("curso_id", type=int)
+        descricao    = f.get("descricao", "").strip() or None
+        ordem        = f.get("ordem", 1, type=int)
+        tentativas   = max(1, f.get("tentativas", 1, type=int))
+        tempo_limite = f.get("tempo_limite", type=int) or None
+        ativo        = 1 if f.get("ativo") else 0
+
+        if not titulo or not materia_id:
+            flash("Título e matéria são obrigatórios.", "erro")
+            return redirect("/exercicios/novo")
+
+        arquivo_nome = None
+        arq = request.files.get("arquivo")
+        if arq and arq.filename and _allowed(arq.filename):
+            pasta = _upload_folder()
+            os.makedirs(pasta, exist_ok=True)
+            nome_seguro = secure_filename(
+                f"{materia_id}_{int(datetime.now().timestamp())}_{arq.filename}"
+            )
+            arq.save(os.path.join(pasta, nome_seguro))
+            arquivo_nome = f"exercicios/{nome_seguro}"
+
+        ex = Exercicio(
+            materia_id   = materia_id,
+            titulo       = titulo,
+            descricao    = descricao,
+            arquivo      = arquivo_nome,
+            ordem        = ordem,
+            tentativas   = tentativas,
+            tempo_limite = tempo_limite,
+            ativo        = ativo,
+            criado_em    = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            criado_por   = session.get("usuario") or "",
+        )
+        db.session.add(ex)
+        db.session.commit()
+        flash(f"Exercício \u201c{titulo}\u201d criado! Adicione as questões.", "sucesso")
+        return redirect(f"/exercicios/{ex.id}/questoes")
+
+    return render_template(
+        "exercicios_geral.html",
+        cursos        = cursos,
+        materias      = materias,
+        materias_json = materias_json,
+        view          = "novo",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# EDITAR EXERCICIO  (GET renderiza form, POST salva)
+# ─────────────────────────────────────────────────────────────────────────
+
+@exercicios_bp.route("/exercicios/<int:ex_id>/editar", methods=["GET", "POST"])
+@login_required
+def editar_exercicio(ex_id):
+    ex            = db.get_or_404(Exercicio, ex_id)
+    cursos        = Curso.query.order_by(Curso.nome).all()
+    materias, materias_json = _materias_json()
+
+    if request.method == "POST":
+        f = request.form
+        ex.titulo       = f.get("titulo", ex.titulo).strip() or ex.titulo
+        ex.descricao    = f.get("descricao", "").strip() or None
+        ex.materia_id   = f.get("materia_id", type=int) or ex.materia_id
+        ex.ordem        = f.get("ordem", ex.ordem, type=int)
+        ex.tentativas   = max(1, f.get("tentativas", ex.tentativas or 1, type=int))
+        ex.tempo_limite = f.get("tempo_limite", type=int) or None
+        ex.ativo        = 1 if f.get("ativo") else 0
+
+        arq = request.files.get("arquivo")
+        if arq and arq.filename and _allowed(arq.filename):
+            pasta = _upload_folder()
+            os.makedirs(pasta, exist_ok=True)
+            nome_seguro = secure_filename(
+                f"{ex.materia_id}_{int(datetime.now().timestamp())}_{arq.filename}"
+            )
+            arq.save(os.path.join(pasta, nome_seguro))
+            ex.arquivo = f"exercicios/{nome_seguro}"
+
+        db.session.commit()
+        flash("Exercício atualizado!", "sucesso")
+        return redirect("/exercicios")
+
+    return render_template(
+        "exercicios_geral.html",
+        exercicio     = ex,
+        cursos        = cursos,
+        materias      = materias,
+        materias_json = materias_json,
+        view          = "editar",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TOGGLE ATIVO / RASCUNHO
+# ─────────────────────────────────────────────────────────────────────────
+
+@exercicios_bp.route("/exercicios/<int:ex_id>/toggle", methods=["POST"])
+@login_required
+def toggle_exercicio(ex_id):
+    ex = db.get_or_404(Exercicio, ex_id)
+    if ex.total_questoes == 0 and not ex.ativo:
+        flash("Adicione ao menos uma questão antes de ativar o exercício.", "erro")
+        return redirect("/exercicios")
+    ex.ativo = 0 if ex.ativo else 1
+    db.session.commit()
+    estado = "ativado" if ex.ativo else "colocado em rascunho"
+    flash(f"Exercício {estado}.", "sucesso")
+    return redirect("/exercicios")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# EXCLUIR EXERCICIO  (delete real, igual às provas)
+# ─────────────────────────────────────────────────────────────────────────
+
+@exercicios_bp.route("/exercicios/<int:ex_id>/excluir", methods=["POST"])
+@login_required
+def excluir_exercicio(ex_id):
+    ex = db.get_or_404(Exercicio, ex_id)
+    db.session.delete(ex)
+    db.session.commit()
+    flash("Exercício excluído.", "sucesso")
+    return redirect("/exercicios")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# GERENCIAR QUESTOES DE UM EXERCICIO
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/questoes", methods=["GET", "POST"])
@@ -172,14 +278,25 @@ def gerenciar_questoes_exercicio(ex_id):
             textos   = request.form.getlist("alt_texto")
             corretas = request.form.getlist("alt_correta")
             alt_ids  = request.form.getlist("alt_id")
+
+            nova_ordem = len(q.alternativas) + 1
             for idx, (alt_id, texto) in enumerate(zip(alt_ids, textos)):
                 texto = texto.strip()
                 if not texto:
                     continue
-                alt = db.session.get(ExercicioAlternativa, int(alt_id))
-                if alt and alt.questao_id == q.id:
-                    alt.texto   = texto
-                    alt.correta = 1 if str(idx) in corretas else 0
+                if alt_id:  # alternativa existente
+                    alt = db.session.get(ExercicioAlternativa, int(alt_id))
+                    if alt and alt.questao_id == q.id:
+                        alt.texto   = texto
+                        alt.correta = 1 if str(idx) in corretas else 0
+                else:       # FIX: nova alternativa adicionada pelo modal
+                    db.session.add(ExercicioAlternativa(
+                        questao_id=q.id, texto=texto,
+                        correta=1 if str(idx) in corretas else 0,
+                        ordem=nova_ordem,
+                    ))
+                    nova_ordem += 1
+
             db.session.commit()
             flash("Questão atualizada.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
@@ -188,13 +305,13 @@ def gerenciar_questoes_exercicio(ex_id):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# RESULTADOS DO EXERCICIO (admin/instrutor)
+# RESULTADOS DO EXERCICIO
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/resultados")
 @login_required
 def resultados_exercicio(ex_id):
-    ex        = db.get_or_404(Exercicio, ex_id)
+    ex = db.get_or_404(Exercicio, ex_id)
     respostas = (
         RespostaExercicio.query
         .filter_by(exercicio_id=ex_id)
@@ -206,7 +323,7 @@ def resultados_exercicio(ex_id):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# CONCEDER TENTATIVAS EXTRAS (admin/instrutor)
+# CONCEDER TENTATIVAS EXTRAS
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/extra-tentativas", methods=["POST"])
@@ -223,59 +340,21 @@ def extra_tentativas_exercicio(ex_id):
         lib.extra_tentativas = (lib.extra_tentativas or 0) + max(1, qtd)
     else:
         lib = ExercicioLiberado(
-            aluno_id=aluno_id, exercicio_id=ex_id,
-            liberado=1,
-            liberado_por=session.get("usuario", ""),
-            liberado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            extra_tentativas=max(1, qtd),
+            aluno_id         = aluno_id,
+            exercicio_id     = ex_id,
+            liberado         = 1,
+            liberado_por     = session.get("usuario", ""),
+            liberado_em      = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            extra_tentativas = max(1, qtd),
         )
         db.session.add(lib)
     db.session.commit()
-    flash(f"{qtd} tentativa(s) extra(s) concedida(s) para o aluno.", "sucesso")
+    flash(f"{qtd} tentativa(s) extra(s) concedida(s).", "sucesso")
     return redirect(f"/exercicios/{ex_id}/resultados")
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# EDITAR / EXCLUIR exercicio
-# ─────────────────────────────────────────────────────────────────────────
-
-@exercicios_bp.route("/exercicios/<int:ex_id>/editar", methods=["POST"])
-@login_required
-def editar_exercicio(ex_id):
-    ex = db.get_or_404(Exercicio, ex_id)
-    ex.titulo       = request.form.get("titulo", ex.titulo).strip()
-    ex.descricao    = request.form.get("descricao", ex.descricao or "").strip() or None
-    ex.ordem        = request.form.get("ordem", ex.ordem, type=int)
-    ex.tentativas   = max(1, request.form.get("tentativas", ex.tentativas or 1, type=int))
-    ex.tempo_limite = request.form.get("tempo_limite", type=int) or None
-
-    f = request.files.get("arquivo")
-    if f and f.filename and _allowed(f.filename):
-        pasta = _upload_folder()
-        os.makedirs(pasta, exist_ok=True)
-        nome_seguro = secure_filename(f"{ex.materia_id}_{int(datetime.now().timestamp())}_{f.filename}")
-        f.save(os.path.join(pasta, nome_seguro))
-        ex.arquivo = f"exercicios/{nome_seguro}"
-
-    db.session.commit()
-    flash("Exercício atualizado!", "sucesso")
-    redirect_to = request.form.get("redirect_to", f"/exercicios/{ex_id}/questoes")
-    return redirect(redirect_to)
-
-
-@exercicios_bp.route("/exercicios/<int:ex_id>/excluir", methods=["POST"])
-@login_required
-def excluir_exercicio(ex_id):
-    ex = db.get_or_404(Exercicio, ex_id)
-    ex.ativo = 0
-    db.session.commit()
-    flash("Exercício removido.", "sucesso")
-    redirect_to = request.form.get("redirect_to", "/exercicios")
-    return redirect(redirect_to)
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# ROTAS ANTIGAS de lista por materia (mantidas para compatibilidade)
+# ROTAS LEGADAS (mantidas para compatibilidade)
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/materias/<int:materia_id>/exercicios")
@@ -314,7 +393,9 @@ def criar_exercicio(materia_id):
     if f and f.filename and _allowed(f.filename):
         pasta = _upload_folder()
         os.makedirs(pasta, exist_ok=True)
-        nome_seguro = secure_filename(f"{materia_id}_{int(datetime.now().timestamp())}_{f.filename}")
+        nome_seguro = secure_filename(
+            f"{materia_id}_{int(datetime.now().timestamp())}_{f.filename}"
+        )
         f.save(os.path.join(pasta, nome_seguro))
         arquivo_nome = f"exercicios/{nome_seguro}"
 
@@ -337,7 +418,7 @@ def criar_exercicio(materia_id):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# SERVIR ARQUIVO (somente admin/instrutor)
+# SERVIR ARQUIVO
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/arquivo")
