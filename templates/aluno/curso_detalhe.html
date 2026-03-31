@@ -26,7 +26,7 @@ body{
 .tab-pane{ display:none; }
 .tab-pane.ativo{ display:block; }
 
-/* ─── AULAS ────────────────────────────────────────────────────────────── */
+/* ─ AULAS ─────────────────────────────────────────────────────────── */
 .portal{ display:flex; gap:24px; }
 .sidebar{
   width:270px; flex-shrink:0;
@@ -46,10 +46,12 @@ body{
 .aula-item.ativa{ background:rgba(0,180,219,.2); border:1px solid rgba(0,180,219,.4); }
 .aula-item .ic{ width:18px; text-align:center; opacity:.5; font-size:11px; }
 .aula-item.concluida .ic{ color:#00ff9d; opacity:1; }
+.mat-sem-aula{
+  font-size:12px; opacity:.3; padding:6px 10px; font-style:italic;
+}
 .progresso-barra{ background:rgba(255,255,255,.1); height:6px; border-radius:4px; overflow:hidden; margin:14px 0 4px; }
 .progresso-fill{ background:#00b4db; height:100%; transition:width .4s; }
 .progresso-txt{ font-size:11px; opacity:.35; }
-
 .player{
   flex:1; min-width:0;
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
@@ -83,14 +85,13 @@ body{
 }
 .btn-concluir:hover{ background:rgba(0,255,157,.28); }
 .concluida-txt{ color:#00ff9d; font-size:13px; font-weight:700; margin-top:16px; }
-
 @media(max-width:700px){
   .portal{ flex-direction:column; }
   .sidebar{ width:100%; max-height:none; }
   .video-frame{ height:220px; }
 }
 
-/* ─── PROVAS ────────────────────────────────────────────────────────────── */
+/* ─ PROVAS ───────────────────────────────────────────────────────── */
 .prova-card{
   background:rgba(199,125,255,.07); border:1px solid rgba(199,125,255,.18);
   border-radius:14px; padding:18px 20px; margin-bottom:12px;
@@ -113,7 +114,29 @@ body{
   background:rgba(255,77,77,.1); color:#ff4d4d; border:1px solid #ff4d4d;
 }
 
-/* ─── ATIVIDADES ─────────────────────────────────────────────────────────── */
+/* ─ EXERCÍCIOS ──────────────────────────────────────────────────── */
+.ex-secao-titulo{
+  font-size:11px; font-weight:800; text-transform:uppercase;
+  letter-spacing:1.5px; opacity:.4; margin:20px 0 10px;
+  display:flex; align-items:center; gap:8px;
+}
+.ex-secao-titulo::after{ content:''; flex:1; height:1px; background:rgba(255,255,255,.08); }
+.ex-card{
+  background:rgba(255,180,0,.05); border:1px solid rgba(255,180,0,.15);
+  border-radius:12px; padding:16px 18px; margin-bottom:10px;
+}
+.ex-titulo{ font-size:14px; font-weight:700; margin-bottom:6px; }
+.ex-desc{ font-size:13px; opacity:.5; margin-bottom:10px; }
+.btn-ex-arquivo{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,180,0,.12); color:#ffb400;
+  border:1px solid rgba(255,180,0,.35);
+  padding:7px 16px; border-radius:9px; font-size:12px; font-weight:700;
+  text-decoration:none; transition:.2s;
+}
+.btn-ex-arquivo:hover{ background:rgba(255,180,0,.25); }
+
+/* ─ ATIVIDADES ────────────────────────────────────────────────────── */
 .atv-card{
   background:rgba(255,193,7,.06); border:1px solid rgba(255,193,7,.18);
   border-radius:14px; padding:20px 22px; margin-bottom:14px;
@@ -127,8 +150,6 @@ body{
 .questao-num{ font-size:10px; opacity:.35; text-transform:uppercase;
   letter-spacing:1px; margin-bottom:6px; }
 .questao-enunc{ font-size:14px; line-height:1.6; }
-
-/* upload */
 .upload-area{
   background:rgba(255,255,255,.04); border:1px dashed rgba(255,193,7,.35);
   border-radius:12px; padding:16px 18px; margin-top:14px;
@@ -136,8 +157,7 @@ body{
 .upload-label{ font-size:12px; font-weight:700; opacity:.45;
   text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; display:block; }
 .upload-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
-.file-input-wrap label{
-  display:block; font-size:11px; opacity:.4; margin-bottom:4px; }
+.file-input-wrap label{ display:block; font-size:11px; opacity:.4; margin-bottom:4px; }
 .file-input-wrap input[type=file]{
   width:100%; background:rgba(255,255,255,.07);
   border:1px solid rgba(255,255,255,.15); border-radius:8px;
@@ -158,7 +178,6 @@ body{
   cursor:pointer; margin-top:12px; transition:.2s;
 }
 .btn-entregar:hover{ background:rgba(255,193,7,.28); }
-
 .vazio{
   background:rgba(255,255,255,.03); border:1px dashed rgba(255,255,255,.1);
   border-radius:12px; padding:20px;
@@ -173,10 +192,15 @@ body{
   <a href="/aluno/cursos" class="voltar"><i class="fas fa-arrow-left"></i> Meus Cursos</a>
   <div class="page-title">&#127979; {{ curso.nome }}</div>
 
-  {# ── TABS ────────────────────────────────────────────────────────────────── #}
+  {# ── TABS ──────────────────────────────────────────────────────────────── #}
   <div class="tabs">
     <button class="tab-btn ativo" onclick="trocarTab('aulas',this)">
       <i class="fas fa-play-circle"></i> Aulas
+    </button>
+    {% set total_ex = exercicios_por_mat.values()|sum(attribute='__len__', start=0) %}
+    <button class="tab-btn" onclick="trocarTab('exercicios',this)">
+      <i class="fas fa-pencil-alt"></i> Exerc&iacute;cios
+      {% if exercicios_por_mat %}<span style="opacity:.5">({{ exercicios_por_mat.values()|map('length')|sum }})</span>{% endif %}
     </button>
     <button class="tab-btn" onclick="trocarTab('provas',this)">
       <i class="fas fa-file-alt"></i> Provas
@@ -188,41 +212,46 @@ body{
     </button>
   </div>
 
-  {# ────────────────────── TAB AULAS ─────────────────────────── #}
+  {# ─────────────── TAB AULAS ───────────────────────────────── #}
   <div id="tab-aulas" class="tab-pane ativo">
-    {% if conteudos %}
+    {% if materias_liberadas %}
     {% set total_c = conteudos|length %}
     {% set ns = namespace(conc=0) %}
     {% for c, prog in conteudos %}{% if prog and prog.concluido %}{% set ns.conc = ns.conc+1 %}{% endif %}{% endfor %}
     {% set pct = (ns.conc / total_c * 100) if total_c > 0 else 0 %}
 
     <div class="portal">
-      <!-- SIDEBAR -->
+      <!-- SIDEBAR: matérias + aulas -->
       <div class="sidebar">
-        {% set ns2 = namespace(mat_atual='') %}
-        {% for c, prog in conteudos %}
-          {% if ns2.mat_atual != c.materia.nome %}
-            <div class="mat-titulo">{{ c.materia.nome }}</div>
-            {% set ns2.mat_atual = c.materia.nome %}
+        {% for mat in materias_liberadas %}
+          <div class="mat-titulo">{{ mat.nome }}</div>
+          {% set aulas_mat = conteudos_por_mat.get(mat.id, []) %}
+          {% if aulas_mat %}
+            {% for c, prog in aulas_mat %}
+            <div class="aula-item {% if prog and prog.concluido %}concluida{% endif %}"
+                 data-id="{{ c.id }}"
+                 data-tipo="{{ 'pdf' if c.arquivo and c.arquivo.lower().endswith('.pdf') else ('video' if c.video else ('arquivo' if c.arquivo else 'vazio')) }}"
+                 data-video="{{ c.video or '' }}"
+                 data-titulo="{{ c.titulo }}"
+                 data-concluido="{{ '1' if prog and prog.concluido else '0' }}">
+              <span class="ic">
+                {% if prog and prog.concluido %}<i class="fas fa-check-circle"></i>
+                {% else %}<i class="far fa-circle"></i>{% endif %}
+              </span>
+              {{ c.titulo }}
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="mat-sem-aula">Nenhuma aula cadastrada</div>
           {% endif %}
-          <div class="aula-item {% if prog and prog.concluido %}concluida{% endif %}"
-               data-id="{{ c.id }}"
-               data-tipo="{{ 'pdf' if c.arquivo and c.arquivo.lower().endswith('.pdf') else ('video' if c.video else ('arquivo' if c.arquivo else 'vazio')) }}"
-               data-video="{{ c.video or '' }}"
-               data-titulo="{{ c.titulo }}"
-               data-concluido="{{ '1' if prog and prog.concluido else '0' }}">
-            <span class="ic">
-              {% if prog and prog.concluido %}<i class="fas fa-check-circle"></i>
-              {% else %}<i class="far fa-circle"></i>{% endif %}
-            </span>
-            {{ c.titulo }}
-          </div>
         {% endfor %}
 
+        {% if total_c > 0 %}
         <div class="progresso-barra">
           <div class="progresso-fill" style="width:{{ pct|round(1) }}%"></div>
         </div>
         <div class="progresso-txt">{{ ns.conc }} / {{ total_c }} conclu&iacute;das</div>
+        {% endif %}
       </div>
 
       <!-- PLAYER -->
@@ -240,11 +269,40 @@ body{
     </div>
 
     {% else %}
-    <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma aula dispon&iacute;vel no momento.</div>
+    <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma mat&eacute;ria dispon&iacute;vel no momento.</div>
     {% endif %}
   </div>{# /tab-aulas #}
 
-  {# ────────────────────── TAB PROVAS ────────────────────────── #}
+  {# ─────────────── TAB EXERCÍCIOS ────────────────────────────── #}
+  <div id="tab-exercicios" class="tab-pane">
+    {% set tem_ex = exercicios_por_mat and exercicios_por_mat.values()|selectattr('__len__')|list %}
+    {% if exercicios_por_mat %}
+      {% for mat in materias_liberadas %}
+        {% set exs = exercicios_por_mat.get(mat.id, []) %}
+        {% if exs %}
+          <div class="ex-secao-titulo"><i class="fas fa-book"></i> {{ mat.nome }}</div>
+          {% for ex in exs %}
+          <div class="ex-card">
+            <div class="ex-titulo">
+              <span style="opacity:.4; font-size:11px; margin-right:6px">#{{ ex.ordem }}</span>
+              {{ ex.titulo }}
+            </div>
+            {% if ex.descricao %}<div class="ex-desc">{{ ex.descricao }}</div>{% endif %}
+            {% if ex.arquivo %}
+              <a href="/aluno/exercicio/{{ ex.id }}/arquivo" target="_blank" class="btn-ex-arquivo">
+                <i class="fas fa-file"></i> Ver / Baixar arquivo
+              </a>
+            {% endif %}
+          </div>
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <div class="vazio"><i class="fas fa-info-circle"></i> Nenhum exerc&iacute;cio liberado para este curso.</div>
+    {% endif %}
+  </div>{# /tab-exercicios #}
+
+  {# ─────────────── TAB PROVAS ───────────────────────────────── #}
   <div id="tab-provas" class="tab-pane">
     {% if provas %}
       {% for item in provas %}
@@ -271,7 +329,7 @@ body{
     {% endif %}
   </div>{# /tab-provas #}
 
-  {# ────────────────────── TAB ATIVIDADES ─────────────────────── #}
+  {# ─────────────── TAB ATIVIDADES ────────────────────────────── #}
   <div id="tab-atividades" class="tab-pane">
     {% if atividades %}
       {% for atv in atividades %}
@@ -279,16 +337,12 @@ body{
       <div class="atv-card">
         <div class="atv-titulo"><i class="fas fa-tasks" style="opacity:.6"></i> {{ atv.titulo }}</div>
         {% if atv.descricao %}<div class="atv-desc">{{ atv.descricao }}</div>{% endif %}
-
-        {# Enunciados/questões #}
         {% for q in atv.questoes %}
         <div class="questao-bloco">
           <div class="questao-num">Quest&atilde;o {{ loop.index }}</div>
           <div class="questao-enunc">{{ q.enunciado }}</div>
         </div>
         {% endfor %}
-
-        {# Entrega #}
         {% if entrega and entrega.status == 'entregue' %}
           <div class="entregue-badge">
             <i class="fas fa-check"></i> Atividade entregue em {{ entrega.entregue_em or '' }}
@@ -300,11 +354,9 @@ body{
             </div>
           {% endif %}
         {% else %}
-          {# Formulário de entrega com até 3 arquivos #}
           <form method="POST" action="/aluno/atividade/{{ atv.id }}/entregar"
                 enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
             <div class="upload-area">
               <span class="upload-label"><i class="fas fa-paperclip"></i> Anexar arquivos (m&aacute;x. 3)</span>
               <div class="upload-grid">
@@ -322,7 +374,6 @@ body{
                 </div>
               </div>
             </div>
-
             <button type="submit" class="btn-entregar">
               <i class="fas fa-paper-plane"></i> Enviar Atividade
             </button>
@@ -416,7 +467,6 @@ function abrirAula(el){
   document.querySelectorAll('.aula-item').forEach(a=>a.classList.remove('ativa'));
   el.classList.add('ativa');
   ocultarPDF(); area.innerHTML='';
-
   if(tipo==='pdf'){
     carregarPDF(id);
   }else if(tipo==='video'||(tipo!=='pdf'&&video)){
@@ -433,19 +483,16 @@ function abrirAula(el){
   }else{
     area.innerHTML='<p style="opacity:.4">Nenhum conteúdo para esta aula.</p>';
   }
-
   botao.innerHTML = conc==='1'
     ? '<div class="concluida-txt"><i class="fas fa-check-circle"></i> Aula concluída</div>'
     : `<a href="/aluno/conteudo/concluir/${id}" class="btn-concluir"
          onclick="this.style.opacity=.5">
          <i class="fas fa-check"></i> Marcar como concluída</a>`;
-
   localStorage.setItem('aula_{{ curso.id }}', id);
 }
 
 const aulas=document.querySelectorAll('.aula-item');
 aulas.forEach(a=>a.addEventListener('click',function(){abrirAula(this);}));
-
 const ultima=localStorage.getItem('aula_{{ curso.id }}');
 if(ultima){
   const el=document.querySelector(`[data-id="${ultima}"]`);

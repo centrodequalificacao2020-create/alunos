@@ -97,16 +97,13 @@ def _buscar_aluno_por_login(identificador: str):
     ident = identificador.strip()
     if not ident:
         return None
-    # e-mail
     if "@" in ident:
         return Aluno.query.filter(
             db.func.lower(Aluno.email) == ident.lower()
         ).first()
-    # CPF exato
     aluno = Aluno.query.filter_by(cpf=ident).first()
     if aluno:
         return aluno
-    # CPF sem mascara
     cpf_limpo = re.sub(r"\D", "", ident)
     if cpf_limpo:
         for a in Aluno.query.all():
@@ -115,22 +112,18 @@ def _buscar_aluno_por_login(identificador: str):
     return None
 
 
-# ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────
+# ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def login_aluno():
     if request.method == "POST":
-        # campo "cpf" no template aceita CPF ou e-mail
         identificador = request.form.get("cpf", "").strip()
         senha         = request.form.get("senha", "")
-
         aluno = _buscar_aluno_por_login(identificador)
-
         if not aluno:
             flash("Usuário não encontrado. Verifique o CPF ou e-mail digitado.", "erro")
             return redirect("/aluno/login")
-
         if not aluno.senha:
             flash(
                 "Sua senha ainda não foi definida. "
@@ -138,18 +131,15 @@ def login_aluno():
                 "erro"
             )
             return redirect("/aluno/login")
-
         if not verificar_senha(senha, aluno.senha):
             flash("Senha incorreta. Tente novamente.", "erro")
             return redirect("/aluno/login")
-
         session.clear()
         session.permanent = True
         session["aluno_id"] = aluno.id
         session["perfil"]   = "aluno"
         _registrar_login(aluno.id)
         return redirect("/aluno/dashboard")
-
     return render_template("aluno/login.html")
 
 
@@ -159,7 +149,7 @@ def logout_aluno():
     return redirect("/aluno/login")
 
 
-# ─── DASHBOARD ────────────────────────────────────────────────────────────────
+# ─── DASHBOARD ───────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
@@ -179,8 +169,6 @@ def dashboard_aluno():
             .limit(2).all()
         )
         ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
-    except OperationalError:
-        pass
     except Exception:
         pass
 
@@ -189,7 +177,7 @@ def dashboard_aluno():
         ultimo_login=ultimo_login)
 
 
-# ─── FINANCEIRO ───────────────────────────────────────────────────────────────
+# ─── FINANCEIRO ─────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
@@ -204,7 +192,7 @@ def financeiro_aluno():
         atrasadas=atrasadas, valor_pendente=val_pend)
 
 
-# ─── FREQUÊNCIA ───────────────────────────────────────────────────────────────
+# ─── FREQUÊNCIA ─────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
@@ -214,7 +202,7 @@ def frequencia_aluno():
     return render_template("aluno/frequencia.html", aluno=aluno, frequencias=frequencias)
 
 
-# ─── NOTAS ────────────────────────────────────────────────────────────────────
+# ─── NOTAS ────────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
@@ -244,7 +232,7 @@ def notas_aluno():
                            matricula=matricula, notas=notas, media=media)
 
 
-# ─── CURSOS (lista) ───────────────────────────────────────────────────────────
+# ─── CURSOS (lista) ─────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/cursos")
 @aluno_login_required
@@ -268,7 +256,7 @@ def cursos_aluno():
                            cursos_com_acesso=cursos_com_acesso)
 
 
-# ─── CURSO DETALHE ────────────────────────────────────────────────────────────
+# ─── CURSO DETALHE ──────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/cursos/<int:curso_id>")
 @aluno_login_required
@@ -287,21 +275,75 @@ def curso_detalhe(curso_id):
         return redirect("/aluno/cursos")
 
     curso = db.get_or_404(Curso, curso_id)
-    conteudos = (
+
+    # ── Matérias do curso (TODAS, mesmo sem conteúdo)
+    from models import MateriaLiberada
+    ids_mat_lib = {
+        ml.materia_id
+        for ml in MateriaLiberada.query.filter_by(
+            aluno_id=aluno.id, curso_id=curso_id, liberado=1
+        ).all()
+    }
+    materias_do_curso = (
+        db.session.query(Materia)
+        .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+        .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1)
+        .order_by(Materia.nome)
+        .all()
+    )
+    # Filtra apenas as liberadas (se nenhuma estiver liberada, exibe todas
+    # para não bloquear cursos antigos que não usam liberação por matéria)
+    materias_liberadas = [m for m in materias_do_curso if m.id in ids_mat_lib]
+    # Se o admin não configurou nenhuma liberação de matéria, mostra todas
+    if not materias_liberadas:
+        materias_liberadas = materias_do_curso
+
+    # ── Conteúdos agrupados por matéria (somente das matérias visíveis)
+    ids_materias_visiveis = {m.id for m in materias_liberadas}
+    conteudos_raw = (
         db.session.query(Conteudo, ProgressoAula)
         .outerjoin(
             ProgressoAula,
             (ProgressoAula.conteudo_id == Conteudo.id) &
             (ProgressoAula.aluno_id    == aluno.id)
         )
-        .join(Materia,      Materia.id == Conteudo.materia_id)
-        .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-        .filter(CursoMateria.curso_id == curso_id)
-        .order_by(Materia.nome, Conteudo.data)
+        .filter(Conteudo.materia_id.in_(ids_materias_visiveis))
+        .order_by(Conteudo.data)
         .all()
-    )
+    ) if ids_materias_visiveis else []
 
-    # Provas liberadas para este aluno neste curso
+    # Agrupa {materia_id: [(conteudo, progresso), ...]}
+    conteudos_por_mat = {}
+    for c, prog in conteudos_raw:
+        conteudos_por_mat.setdefault(c.materia_id, []).append((c, prog))
+
+    # Lista plana para o player (ordem: matéria alfabética > data)
+    conteudos = []
+    for mat in materias_liberadas:
+        for item in conteudos_por_mat.get(mat.id, []):
+            conteudos.append(item)
+
+    # ── Exercícios liberados para este aluno (agrupados por matéria)
+    exercicios_por_mat = {}
+    try:
+        from models import Exercicio, ExercicioLiberado
+        ids_ex_lib = {
+            el.exercicio_id
+            for el in ExercicioLiberado.query.filter_by(aluno_id=aluno.id, liberado=1).all()
+        }
+        for mat in materias_liberadas:
+            exs = [
+                ex for ex in
+                Exercicio.query.filter_by(materia_id=mat.id, ativo=1)
+                               .order_by(Exercicio.ordem).all()
+                if ex.id in ids_ex_lib
+            ]
+            if exs:
+                exercicios_por_mat[mat.id] = exs
+    except Exception:
+        pass
+
+    # ── Provas liberadas
     provas = []
     try:
         from models import Prova, ProvaLiberada, RespostaProva
@@ -318,12 +360,10 @@ def curso_detalhe(curso_id):
                 "tentativas_usadas": usadas,
                 "pode_fazer":        usadas < (p.tentativas or 1),
             })
-    except OperationalError:
-        pass
     except Exception:
         pass
 
-    # Atividades deste curso
+    # ── Atividades
     atividades   = []
     entregas_map = {}
     try:
@@ -333,15 +373,55 @@ def curso_detalhe(curso_id):
             e.atividade_id: e
             for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
         }
-    except OperationalError:
-        pass
     except Exception:
         pass
 
-    return render_template("aluno/curso_detalhe.html",
-                           aluno=aluno, curso=curso, conteudos=conteudos,
-                           provas=provas,
-                           atividades=atividades, entregas_map=entregas_map)
+    return render_template(
+        "aluno/curso_detalhe.html",
+        aluno                = aluno,
+        curso                = curso,
+        materias_liberadas   = materias_liberadas,
+        conteudos            = conteudos,
+        conteudos_por_mat    = conteudos_por_mat,
+        exercicios_por_mat   = exercicios_por_mat,
+        provas               = provas,
+        atividades           = atividades,
+        entregas_map         = entregas_map,
+    )
+
+
+# ─── ARQUIVO DE EXERCÍCIO (portal aluno) ────────────────────────────────────
+
+@portal_aluno_bp.route("/exercicio/<int:ex_id>/arquivo")
+@aluno_login_required
+def arquivo_exercicio_aluno(ex_id):
+    """Serve o arquivo do exercício se ele estiver liberado para o aluno."""
+    import mimetypes
+    aluno_id = session["aluno_id"]
+    try:
+        from models import Exercicio, ExercicioLiberado
+        ex = db.get_or_404(Exercicio, ex_id)
+        lib = ExercicioLiberado.query.filter_by(
+            aluno_id=aluno_id, exercicio_id=ex_id, liberado=1
+        ).first()
+        if not lib:
+            abort(403)
+        if not ex.arquivo:
+            abort(404)
+        caminho = os.path.join(
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
+            "static", "uploads", ex.arquivo
+        )
+        if not os.path.isfile(caminho):
+            abort(404)
+        mime, _ = mimetypes.guess_type(caminho)
+        with open(caminho, "rb") as f:
+            dados = f.read()
+        resp = Response(dados, mimetype=mime or "application/octet-stream")
+        resp.headers["Content-Disposition"] = "inline"
+        return resp
+    except OperationalError:
+        abort(404)
 
 
 # ─── CONTEÚDO (rotas antigas mantidas por compatibilidade) ────────────────────
@@ -358,7 +438,7 @@ def conteudo_aluno(curso_id):
     return redirect(f"/aluno/cursos/{curso_id}")
 
 
-# ─── ARQUIVO ──────────────────────────────────────────────────────────────────
+# ─── ARQUIVO ──────────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
@@ -396,7 +476,7 @@ def abrir_arquivo_conteudo(conteudo_id):
     abort(404)
 
 
-# ─── CONCLUIR AULA ────────────────────────────────────────────────────────────
+# ─── CONCLUIR AULA ──────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>")
 @aluno_login_required
@@ -420,7 +500,7 @@ def concluir_aula(conteudo_id):
     return redirect(f"/aluno/cursos/{curso_id}" if curso_id else "/aluno/cursos")
 
 
-# ─── ENTREGAR ATIVIDADE ───────────────────────────────────────────────────────
+# ─── ENTREGAR ATIVIDADE ────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/atividade/<int:atividade_id>/entregar", methods=["POST"])
 @aluno_login_required
@@ -461,7 +541,7 @@ def entregar_atividade(atividade_id):
         return redirect("/aluno/cursos")
 
 
-# ─── TROCAR SENHA ─────────────────────────────────────────────────────────────
+# ─── TROCAR SENHA ─────────────────────────────────────────────────────────────────
 
 @portal_aluno_bp.route("/senha", methods=["GET", "POST"])
 @aluno_login_required
