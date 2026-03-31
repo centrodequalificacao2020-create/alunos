@@ -56,7 +56,6 @@ body{
 }
 .lib-item:hover{ background:rgba(255,255,255,.07); }
 .lib-item-nome{ font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; }
-/* exercício fica indentado sob a matéria */
 .ex-item{
   display:flex; align-items:center; justify-content:space-between;
   gap:12px; flex-wrap:wrap;
@@ -88,8 +87,15 @@ body{
 {% block content %}
 <div class="wrap">
   <div class="page-header">
-    <a href="/alunos" class="voltar"><i class="fas fa-arrow-left"></i> Voltar para Alunos</a>
-    <h1 style="margin-top:8px">&#128275; Libera&ccedil;&otilde;es por Aluno</h1>
+    <a href="/ficha_aluno/{{ aluno.id }}" class="voltar">
+      <i class="fas fa-arrow-left"></i> Voltar para a Ficha
+    </a>
+    <h1 style="margin-top:8px">
+      &#128275; Libera&ccedil;&otilde;es
+      {% if curso_filtrado %}
+        &mdash; <span style="opacity:.7;font-size:17px">{{ curso_filtrado.nome }}</span>
+      {% endif %}
+    </h1>
   </div>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -109,7 +115,7 @@ body{
   {% if not cursos_data %}
     <div class="vazio" style="margin-top:24px">
       <i class="fas fa-info-circle"></i>
-      Este aluno n&atilde;o possui matrícula ativa em nenhum curso.
+      Este aluno n&atilde;o possui matr&iacute;cula ativa em nenhum curso.
     </div>
   {% endif %}
 
@@ -119,8 +125,8 @@ body{
       <i class="fas fa-graduation-cap"></i> {{ cd.curso.nome }}
     </div>
 
-    {# ── Matérias ────────────────────────────────────────────────────────────── #}
-    <div class="secao-label"><i class="fas fa-book"></i> Matérias</div>
+    {# ── Matérias ────────────────────────────────────────────── #}
+    <div class="secao-label"><i class="fas fa-book"></i> Mat&eacute;rias</div>
 
     {% if cd.materias %}
       {% for mat in cd.materias %}
@@ -147,7 +153,6 @@ body{
         </form>
       </div>
 
-      {# Exercícios desta matéria neste curso #}
       {% if cd.exercicios_por_mat.get(mat.id) %}
         {% for ex in cd.exercicios_por_mat[mat.id] %}
         {% set ex_lib = ex.id in cd.ids_ex_lib %}
@@ -165,7 +170,7 @@ body{
             <input type="hidden" name="aluno_id"     value="{{ aluno.id }}">
             <input type="hidden" name="exercicio_id" value="{{ ex.id }}">
             <input type="hidden" name="acao" value="{{ 'bloquear' if ex_lib else 'liberar' }}">
-            <button type="submit" class="btn-lib {{ 'btn-bloquear' if ex_lib else 'btn-liberar' }}" style="padding:4px 10px; font-size:11px">
+            <button type="submit" class="btn-lib {{ 'btn-bloquear' if ex_lib else 'btn-liberar' }}" style="padding:4px 10px;font-size:11px">
               <i class="fas fa-{{ 'lock' if ex_lib else 'lock-open' }}"></i>
               {{ 'Bloquear' if ex_lib else 'Liberar' }}
             </button>
@@ -173,13 +178,12 @@ body{
         </div>
         {% endfor %}
       {% endif %}
-
       {% endfor %}
     {% else %}
-      <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma matéria cadastrada neste curso.</div>
+      <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma mat&eacute;ria cadastrada neste curso.</div>
     {% endif %}
 
-    {# ── Provas ──────────────────────────────────────────────────────────────── #}
+    {# ── Provas ────────────────────────────────────────────── #}
     <div class="secao-label" style="margin-top:20px"><i class="fas fa-file-alt"></i> Provas</div>
 
     {% if cd.provas %}

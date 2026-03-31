@@ -9,11 +9,6 @@
             <p class="card-subtitle">Ficha completa do aluno</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <a href="/liberacoes/aluno/{{ aluno.id }}"
-               class="btn btn-azul"
-               style="background:#6f42c1;border-color:#6f42c1;">
-               📚 Liberações
-            </a>
             <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno">✏️</a>
             <a href="/cadastro" class="btn btn-azul">← Voltar</a>
         </div>
@@ -47,7 +42,6 @@
                 border-radius:var(--radius-md);
                 border:1px solid #dee2e6;
                 display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
-
         <div>
             <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
                        text-transform:uppercase;letter-spacing:.5px;">Portal do Aluno</p>
@@ -57,9 +51,7 @@
                 <p style="margin:5px 0 0;font-size:13px;font-weight:700;color:#dc3545;">&#10007; Sem acesso</p>
             {% endif %}
         </div>
-
         <div style="width:1px;height:36px;background:#dee2e6;flex-shrink:0;"></div>
-
         <div>
             <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
                        text-transform:uppercase;letter-spacing:.5px;">Último Login</p>
@@ -69,21 +61,14 @@
                     {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                     <span style="color:#495057;">&#224;s {{ d[11:16] }}</span>
                 </p>
-                {% if ul.ip %}
-                <p style="margin:2px 0 0;font-size:11px;color:#6c757d;font-family:monospace;">
-                    IP: {{ ul.ip }}
-                </p>
-                {% endif %}
             {% else %}
-                <p style="margin:5px 0 0;font-size:13px;font-weight:600;color:#adb5bd;font-style:italic;">
-                    Nunca acessou
-                </p>
+                <p style="margin:5px 0 0;font-size:13px;font-weight:600;color:#adb5bd;font-style:italic;">Nunca acessou</p>
             {% endif %}
         </div>
     </div>
 </div>
 
-{# ===== MATRÍCULAS + CONTROLE DE ACESSO ===== #}
+{# ===== MATRÍCULAS ===== #}
 <div class="card" style="margin-top:20px">
     <h3>📋 Matrículas &amp; Acesso ao Conteúdo</h3>
 
@@ -133,32 +118,41 @@
                     </td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
 
-                    {# ---- toggle acesso conteúdo ---- #}
-                    <td style="text-align:center;">
-                        <form method="POST"
-                              action="/aluno/{{ aluno.id }}/acesso_conteudo/{{ m.curso_id }}"
-                              style="display:inline">
-                            {% if liberado %}
-                            <input type="hidden" name="acao" value="bloquear">
-                            <button type="submit"
-                                    class="btn btn-sm"
-                                    style="background:#00c37710;color:#00c377;border:1px solid #00c377;min-width:110px;"
-                                    title="Clique para bloquear">
-                                🟢 Liberado
-                            </button>
-                            {% else %}
-                            <input type="hidden" name="acao" value="liberar">
-                            <button type="submit"
-                                    class="btn btn-sm"
-                                    style="background:#ff4d4d10;color:#ff6b6b;border:1px solid #ff4d4d;min-width:110px;"
-                                    title="Clique para liberar">
-                                🔴 Bloqueado
-                            </button>
-                            {% endif %}
-                        </form>
+                    {# ---- toggle acesso conteúdo (libera o portal geral do curso) ---- #}
+                    <td style="text-align:center;vertical-align:middle;">
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+                            {# Botão liberar/bloquear acesso geral #}
+                            <form method="POST"
+                                  action="/aluno/{{ aluno.id }}/acesso_conteudo/{{ m.curso_id }}"
+                                  style="display:inline">
+                                {% if liberado %}
+                                <input type="hidden" name="acao" value="bloquear">
+                                <button type="submit"
+                                        class="btn btn-sm"
+                                        style="background:#00c37710;color:#00c377;border:1px solid #00c377;min-width:110px;"
+                                        title="Clique para bloquear">
+                                    🟢 Liberado
+                                </button>
+                                {% else %}
+                                <input type="hidden" name="acao" value="liberar">
+                                <button type="submit"
+                                        class="btn btn-sm"
+                                        style="background:#ff4d4d10;color:#ff6b6b;border:1px solid #ff4d4d;min-width:110px;"
+                                        title="Clique para liberar">
+                                    🔴 Bloqueado
+                                </button>
+                                {% endif %}
+                            </form>
+                            {# Botão liberar conteúdos (matérias/provas/exercícios) #}
+                            <a href="/liberacoes/aluno/{{ aluno.id }}?curso_id={{ m.curso_id }}"
+                               class="btn btn-sm"
+                               style="background:#6f42c110;color:#9b59b6;border:1px solid #6f42c1;min-width:110px;text-align:center;">
+                               📚 Liberar conteúdos
+                            </a>
+                        </div>
                         {% if liberado and ac.liberado_em %}
                         {% set le = ac.liberado_em %}
-                        <div style="font-size:10px;color:var(--color-text-muted);margin-top:3px;">
+                        <div style="font-size:10px;color:var(--color-text-muted);margin-top:3px;text-align:center">
                             por {{ ac.liberado_por or '?' }}<br>
                             {{ le[8:10] }}/{{ le[5:7] }}/{{ le[0:4] }} {{ le[11:16] }}
                         </div>
@@ -186,43 +180,4 @@
     <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
     {% endif %}
 </div>
-
-{# ===== HISTÓRICO DE LOGINS ===== #}
-{% set logins = aluno.login_historico[:20] %}
-{% if logins %}
-<div class="card" style="margin-top:20px">
-    <h3>🔐 Histórico de Acesso ao Portal</h3>
-    <div class="tabela-planilha">
-        <table class="tabela-excel">
-            <thead>
-                <tr><th>#</th><th>Data / Hora</th><th>IP</th><th>Dispositivo</th></tr>
-            </thead>
-            <tbody>
-                {% for lg in logins %}
-                {% set d = lg.login_em %}
-                <tr>
-                    <td style="color:var(--color-text-muted);font-size:12px;">{{ loop.index }}</td>
-                    <td style="font-size:13px;font-weight:600;color:#212529;">
-                        {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} às {{ d[11:16] }}
-                    </td>
-                    <td style="font-size:12px;font-family:monospace;color:#495057;">{{ lg.ip or '-' }}</td>
-                    <td style="font-size:11px;color:#6c757d;max-width:320px;
-                               overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                        {{ lg.user_agent or '-' }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <p style="font-size:12px;color:#6c757d;margin-top:8px;">
-        Exibindo os últimos {{ logins|length }} acessos.
-    </p>
-</div>
-{% else %}
-<div class="card" style="margin-top:20px">
-    <h3>🔐 Histórico de Acesso ao Portal</h3>
-    <p class="empty-state">Este aluno ainda não acessou o portal.</p>
-</div>
-{% endif %}
 {% endblock %}
