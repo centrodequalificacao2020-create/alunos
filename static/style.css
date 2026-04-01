@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v21)
+   SISTEMA ESCOLAR — style.css  (v22)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ─────────────────────────────────────────────── */
@@ -67,12 +67,6 @@ body {
 }
 
 /* ── 3. HEADER — hamburger em TODAS as resoluções ─────────────── */
-/*
-  O header sempre mostra:
-    [título]  ···espaço···  [hamburger]
-  O nav fica oculto por padrão e abre como dropdown ao clicar.
-  Isso vale para mobile E para desktop (1920×1080 incluído).
-*/
 header {
     background: var(--color-primary);
     color: var(--color-white);
@@ -110,48 +104,72 @@ header {
 }
 .nav-toggle:hover { opacity: .8; }
 
-/* Nav: sempre dropdown, independente da resolução */
+/* Nav: dropdown fechado por padrão */
 nav {
     display: none;
     position: absolute;
     top: var(--header-height);
-    left: 0;
-    width: 100%;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: stretch;
-    padding: 8px 0;
+    right: 0;
+    width: 360px;
+    max-width: 96vw;
+    padding: 12px;
     background: var(--color-primary-dark);
     box-shadow: 0 6px 20px rgba(0,0,0,.30);
-    overflow: hidden;
-    /* no desktop limita a largura e alinha à direita */
-    max-width: 280px;
-    left: auto;
-    right: 0;
     border-radius: 0 0 var(--radius-md) var(--radius-md);
+    overflow: hidden;
 }
-nav.nav-open { display: flex; }
+
+/* Aberto: grid 2 colunas */
+nav.nav-open {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
 
 nav a {
     color: rgba(255,255,255,.90);
     text-decoration: none;
     font-size: var(--font-size-base);
-    padding: 10px 24px;
+    padding: 10px 14px;
     white-space: nowrap;
-    line-height: 1.6;
+    line-height: 1.4;
+    border-radius: var(--radius-sm);
     border-left: 3px solid transparent;
     transition: color .15s, background .15s;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-nav a:hover  { color: var(--color-white); background: rgba(255,255,255,.10); border-left-color: rgba(255,255,255,.4); }
-nav a.active { color: var(--color-white); font-weight: 600; background: rgba(255,255,255,.12); border-left: 3px solid var(--color-white); padding-left: 21px; }
+nav a:hover  { color: var(--color-white); background: rgba(255,255,255,.12); border-left-color: rgba(255,255,255,.4); }
+nav a.active { color: var(--color-white); font-weight: 600; background: rgba(255,255,255,.14); border-left: 3px solid var(--color-white); padding-left: 11px; }
 
-/* No mobile o dropdown ocupa largura total */
+/* Último link (Sair) ocupa coluna inteira */
+nav a:last-child {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgba(255,255,255,.12);
+    margin-top: 4px;
+    padding-top: 12px;
+    text-align: center;
+    border-left: none;
+    border-radius: var(--radius-sm);
+}
+nav a:last-child:hover { border-left: none; }
+
+/* Mobile: largura total, 1 coluna */
 @media (max-width: 767px) {
     nav {
+        width: 100%;
         max-width: 100%;
         right: auto;
         left: 0;
         border-radius: 0;
+    }
+    nav.nav-open {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 400px) {
+    nav.nav-open {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -386,7 +404,6 @@ table td { padding:10px 14px;border-bottom:1px solid var(--color-border);font-si
 .material-card:has(input:checked) { border-color:var(--color-primary);background:var(--color-primary-light); }
 
 /* ── 17. HOME FULLSCREEN ──────────────────────────────────────── */
-/*  Reduz o padding-top para ficar colado ao header (só 4px de respiro) */
 .home-bg {
     position: fixed;
     top: var(--header-height);
