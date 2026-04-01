@@ -176,15 +176,13 @@
 </div>
 {% endif %}
 
+{# Rodapé de contagem — usa totais reais do banco passados pela rota,
+   NÃO filtra a lista 'alunos' que é paginada (apenas a página atual). #}
 <div class="rodape-contagem">
-    {% set ativos      = alunos | selectattr('status','equalto','Ativo')     | list | length %}
-    {% set trancados   = alunos | selectattr('status','equalto','Trancado')  | list | length %}
-    {% set cancelados  = alunos | selectattr('status','equalto','Cancelado') | list | length %}
-    {% set finalizados = alunos | selectattr('status','equalto','Finalizado')| list | length %}
-    <span class="contagem-ativo">Ativos: {{ ativos }}</span>
-    <span class="contagem-trancado">Trancados: {{ trancados }}</span>
-    <span class="contagem-cancelado">Cancelados: {{ cancelados }}</span>
-    <span class="contagem-finalizado">Finalizados: {{ finalizados }}</span>
+    <span class="contagem-ativo">Ativos: {{ cnt_ativos }}</span>
+    <span class="contagem-trancado">Trancados: {{ cnt_trancados }}</span>
+    <span class="contagem-cancelado">Cancelados: {{ cnt_cancelados }}</span>
+    <span class="contagem-finalizado">Finalizados: {{ cnt_finalizados }}</span>
     <span class="contagem-inadimplente">Inadimplentes: {{ inadimplentes }}</span>
 </div>
 
