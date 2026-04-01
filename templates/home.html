@@ -12,43 +12,68 @@
 <style>
 body{
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    min-height:100vh;
+    /* Evita scroll em telas 1366x768: o conteúdo deve caber na viewport */
+    height: 100vh;
+    overflow: hidden;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-.home-header{ max-width:1200px; margin:auto; padding:30px 20px 10px; color:#fff; }
-.home-header h1{ font-size:28px; font-weight:600; }
-.home-header p{ opacity:0.7; margin-top:5px; }
-.home-grid{
-    display:grid; grid-template-columns:repeat(4,1fr);
-    gap:25px; max-width:1200px; margin:auto; padding:30px 20px 50px;
+/* Em telas pequenas (tablet/mobile) volta a rolar normalmente */
+@media (max-height: 700px), (max-width: 768px) {
+    body { height: auto; overflow: auto; }
 }
-@media(max-width:1024px){ .home-grid{ grid-template-columns:repeat(2,1fr); } }
-@media(max-width:600px) { .home-grid{ grid-template-columns:1fr; } }
+.home-header{
+    max-width: 1200px;
+    margin: auto;
+    padding: 10px 20px 4px;
+    color: #fff;
+}
+.home-header h1{ font-size: 22px; font-weight: 600; margin: 0; }
+.home-header p { opacity: 0.7; margin-top: 2px; font-size: 13px; }
+.home-grid{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    max-width: 1200px;
+    margin: auto;
+    padding: 12px 20px 16px;
+}
+@media (max-width: 1024px) { .home-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .home-grid { grid-template-columns: 1fr; } }
 .home-card{
-    background:linear-gradient(145deg,rgba(0,198,255,.25),rgba(0,120,255,.15));
-    backdrop-filter:blur(15px); border-radius:20px; padding:30px;
-    text-align:center; cursor:pointer; transition:.35s;
-    border:1px solid rgba(255,255,255,.15); box-shadow:0 5px 20px rgba(0,0,0,.3);
-    position:relative; overflow:hidden;
-    display:flex; align-items:center; justify-content:center; min-height:90px;
+    background: linear-gradient(145deg, rgba(0,198,255,.25), rgba(0,120,255,.15));
+    backdrop-filter: blur(15px);
+    border-radius: 16px;
+    padding: 18px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: .35s;
+    border: 1px solid rgba(255,255,255,.15);
+    box-shadow: 0 5px 20px rgba(0,0,0,.3);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
 }
 .home-card::before{
-    content:''; position:absolute; width:150%; height:150%; top:-50%; left:-50%;
-    background:radial-gradient(circle,rgba(255,255,255,.15),transparent 60%);
-    opacity:0; transition:.4s;
+    content: ''; position: absolute; width: 150%; height: 150%;
+    top: -50%; left: -50%;
+    background: radial-gradient(circle, rgba(255,255,255,.15), transparent 60%);
+    opacity: 0; transition: .4s;
 }
-.home-card:hover::before{ opacity:1; }
+.home-card:hover::before { opacity: 1; }
 .home-card:hover{
-    transform:translateY(-8px) scale(1.04);
-    box-shadow:0 20px 40px rgba(0,0,0,.6);
-    background:linear-gradient(145deg,rgba(0,198,255,.45),rgba(0,120,255,.25));
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 16px 32px rgba(0,0,0,.6);
+    background: linear-gradient(145deg, rgba(0,198,255,.45), rgba(0,120,255,.25));
 }
-.home-card span{ font-weight:600; font-size:17px; color:#fff; letter-spacing:.5px; }
+.home-card span{ font-weight: 600; font-size: 15px; color: #fff; letter-spacing: .5px; }
 </style>
 
 <div class="home-header">
     <h1>Centro de Qualifica&#231;&#227;o Profissional</h1>
-    <p>Ol&#225;, {{ session.get('usuario_nome', 'Usu&#225;rio') }} &#128075;<br></p>
+    <p>Ol&#225;, {{ session.get('usuario_nome', 'Usu&#225;rio') }} &#128075;</p>
 </div>
 
 <div class="home-grid">
