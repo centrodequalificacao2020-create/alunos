@@ -413,7 +413,6 @@ class RespostaExercicio(db.Model):
     acertos          = db.Column(db.Integer, default=0)
     percentual       = db.Column(db.Float,   default=0.0)
     aluno = db.relationship("Aluno", backref="respostas_exercicio", lazy=True)
-    # respostas individuais por questao
     respostas_questao = db.relationship(
         "RespostaExercicioQuestao",
         backref="resposta_exercicio",
@@ -423,7 +422,7 @@ class RespostaExercicio(db.Model):
 
 
 class RespostaExercicioQuestao(db.Model):
-    """Resposta individual de uma questao de exercicio — equivalente a RespostaQuestao para provas."""
+    """Resposta individual de uma questao de exercicio."""
     __tablename__ = "respostas_exercicio_questao"
     __table_args__ = (
         db.UniqueConstraint(
@@ -449,8 +448,7 @@ class RespostaExercicioQuestao(db.Model):
         db.ForeignKey("exercicio_alternativas.id"),
         nullable=True,
     )
-    acertou               = db.Column(db.Integer, default=0)   # 1 = correto, 0 = errado
-    # relationships para facilitar joins
+    acertou               = db.Column(db.Integer, default=0)
     questao      = db.relationship("ExercicioQuestao",    lazy="joined")
     alternativa  = db.relationship("ExercicioAlternativa", lazy="joined",
                                    foreign_keys=[alternativa_id])
@@ -552,7 +550,8 @@ class Prova(db.Model):
     liberacoes   = db.relationship("ProvaLiberada",
                                    primaryjoin="Prova.id == ProvaLiberada.prova_id",
                                    foreign_keys="[ProvaLiberada.prova_id]",
-                                   backref="prova", lazy=True)
+                                   backref="prova", lazy=True,
+                                   cascade="all, delete-orphan")
 
     @property
     def total_questoes(self):
