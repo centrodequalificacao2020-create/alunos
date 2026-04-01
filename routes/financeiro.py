@@ -172,19 +172,16 @@ def lancar_mensalidade():
     curso_tipo = {c.id: (c.tipo or "") for c in cursos}
 
     if request.method == "POST":
-        # Injeta flag para o service não criar matrícula
-        data = request.form.copy()
-        # ImmutableMultiDict → dict mutável
-        from werkzeug.datastructures import ImmutableMultiDict
-        mutable = data.to_dict(flat=False)
-        mutable["apenas_mensalidade"] = ["1"]
-        mutable["valor_matricula"]    = ["0"]  # não gera parcela de matrícula
+        # O template já envia apenas_mensalidade=1 via <input type="hidden">,
+        # por isso passamos request.form diretamente — sem reempacotar em
+        # ImmutableMultiDict(flat=False), que transformava os valores em listas
+        # e quebrava int(form.get("parcelas")) fazendo cair no fallback curso.parcelas.
+        aluno_id = request.form.get("aluno_id", "")
         try:
-            criar_matricula(ImmutableMultiDict(mutable))
+            criar_matricula(request.form)
             flash("Parcelas lançadas com sucesso.", "sucesso")
         except ValueError as e:
             flash(str(e), "erro")
-        aluno_id = request.form.get("aluno_id", "")
         return redirect(f"/financeiro?aluno_id={aluno_id}")
 
     return render_template("lancar_mensalidade.html",
