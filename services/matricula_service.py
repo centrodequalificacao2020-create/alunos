@@ -138,6 +138,7 @@ def criar_matricula(form_data) -> int:
             )
 
     # ── Parcela de matrícula (nunca em modo avulso) ───────────────────────────
+    # parcela_ref usa formato numérico "01/01" para consistência com a tabela
     if not apenas_mensalidade and valor_matricula > 0:
         db.session.add(Mensalidade(
             aluno_id    = aluno_id,
@@ -146,10 +147,10 @@ def criar_matricula(form_data) -> int:
             vencimento  = data_matricula,
             status      = "Pendente",
             tipo        = "matricula",
-            parcela_ref = "Matrícula",
+            parcela_ref = "01/01",
         ))
 
-    # ── Parcelas de mensalidade ───────────────────────────────────────────────
+    # ── Parcelas de mensalidade ───────────────────────────────────────────
     for i in range(1, parcelas + 1):
         venc_mes = mes + i - 1
         venc_ano = ano + (venc_mes - 1) // 12
@@ -157,7 +158,7 @@ def criar_matricula(form_data) -> int:
         vencimento = f"{venc_ano:04d}-{venc_mes:02d}-10"
         db.session.add(Mensalidade(
             aluno_id    = aluno_id,
-            curso_id    = curso_id,   # ← sempre vincula ao curso do formulário
+            curso_id    = curso_id,
             valor       = valor_mensalidade,
             vencimento  = vencimento,
             status      = "Pendente",
@@ -172,7 +173,6 @@ def criar_matricula(form_data) -> int:
             venc_ano = ano_mat + (venc_mes - 1) // 12
             venc_mes = ((venc_mes - 1) % 12) + 1
             vencimento = f"{venc_ano:04d}-{venc_mes:02d}-10"
-            ref = f"{i:02d}/{parcelas_material:02d}" if parcelas_material > 1 else "Material Didático"
             db.session.add(Mensalidade(
                 aluno_id    = aluno_id,
                 curso_id    = curso_id,
@@ -180,7 +180,7 @@ def criar_matricula(form_data) -> int:
                 vencimento  = vencimento,
                 status      = "Pendente",
                 tipo        = "material",
-                parcela_ref = ref,
+                parcela_ref = f"{i:02d}/{parcelas_material:02d}",
             ))
 
     db.session.commit()
