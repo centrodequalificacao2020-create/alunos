@@ -114,6 +114,20 @@ def _buscar_aluno_por_login(identificador: str):
     return None
 
 
+def _cursos_disponiveis(aluno_id):
+    """Retorna lista de dicts {curso, matricula} com matriculas ativas, sem duplicar curso."""
+    matriculas = _matriculas_ativas(aluno_id)
+    resultado  = []
+    ids_vistos = set()
+    for mat in matriculas:
+        if mat.curso_id not in ids_vistos:
+            ids_vistos.add(mat.curso_id)
+            curso = db.session.get(Curso, mat.curso_id)
+            if curso:
+                resultado.append({"curso": curso, "matricula": mat})
+    return resultado
+
+
 # --- LOGIN / LOGOUT -----------------------------------------------------------
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
@@ -180,28 +194,15 @@ def dashboard_aluno():
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
 def financeiro_aluno():
-    aluno      = db.get_or_404(Aluno, session["aluno_id"])
-    matriculas = _matriculas_ativas(aluno.id)
-
-    # Monta lista de cursos com matrícula ativa (deduplica por curso_id)
-    cursos_disponiveis = []
-    ids_vistos = set()
-    for mat in matriculas:
-        if mat.curso_id not in ids_vistos:
-            ids_vistos.add(mat.curso_id)
-            curso = db.session.get(Curso, mat.curso_id)
-            if curso:
-                cursos_disponiveis.append({"curso": curso, "matricula": mat})
+    aluno              = db.get_or_404(Aluno, session["aluno_id"])
+    cursos_disponiveis = _cursos_disponiveis(aluno.id)
 
     curso_id_param = request.args.get("curso_id", type=int)
 
     if not curso_id_param:
         if len(cursos_disponiveis) == 1:
-            # Apenas um curso: vai direto
             curso_id_param = cursos_disponiveis[0]["curso"].id
         else:
-            # Nenhum ou vários cursos: exibe tela de seleção
-            # Calcula o total de parcelas atrasadas em todos os cursos
             todas = Mensalidade.query.filter_by(aluno_id=aluno.id).all()
             atrasadas_total = _contar_atrasadas(todas)
             return render_template(
@@ -212,7 +213,6 @@ def financeiro_aluno():
                 modo="selecao",
             )
 
-    # Valida que o aluno está matriculado neste curso
     matricula = Matricula.query.filter(
         Matricula.aluno_id == aluno.id,
         Matricula.curso_id == curso_id_param,
@@ -225,7 +225,6 @@ def financeiro_aluno():
 
     curso = db.session.get(Curso, curso_id_param)
 
-    # Busca mensalidades deste curso específico
     mensalidades = (
         Mensalidade.query
         .filter_by(aluno_id=aluno.id, curso_id=curso_id_param)
@@ -233,7 +232,6 @@ def financeiro_aluno():
         .all()
     )
 
-    # Fallback: parcelas antigas sem curso_id também apparecem se for a matrícula mais antiga
     if not mensalidades:
         mensalidades = (
             Mensalidade.query
@@ -266,9 +264,68 @@ def financeiro_aluno():
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
 def frequencia_aluno():
-    aluno       = db.get_or_404(Aluno, session["aluno_id"])
-    frequencias = Frequencia.query.filter_by(aluno_id=aluno.id).order_by(Frequencia.data.desc()).all()
-    return render_template("aluno/frequencia.html", aluno=aluno, frequencias=frequencias)
+    aluno              = db.get_or_404(Aluno, session["aluno_id"])
+    cursos_disponiveis = _cursos_disponiveis(aluno.id)
+
+    curso_id_param = request.args.get("curso_id", type=int)
+
+    if not curso_id_param:
+        if len(cursos_disponiveis) == 1:
+            curso_id_param = cursos_disponiveis[0]["curso"].id
+        else:
+            return render_template(
+                "aluno/frequencia.html",
+                aluno=aluno,
+                cursos_disponiveis=cursos_disponiveis,
+                modo="selecao",
+            )
+
+    matricula = Matricula.query.filter(
+        Matricula.aluno_id == aluno.id,
+        Matricula.curso_id == curso_id_param,
+        db.func.upper(Matricula.status) == "ATIVA",
+    ).first()
+
+    if not matricula:
+        flash("Curso n\u00e3o encontrado ou sem matr\u00edcula ativa.", "erro")
+        return redirect("/aluno/frequencia")
+
+    curso = db.session.get(Curso, curso_id_param)
+
+    # Busca frequencias vinculadas a materias do curso
+    ids_materias_curso = {
+        cm.materia_id
+        for cm in CursoMateria.query.filter_by(curso_id=curso_id_param).all()
+    }
+
+    if ids_materias_curso:
+        frequencias = (
+            Frequencia.query
+            .filter(
+                Frequencia.aluno_id == aluno.id,
+                Frequencia.materia_id.in_(ids_materias_curso),
+            )
+            .order_by(Frequencia.data.desc())
+            .all()
+        )
+    else:
+        # Fallback: frequencias sem materia vinculada
+        frequencias = (
+            Frequencia.query
+            .filter_by(aluno_id=aluno.id)
+            .order_by(Frequencia.data.desc())
+            .all()
+        )
+
+    return render_template(
+        "aluno/frequencia.html",
+        aluno=aluno,
+        matricula=matricula,
+        curso=curso,
+        frequencias=frequencias,
+        cursos_disponiveis=cursos_disponiveis,
+        modo="frequencia",
+    )
 
 
 # --- NOTAS --------------------------------------------------------------------
