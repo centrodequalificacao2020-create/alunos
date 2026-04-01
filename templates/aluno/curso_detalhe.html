@@ -211,7 +211,7 @@ body{
     </button>
     <button class="tab-btn" onclick="trocarTab('exercicios',this)">
       <i class="fas fa-pencil-alt"></i> Exerc&iacute;cios
-      {% if exercicios_por_mat %}<span style="opacity:.5">({{ exercicios_por_mat.values()|map(attribute='__len__')|sum }}{# somar listas de dicts #}{% set ns=namespace(c=0) %}{% for lst in exercicios_por_mat.values() %}{% set ns.c = ns.c + lst|length %}{% endfor %}){% endif %}
+      {% if exercicios_por_mat %}{% set ns=namespace(c=0) %}{% for lst in exercicios_por_mat.values() %}{% set ns.c = ns.c + lst|length %}{% endfor %}<span style="opacity:.5">({{ ns.c }})</span>{% endif %}
     </button>
     <button class="tab-btn" onclick="trocarTab('provas',this)">
       <i class="fas fa-file-alt"></i> Provas
