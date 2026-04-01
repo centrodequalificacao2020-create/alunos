@@ -15,45 +15,61 @@ function calcularTotal() {
         : '';
 }
 
-/* ── helpers de badge ── */
+/* ── helpers de badge ── normaliza para Title Case antes de mapear ── */
+function titleCase(s) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
 function badgeAluno(s) {
     const map = {
-        'Ativo':      'status-ativo',
-        'Trancado':   'status-trancado',
-        'Cancelado':  'status-cancelado',
-        'Finalizado': 'status-finalizado',
+        'Ativo':        'status-ativo',
+        'Trancado':     'status-trancado',
+        'Cancelado':    'status-cancelado',
+        'Finalizado':   'status-finalizado',
         'Inadimplente': 'status-inadimplente',
     };
-    const cls = map[s] || '';
-    return `<span class="${cls}">${s}</span>`;
+    const norm = titleCase(s);
+    const cls  = map[norm] || '';
+    return `<span class="${cls}">${norm}</span>`;
 }
+
 function badgeMatricula(s) {
     const map = {
         'Ativa':     'status-ativo',
         'Trancada':  'status-trancado',
         'Cancelada': 'status-cancelado',
         'Concluída': 'status-finalizado',
+        'Concluida': 'status-finalizado',
     };
-    const cls = map[s] || '';
-    return `<span class="${cls}">${s}</span>`;
+    const norm = titleCase(s);
+    const cls  = map[norm] || '';
+    return `<span class="${cls}">${norm}</span>`;
 }
 
-/* ── tabela de alunos comum ── */
+/* ── tabela de alunos — colunas com largura fixa ── */
 function renderTabela(alunos) {
     if (!alunos.length) return '<p style="color:var(--text-muted);padding:8px 0">Nenhum aluno matriculado.</p>';
     let rows = alunos.map((a, i) =>
         `<tr>
-          <td style="width:32px;color:var(--text-muted);font-size:.85em">${i+1}</td>
+          <td>${i+1}</td>
           <td><a href="/aluno/${a.id}" style="color:var(--primary)">${a.nome}</a></td>
           <td>${badgeAluno(a.status_aluno)}</td>
           <td>${badgeMatricula(a.status_matricula)}</td>
         </tr>`
     ).join('');
-    return `<table class="tabela-excel" style="margin-top:8px">
+    return `<table class="tabela-excel" style="margin-top:8px;table-layout:fixed;width:100%">
+        <colgroup>
+          <col style="width:42px">
+          <col>
+          <col style="width:160px">
+          <col style="width:180px">
+        </colgroup>
         <thead><tr>
-          <th>#</th><th>Nome</th>
-          <th>Status do aluno</th>
-          <th>Status da matrícula</th>
+          <th style="text-align:center">#</th>
+          <th>Nome</th>
+          <th style="text-align:center">Status do Aluno</th>
+          <th style="text-align:center">Status da Matrícula</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
