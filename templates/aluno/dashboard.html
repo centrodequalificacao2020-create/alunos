@@ -87,7 +87,7 @@ body {
 </style>
 
 <div class="aluno-header">
-    <h1>&#127891; Bem-vindo, {{ aluno.nome.strip().split()[0] }}!</h1>
+    <h1>&#127891; Bem-vindo(a), {{ aluno.nome.strip().split()[0] }}!</h1>
     {% if matricula %}
     <p>{{ matricula.curso.nome if matricula.curso else '' }}</p>
     {% endif %}
