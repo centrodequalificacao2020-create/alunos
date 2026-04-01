@@ -254,12 +254,12 @@ body{
       <div class="vazio"><i class="fas fa-info-circle"></i> Nenhuma matéria cadastrada neste curso.</div>
     {% endif %}
 
-    {# ── Exercícios (botão em massa) ── #}
+    {# ── Exercícios (liberar todos) ── #}
     {% set total_ex = [] %}
     {% for mat in cd.materias %}{% if cd.exercicios_por_mat.get(mat.id) %}{% for _ in cd.exercicios_por_mat[mat.id] %}{% if total_ex.append(1) %}{% endif %}{% endfor %}{% endif %}{% endfor %}
     {% if total_ex %}
     <div class="secao-header" style="margin-top:6px">
-      <div class="secao-label"><i class="fas fa-pencil-alt"></i> Exercícios (em massa)</div>
+      <div class="secao-label"><i class="fas fa-pencil-alt"></i> Exercícios</div>
       <div class="btn-massa-grupo">
         <form method="POST" action="/liberacoes/exercicio/todos">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
