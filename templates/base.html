@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- CSRF: token disponível para requisições fetch/AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Sistema Escolar{% endblock %} &mdash; CQP</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=18">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=19">
     {% block styles %}{% endblock %}
 </head>
 <body class="{% if request.path.startswith('/aluno') %}tema-aluno{% endif %}">
 
 <header id="site-header">
-    <div class="header-top">
-        <h1>Sistema Escolar</h1>
-        <button class="nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false">&#9776;</button>
-    </div>
-    <nav id="site-nav">
+    <!-- título fixo à esquerda -->
+    <span class="header-title">Sistema Escolar</span>
 
+    <!-- hambúrguer: só aparece em mobile via CSS -->
+    <button class="nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false">&#9776;</button>
+
+    <!-- nav: no desktop fica inline com o título; no mobile vira dropdown -->
+    <nav id="site-nav">
         {% set perfil = (session.perfil or '') | lower %}
         {% set is_admin      = perfil in ['admin', 'administrador'] %}
         {% set is_financeiro = perfil == 'financeiro' %}
@@ -34,7 +35,6 @@
             <a href="/aluno/logout">Sair</a>
 
         {% elif session.usuario_id %}
-
             <a href="/" class="{{ 'active' if request.path == '/' }}">Home</a>
 
             {% if full_access or meio_access %}
@@ -71,7 +71,6 @@
 
             <a href="/logout">Sair</a>
         {% endif %}
-
     </nav>
 </header>
 
@@ -83,49 +82,42 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
-
     {% block content %}{% endblock %}
 </main>
 
 {% block scripts %}{% endblock %}
 
-<!--
-  CSRF: injeta automaticamente o campo hidden em TODOS os formulários
-  da página no momento do submit, sem precisar alterar nenhum template.
--->
 <script>
 (function () {
-  /* CSRF */
+  /* CSRF: injeta campo hidden em todos os forms no submit */
   var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (form.method && form.method.toLowerCase() !== 'get') {
       if (!form.querySelector('input[name="csrf_token"]')) {
         var inp = document.createElement('input');
-        inp.type  = 'hidden';
-        inp.name  = 'csrf_token';
-        inp.value = token;
+        inp.type = 'hidden'; inp.name = 'csrf_token'; inp.value = token;
         form.appendChild(inp);
       }
     }
   }, true);
 
-  /* Ajusta padding-top do body conforme altura real do header (suporta 2 linhas) */
-  function ajustarPaddingHeader() {
+  /* Ajusta padding-top do body conforme altura real do header */
+  function ajustar() {
     var h = document.getElementById('site-header');
     if (h) document.body.style.paddingTop = h.offsetHeight + 'px';
   }
-  ajustarPaddingHeader();
-  window.addEventListener('resize', ajustarPaddingHeader);
+  ajustar();
+  window.addEventListener('resize', ajustar);
 
-  /* Hambúrguer — só em mobile (< 768px) */
+  /* Hambúrguer — só ativo em mobile (CSS esconde o botão no desktop) */
   var btn = document.getElementById('nav-toggle');
   var nav = document.getElementById('site-nav');
   if (btn && nav) {
     btn.addEventListener('click', function () {
       var aberto = nav.classList.toggle('nav-open');
       btn.setAttribute('aria-expanded', aberto);
-      ajustarPaddingHeader();
+      ajustar();
     });
   }
 })();
