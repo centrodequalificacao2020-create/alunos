@@ -111,21 +111,9 @@ def editar_prova(id):
 @login_required
 def excluir_prova(id):
     from models import Prova
-    from sqlalchemy import text
     prova = db.get_or_404(Prova, id)
-
-    # Remove dependentes via SQL direto para contornar FKs NOT NULL sem CASCADE
-    db.session.execute(text("DELETE FROM provas_liberadas WHERE prova_id = :pid"), {"pid": id})
-    db.session.execute(text("""
-        DELETE FROM respostas_questoes
-        WHERE resposta_prova_id IN (
-            SELECT id FROM respostas_provas WHERE prova_id = :pid
-        )
-    """), {"pid": id})
-    db.session.execute(text("DELETE FROM respostas_provas WHERE prova_id = :pid"), {"pid": id})
-    db.session.execute(text("DELETE FROM alternativas WHERE questao_id IN (SELECT id FROM questoes WHERE prova_id = :pid)"), {"pid": id})
-    db.session.execute(text("DELETE FROM questoes WHERE prova_id = :pid"), {"pid": id})
-
+    # O cascade "all, delete-orphan" nos relacionamentos de Prova cuida
+    # de questoes, alternativas, respostas e liberacoes automaticamente.
     db.session.delete(prova)
     db.session.commit()
     flash("Prova excluída.", "sucesso")
