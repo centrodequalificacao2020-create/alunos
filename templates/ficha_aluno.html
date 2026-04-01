@@ -165,6 +165,7 @@
             </thead>
             <tbody>
                 {% for tp in tentativas_provas %}
+                {% set titulo_prova = tp.prova_titulo | replace("'", "") %}
                 <tr>
                     <td style="font-size:12px;color:var(--color-text-muted);">{{ tp.id }}</td>
                     <td><strong>{{ tp.prova_titulo }}</strong></td>
@@ -195,7 +196,7 @@
                     <td style="text-align:center;">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_prova/{{ tp.id }}/excluir"
-                              onsubmit="return confirm('Excluir esta tentativa da prova {{ tp.prova_titulo|replace(\"'\",\"\\'\") }}? Esta ação libera uma tentativa para o aluno.')">
+                              onsubmit="return confirm('Excluir esta tentativa da prova {{ titulo_prova }}? Esta acao libera uma tentativa para o aluno.')">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
                                     data-tooltip="Excluir tentativa">🗑️ Apagar</button>
                         </form>
@@ -229,6 +230,7 @@
             </thead>
             <tbody>
                 {% for te in tentativas_exercicios %}
+                {% set titulo_exercicio = te.exercicio_titulo | replace("'", "") %}
                 <tr>
                     <td style="font-size:12px;color:var(--color-text-muted);">{{ te.id }}</td>
                     <td><strong>{{ te.exercicio_titulo }}</strong></td>
@@ -259,7 +261,7 @@
                     <td style="text-align:center;">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_exercicio/{{ te.id }}/excluir"
-                              onsubmit="return confirm('Excluir esta tentativa do exercício {{ te.exercicio_titulo|replace(\"'\",\"\\'\") }}? Esta ação libera uma tentativa para o aluno.')">
+                              onsubmit="return confirm('Excluir esta tentativa do exercicio {{ titulo_exercicio }}? Esta acao libera uma tentativa para o aluno.')">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
                                     data-tooltip="Excluir tentativa">🗑️ Apagar</button>
                         </form>
