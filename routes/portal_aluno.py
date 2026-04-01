@@ -291,14 +291,18 @@ def frequencia_aluno():
         return redirect("/aluno/frequencia")
 
     curso = db.session.get(Curso, curso_id_param)
+    if not curso:
+        flash("Curso n\u00e3o encontrado.", "erro")
+        return redirect("/aluno/frequencia")
 
-    # Busca frequencias vinculadas a materias do curso
+    # Busca IDs de materias vinculadas ao curso
     ids_materias_curso = {
         cm.materia_id
         for cm in CursoMateria.query.filter_by(curso_id=curso_id_param).all()
     }
 
     if ids_materias_curso:
+        # Frequencias com materia vinculada ao curso
         frequencias = (
             Frequencia.query
             .filter(
@@ -308,11 +312,27 @@ def frequencia_aluno():
             .order_by(Frequencia.data.desc())
             .all()
         )
+        # Se nao encontrou nada, tenta frequencias sem materia_id
+        # (registros antigos sem vinculo) - mas SEM misturar outros cursos
+        if not frequencias:
+            frequencias = (
+                Frequencia.query
+                .filter(
+                    Frequencia.aluno_id == aluno.id,
+                    Frequencia.materia_id == None,
+                )
+                .order_by(Frequencia.data.desc())
+                .all()
+            )
     else:
-        # Fallback: frequencias sem materia vinculada
+        # Curso sem CursoMateria cadastrado: mostra apenas freq sem materia_id
+        # para nao misturar frequencias de outros cursos
         frequencias = (
             Frequencia.query
-            .filter_by(aluno_id=aluno.id)
+            .filter(
+                Frequencia.aluno_id == aluno.id,
+                Frequencia.materia_id == None,
+            )
             .order_by(Frequencia.data.desc())
             .all()
         )

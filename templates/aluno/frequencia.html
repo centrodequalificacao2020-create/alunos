@@ -167,7 +167,6 @@ body {
             <thead>
                 <tr>
                     <th>Data</th>
-                    <th>Materia</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -175,7 +174,6 @@ body {
             {% for f in frequencias %}
             <tr>
                 <td>{{ f.data }}</td>
-                <td>{{ f.materia.nome if f.materia else '&mdash;' }}</td>
                 <td>
                     {% if f.status in ['P', 'Presente'] %}
                     <span class="pill pill-ok"><i class="fas fa-check"></i> Presente</span>
@@ -193,7 +191,7 @@ body {
         </table>
     </div>
     {% else %}
-    <div class="empty-box"><i class="fas fa-info-circle"></i> Nenhum registro de frequencia encontrado.</div>
+    <div class="empty-box"><i class="fas fa-info-circle"></i> Nenhum registro de frequencia encontrado para este curso.</div>
     {% endif %}
 
     {% if cursos_disponiveis | length > 1 %}
