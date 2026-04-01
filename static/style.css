@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v17)
+   SISTEMA ESCOLAR — style.css  (v18)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ───────────────────────────────────────────────────── */
@@ -48,7 +48,6 @@
     --radius-lg:  12px;
     --shadow-sm:  0 2px 6px rgba(0,0,0,.06);
     --shadow-md:  0 4px 16px rgba(0,0,0,.08);
-    --nav-height: 56px;
     --font-base:  Arial, Helvetica, sans-serif;
     --font-size-base: 14px;
     --font-size-sm:   12px;
@@ -63,27 +62,71 @@ body {
     color: var(--color-text);
     font-family: var(--font-base);
     font-size: var(--font-size-base);
-    padding-top: var(--nav-height);
+    /* padding-top é definido via JS conforme altura real do header */
     overflow-x: hidden;
 }
 
 /* ── 3. HEADER / NAV ───────────────────────────────────── */
+/*
+  Estratégia:
+  - Tablet/Desktop (≥ 768px): header em coluna (flex-direction: column),
+    título na 1ª linha, nav na 2ª — quebra naturalmente sem transbordar.
+  - Mobile (< 768px): hambúrguer — nav escondida por padrão, abre como
+    dropdown abaixo do header ao clicar.
+  Em NENHUM caso o header ultrapassa a largura do viewport.
+*/
 header {
-    background: var(--color-primary); color: var(--color-white);
-    padding: 0 24px; height: var(--nav-height);
-    display: flex; align-items: center; justify-content: space-between;
-    position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+    background: var(--color-primary);
+    color: var(--color-white);
+    padding: 0;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    z-index: 1000;
+    overflow: hidden; /* garante contenção total */
+}
+
+/* Linha do título (sempre visível) */
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 48px;
     gap: 12px;
 }
-header h1 {
-    margin: 0; font-size: 16px; font-weight: 600;
-    white-space: nowrap; flex-shrink: 0;
+.header-top h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
+/* Botão hambúrguer: SOMENTE mobile */
+.nav-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--color-white);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 4px 8px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+/* ── Nav: desktop/tablet — 2ª linha do header ── */
 nav {
-    display: flex; align-items: center;
-    flex-wrap: nowrap; overflow: visible;
-    flex: 1; justify-content: flex-end;
+    display: flex;
+    flex-wrap: wrap;          /* permite múltiplas linhas se necessário */
+    align-items: center;
     gap: 2px;
+    padding: 4px 24px 6px;
+    background: var(--color-primary);
+    width: 100%;
+    overflow: hidden;
 }
 nav a {
     color: rgba(255,255,255,.85);
@@ -93,10 +136,40 @@ nav a {
     border-radius: 4px;
     transition: color .15s, background .15s;
     white-space: nowrap;
-    flex-shrink: 0;
+    line-height: 1.4;
 }
-nav a:hover { color: var(--color-white); background: rgba(255,255,255,.12); }
+nav a:hover  { color: var(--color-white); background: rgba(255,255,255,.12); }
 nav a.active { color: var(--color-white); font-weight: 600; background: rgba(255,255,255,.18); }
+
+/* ── Nav: mobile — dropdown ── */
+@media (max-width: 767px) {
+    .nav-toggle { display: block; }
+
+    nav {
+        display: none;
+        position: absolute;
+        top: 100%; /* logo abaixo do header */
+        left: 0;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 8px 0;
+        background: var(--color-primary-dark);
+        box-shadow: 0 4px 12px rgba(0,0,0,.25);
+        overflow: hidden;
+        flex-wrap: nowrap;
+    }
+    nav.nav-open { display: flex; }
+    nav a {
+        padding: 10px 24px;
+        font-size: var(--font-size-base);
+        border-radius: 0;
+        border-left: 3px solid transparent;
+        background: none;
+    }
+    nav a:hover  { background: rgba(255,255,255,.1); border-left-color: rgba(255,255,255,.4); }
+    nav a.active { background: rgba(255,255,255,.12); font-weight: 600; border-left: 3px solid var(--color-white); padding-left: 21px; }
+}
 
 /* ── 4. MAIN ──────────────────────────────────────────── */
 main { padding: 32px; width: 100%; max-width: 100%; }
@@ -159,141 +232,60 @@ form input:focus, form select:focus, .campo input:focus, .campo select:focus {
 .campo-valido   { border-color: var(--color-success) !important; }
 .campo-invalido { border-color: var(--color-danger)  !important; }
 
-/* ── 7c. INPUT ALTERNATIVA (questoes/provas) ──────────────
-   Anula as regras de form input{width:100%;margin-bottom:16px}
-   para que o flex:1 funcione dentro de .alt-linha
-──────────────────────────────────────────────────────────── */
+/* ── 7c. INPUT ALTERNATIVA ──────────────────────────────── */
 .alt-input-texto {
-    flex: 1 !important;
-    width: auto !important;
-    min-width: 0 !important;
-    margin-bottom: 0 !important;
-    height: 32px !important;
-    padding: 5px 8px !important;
-    font-size: var(--font-size-base) !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: var(--radius-sm) !important;
-    background: #fff !important;
-    color: var(--color-text) !important;
-    cursor: text !important;
-    pointer-events: auto !important;
-    opacity: 1 !important;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-    display: block !important;
+    flex: 1 !important; width: auto !important; min-width: 0 !important;
+    margin-bottom: 0 !important; height: 32px !important; padding: 5px 8px !important;
+    font-size: var(--font-size-base) !important; border: 1px solid #d1d5db !important;
+    border-radius: var(--radius-sm) !important; background: #fff !important;
+    color: var(--color-text) !important; cursor: text !important;
+    pointer-events: auto !important; opacity: 1 !important;
+    user-select: text !important; -webkit-user-select: text !important; display: block !important;
 }
 .alt-input-texto:focus {
-    outline: none !important;
-    border-color: var(--color-primary) !important;
+    outline: none !important; border-color: var(--color-primary) !important;
     box-shadow: 0 0 0 3px rgba(21,101,192,.15) !important;
 }
 
 /* ── 8. BOTÕES ──────────────────────────────────────────── */
 .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    height: 36px;
-    padding: 0 14px;
-    border-radius: var(--radius-md);
-    border: none;
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-    font-family: var(--font-base);
-    text-decoration: none;
-    white-space: nowrap;
-    vertical-align: middle;
-    transition: opacity .15s;
-    line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    height: 36px; padding: 0 14px; border-radius: var(--radius-md); border: none;
+    cursor: pointer; font-size: var(--font-size-sm); font-family: var(--font-base);
+    text-decoration: none; white-space: nowrap; vertical-align: middle;
+    transition: opacity .15s; line-height: 1;
 }
 .btn:hover { opacity: .88; }
 .btn:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
-.btn-sm {
-    height: 30px;
-    padding: 0 10px;
-    font-size: 11px;
-}
-.btn-azul, .btn-primary  { background: var(--color-primary);  color: var(--color-white); }
-.btn-verde, .btn-pagar   { background: var(--color-success);  color: var(--color-white); }
-.btn-vermelho,.btn-excluir{ background: var(--color-danger);  color: var(--color-white); }
-.btn-editar  { background: #1976d2; color: var(--color-white); }
-.btn-lixeira { background: var(--color-warning); color: var(--color-white); }
-.btn-imprimir{ background: var(--color-primary); color: var(--color-white); }
+.btn-sm { height: 30px; padding: 0 10px; font-size: 11px; }
+.btn-azul, .btn-primary   { background: var(--color-primary);  color: var(--color-white); }
+.btn-verde, .btn-pagar    { background: var(--color-success);  color: var(--color-white); }
+.btn-vermelho,.btn-excluir { background: var(--color-danger);  color: var(--color-white); }
+.btn-editar   { background: #1976d2; color: var(--color-white); }
+.btn-lixeira  { background: var(--color-warning); color: var(--color-white); }
+.btn-imprimir { background: var(--color-primary); color: var(--color-white); }
 .btn-info, .btn-recibo { background: var(--color-info); color: var(--color-white); }
-.btn-success { background: var(--color-success); color: var(--color-white); }
-.btn-purple  { background: #9b59b6; color: var(--color-white); }
-.btn-pdf     { background: #c0392b; color: var(--color-white); }
+.btn-success  { background: var(--color-success); color: var(--color-white); }
+.btn-purple   { background: #9b59b6; color: var(--color-white); }
+.btn-pdf      { background: #c0392b; color: var(--color-white); }
 .btn-secondary { background: rgba(255,255,255,.15); color: var(--color-white); border: 1px solid rgba(255,255,255,.3); }
 
-/* ── COLUNA DE AÇÕES — ÍCONES (acoes) ──────────────────────
-   Usada quando os botões são só ícones quadrados (✏️ 🗑️).
-   th e td recebem o mesmo text-align: center.
-──────────────────────────────────────────────────────────── */
-th.acoes,
-td.acoes {
-    text-align: center;
-    vertical-align: middle;
-    white-space: nowrap;
-    padding: 8px 12px;
-}
-
-th.acoes {
-    /* sobrescreve o text-align:left do table th global */
-    text-align: center !important;
-}
-
-.acoes .btn {
-    width: 34px;
-    height: 30px;
-    padding: 0;
-    margin: 0 2px;
-    font-size: 15px;
-}
-
-/* Garante que forms inline dentro de .acoes não quebram alinhamento */
-.acoes form {
-    display: inline-flex;
-    align-items: center;
-    margin: 0 2px;
-}
-
-/* ── COLUNA DE AÇÕES — TEXTO (acoes-texto) ─────────────────
-   Usada quando os botões têm label (ex: "📄 Declaração").
-   Mesmo tratamento de alinhamento que .acoes.
-──────────────────────────────────────────────────────────── */
-th.acoes-texto,
-td.acoes-texto {
-    text-align: center;
-    vertical-align: middle;
-    white-space: nowrap;
-    min-width: 260px;
-    padding: 8px 14px;
-}
-
-th.acoes-texto {
-    text-align: center !important;
-}
-
-.acoes-texto .btn,
-.acoes-texto form {
-    display: inline-flex;
-    align-items: center;
-    margin: 0 2px;
-}
-
+/* ── ACOES ──────────────────────────────────────────────── */
+th.acoes, td.acoes { text-align: center; vertical-align: middle; white-space: nowrap; padding: 8px 12px; }
+th.acoes { text-align: center !important; }
+.acoes .btn { width: 34px; height: 30px; padding: 0; margin: 0 2px; font-size: 15px; }
+.acoes form { display: inline-flex; align-items: center; margin: 0 2px; }
+th.acoes-texto, td.acoes-texto { text-align: center; vertical-align: middle; white-space: nowrap; min-width: 260px; padding: 8px 14px; }
+th.acoes-texto { text-align: center !important; }
+.acoes-texto .btn, .acoes-texto form { display: inline-flex; align-items: center; margin: 0 2px; }
 .acoes-form { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
 .acoes-form--between { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; }
 .botoes-matricula { display: flex; gap: 15px; margin-top: 20px; align-items: center; }
 
-/* ── 9. TABELAS + RESPONSIVIDADE ───────────────────────────── */
+/* ── 9. TABELAS ──────────────────────────────────────────── */
 .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-md); }
 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-table th {
-    text-align: left; padding: 14px; background: var(--color-surface);
-    font-size: var(--font-size-sm); letter-spacing: .5px;
-    text-transform: uppercase; color: var(--color-text-head);
-}
+table th { text-align: left; padding: 14px; background: var(--color-surface); font-size: var(--font-size-sm); letter-spacing: .5px; text-transform: uppercase; color: var(--color-text-head); }
 table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); font-size: var(--font-size-base); vertical-align: middle; }
 .tabela-planilha { max-width: 100%; overflow: auto; border: 1px solid #ddd; border-radius: var(--radius-md); max-height: 400px; }
 .tabela-container { max-height: 320px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
@@ -303,48 +295,21 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
     background: var(--color-primary); color: var(--color-white);
     font-weight: 600; font-size: var(--font-size-sm); text-transform: uppercase;
     border-bottom: 2px solid var(--color-primary-dark);
-    padding: 10px 14px; position: sticky; top: 0; z-index: 2;
-    text-align: left;
+    padding: 10px 14px; position: sticky; top: 0; z-index: 2; text-align: left;
 }
-
-/* Cabeçalhos de ação dentro de tabela-excel: centralizar */
 .tabela-excel thead th.acoes,
-.tabela-excel thead th.acoes-texto {
-    text-align: center !important;
-    position: sticky; right: 0; z-index: 3;
-    background: var(--color-primary);
-}
-
-/* Células de dados de ação dentro de tabela-excel */
+.tabela-excel thead th.acoes-texto { text-align: center !important; position: sticky; right: 0; z-index: 3; background: var(--color-primary); }
 .tabela-excel td.acoes,
-.tabela-excel td.acoes-texto {
-    background: var(--acoes-bg);
-    position: sticky; right: 0; z-index: 1;
-    box-shadow: -2px 0 5px rgba(0,0,0,.15);
-    text-align: center;
-}
-
+.tabela-excel td.acoes-texto { background: var(--acoes-bg); position: sticky; right: 0; z-index: 1; box-shadow: -2px 0 5px rgba(0,0,0,.15); text-align: center; }
 .tabela-excel tbody tr:hover td { background: var(--color-primary-light); }
 .tabela-excel tbody tr:hover td.acoes,
 .tabela-excel tbody tr:hover td.acoes-texto { background: var(--color-primary-light); }
-
-/* ── 9b. LINHA VENCIDA (financeiro) ──────────────────────────── */
-.tabela-excel tbody tr.parcela-vencida td {
-    background: #fff0f0;
-    color: var(--color-danger);
-    font-weight: 600;
-}
+.tabela-excel tbody tr.parcela-vencida td { background: #fff0f0; color: var(--color-danger); font-weight: 600; }
 .tabela-excel tbody tr.parcela-vencida td.acoes,
-.tabela-excel tbody tr.parcela-vencida td.acoes-texto {
-    background: #fff0f0;
-}
-.tabela-excel tbody tr.parcela-vencida:hover td {
-    background: #ffd6d6;
-}
+.tabela-excel tbody tr.parcela-vencida td.acoes-texto { background: #fff0f0; }
+.tabela-excel tbody tr.parcela-vencida:hover td { background: #ffd6d6; }
 .tabela-excel tbody tr.parcela-vencida:hover td.acoes,
-.tabela-excel tbody tr.parcela-vencida:hover td.acoes-texto {
-    background: #ffd6d6;
-}
+.tabela-excel tbody tr.parcela-vencida:hover td.acoes-texto { background: #ffd6d6; }
 
 /* ── 10. STATUS ──────────────────────────────────────────── */
 .status-ativo      { color: var(--color-status-ativa);      font-weight: 600; }
@@ -358,7 +323,7 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .nota-reprovado { color: var(--color-reprovado); font-weight: 600; }
 .nota-cursando  { color: var(--color-cursando);  font-weight: 600; }
 
-/* ── 11. TOTAIS E ALERTAS ────────────────────────────────── */
+/* ── 11. TOTAIS E ALERTAS ─────────────────────────────────── */
 .totais { margin-top: 12px; padding: 10px; background: var(--color-success-light); border-left: 4px solid var(--color-success); font-weight: bold; }
 .alerta { padding: 10px 14px; margin: 10px 0 15px; border-radius: var(--radius-md); font-size: var(--font-size-base); }
 .alerta.erro    { background: var(--color-danger-light);  color: #a30000; border: 1px solid #f5bcbc; }
@@ -369,10 +334,8 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .tooltip::after {
     content: attr(data-tooltip);
     position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
-    background: #333; color: var(--color-white);
-    padding: 4px 8px; border-radius: var(--radius-sm);
-    font-size: var(--font-size-sm); white-space: nowrap;
-    opacity: 0; pointer-events: none; transition: opacity .15s ease;
+    background: #333; color: var(--color-white); padding: 4px 8px; border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s ease;
 }
 .tooltip:hover::after { opacity: 1; }
 
@@ -400,7 +363,7 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .section-title--sep { margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 24px; }
 .grafico-card canvas { max-width: 100%; height: 220px !important; }
 
-/* ── 14b. DASHBOARD — CARDS COLORIDOS ───────────────────────── */
+/* ── 14b. CARDS COLORIDOS ───────────────────────────────────── */
 .card--success { background: var(--color-success-light); border-left: 4px solid var(--color-success); }
 .card--danger  { background: var(--color-danger-light);  border-left: 4px solid var(--color-danger); }
 .card--info    { background: var(--color-info-light);    border-left: 4px solid var(--color-info); }
@@ -439,11 +402,7 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .material-card:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
 
 /* ── 17. HOME FULLSCREEN ─────────────────────────────────── */
-.home-bg {
-    position: fixed; top: var(--nav-height); left: 0;
-    width: 100%; height: calc(100vh - var(--nav-height));
-    display: flex; justify-content: center; align-items: center; z-index: 1;
-}
+.home-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; z-index: 1; }
 
 /* ── 18. EMPTY STATE ───────────────────────────────────────── */
 .empty-state { text-align: center; color: #888; padding: 32px 0; font-size: var(--font-size-base); }
@@ -454,25 +413,10 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .toolbar-alunos__filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .toolbar-alunos__filtros input  { height: 36px; width: 220px; margin-bottom: 0; }
 .toolbar-alunos__filtros select { height: 36px; width: 160px; margin-bottom: 0; }
+.toolbar-matricula { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.toolbar-matricula select { height: 36px; min-width: 220px; flex: 1 1 220px; max-width: 360px; margin-bottom: 0; padding: 0 10px; }
 
-/* ── 19b. TOOLBAR MATRÍCULA (ficha aluno) ──────────────────────── */
-.toolbar-matricula {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-}
-.toolbar-matricula select {
-    height: 36px;
-    min-width: 220px;
-    flex: 1 1 220px;
-    max-width: 360px;
-    margin-bottom: 0;
-    padding: 0 10px;
-}
-
-/* ── 20. RODÁPE CONTAGEM ────────────────────────────────────── */
+/* ── 20. RODAPÉ CONTAGEM ────────────────────────────────────── */
 .rodape-contagem { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: var(--font-size-sm); font-weight: 600; }
 .contagem-ativo        { color: var(--color-success); }
 .contagem-trancado     { color: var(--color-warning-dark); }
@@ -505,7 +449,7 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .resumo-item--vencidas { background: var(--color-danger-light); }
 .resumo-item--vencidas .resumo-valor { color: var(--color-atrasado); }
 
-/* ── 23. BADGE TIPO PARCELA ─────────────────────────────────── */
+/* ── 23. BADGE ─────────────────────────────────────────────── */
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
 .badge-matricula   { background: #dbeafe; color: #1d4ed8; }
 .badge-mensalidade { background: #dcfce7; color: #15803d; }
@@ -536,62 +480,7 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .mt-1 { margin-top: 4px; }
 .mt-3 { margin-top: 16px; }
 
-/* ── 26. NAV RESPONSIVO ───────────────────────────────────── */
-/*
-  Estratégia em 3 camadas:
-  1) > 1400px  — tudo visível, fonte 13px, gap confortável
-  2) 900–1400px — fonte 12px, padding reduzido, sem quebra de linha
-  3) < 900px  — menu hambúrguer dropdown
-*/
-.nav-toggle { display: none; background: none; border: none; color: var(--color-white); font-size: 24px; cursor: pointer; padding: 4px 8px; flex-shrink: 0; }
-
-/* Escala média: comprime links antes de esconder */
-@media (max-width: 1400px) and (min-width: 901px) {
-    header { padding: 0 16px; }
-    header h1 { font-size: 14px; }
-    nav a { font-size: 12px; padding: 4px 6px; }
-}
-
-/* Hambúrguer abaixo de 900px */
-@media (max-width: 900px) {
-    header { padding: 0 16px; }
-    header h1 { font-size: 15px; }
-    .nav-toggle { display: block; }
-    nav {
-        display: none;
-        position: absolute;
-        top: var(--nav-height);
-        left: 0;
-        width: 100%;
-        background: var(--color-primary-dark);
-        flex-direction: column;
-        align-items: stretch;
-        padding: 8px 0;
-        z-index: 999;
-        box-shadow: 0 4px 12px rgba(0,0,0,.2);
-    }
-    nav.nav-open { display: flex; }
-    nav a {
-        margin: 0;
-        padding: 10px 24px;
-        font-size: var(--font-size-base);
-        border-radius: 0;
-        border-left: 3px solid transparent;
-        background: none;
-    }
-    nav a:hover {
-        background: rgba(255,255,255,.1);
-        border-left-color: rgba(255,255,255,.4);
-    }
-    nav a.active {
-        background: rgba(255,255,255,.12);
-        font-weight: 600;
-        border-left: 3px solid var(--color-white);
-        padding-left: 21px;
-    }
-}
-
-/* ── 27. AUTOCOMPLETE ──────────────────────────────────────────── */
+/* ── 26. AUTOCOMPLETE ──────────────────────────────────────────── */
 .autocomplete-wrap { position: relative; }
 .autocomplete-lista {
     display: none; position: absolute; z-index: 999; width: 100%;
@@ -605,19 +494,19 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .autocomplete-label { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-primary); margin-top: 4px; display: block; }
 .autocomplete-status { font-size: 11px; color: var(--color-text-muted); }
 
-/* ── 28. BREADCRUMB ────────────────────────────────────────────── */
+/* ── 27. BREADCRUMB ────────────────────────────────────────────── */
 .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; flex-wrap: wrap; }
 .breadcrumb a { color: var(--color-primary); text-decoration: none; }
 .breadcrumb a:hover { text-decoration: underline; }
 .breadcrumb-sep { color: var(--color-border); user-select: none; }
 .breadcrumb-current { color: var(--color-text); font-weight: 600; }
 
-/* ── 29. LOADING SPINNER ────────────────────────────────────────── */
+/* ── 28. LOADING SPINNER ────────────────────────────────────────── */
 .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-overlay { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 32px; color: var(--color-text-muted); font-size: var(--font-size-base); }
 
-/* ── 30. MEDIA QUERIES ───────────────────────────────────── */
+/* ── 29. MEDIA QUERIES ───────────────────────────────────── */
 @media (max-width: 600px) {
     main { padding: 16px; }
     .card { padding: 16px; }
@@ -637,12 +526,12 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
     .toolbar-matricula { flex-direction: column; align-items: stretch; }
     .toolbar-matricula select { max-width: 100%; }
 }
-@media (min-width: 601px) and (max-width: 900px) {
+@media (min-width: 601px) and (max-width: 767px) {
     main { padding: 20px; }
     .dashboard-card p { font-size: 17px; }
 }
 
-/* ── 31. ACESSIBILIDADE ──────────────────────────────────────────── */
+/* ── 30. ACESSIBILIDADE ──────────────────────────────────────────── */
 .skip-link { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
 .skip-link:focus { position: fixed; top: 8px; left: 8px; width: auto; height: auto; overflow: visible; background: var(--color-primary); color: var(--color-white); padding: 8px 16px; border-radius: var(--radius-md); z-index: 9999; font-weight: 600; }
 a:focus-visible { outline: 3px solid var(--color-primary); border-radius: var(--radius-sm); }
@@ -653,16 +542,14 @@ a:focus-visible { outline: 3px solid var(--color-primary); border-radius: var(--
 .status-cancelado::before  { content: "\00D7"; }
 
 /* ════════════════════════════════════════════════════════════
-   32. TEMA PORTAL DO ALUNO — isolado em body.tema-aluno
+   31. TEMA PORTAL DO ALUNO — isolado em body.tema-aluno
    ════════════════════════════════════════════════════════════ */
 body.tema-aluno {
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    min-height: 100vh;
-    color: #f0f4f8;
-    --acoes-bg: #1a2f45;
+    min-height: 100vh; color: #f0f4f8; --acoes-bg: #1a2f45;
 }
 body.tema-aluno header { background: rgba(13, 33, 59, 0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.10); }
-@media (max-width: 900px) { body.tema-aluno nav { background: rgba(10, 25, 47, 0.97); } }
+@media (max-width: 767px) { body.tema-aluno nav { background: rgba(10, 25, 47, 0.97); } }
 body.tema-aluno main { padding: 24px 32px; }
 body.tema-aluno .card { background: rgba(15, 32, 55, 0.82) !important; border: 1px solid rgba(255, 255, 255, .12) !important; box-shadow: 0 8px 28px rgba(0, 0, 0, .40); color: #f0f4f8; }
 body.tema-aluno .card h2, body.tema-aluno .card h3, body.tema-aluno .card h4 { color: #e8f1fb; }

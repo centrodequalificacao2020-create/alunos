@@ -6,15 +6,17 @@
     <!-- CSRF: token disponível para requisições fetch/AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Sistema Escolar{% endblock %} &mdash; CQP</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=18">
     {% block styles %}{% endblock %}
 </head>
 <body class="{% if request.path.startswith('/aluno') %}tema-aluno{% endif %}">
 
-<header>
-    <h1>Sistema Escolar</h1>
-    <button class="nav-toggle" onclick="document.querySelector('nav').classList.toggle('nav-open')" aria-label="Menu">&#9776;</button>
-    <nav>
+<header id="site-header">
+    <div class="header-top">
+        <h1>Sistema Escolar</h1>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false">&#9776;</button>
+    </div>
+    <nav id="site-nav">
 
         {% set perfil = (session.perfil or '') | lower %}
         {% set is_admin      = perfil in ['admin', 'administrador'] %}
@@ -93,6 +95,7 @@
 -->
 <script>
 (function () {
+  /* CSRF */
   var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
   document.addEventListener('submit', function (e) {
     var form = e.target;
@@ -106,6 +109,25 @@
       }
     }
   }, true);
+
+  /* Ajusta padding-top do body conforme altura real do header (suporta 2 linhas) */
+  function ajustarPaddingHeader() {
+    var h = document.getElementById('site-header');
+    if (h) document.body.style.paddingTop = h.offsetHeight + 'px';
+  }
+  ajustarPaddingHeader();
+  window.addEventListener('resize', ajustarPaddingHeader);
+
+  /* Hambúrguer — só em mobile (< 768px) */
+  var btn = document.getElementById('nav-toggle');
+  var nav = document.getElementById('site-nav');
+  if (btn && nav) {
+    btn.addEventListener('click', function () {
+      var aberto = nav.classList.toggle('nav-open');
+      btn.setAttribute('aria-expanded', aberto);
+      ajustarPaddingHeader();
+    });
+  }
 })();
 </script>
 
