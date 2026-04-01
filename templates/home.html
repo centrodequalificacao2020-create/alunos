@@ -16,14 +16,15 @@ body{
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 .indicador-topo{
-    position:fixed; top:15px; left:20px;
+    display:inline-flex; align-items:center; gap:6px;
     background:rgba(0,0,0,0.4); backdrop-filter:blur(10px);
-    padding:8px 15px; border-radius:20px; color:#fff; font-size:13px;
-    border:1px solid rgba(255,255,255,0.2); z-index:999; opacity:0.8;
+    padding:5px 14px; border-radius:20px; color:#fff; font-size:13px;
+    border:1px solid rgba(255,255,255,0.2); opacity:0.85;
+    margin-bottom:10px;
 }
 .indicador-topo strong{ color:#00ff9d; }
 .home-header{ max-width:1200px; margin:auto; padding:30px 20px 10px; color:#fff; }
-.home-header h1{ font-size:28px; font-weight:600; }
+.home-header h1{ font-size:28px; font-weight:600; margin-bottom:6px; }
 .home-header p{ opacity:0.7; margin-top:5px; }
 .home-grid{
     display:grid; grid-template-columns:repeat(4,1fr);
@@ -53,11 +54,10 @@ body{
 .home-card span{ font-weight:600; font-size:17px; color:#fff; letter-spacing:.5px; }
 </style>
 
-<div class="indicador-topo">
-    &#128101; <strong>{{ total_alunos or 0 }}</strong> alunos ativos
-</div>
-
 <div class="home-header">
+    <div class="indicador-topo">
+        &#128101; <strong>{{ total_alunos or 0 }}</strong> alunos ativos
+    </div>
     <h1>Centro de Qualifica&#231;&#227;o Profissional</h1>
     <p>Ol&#225;, {{ session.get('usuario_nome', 'Usu&#225;rio') }} &#128075;<br></p>
 </div>
