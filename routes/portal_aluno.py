@@ -124,10 +124,10 @@ def login_aluno():
         senha         = request.form.get("senha", "")
         aluno = _buscar_aluno_por_login(identificador)
         if not aluno:
-            flash("Usuário não encontrado. Verifique o CPF ou e-mail digitado.", "erro")
+            flash("Usu\u00e1rio n\u00e3o encontrado. Verifique o CPF ou e-mail digitado.", "erro")
             return redirect("/aluno/login")
         if not aluno.senha:
-            flash("Sua senha ainda não foi definida. Entre em contato com a secretaria.", "erro")
+            flash("Sua senha ainda n\u00e3o foi definida. Entre em contato com a secretaria.", "erro")
             return redirect("/aluno/login")
         if not verificar_senha(senha, aluno.senha):
             flash("Senha incorreta. Tente novamente.", "erro")
@@ -180,14 +180,85 @@ def dashboard_aluno():
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
 def financeiro_aluno():
-    aluno        = db.get_or_404(Aluno, session["aluno_id"])
-    matricula    = _matricula_ativa(aluno.id)
-    mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
-    atrasadas    = _contar_atrasadas(mensalidades)
-    val_pend     = sum(m.valor for m in mensalidades if m.status != "Pago")
-    return render_template("aluno/financeiro.html", aluno=aluno,
-        matricula=matricula, mensalidades=mensalidades,
-        atrasadas=atrasadas, valor_pendente=val_pend)
+    aluno      = db.get_or_404(Aluno, session["aluno_id"])
+    matriculas = _matriculas_ativas(aluno.id)
+
+    # Monta lista de cursos com matrícula ativa (deduplica por curso_id)
+    cursos_disponiveis = []
+    ids_vistos = set()
+    for mat in matriculas:
+        if mat.curso_id not in ids_vistos:
+            ids_vistos.add(mat.curso_id)
+            curso = db.session.get(Curso, mat.curso_id)
+            if curso:
+                cursos_disponiveis.append({"curso": curso, "matricula": mat})
+
+    curso_id_param = request.args.get("curso_id", type=int)
+
+    if not curso_id_param:
+        if len(cursos_disponiveis) == 1:
+            # Apenas um curso: vai direto
+            curso_id_param = cursos_disponiveis[0]["curso"].id
+        else:
+            # Nenhum ou vários cursos: exibe tela de seleção
+            # Calcula o total de parcelas atrasadas em todos os cursos
+            todas = Mensalidade.query.filter_by(aluno_id=aluno.id).all()
+            atrasadas_total = _contar_atrasadas(todas)
+            return render_template(
+                "aluno/financeiro.html",
+                aluno=aluno,
+                cursos_disponiveis=cursos_disponiveis,
+                atrasadas_total=atrasadas_total,
+                modo="selecao",
+            )
+
+    # Valida que o aluno está matriculado neste curso
+    matricula = Matricula.query.filter(
+        Matricula.aluno_id == aluno.id,
+        Matricula.curso_id == curso_id_param,
+        db.func.upper(Matricula.status) == "ATIVA",
+    ).first()
+
+    if not matricula:
+        flash("Curso n\u00e3o encontrado ou sem matr\u00edcula ativa.", "erro")
+        return redirect("/aluno/financeiro")
+
+    curso = db.session.get(Curso, curso_id_param)
+
+    # Busca mensalidades deste curso específico
+    mensalidades = (
+        Mensalidade.query
+        .filter_by(aluno_id=aluno.id, curso_id=curso_id_param)
+        .order_by(Mensalidade.vencimento)
+        .all()
+    )
+
+    # Fallback: parcelas antigas sem curso_id também apparecem se for a matrícula mais antiga
+    if not mensalidades:
+        mensalidades = (
+            Mensalidade.query
+            .filter(
+                Mensalidade.aluno_id == aluno.id,
+                Mensalidade.curso_id == None,
+            )
+            .order_by(Mensalidade.vencimento)
+            .all()
+        )
+
+    atrasadas = _contar_atrasadas(mensalidades)
+    val_pend  = sum(m.valor for m in mensalidades if m.status != "Pago")
+
+    return render_template(
+        "aluno/financeiro.html",
+        aluno=aluno,
+        matricula=matricula,
+        curso=curso,
+        mensalidades=mensalidades,
+        atrasadas=atrasadas,
+        valor_pendente=val_pend,
+        cursos_disponiveis=cursos_disponiveis,
+        modo="financeiro",
+    )
 
 
 # --- FREQUENCIA ---------------------------------------------------------------
@@ -208,22 +279,18 @@ def notas_aluno():
     aluno      = db.get_or_404(Aluno, session["aluno_id"])
     matriculas = _matriculas_ativas(aluno.id)
 
-    # Monta lista de cursos disponiveis para o aluno
     cursos_disponiveis = []
     for mat in matriculas:
         curso = db.session.get(Curso, mat.curso_id)
         if curso:
             cursos_disponiveis.append({"curso": curso, "matricula": mat})
 
-    # Se nao foi passado curso_id, e o aluno tem mais de um curso, exibe selecao
     curso_id_param = request.args.get("curso_id", type=int)
 
     if not curso_id_param:
         if len(cursos_disponiveis) == 1:
-            # Unico curso: redireciona direto
             curso_id_param = cursos_disponiveis[0]["curso"].id
         else:
-            # Mais de um curso (ou nenhum): exibe tela de selecao
             return render_template(
                 "aluno/notas.html",
                 aluno=aluno,
@@ -231,7 +298,6 @@ def notas_aluno():
                 modo="selecao",
             )
 
-    # Valida que o aluno esta matriculado neste curso
     matricula = Matricula.query.filter(
         Matricula.aluno_id == aluno.id,
         Matricula.curso_id == curso_id_param,
@@ -239,12 +305,11 @@ def notas_aluno():
     ).first()
 
     if not matricula:
-        flash("Curso nao encontrado ou sem matricula ativa.", "erro")
+        flash("Curso n\u00e3o encontrado ou sem matr\u00edcula ativa.", "erro")
         return redirect("/aluno/notas")
 
     curso = db.session.get(Curso, curso_id_param)
 
-    # Busca materias e notas do curso selecionado
     rows = (
         db.session.query(Materia, Nota)
         .join(CursoMateria, CursoMateria.materia_id == Materia.id)
@@ -261,7 +326,6 @@ def notas_aluno():
     valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
     media   = round(sum(valores) / len(valores), 1) if valores else None
 
-    # Provas realizadas neste curso
     provas_realizadas  = []
     melhor_por_prova   = {}
     try:
@@ -335,7 +399,7 @@ def curso_detalhe(curso_id):
         abort(403)
 
     if not _curso_tem_acesso(aluno.id, curso_id):
-        flash("O acesso ao conteúdo deste curso ainda não foi liberado. "
+        flash("O acesso ao conte\u00fado deste curso ainda n\u00e3o foi liberado. "
               "Entre em contato com a secretaria.", "aviso")
         return redirect("/aluno/cursos")
 
@@ -398,7 +462,7 @@ def curso_detalhe(curso_id):
             if exs_mat:
                 exercicios_por_mat[mat.id] = exs_mat
     except OperationalError as e:
-        flash(f"Erro ao carregar exercícios: {e}. Execute a migração pendente.", "erro")
+        flash(f"Erro ao carregar exerc\u00edcios: {e}. Execute a migra\u00e7\u00e3o pendente.", "erro")
 
     provas = []
     try:
@@ -474,17 +538,17 @@ def realizar_exercicio(ex_id):
         aluno_id=aluno_id, exercicio_id=ex_id, liberado=1
     ).first()
     if not lib:
-        flash("Este exercício não está liberado para você.", "erro")
+        flash("Este exerc\u00edcio n\u00e3o est\u00e1 liberado para voc\u00ea.", "erro")
         return redirect("/aluno/cursos")
 
     usadas   = RespostaExercicio.query.filter_by(exercicio_id=ex_id, aluno_id=aluno_id).count()
     max_tent = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
     if usadas >= max_tent:
-        flash("Você já esgotou todas as tentativas neste exercício.", "erro")
+        flash("Voc\u00ea j\u00e1 esgotou todas as tentativas neste exerc\u00edcio.", "erro")
         return redirect("/aluno/cursos")
 
     if not ex.questoes:
-        flash("Este exercício ainda não possui questões. Aguarde.", "aviso")
+        flash("Este exerc\u00edcio ainda n\u00e3o possui quest\u00f5es. Aguarde.", "aviso")
         return redirect("/aluno/cursos")
 
     return render_template(
@@ -768,7 +832,7 @@ def trocar_senha():
             flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         if nova != confirma:
-            flash("As senhas não conferem.", "erro")
+            flash("As senhas n\u00e3o conferem.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         aluno.senha = hash_senha(nova)
         db.session.commit()

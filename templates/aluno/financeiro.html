@@ -2,25 +2,77 @@
 {% block title %}Financeiro{% endblock %}
 {% block content %}
 
-<div class="card" style="max-width:900px; margin:0 auto 16px;">
+{% if modo == 'selecao' %}
+{# ====== TELA DE SELEÇÃO DE CURSO ====== #}
+<div class="card" style="max-width:600px; margin:0 auto 16px;">
     <div class="card-header">
-        <span>💰</span>
+        <span>&#128176;</span>
         <h2>Financeiro</h2>
     </div>
-    {% if matricula %}
-    <p class="card-subtitle">Curso: <strong>{{ matricula.curso.nome if matricula.curso else '—' }}</strong></p>
-    {% endif %}
+    <p class="card-subtitle">Selecione o curso para ver suas mensalidades:</p>
+</div>
+
+{% if atrasadas_total and atrasadas_total > 0 %}
+<div class="card portal-card--pendente" style="max-width:600px; margin:0 auto 16px;">
+    <p class="portal-alerta-titulo">&#9888;&#65039; Voc&ecirc; tem parcelas em atraso</p>
+    <p class="portal-alerta-sub">Verifique em cada curso abaixo e regularize com a secretaria</p>
+</div>
+{% endif %}
+
+<div style="max-width:600px; margin:0 auto; display:flex; flex-direction:column; gap:12px;">
+    {% for item in cursos_disponiveis %}
+    <a href="/aluno/financeiro?curso_id={{ item.curso.id }}"
+       style="text-decoration:none;">
+        <div class="card" style="cursor:pointer; display:flex; align-items:center;
+                                  justify-content:space-between; padding:20px 24px;
+                                  transition:box-shadow .15s;">
+            <div>
+                <div style="font-weight:600; font-size:1.05rem;">{{ item.curso.nome }}</div>
+                <div style="font-size:.85rem; color:#888; margin-top:4px;">
+                    Matr&iacute;cula #{{ item.matricula.id }} &mdash;
+                    {{ item.matricula.data_matricula or 'Data n/d' }}
+                </div>
+            </div>
+            <span style="font-size:1.4rem;">&#128176;</span>
+        </div>
+    </a>
+    {% else %}
+    <div class="card" style="text-align:center; padding:32px;">
+        <p class="text-muted">Nenhuma matr&iacute;cula ativa encontrada.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div style="text-align:center; margin-top:20px;">
+    <a href="/aluno/dashboard" class="btn btn-secondary">&#8592; Voltar ao in&iacute;cio</a>
+</div>
+
+{% else %}
+{# ====== TELA DE MENSALIDADES DO CURSO ====== #}
+
+<div class="card" style="max-width:900px; margin:0 auto 16px;">
+    <div class="card-header">
+        <span>&#128176;</span>
+        <h2>Financeiro</h2>
+    </div>
+    <p class="card-subtitle">
+        Curso: <strong>{{ curso.nome if curso else '&mdash;' }}</strong>
+        {% if cursos_disponiveis|length > 1 %}
+        &nbsp;&middot;&nbsp;
+        <a href="/aluno/financeiro" style="font-size:.9rem;">&#8592; Trocar curso</a>
+        {% endif %}
+    </p>
 </div>
 
 {% if atrasadas > 0 %}
 <div class="card portal-card--pendente" style="max-width:900px; margin:0 auto 16px;">
-    <p class="portal-alerta-titulo">⚠️ Você tem {{ atrasadas }} parcela{{ 's' if atrasadas > 1 }} em atraso</p>
+    <p class="portal-alerta-titulo">&#9888;&#65039; Voc&ecirc; tem {{ atrasadas }} parcela{{ 's' if atrasadas > 1 }} em atraso</p>
     <p class="portal-alerta-valor">R$ {{ '%.2f'|format(valor_pendente) }}</p>
     <p class="portal-alerta-sub">Regularize com a secretaria</p>
 </div>
 {% else %}
 <div class="card portal-card--ok" style="max-width:900px; margin:0 auto 16px;">
-    <p class="portal-alerta-titulo">✅ Você está em dia!</p>
+    <p class="portal-alerta-titulo">&#9989; Voc&ecirc; est&aacute; em dia!</p>
 </div>
 {% endif %}
 
@@ -40,15 +92,15 @@
             <tbody>
             {% for m in mensalidades %}
             <tr{% if m.status != 'Pago' %} class="tr-pendente"{% endif %}>
-                <td>{{ m.parcela_ref or '—' }}</td>
+                <td>{{ m.parcela_ref or '&mdash;' }}</td>
                 <td>{{ m.vencimento }}</td>
-                <td>{{ m.tipo or '—' }}</td>
+                <td>{{ m.tipo or '&mdash;' }}</td>
                 <td>R$ {{ '%.2f'|format(m.valor) }}</td>
                 <td>
                     {% if m.status == 'Pago' %}
-                    <span class="status-ativo">✅ Pago</span>
+                    <span class="status-ativo">&#9989; Pago</span>
                     {% else %}
-                    <span class="status-inativo">⏳ Pendente</span>
+                    <span class="status-inativo">&#8987; Pendente</span>
                     {% endif %}
                 </td>
             </tr>
@@ -58,13 +110,17 @@
     </div>
 </div>
 {% else %}
-<div class="card" style="max-width:900px; margin:0 auto; text-align:center;">
-    <p class="text-muted">Nenhuma cobrança registrada.</p>
+<div class="card" style="max-width:900px; margin:0 auto; text-align:center; padding:32px;">
+    <p class="text-muted">Nenhuma cobran&ccedil;a registrada para este curso.</p>
 </div>
 {% endif %}
 
-<div style="text-align:center; margin-top:16px;">
-    <a href="/aluno/dashboard" class="btn btn-secondary">Voltar ao início</a>
+<div style="text-align:center; margin-top:16px; display:flex; gap:12px; justify-content:center;">
+    {% if cursos_disponiveis|length > 1 %}
+    <a href="/aluno/financeiro" class="btn btn-secondary">&#8592; Trocar curso</a>
+    {% endif %}
+    <a href="/aluno/dashboard" class="btn btn-secondary">&#8962; In&iacute;cio</a>
 </div>
 
+{% endif %}
 {% endblock %}
