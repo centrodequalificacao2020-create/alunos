@@ -47,13 +47,11 @@ def financeiro():
 
         vencidas_total = sum(m.valor for m in pendentes if _vencida(m))
 
-        # Enriquece cada parcela com o nome do curso usando curso_id da própria parcela
         curso_map = {c.id: c.nome for c in Curso.query.all()}
         for m in pendentes + pagas:
             if m.curso_id:
                 m.curso_nome = curso_map.get(m.curso_id, "-")
             else:
-                # Fallback: matrícula mais recente (parcelas antigas sem curso_id)
                 mat = (Matricula.query
                        .filter_by(aluno_id=aluno_id)
                        .order_by(Matricula.id.desc())
@@ -173,9 +171,7 @@ def lancar_mensalidade():
 
     if request.method == "POST":
         # O template já envia apenas_mensalidade=1 via <input type="hidden">,
-        # por isso passamos request.form diretamente — sem reempacotar em
-        # ImmutableMultiDict(flat=False), que transformava os valores em listas
-        # e quebrava int(form.get("parcelas")) fazendo cair no fallback curso.parcelas.
+        # passamos request.form diretamente para preservar tipos escalares.
         aluno_id = request.form.get("aluno_id", "")
         try:
             criar_matricula(request.form)
@@ -184,6 +180,29 @@ def lancar_mensalidade():
             flash(str(e), "erro")
         return redirect(f"/financeiro?aluno_id={aluno_id}")
 
+    # GET: pega aluno_id da query string para pré-selecionar o aluno
+    aluno_id_qs = request.args.get("aluno_id", type=int)
+
+    # Monta lista de cursos com matrícula ativa do aluno pré-selecionado
+    cursos_do_aluno = []
+    if aluno_id_qs:
+        mats = (Matricula.query
+                .filter_by(aluno_id=aluno_id_qs)
+                .filter(db.func.upper(Matricula.status) == "ATIVA")
+                .order_by(Matricula.id.desc())
+                .all())
+        ids_vistos = set()
+        for mat in mats:
+            if mat.curso_id not in ids_vistos:
+                ids_vistos.add(mat.curso_id)
+                curso = Curso.query.get(mat.curso_id)
+                if curso:
+                    cursos_do_aluno.append(curso)
+
     return render_template("lancar_mensalidade.html",
-                           alunos=alunos, cursos=cursos, tipos=tipos,
-                           curso_tipo=curso_tipo)
+                           alunos=alunos,
+                           cursos=cursos,
+                           tipos=tipos,
+                           curso_tipo=curso_tipo,
+                           aluno_id_qs=aluno_id_qs,
+                           cursos_do_aluno=cursos_do_aluno)

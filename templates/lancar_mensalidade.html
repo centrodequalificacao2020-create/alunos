@@ -30,7 +30,7 @@ function preencherTipo(sel) {
             <select name="aluno_id" required>
                 <option value="">Selecione o aluno</option>
                 {% for a in alunos %}
-                <option value="{{ a.id }}">{{ a.nome }}</option>
+                <option value="{{ a.id }}" {% if aluno_id_qs and a.id == aluno_id_qs %}selected{% endif %}>{{ a.nome }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -39,9 +39,17 @@ function preencherTipo(sel) {
             <label>Curso *</label>
             <select name="curso_id" required onchange="preencherTipo(this)">
                 <option value="">Selecione o curso</option>
-                {% for c in cursos %}
-                <option value="{{ c.id }}">{{ c.nome }}</option>
-                {% endfor %}
+                {% if cursos_do_aluno %}
+                    {# Mostra apenas cursos com matrícula ativa do aluno #}
+                    {% for c in cursos_do_aluno %}
+                    <option value="{{ c.id }}">{{ c.nome }}</option>
+                    {% endfor %}
+                {% else %}
+                    {# Sem aluno pré-selecionado: mostra todos os cursos #}
+                    {% for c in cursos %}
+                    <option value="{{ c.id }}">{{ c.nome }}</option>
+                    {% endfor %}
+                {% endif %}
             </select>
             <small style="color:#888">O aluno deve j&aacute; ter matr&iacute;cula ativa neste curso.</small>
         </div>
@@ -101,7 +109,11 @@ function preencherTipo(sel) {
 
         <div class="acoes-form">
             <button type="submit" class="btn btn-azul">&#128190; Lan&ccedil;ar Parcelas</button>
+            {% if aluno_id_qs %}
+            <a href="/financeiro?aluno_id={{ aluno_id_qs }}" class="btn" style="background:#e0e0e0;color:#333">Cancelar</a>
+            {% else %}
             <a href="/financeiro" class="btn" style="background:#e0e0e0;color:#333">Cancelar</a>
+            {% endif %}
         </div>
     </form>
 </div>
