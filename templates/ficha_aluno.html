@@ -74,6 +74,7 @@
 
     {% if cursos_disponiveis %}
     <form method="POST" action="/matricular_aluno" class="toolbar-matricula">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
         <select name="curso_id" required>
             <option value="">Selecione um curso…</option>
@@ -132,6 +133,7 @@
                         <form method="POST" action="/excluir_matricula/{{ m.id }}"
                               style="display:inline-flex;align-items:center"
                               onsubmit="return confirm('Excluir permanentemente a matrícula em {{ m.curso_nome }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
                                     data-tooltip="Excluir matrícula">🗑️ Excluir</button>
                         </form>
@@ -197,6 +199,7 @@
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_prova/{{ tp.id }}/excluir"
                               onsubmit="return confirm('Excluir esta tentativa da prova {{ titulo_prova }}? Esta acao libera uma tentativa para o aluno.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
                                     data-tooltip="Excluir tentativa">🗑️ Apagar</button>
                         </form>
@@ -262,6 +265,7 @@
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_exercicio/{{ te.id }}/excluir"
                               onsubmit="return confirm('Excluir esta tentativa do exercicio {{ titulo_exercicio }}? Esta acao libera uma tentativa para o aluno.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
                                     data-tooltip="Excluir tentativa">🗑️ Apagar</button>
                         </form>
