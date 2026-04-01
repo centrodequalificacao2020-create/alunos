@@ -114,7 +114,7 @@ def _buscar_aluno_por_login(identificador: str):
     return None
 
 
-# ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────
+# --- LOGIN / LOGOUT -----------------------------------------------------------
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
@@ -147,7 +147,7 @@ def logout_aluno():
     return redirect("/aluno/login")
 
 
-# ─── DASHBOARD ────────────────────────────────────────────────────────────────
+# --- DASHBOARD ----------------------------------------------------------------
 
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
@@ -175,7 +175,7 @@ def dashboard_aluno():
         ultimo_login=ultimo_login)
 
 
-# ─── FINANCEIRO ───────────────────────────────────────────────────────────────
+# --- FINANCEIRO ---------------------------------------------------------------
 
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
@@ -190,7 +190,7 @@ def financeiro_aluno():
         atrasadas=atrasadas, valor_pendente=val_pend)
 
 
-# ─── FREQUÊNCIA ───────────────────────────────────────────────────────────────
+# --- FREQUENCIA ---------------------------------------------------------------
 
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
@@ -200,37 +200,103 @@ def frequencia_aluno():
     return render_template("aluno/frequencia.html", aluno=aluno, frequencias=frequencias)
 
 
-# ─── NOTAS ────────────────────────────────────────────────────────────────────
+# --- NOTAS --------------------------------------------------------------------
 
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
 def notas_aluno():
-    aluno     = db.get_or_404(Aluno, session["aluno_id"])
-    matricula = _matricula_ativa(aluno.id)
-    notas = []
-    media = None
-    if matricula:
-        rows = (
-            db.session.query(Materia, Nota)
-            .join(CursoMateria, CursoMateria.materia_id == Materia.id)
-            .outerjoin(
-                Nota,
-                (Nota.materia_id == Materia.id) &
-                (Nota.aluno_id   == aluno.id) &
-                (Nota.curso_id   == matricula.curso_id)
+    aluno      = db.get_or_404(Aluno, session["aluno_id"])
+    matriculas = _matriculas_ativas(aluno.id)
+
+    # Monta lista de cursos disponiveis para o aluno
+    cursos_disponiveis = []
+    for mat in matriculas:
+        curso = db.session.get(Curso, mat.curso_id)
+        if curso:
+            cursos_disponiveis.append({"curso": curso, "matricula": mat})
+
+    # Se nao foi passado curso_id, e o aluno tem mais de um curso, exibe selecao
+    curso_id_param = request.args.get("curso_id", type=int)
+
+    if not curso_id_param:
+        if len(cursos_disponiveis) == 1:
+            # Unico curso: redireciona direto
+            curso_id_param = cursos_disponiveis[0]["curso"].id
+        else:
+            # Mais de um curso (ou nenhum): exibe tela de selecao
+            return render_template(
+                "aluno/notas.html",
+                aluno=aluno,
+                cursos_disponiveis=cursos_disponiveis,
+                modo="selecao",
             )
-            .filter(CursoMateria.curso_id == matricula.curso_id, Materia.ativa == 1)
-            .order_by(Materia.nome).all()
+
+    # Valida que o aluno esta matriculado neste curso
+    matricula = Matricula.query.filter(
+        Matricula.aluno_id == aluno.id,
+        Matricula.curso_id == curso_id_param,
+        db.func.upper(Matricula.status) == "ATIVA",
+    ).first()
+
+    if not matricula:
+        flash("Curso nao encontrado ou sem matricula ativa.", "erro")
+        return redirect("/aluno/notas")
+
+    curso = db.session.get(Curso, curso_id_param)
+
+    # Busca materias e notas do curso selecionado
+    rows = (
+        db.session.query(Materia, Nota)
+        .join(CursoMateria, CursoMateria.materia_id == Materia.id)
+        .outerjoin(
+            Nota,
+            (Nota.materia_id == Materia.id) &
+            (Nota.aluno_id   == aluno.id) &
+            (Nota.curso_id   == curso_id_param)
         )
-        notas = [(nota, materia) for materia, nota in rows]
-        valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
-        if valores:
-            media = round(sum(valores) / len(valores), 1)
-    return render_template("aluno/notas.html", aluno=aluno,
-                           matricula=matricula, notas=notas, media=media)
+        .filter(CursoMateria.curso_id == curso_id_param, Materia.ativa == 1)
+        .order_by(Materia.nome).all()
+    )
+    notas = [(nota, materia) for materia, nota in rows]
+    valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
+    media   = round(sum(valores) / len(valores), 1) if valores else None
+
+    # Provas realizadas neste curso
+    provas_realizadas  = []
+    melhor_por_prova   = {}
+    try:
+        from models import RespostaProva
+        provas_realizadas = (
+            RespostaProva.query
+            .join(RespostaProva.prova)
+            .filter(
+                RespostaProva.aluno_id == aluno.id,
+                RespostaProva.prova.has(curso_id=curso_id_param),
+            )
+            .order_by(RespostaProva.prova_id, RespostaProva.id.desc())
+            .all()
+        )
+        for rp in provas_realizadas:
+            if rp.prova_id not in melhor_por_prova:
+                melhor_por_prova[rp.prova_id] = rp
+    except Exception:
+        pass
+
+    return render_template(
+        "aluno/notas.html",
+        aluno=aluno,
+        matricula=matricula,
+        curso=curso,
+        notas=notas,
+        media=media,
+        provas_realizadas=provas_realizadas,
+        melhor_por_prova=melhor_por_prova,
+        cursos_disponiveis=cursos_disponiveis,
+        modo="notas",
+    )
 
 
-# ─── CURSOS (lista) ───────────────────────────────────────────────────────────
+# --- CURSOS (lista) -----------------------------------------------------------
 
 @portal_aluno_bp.route("/cursos")
 @aluno_login_required
@@ -254,7 +320,7 @@ def cursos_aluno():
                            cursos_com_acesso=cursos_com_acesso)
 
 
-# ─── CURSO DETALHE ────────────────────────────────────────────────────────────
+# --- CURSO DETALHE ------------------------------------------------------------
 
 @portal_aluno_bp.route("/cursos/<int:curso_id>")
 @aluno_login_required
@@ -306,8 +372,6 @@ def curso_detalhe(curso_id):
         for item in conteudos_por_mat.get(mat.id, []):
             conteudos.append(item)
 
-    # BUG-02 FIX: exercicios exibidos SOMENTE se existir registro em ExercicioLiberado
-    # BUG-05 FIX: OperationalError nao e silenciado — exibe flash de erro explicito
     exercicios_por_mat = {}
     try:
         from models import Exercicio, ExercicioLiberado, RespostaExercicio
@@ -318,7 +382,7 @@ def curso_detalhe(curso_id):
         for mat in materias_liberadas:
             exs_mat = []
             for ex in Exercicio.query.filter_by(materia_id=mat.id, ativo=1).order_by(Exercicio.ordem).all():
-                lib = ids_ex_lib.get(ex.id)          # BUG-02: pula se nao liberado
+                lib = ids_ex_lib.get(ex.id)
                 if not lib:
                     continue
                 usadas   = RespostaExercicio.query.filter_by(
@@ -333,7 +397,7 @@ def curso_detalhe(curso_id):
                 })
             if exs_mat:
                 exercicios_por_mat[mat.id] = exs_mat
-    except OperationalError as e:                    # BUG-05: erro explicito, nao silencio
+    except OperationalError as e:
         flash(f"Erro ao carregar exercícios: {e}. Execute a migração pendente.", "erro")
 
     provas = []
@@ -396,7 +460,7 @@ def curso_detalhe(curso_id):
     )
 
 
-# ─── REALIZAR EXERCÍCIO ──────────────────────────────────────────────────────
+# --- REALIZAR EXERCICIO -------------------------------------------------------
 
 @portal_aluno_bp.route("/exercicio/<int:ex_id>")
 @aluno_login_required
@@ -432,7 +496,7 @@ def realizar_exercicio(ex_id):
     )
 
 
-# ─── RESPONDER EXERCÍCIO ────────────────────────────────────────────────────
+# --- RESPONDER EXERCICIO ------------------------------------------------------
 
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/responder", methods=["POST"])
 @aluno_login_required
@@ -511,7 +575,7 @@ def responder_exercicio(ex_id):
     return redirect(f"/aluno/exercicio/{ex_id}/resultado/{resp.id}")
 
 
-# ─── RESULTADO DO EXERCÍCIO ───────────────────────────────────────────────────
+# --- RESULTADO DO EXERCICIO ---------------------------------------------------
 
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/resultado/<int:resp_id>")
 @aluno_login_required
@@ -522,7 +586,6 @@ def resultado_exercicio(ex_id, resp_id):
     ex       = db.get_or_404(Exercicio, ex_id)
     resp     = db.get_or_404(RespostaExercicio, resp_id)
 
-    # BUG-07 FIX: valida que resp pertence ao aluno logado e ao exercicio correto
     if resp.aluno_id != aluno_id or resp.exercicio_id != ex_id:
         abort(403)
     if not resp.finalizado_em:
@@ -548,7 +611,7 @@ def resultado_exercicio(ex_id, resp_id):
     )
 
 
-# ─── ARQUIVO DE EXERCÍCIO ─────────────────────────────────────────────────────
+# --- ARQUIVO DE EXERCICIO -----------------------------------------------------
 
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/arquivo")
 @aluno_login_required
@@ -579,7 +642,7 @@ def arquivo_exercicio_aluno(ex_id):
         abort(404)
 
 
-# ─── CONTEÚDO (retrocompat) ───────────────────────────────────────────────────
+# --- CONTEUDO (retrocompat) ---------------------------------------------------
 
 @portal_aluno_bp.route("/conteudo")
 @aluno_login_required
@@ -593,7 +656,7 @@ def conteudo_aluno(curso_id):
     return redirect(f"/aluno/cursos/{curso_id}")
 
 
-# ─── ARQUIVO ──────────────────────────────────────────────────────────────────
+# --- ARQUIVO ------------------------------------------------------------------
 
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
@@ -631,7 +694,7 @@ def abrir_arquivo_conteudo(conteudo_id):
     abort(404)
 
 
-# ─── CONCLUIR AULA ────────────────────────────────────────────────────────────
+# --- CONCLUIR AULA ------------------------------------------------------------
 
 @portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>")
 @aluno_login_required
@@ -652,7 +715,7 @@ def concluir_aula(conteudo_id):
     return redirect(f"/aluno/cursos/{curso_id}" if curso_id else "/aluno/cursos")
 
 
-# ─── ENTREGAR ATIVIDADE ───────────────────────────────────────────────────────
+# --- ENTREGAR ATIVIDADE -------------------------------------------------------
 
 @portal_aluno_bp.route("/atividade/<int:atividade_id>/entregar", methods=["POST"])
 @aluno_login_required
@@ -688,7 +751,7 @@ def entregar_atividade(atividade_id):
         return redirect("/aluno/cursos")
 
 
-# ─── TROCAR SENHA ─────────────────────────────────────────────────────────────
+# --- TROCAR SENHA -------------------------------------------------------------
 
 @portal_aluno_bp.route("/senha", methods=["GET", "POST"])
 @aluno_login_required

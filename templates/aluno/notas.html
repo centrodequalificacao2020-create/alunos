@@ -14,7 +14,20 @@ body {
 .voltar { color:rgba(255,255,255,.5); font-size:13px; text-decoration:none; display:inline-flex; align-items:center; gap:5px; transition:.2s; }
 .voltar:hover { color:#fff; }
 
-/* Seção */
+/* Selecao de curso */
+.curso-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-top:16px; }
+.curso-card {
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13);
+    border-radius:16px; padding:22px 20px; text-decoration:none; color:#fff;
+    display:flex; flex-direction:column; gap:6px;
+    transition:background .2s, border-color .2s, transform .15s;
+}
+.curso-card:hover { background:rgba(255,255,255,.13); border-color:rgba(255,255,255,.28); transform:translateY(-2px); }
+.curso-card .nome { font-size:15px; font-weight:700; }
+.curso-card .sub  { font-size:12px; opacity:.45; }
+.curso-card .seta { margin-top:10px; opacity:.35; font-size:13px; }
+
+/* Secao */
 .secao-titulo {
     font-size:13px; font-weight:700; text-transform:uppercase;
     letter-spacing:1.5px; opacity:.45; margin:28px 0 12px;
@@ -22,7 +35,29 @@ body {
 }
 .secao-titulo::after { content:''; flex:1; height:1px; background:rgba(255,255,255,.1); }
 
-/* card matéria */
+/* Cabecalho do curso selecionado */
+.curso-header {
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+    border-radius:14px; padding:16px 20px; margin-bottom:8px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+}
+.curso-header .nome { font-size:16px; font-weight:700; }
+.curso-header .trocar { font-size:12px; color:rgba(255,255,255,.45); text-decoration:none; transition:.2s; }
+.curso-header .trocar:hover { color:#fff; }
+
+/* Media badges */
+.media-wrap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.media-badge {
+    background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.15);
+    border-radius:10px; padding:8px 16px; text-align:center;
+}
+.media-badge .val { font-size:24px; font-weight:900; line-height:1; }
+.media-badge .lab { font-size:10px; opacity:.4; text-transform:uppercase; margin-top:2px; }
+.media-badge.aprovado .val { color:#00ff9d; }
+.media-badge.reprovado .val { color:#ff4d4d; }
+.media-badge.neutro .val { color:#ffd700; }
+
+/* card materia */
 .materia-card {
     background:rgba(255,255,255,.06);
     border:1px solid rgba(255,255,255,.1);
@@ -69,45 +104,88 @@ body {
 
 {% block content %}
 <div class="wrap">
+
+    {# === MODO SELECAO DE CURSO === #}
+    {% if modo == 'selecao' %}
+
     <div class="page-header">
         <a href="/aluno/dashboard" class="voltar"><i class="fas fa-arrow-left"></i> Dashboard</a>
-        <h1 style="margin-top:6px">&#128203; Minhas Notas</h1>
-        {% if matricula %}<p style="opacity:.5;font-size:13px;margin:0">{{ matricula.curso.nome }}</p>{% endif %}
+        <h1 style="margin-top:6px">Minhas Notas</h1>
+        <p style="opacity:.5;font-size:13px;margin:4px 0 0">Selecione o curso para ver as notas</p>
     </div>
 
-    {# ── Notas por matéria ── #}
-    <div class="secao-titulo"><i class="fas fa-book"></i> Notas por Mat&eacute;ria</div>
+    {% if cursos_disponiveis %}
+    <div class="curso-grid">
+        {% for item in cursos_disponiveis %}
+        <a href="/aluno/notas?curso_id={{ item.curso.id }}" class="curso-card">
+            <span class="nome">{{ item.curso.nome }}</span>
+            <span class="sub">Matricula {{ item.matricula.status | capitalize }}</span>
+            <span class="seta"><i class="fas fa-arrow-right"></i> Ver notas</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-mat" style="margin-top:16px">
+        <i class="fas fa-info-circle"></i> Nenhuma matricula ativa encontrada.
+    </div>
+    {% endif %}
 
-    {% if materias %}
-    {% for materia in materias %}
-    {% set notas_mat = notas_dict.get(materia.id, []) %}
+    {# === MODO NOTAS DO CURSO === #}
+    {% elif modo == 'notas' %}
+
+    <div class="page-header">
+        <a href="/aluno/dashboard" class="voltar"><i class="fas fa-arrow-left"></i> Dashboard</a>
+        <h1 style="margin-top:6px">Minhas Notas</h1>
+    </div>
+
+    {# Cabecalho do curso com opcao de trocar #}
+    <div class="curso-header">
+        <span class="nome">{{ curso.nome }}</span>
+        {% if cursos_disponiveis | length > 1 %}
+        <a href="/aluno/notas" class="trocar"><i class="fas fa-exchange-alt"></i> Trocar curso</a>
+        {% endif %}
+    </div>
+
+    {# Media geral #}
+    {% if media is not none %}
+    <div class="media-wrap" style="margin:14px 0 4px">
+        {% set cls = 'aprovado' if media >= 6 else 'reprovado' %}
+        <div class="media-badge {{ cls }}">
+            <div class="val">{{ '%.1f'|format(media) }}</div>
+            <div class="lab">Media geral</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Notas por materia #}
+    <div class="secao-titulo"><i class="fas fa-book"></i> Notas por Materia</div>
+
+    {% if notas %}
+    {% for nota, materia in notas %}
     <div class="materia-card">
         <div class="materia-nome">{{ materia.nome }}</div>
         <div class="notas-linha">
-            {% if notas_mat %}
-            {% for nota in notas_mat %}
-            {% set v = nota.nota|float %}
+            {% if nota and nota.nota is not none %}
+            {% set v = nota.nota | float %}
             {% set cls = 'aprovado' if v >= 6 else 'reprovado' %}
             <div class="nota-badge {{ cls }}">
                 <span class="valor">{{ '%.1f'|format(v) }}</span>
                 <span class="label">{{ nota.resultado or 'nota' }}</span>
             </div>
-            {% endfor %}
             {% else %}
-            <span style="opacity:.35;font-size:13px">Sem notas lan&ccedil;adas</span>
+            <span style="opacity:.35;font-size:13px">Sem nota lancada</span>
             {% endif %}
         </div>
     </div>
     {% endfor %}
     {% else %}
-    <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhuma mat&eacute;ria cadastrada neste curso.</div>
+    <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhuma materia cadastrada neste curso.</div>
     {% endif %}
 
-    {# ── Provas realizadas ── #}
+    {# Provas realizadas #}
     <div class="secao-titulo" style="margin-top:36px"><i class="fas fa-file-alt"></i> Provas Realizadas</div>
 
     {% if provas_realizadas %}
-    {# agrupa por prova_id mantendo apenas a última de cada #}
     {% set vistas = [] %}
     {% for rp in provas_realizadas %}
         {% if rp.prova_id not in vistas %}
@@ -134,7 +212,9 @@ body {
         {% endif %}
     {% endfor %}
     {% else %}
-    <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhuma prova realizada ainda.</div>
+    <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhuma prova realizada neste curso.</div>
+    {% endif %}
+
     {% endif %}
 
 </div>
