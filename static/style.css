@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v19)
+   SISTEMA ESCOLAR — style.css  (v20)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ─────────────────────────────────────────────── */
@@ -91,19 +91,22 @@ header {
     align-items: center;
     gap: 0;
     padding: 0 16px;
-    overflow: hidden;
+    /* overflow visível para que a segunda linha não seja cortada */
+    overflow: visible;
 }
 
 .header-title {
     font-size: 15px;
     font-weight: 600;
     white-space: nowrap;
-    padding: 10px 16px 10px 0;
+    padding: 8px 12px 8px 0;
     flex-shrink: 0;            /* nunca encolhe nem some */
     /* separador visual sutil entre título e links */
     border-right: 1px solid rgba(255,255,255,.25);
     margin-right: 8px;
     line-height: 1.4;
+    /* garante que fique na mesma "linha flex" que o nav */
+    align-self: center;
 }
 
 /* Botão hambúrguer: OCULTO no desktop */
@@ -126,16 +129,17 @@ nav {
     flex-wrap: wrap;
     align-items: center;
     gap: 2px;
-    padding: 6px 0;
-    flex: 1;                   /* ocupa o espaço restante da linha */
+    /* padding vertical para dar respiro nas duas linhas */
+    padding: 4px 0;
+    /* ocupa o espaço restante da mesma linha do título */
+    flex: 1;
     min-width: 0;
-    overflow: hidden;
 }
 nav a {
     color: rgba(255,255,255,.85);
     text-decoration: none;
     font-size: 13px;
-    padding: 4px 9px;
+    padding: 5px 9px;
     border-radius: 4px;
     white-space: nowrap;
     line-height: 1.6;
@@ -151,6 +155,7 @@ nav a.active { color: var(--color-white); font-weight: 600; background: rgba(255
         align-items: center;
         padding: 0 16px;
         min-height: 48px;
+        overflow: hidden;      /* no mobile o overflow pode ser hidden novamente */
     }
     .header-title {
         border-right: none;
