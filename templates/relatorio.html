@@ -30,13 +30,17 @@
         <input type="month" id="mes_ref">
     </div>
     <div class="campo">
+        <label for="ano_ref">Ano (Trimestre)</label>
+        <input type="number" id="ano_ref" min="2020" max="2099" style="width:90px">
+    </div>
+    <div class="campo">
         <label for="trimestre">Trimestre</label>
         <select id="trimestre">
             <option value="">--</option>
-            <option value="1">1º</option>
-            <option value="2">2º</option>
-            <option value="3">3º</option>
-            <option value="4">4º</option>
+            <option value="1">1º (Jan–Mar)</option>
+            <option value="2">2º (Abr–Jun)</option>
+            <option value="3">3º (Jul–Set)</option>
+            <option value="4">4º (Out–Dez)</option>
         </select>
     </div>
     <div class="campo">
@@ -47,8 +51,8 @@
             <option value="0.40">40%</option>
         </select>
     </div>
-    <button onclick="carregarMes()" class="btn btn-azul">📂 Carregar</button>
-    <button onclick="carregarTrimestre()" class="btn btn-purple">📊 Trimestre</button>
+    <button onclick="carregarMes()" class="btn btn-azul">📂 Carregar Mês</button>
+    <button onclick="carregarTrimestre()" class="btn btn-purple">📊 Carregar Trimestre</button>
     <button onclick="salvarBanco()" class="btn btn-success">💾 Salvar</button>
 </div>
 
@@ -57,22 +61,22 @@
     <div class="grid-3">
         <div class="campo">
             <label for="meta">Meta Leads</label>
-            <input type="number" id="meta" placeholder="Meta Leads">
+            <input type="number" id="meta" placeholder="Meta Leads" min="0">
         </div>
         <div class="campo">
             <label for="realizado">Leads Realizados</label>
-            <input type="number" id="realizado" placeholder="Leads Realizados">
+            <input type="number" id="realizado" placeholder="Leads Realizados" min="0">
         </div>
         <div class="campo">
             <label for="matriculas">Matrículas</label>
-            <input type="number" id="matriculas" placeholder="Matrículas">
+            <input type="number" id="matriculas" placeholder="Matrículas" min="0">
         </div>
     </div>
     <div class="grid-4" style="margin-top:12px">
-        <div class="box"><span>% Captação</span><strong id="percentual"></strong></div>
-        <div class="box"><span>Conversão</span><strong id="conversao"></strong></div>
-        <div class="box"><span>Status</span><strong id="status_leads"></strong></div>
-        <div class="box"><span>Comparação</span><strong id="comparacao"></strong></div>
+        <div class="box"><span>% Captação</span><strong id="percentual">--</strong></div>
+        <div class="box"><span>Conversão</span><strong id="conversao">--</strong></div>
+        <div class="box"><span>Status</span><strong id="status_leads">--</strong></div>
+        <div class="box"><span>Comparação</span><strong id="comparacao">--</strong></div>
     </div>
 </div>
 
@@ -80,20 +84,20 @@
     <h3>Vendas</h3>
     <div class="grid-3">
         <div class="box">
-            <span>Meta de Matrículas</span>
-            <strong id="meta_alunos"></strong>
+            <span>Meta de Matrículas (auto)</span>
+            <strong id="meta_alunos">--</strong>
         </div>
         <div class="campo">
             <label for="matriculas_venda">Matrículas Realizadas</label>
-            <input type="number" id="matriculas_venda" placeholder="Matrículas Realizadas">
+            <input type="number" id="matriculas_venda" placeholder="Matrículas Realizadas" min="0">
         </div>
         <div class="box destaque">
             <span>% Atingido</span>
-            <strong id="percentual_venda"></strong>
+            <strong id="percentual_venda">--</strong>
         </div>
     </div>
     <div class="box" style="margin-top:15px">
-        <strong id="faltando"></strong>
+        <strong id="faltando">--</strong>
     </div>
 </div>
 
@@ -106,124 +110,144 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const metaEl             = document.getElementById('meta');
-const realizadoEl        = document.getElementById('realizado');
-const matriculasEl       = document.getElementById('matriculas');
-const matriculasVendaEl  = document.getElementById('matriculas_venda');
-const percentualEl       = document.getElementById('percentual');
-const conversaoEl        = document.getElementById('conversao');
-const statusEl           = document.getElementById('status_leads');
-const comparacaoEl       = document.getElementById('comparacao');
-const metaAlunosEl       = document.getElementById('meta_alunos');
-const percentualVendaEl  = document.getElementById('percentual_venda');
-const faltandoEl         = document.getElementById('faltando');
-
+/* ---- helpers ---- */
 function getCsrf(){
     const m = document.querySelector('meta[name="csrf-token"]');
     return m ? m.getAttribute('content') : '';
 }
+function getMes()  { return document.getElementById('mes_ref').value.trim(); }
+function getAno()  { return document.getElementById('ano_ref').value.trim(); }
+function getTri()  { return document.getElementById('trimestre').value.trim(); }
+function getPerc() { return parseFloat(document.getElementById('meta_percentual').value) || 0.35; }
 
-function getMesAtual(){ return document.getElementById('mes_ref').value; }
+/* ---- elementos de saída ---- */
+const metaEl            = document.getElementById('meta');
+const realizadoEl       = document.getElementById('realizado');
+const matriculasEl      = document.getElementById('matriculas');
+const matriculasVendaEl = document.getElementById('matriculas_venda');
+const percentualEl      = document.getElementById('percentual');
+const conversaoEl       = document.getElementById('conversao');
+const statusEl          = document.getElementById('status_leads');
+const comparacaoEl      = document.getElementById('comparacao');
+const metaAlunosEl      = document.getElementById('meta_alunos');
+const percentualVendaEl = document.getElementById('percentual_venda');
+const faltandoEl        = document.getElementById('faltando');
 
+/* ---- cálculos e gráfico ---- */
+let grafico;
 function calcular(){
-    const meta       = parseFloat(metaEl.value) || 0;
-    const realizado  = parseFloat(realizadoEl.value) || 0;
-    const matriculas = parseFloat(matriculasEl.value) || 0;
-    const perc       = document.getElementById('meta_percentual').value;
+    const meta       = parseFloat(metaEl.value)            || 0;
+    const realizado  = parseFloat(realizadoEl.value)       || 0;
+    const matriculas = parseFloat(matriculasEl.value)      || 0;
+    const matVenda   = parseFloat(matriculasVendaEl.value) || 0;
+    const perc       = getPerc();
 
     percentualEl.innerText = meta > 0 ? ((realizado / meta) * 100).toFixed(0) + '%' : '0%';
     conversaoEl.innerText  = realizado > 0 ? ((matriculas / realizado) * 100).toFixed(0) + '%' : '0%';
 
-    if (realizado >= meta)           { statusEl.innerText = 'Meta Batida'; statusEl.style.color = '#2ecc71'; }
-    else if (realizado >= meta * 0.7){ statusEl.innerText = 'Atenção';     statusEl.style.color = '#f39c12'; }
-    else                             { statusEl.innerText = 'Crítico';     statusEl.style.color = '#e74c3c'; }
+    if      (realizado >= meta)           { statusEl.innerText = 'Meta Batida'; statusEl.style.color = '#2ecc71'; }
+    else if (realizado >= meta * 0.7)     { statusEl.innerText = 'Atenção';     statusEl.style.color = '#f39c12'; }
+    else                                  { statusEl.innerText = 'Crítico';     statusEl.style.color = '#e74c3c'; }
 
     const metaAuto = Math.round(realizado * perc);
     metaAlunosEl.innerText = metaAuto;
 
-    const matA = parseFloat(matriculasVendaEl.value) || 0;
-    percentualVendaEl.innerText = metaAuto > 0 ? ((matA / metaAuto) * 100).toFixed(0) + '%' : '0%';
+    percentualVendaEl.innerText = metaAuto > 0
+        ? ((matVenda / metaAuto) * 100).toFixed(0) + '%' : '0%';
 
-    const diff = matA - metaAuto;
-    if (diff > 0)     { faltandoEl.innerText = '+' + diff + ' Acima'; faltandoEl.style.color = '#2ecc71'; }
-    else if (diff < 0){ faltandoEl.innerText = diff + ' Abaixo';      faltandoEl.style.color = '#e74c3c'; }
-    else              { faltandoEl.innerText = 'Meta OK'; faltandoEl.style.color = ''; }
+    const diff = matVenda - metaAuto;
+    if      (diff > 0) { faltandoEl.innerText = '+' + diff + ' Acima';  faltandoEl.style.color = '#2ecc71'; }
+    else if (diff < 0) { faltandoEl.innerText = diff  + ' Abaixo';      faltandoEl.style.color = '#e74c3c'; }
+    else               { faltandoEl.innerText = 'Meta OK';               faltandoEl.style.color = '';        }
 
-    atualizarGrafico(meta, realizado, matriculas);
-}
-
-let grafico;
-function atualizarGrafico(meta, realizado, matriculas){
+    /* gráfico */
     const ctx = document.getElementById('grafico');
     if (grafico) grafico.destroy();
     grafico = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Meta Leads', 'Leads', 'Matrículas'],
-            datasets: [{ data: [meta, realizado, matriculas], backgroundColor: ['#95a5a6','#3498db','#2ecc71'], borderRadius: 6 }]
+            labels: ['Meta Leads', 'Leads', 'Matrículas', 'Mat. Realizadas'],
+            datasets: [{
+                data: [meta, realizado, matriculas, matVenda],
+                backgroundColor: ['#95a5a6','#3498db','#2ecc71','#e67e22'],
+                borderRadius: 6
+            }]
         },
         options: { responsive: true, plugins: { legend: { display: false } } }
     });
 }
 
+/* ---- preenche campos e recalcula ---- */
+function preencherCampos(d){
+    metaEl.value            = d.meta            || 0;
+    realizadoEl.value       = d.realizado        || 0;
+    matriculasEl.value      = d.matriculas       || 0;
+    matriculasVendaEl.value = d.matriculas_venda || d.vendas || 0;
+    calcular();
+}
+
+/* ---- carregar mês ---- */
+function carregarMes(){
+    const mes = getMes();
+    if (!mes){ alert('Selecione um mês.'); return; }
+    fetch('/carregar_relatorio/' + mes)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(d => preencherCampos(d))
+        .catch(e => alert('❌ Erro ao carregar: ' + e.message));
+}
+
+/* ---- carregar trimestre ---- */
+function carregarTrimestre(){
+    const tri = getTri();
+    let   ano = getAno();
+    if (!tri){ alert('Selecione o trimestre.'); return; }
+    if (!ano){
+        /* tenta pegar o ano do campo mês; se também vazio usa ano atual */
+        const mes = getMes();
+        ano = mes ? mes.split('-')[0] : new Date().getFullYear().toString();
+        document.getElementById('ano_ref').value = ano;
+    }
+    fetch('/relatorio_trimestre/' + ano + '/' + tri)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(d => preencherCampos(d))
+        .catch(e => alert('❌ Erro ao carregar trimestre: ' + e.message));
+}
+
+/* ---- salvar ---- */
 function salvarBanco(){
-    const mes = getMesAtual();
+    const mes = getMes();
     if (!mes){ alert('Selecione o mês antes de salvar.'); return; }
     fetch('/salvar_relatorio', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCsrf()
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
         body: JSON.stringify({
-            mes: mes,
-            meta: metaEl.value,
-            realizado: realizadoEl.value,
-            matriculas: matriculasEl.value,
+            mes:              mes,
+            meta:             metaEl.value,
+            realizado:        realizadoEl.value,
+            matriculas:       matriculasEl.value,
             matriculas_venda: matriculasVendaEl.value
         })
     })
-    .then(r => {
-        if (!r.ok) throw new Error('Erro ' + r.status);
-        return r.json();
-    })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(() => alert('✅ Salvo com sucesso!'))
-    .catch(e => alert('❌ Erro ao salvar: ' + e.message));
+    .catch(e  => alert('❌ Erro ao salvar: ' + e.message));
 }
 
-function carregarMes(){
-    fetch('/carregar_relatorio/' + getMesAtual())
-    .then(r => r.json())
-    .then(d => {
-        if (d.meta !== undefined){
-            metaEl.value            = d.meta;
-            realizadoEl.value       = d.realizado;
-            matriculasEl.value      = d.matriculas;
-            matriculasVendaEl.value = d.matriculas_venda;
-        }
-        calcular();
-    });
-}
+/* ---- inicialização ---- */
+window.addEventListener('DOMContentLoaded', function(){
+    const hoje = new Date();
+    const mesAtual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    document.getElementById('mes_ref').value = mesAtual;
+    document.getElementById('ano_ref').value  = hoje.getFullYear();
 
-function carregarTrimestre(){
-    const tri = document.getElementById('trimestre').value;
-    const ano = getMesAtual().split('-')[0];
-    if (!tri){ alert('Selecione trimestre'); return; }
-    fetch(`/relatorio_trimestre/${ano}/${tri}`)
-    .then(r => r.json())
-    .then(d => {
-        metaEl.value            = d.meta || 0;
-        realizadoEl.value       = d.realizado || 0;
-        matriculasEl.value      = d.matriculas || 0;
-        matriculasVendaEl.value = d.matriculas_venda || 0;
-        calcular();
-    });
-}
+    /* recalcula ao editar qualquer campo manualmente */
+    [metaEl, realizadoEl, matriculasEl, matriculasVendaEl,
+     document.getElementById('meta_percentual')].forEach(el =>
+        el.addEventListener('input', calcular)
+    );
 
-window.onload = function(){
-    document.getElementById('mes_ref').value = new Date().toISOString().slice(0, 7);
-    document.querySelectorAll('input, select').forEach(i => i.addEventListener('input', calcular));
+    /* carrega dados do mês atual automaticamente */
     carregarMes();
-};
+});
 </script>
 {% endblock %}
