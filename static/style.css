@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v20)
+   SISTEMA ESCOLAR — style.css  (v21)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ─────────────────────────────────────────────── */
@@ -52,6 +52,7 @@
     --font-size-base: 14px;
     --font-size-sm:   12px;
     --font-size-lg:   16px;
+    --header-height: 48px;
 }
 
 /* ── 2. RESET ─────────────────────────────────────────────────── */
@@ -63,20 +64,14 @@ body {
     font-family: var(--font-base);
     font-size: var(--font-size-base);
     overflow-x: hidden;
-    /* padding-top calculado via JS conforme altura real do header */
 }
 
-/* ── 3. HEADER ────────────────────────────────────────────────── */
+/* ── 3. HEADER — hamburger em TODAS as resoluções ─────────────── */
 /*
-  Desktop/tablet (≥ 768px):
-    header = flex-row + flex-wrap.
-    .header-title fica à esquerda, nav vem logo a seguir na mesma linha.
-    Quando os links não cabem, flex-wrap os joga para a linha de baixo.
-    O hambúrguer fica oculto.
-
-  Mobile (< 768px):
-    .header-title + botão hambúrguer numa linha só (altura fixa 48px).
-    nav oculta por padrão; abre como dropdown ao clicar.
+  O header sempre mostra:
+    [título]  ···espaço···  [hamburger]
+  O nav fica oculto por padrão e abre como dropdown ao clicar.
+  Isso vale para mobile E para desktop (1920×1080 incluído).
 */
 header {
     background: var(--color-primary);
@@ -85,13 +80,11 @@ header {
     top: 0; left: 0;
     width: 100%;
     z-index: 1000;
-    /* layout: título + nav na mesma linha, com quebra automática */
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 0;
     padding: 0 16px;
-    /* overflow visível para que a segunda linha não seja cortada */
+    height: var(--header-height);
     overflow: visible;
 }
 
@@ -99,19 +92,13 @@ header {
     font-size: 15px;
     font-weight: 600;
     white-space: nowrap;
-    padding: 8px 12px 8px 0;
-    flex-shrink: 0;            /* nunca encolhe nem some */
-    /* separador visual sutil entre título e links */
-    border-right: 1px solid rgba(255,255,255,.25);
-    margin-right: 8px;
+    flex: 1;
     line-height: 1.4;
-    /* garante que fique na mesma "linha flex" que o nav */
-    align-self: center;
 }
 
-/* Botão hambúrguer: OCULTO no desktop */
+/* Botão hambúrguer: SEMPRE visível */
 .nav-toggle {
-    display: none;
+    display: block;
     background: none;
     border: none;
     color: var(--color-white);
@@ -120,76 +107,52 @@ header {
     padding: 4px 8px;
     flex-shrink: 0;
     line-height: 1;
-    margin-left: auto;
 }
+.nav-toggle:hover { opacity: .8; }
 
-/* ── Nav desktop: inline no header, quebra se precisar ── */
+/* Nav: sempre dropdown, independente da resolução */
 nav {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px;
-    /* padding vertical para dar respiro nas duas linhas */
-    padding: 4px 0;
-    /* ocupa o espaço restante da mesma linha do título */
-    flex: 1;
-    min-width: 0;
+    display: none;
+    position: absolute;
+    top: var(--header-height);
+    left: 0;
+    width: 100%;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    padding: 8px 0;
+    background: var(--color-primary-dark);
+    box-shadow: 0 6px 20px rgba(0,0,0,.30);
+    overflow: hidden;
+    /* no desktop limita a largura e alinha à direita */
+    max-width: 280px;
+    left: auto;
+    right: 0;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
+nav.nav-open { display: flex; }
+
 nav a {
-    color: rgba(255,255,255,.85);
+    color: rgba(255,255,255,.90);
     text-decoration: none;
-    font-size: 13px;
-    padding: 5px 9px;
-    border-radius: 4px;
+    font-size: var(--font-size-base);
+    padding: 10px 24px;
     white-space: nowrap;
     line-height: 1.6;
+    border-left: 3px solid transparent;
     transition: color .15s, background .15s;
 }
-nav a:hover  { color: var(--color-white); background: rgba(255,255,255,.12); }
-nav a.active { color: var(--color-white); font-weight: 600; background: rgba(255,255,255,.18); }
+nav a:hover  { color: var(--color-white); background: rgba(255,255,255,.10); border-left-color: rgba(255,255,255,.4); }
+nav a.active { color: var(--color-white); font-weight: 600; background: rgba(255,255,255,.12); border-left: 3px solid var(--color-white); padding-left: 21px; }
 
-/* ── Nav mobile: dropdown ── */
+/* No mobile o dropdown ocupa largura total */
 @media (max-width: 767px) {
-    header {
-        flex-wrap: nowrap;     /* mobile: nunca quebra o header em si */
-        align-items: center;
-        padding: 0 16px;
-        min-height: 48px;
-        overflow: hidden;      /* no mobile o overflow pode ser hidden novamente */
-    }
-    .header-title {
-        border-right: none;
-        margin-right: 0;
-        padding: 0;
-        flex: 1;               /* empurra hambúrguer para a direita */
-    }
-    .nav-toggle { display: block; }
-
     nav {
-        display: none;
-        position: absolute;
-        top: 100%;
+        max-width: 100%;
+        right: auto;
         left: 0;
-        width: 100%;
-        flex-direction: column;
-        flex-wrap: nowrap;
-        align-items: stretch;
-        padding: 8px 0;
-        background: var(--color-primary-dark);
-        box-shadow: 0 4px 12px rgba(0,0,0,.25);
-        overflow: hidden;
-        /* zera flex: 1 para não interferir */
-        flex: none;
-    }
-    nav.nav-open { display: flex; }
-    nav a {
-        padding: 10px 24px;
-        font-size: var(--font-size-base);
         border-radius: 0;
-        border-left: 3px solid transparent;
     }
-    nav a:hover  { background: rgba(255,255,255,.10); border-left-color: rgba(255,255,255,.4); }
-    nav a.active { background: rgba(255,255,255,.12); font-weight: 600; border-left: 3px solid var(--color-white); padding-left: 21px; }
 }
 
 /* ── 4. MAIN ──────────────────────────────────────────────────── */
@@ -423,7 +386,18 @@ table td { padding:10px 14px;border-bottom:1px solid var(--color-border);font-si
 .material-card:has(input:checked) { border-color:var(--color-primary);background:var(--color-primary-light); }
 
 /* ── 17. HOME FULLSCREEN ──────────────────────────────────────── */
-.home-bg { position:fixed;top:0;left:0;width:100%;height:100vh;display:flex;justify-content:center;align-items:center;z-index:1; }
+/*  Reduz o padding-top para ficar colado ao header (só 4px de respiro) */
+.home-bg {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    width: 100%;
+    height: calc(100vh - var(--header-height));
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+}
 
 /* ── 18. EMPTY STATE ──────────────────────────────────────────── */
 .empty-state { text-align:center;color:#888;padding:32px 0;font-size:var(--font-size-base); }
@@ -570,7 +544,7 @@ body.tema-aluno {
     min-height:100vh;color:#f0f4f8;--acoes-bg:#1a2f45;
 }
 body.tema-aluno header { background:rgba(13,33,59,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.10); }
-@media (max-width:767px) { body.tema-aluno nav { background:rgba(10,25,47,.97); } }
+body.tema-aluno nav { background:rgba(10,25,47,.97); }
 body.tema-aluno main { padding:24px 32px; }
 body.tema-aluno .card { background:rgba(15,32,55,.82)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:0 8px 28px rgba(0,0,0,.40);color:#f0f4f8; }
 body.tema-aluno .card h2,body.tema-aluno .card h3,body.tema-aluno .card h4 { color:#e8f1fb; }
