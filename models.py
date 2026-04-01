@@ -190,21 +190,25 @@ class ExercicioLiberado(db.Model):
 
 
 class AtividadeLiberada(db.Model):
-    """Controla tentativas extras de atividade por aluno."""
+    """Controla liberacao e tentativas extras de atividade por aluno."""
     __tablename__ = "atividades_liberadas"
     __table_args__ = (
         db.UniqueConstraint("aluno_id", "atividade_id", name="uq_atividade_liberada"),
         db.Index("ix_atv_lib_aluno",     "aluno_id"),
         db.Index("ix_atv_lib_atividade", "atividade_id"),
     )
-    id            = db.Column(db.Integer, primary_key=True)
-    aluno_id      = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
-    atividade_id  = db.Column(db.Integer, db.ForeignKey("atividades.id"), nullable=False)
-    liberado_por  = db.Column(db.String(120))
-    liberado_em   = db.Column(db.String(19))
+    id               = db.Column(db.Integer, primary_key=True)
+    aluno_id         = db.Column(db.Integer, db.ForeignKey("alunos.id"),     nullable=False)
+    atividade_id     = db.Column(db.Integer, db.ForeignKey("atividades.id"), nullable=False)
+    # BUG-01 FIX: colunas de controle de liberacao faltavam no modelo
+    liberado         = db.Column(db.Integer, nullable=False, default=1)
+    liberado_por     = db.Column(db.String(120))
+    liberado_em      = db.Column(db.String(19))
     extra_tentativas = db.Column(db.Integer, default=0)
-    aluno        = db.relationship("Aluno",     backref="atividades_liberadas", lazy=True)
-    atividade    = db.relationship("Atividade", backref="liberacoes",           lazy=True)
+    aluno     = db.relationship("Aluno",     backref="atividades_liberadas", lazy=True)
+    # BUG-10 FIX: backref renomeado de "liberacoes" para "atv_liberacoes" para
+    # evitar colisao com Exercicio.liberacoes (ExercicioLiberado)
+    atividade = db.relationship("Atividade", backref="atv_liberacoes", lazy=True)
 
 
 class Matricula(db.Model):
