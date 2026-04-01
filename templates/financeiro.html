@@ -9,7 +9,7 @@
 
 <div class="card">
     <div class="card-header">
-        <span>💰</span>
+        <span>&#128176;</span>
         <h2>Financeiro</h2>
     </div>
 
@@ -79,8 +79,9 @@ document.addEventListener('click', function(e) {
 
 <div class="card">
     <div class="card-header--between">
-        <h3>🗓 A PAGAR</h3>
-        <a href="/movimentacao?aluno_id={{ aluno_id }}" class="btn btn-verde">➕ Nova Mensalidade</a>
+        <h3>&#128197; A PAGAR</h3>
+        {# Aponta para lançamento avulso (sem criar nova matrícula) #}
+        <a href="/lancar_mensalidade?aluno_id={{ aluno_id }}" class="btn btn-verde">&#10133; Nova Mensalidade</a>
     </div>
     {% if pendentes %}
     <div class="tabela-planilha">
@@ -104,13 +105,13 @@ document.addEventListener('click', function(e) {
                 <td>{% include 'partials/badge_tipo.html' %}</td>
                 <td>R$ {{ "%.2f"|format(p.valor or 0) }}</td>
                 <td class="acoes">
-                    <a href="/pagar/{{ p.id }}"          class="btn btn-pagar    tooltip" data-tooltip="Registrar pagamento">✔️</a>
-                    <a href="/editar_parcela/{{ p.id }}" class="btn btn-editar   tooltip" data-tooltip="Editar">✏️</a>
-                    <a href="/carne/{{ aluno_id }}"      class="btn btn-imprimir tooltip" data-tooltip="Imprimir carnê" target="_blank">🖨️</a>
+                    <a href="/pagar/{{ p.id }}"          class="btn btn-pagar    tooltip" data-tooltip="Registrar pagamento">&#10004;&#65039;</a>
+                    <a href="/editar_parcela/{{ p.id }}" class="btn btn-editar   tooltip" data-tooltip="Editar">&#9999;&#65039;</a>
+                    <a href="/carne/{{ aluno_id }}"      class="btn btn-imprimir tooltip" data-tooltip="Imprimir carnê" target="_blank">&#128424;&#65039;</a>
                     <form method="POST" action="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
                           onsubmit="return confirmarExclusao(this)" style="display:inline">
                         <input type="hidden" name="senha">
-                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</button>
+                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">&#128465;&#65039;</button>
                     </form>
                 </td>
             </tr>
@@ -120,13 +121,13 @@ document.addEventListener('click', function(e) {
     </div>
     <div class="totais">TOTAL A PAGAR: R$ {{ "%.2f"|format(total_pagar or 0) }}</div>
     {% else %}
-    <p class="empty-state">✅ Nenhuma cobrança pendente</p>
+    <p class="empty-state">&#9989; Nenhuma cobrança pendente</p>
     {% endif %}
 </div>
 
 <div class="card">
     <div class="card-header">
-        <h3>✅ PAGAS</h3>
+        <h3>&#9989; PAGAS</h3>
     </div>
     {% if pagas %}
     <div class="tabela-planilha">
@@ -154,11 +155,11 @@ document.addEventListener('click', function(e) {
                 <td>{{ p.data_pagamento or '-' }}</td>
                 <td>{{ p.usuario_pagamento or 'Sistema' }}</td>
                 <td class="acoes">
-                    <a href="/recibo/{{ p.id }}" target="_blank" class="btn btn-recibo tooltip" data-tooltip="Ver recibo">🧾</a>
+                    <a href="/recibo/{{ p.id }}" target="_blank" class="btn btn-recibo tooltip" data-tooltip="Ver recibo">&#129534;</a>
                     <form method="POST" action="/excluir_parcela/{{ p.id }}/{{ aluno_id }}"
                           onsubmit="return confirmarExclusao(this)" style="display:inline">
                         <input type="hidden" name="senha">
-                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">🗑️</button>
+                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Excluir">&#128465;&#65039;</button>
                     </form>
                 </td>
             </tr>
@@ -177,7 +178,7 @@ document.addEventListener('click', function(e) {
 {# Modal de senha para excluir parcela #}
 <div id="modal-senha" class="modal-overlay">
     <div class="modal">
-        <h3>🔒 Confirmar exclusão</h3>
+        <h3>&#128274; Confirmar exclusão</h3>
         <p>Digite a senha de autorização para excluir esta parcela:</p>
         <div class="campo">
             <label for="campo-senha">Senha</label>
