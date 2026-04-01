@@ -45,6 +45,33 @@ def _toggle_acesso(aluno_id, curso_id, acao, admin_nome):
         return False
 
 
+def _contagens_globais():
+    """Retorna dict com totais reais do banco, independente de paginacao ou filtro."""
+    hoje = date.today().isoformat()
+
+    # Contagens por status via SQL aggregate (uma query so)
+    rows = (
+        db.session.query(Aluno.status, func.count(Aluno.id))
+        .group_by(Aluno.status)
+        .all()
+    )
+    por_status = {r[0]: r[1] for r in rows}
+
+    inadimplentes_ids = {
+        r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
+        .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje).all()
+    }
+
+    return {
+        "cnt_ativos":      por_status.get("Ativo", 0),
+        "cnt_trancados":   por_status.get("Trancado", 0),
+        "cnt_cancelados":  por_status.get("Cancelado", 0),
+        "cnt_finalizados": por_status.get("Finalizado", 0),
+        "inadimplentes":   len(inadimplentes_ids),
+        "inadimplentes_ids": inadimplentes_ids,
+    }
+
+
 @aluno_bp.route("/cadastro", methods=["GET", "POST"])
 @login_required
 def cadastro():
@@ -58,19 +85,15 @@ def cadastro():
             ).first()
             if existente:
                 flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
-                cursos    = Curso.query.order_by(Curso.nome).all()
+                c = _contagens_globais()
                 paginacao = Aluno.query.order_by(Aluno.nome).paginate(page=1, per_page=20, error_out=False)
-                hoje = date.today().isoformat()
-                inadimplentes_ids = {
-                    r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
-                    .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje).all()
-                }
                 for a in paginacao.items:
-                    a.inadimplente = "true" if a.id in inadimplentes_ids else "false"
+                    a.inadimplente = "true" if a.id in c["inadimplentes_ids"] else "false"
                 return render_template("cadastro.html",
-                                       alunos=paginacao.items, cursos=cursos,
-                                       inadimplentes=len(inadimplentes_ids),
-                                       paginacao=paginacao, busca="", status="")
+                                       alunos=paginacao.items,
+                                       cursos=Curso.query.order_by(Curso.nome).all(),
+                                       paginacao=paginacao, busca="", status="",
+                                       **{k: v for k, v in c.items() if k != "inadimplentes_ids"})
 
         senha_inicial = cpf or _cpf_limpo(f.get("email", ""))
         if not senha_inicial:
@@ -108,11 +131,9 @@ def cadastro():
     busca  = request.args.get("q", "").strip()
     status = request.args.get("status", "").strip()
 
-    hoje = date.today().isoformat()
-    inadimplentes_ids = {
-        r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
-        .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje).all()
-    }
+    c = _contagens_globais()
+    inadimplentes_ids = c["inadimplentes_ids"]
+
     query = Aluno.query.order_by(Aluno.nome)
     if busca:
         query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
@@ -128,8 +149,8 @@ def cadastro():
     cursos = Curso.query.order_by(Curso.nome).all()
     return render_template("cadastro.html",
                            alunos=paginacao.items, cursos=cursos,
-                           inadimplentes=len(inadimplentes_ids),
-                           paginacao=paginacao, busca=busca, status=status)
+                           paginacao=paginacao, busca=busca, status=status,
+                           **{k: v for k, v in c.items() if k != "inadimplentes_ids"})
 
 
 @aluno_bp.route("/aluno/<int:id>/pendencias")
@@ -157,7 +178,6 @@ def excluir_aluno(id):
     ProgressoAula.query.filter_by(aluno_id=id).delete()
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
-    # tenta remover acesso_conteudo se a tabela existir
     try:
         db.session.execute(
             text("DELETE FROM acesso_conteudo_curso WHERE aluno_id = :aid"),
@@ -249,7 +269,6 @@ def ficha_aluno(aluno_id):
         if c.id not in ids_ativos
     ]
 
-    # Tentativas de provas
     try:
         tentativas_provas = (
             RespostaProva.query
@@ -263,7 +282,6 @@ def ficha_aluno(aluno_id):
     except Exception:
         tentativas_provas = []
 
-    # Tentativas de exercícios
     try:
         tentativas_exercicios = (
             RespostaExercicio.query
@@ -273,7 +291,7 @@ def ficha_aluno(aluno_id):
         )
         for te in tentativas_exercicios:
             ex = db.session.get(Exercicio, te.exercicio_id)
-            te.exercicio_titulo = ex.titulo if ex else f"Exercício #{te.exercicio_id}"
+            te.exercicio_titulo = ex.titulo if ex else f"Exerc\u00edcio #{te.exercicio_id}"
     except Exception:
         tentativas_exercicios = []
 
@@ -320,7 +338,6 @@ def excluir_tentativa_exercicio(aluno_id, resp_id):
 @login_required
 def toggle_acesso_conteudo(aluno_id, curso_id):
     acao = request.form.get("acao", "liberar")
-    # pega nome do admin logado de qualquer chave de sessao possivel
     admin_nome = (
         session.get("nome")
         or session.get("usuario_nome")
