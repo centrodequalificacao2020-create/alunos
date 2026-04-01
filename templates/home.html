@@ -1,9 +1,5 @@
 {% extends "base.html" %}
 
-{% block styles %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-{% endblock %}
-
 {% block content %}
 {% set perfil = (session.perfil or '') | lower %}
 {% set is_admin      = perfil in ['admin', 'administrador'] %}
@@ -41,6 +37,7 @@ body{
     text-align:center; cursor:pointer; transition:.35s;
     border:1px solid rgba(255,255,255,.15); box-shadow:0 5px 20px rgba(0,0,0,.3);
     position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; min-height:90px;
 }
 .home-card::before{
     content:''; position:absolute; width:150%; height:150%; top:-50%; left:-50%;
@@ -53,13 +50,7 @@ body{
     box-shadow:0 20px 40px rgba(0,0,0,.6);
     background:linear-gradient(145deg,rgba(0,198,255,.45),rgba(0,120,255,.25));
 }
-.home-card i{ font-size:42px; margin-bottom:15px; display:block; transition:.3s; }
-.home-card:hover i{ transform:scale(1.2) rotate(5deg); }
 .home-card span{ font-weight:600; font-size:17px; color:#fff; letter-spacing:.5px; }
-.c1{color:#00c6ff;} .c2{color:#00ff9d;} .c3{color:#ffd700;} .c4{color:#ff4d4d;}
-.c5{color:#c77dff;} .c6{color:#00e5ff;} .c7{color:#ff9f43;} .c8{color:#fff;}
-.c9{color:#1dd1a1;} .c10{color:#ff6b6b;} .c11{color:#54a0ff;} .c12{color:#a29bfe;}
-.c13{color:#fd79a8;}
 </style>
 
 <div class="indicador-topo">
@@ -76,67 +67,67 @@ body{
     {# Admin e Financeiro veem TUDO #}
     {% if full_access or meio_access %}
     <div class="home-card" onclick="location.href='/cadastro'">
-        <i class="fas fa-user-graduate c1"></i><span>Alunos</span>
+        <span>Alunos</span>
     </div>
     <div class="home-card" onclick="location.href='/movimentacao'">
-        <i class="fas fa-file-signature c2"></i><span>Matr&#237;cula</span>
+        <span>Matr&#237;cula</span>
     </div>
     <div class="home-card" onclick="location.href='/financeiro'">
-        <i class="fas fa-dollar-sign c3"></i><span>Financeiro</span>
+        <span>Financeiro</span>
     </div>
     <div class="home-card" onclick="location.href='/dashboard'">
-        <i class="fas fa-chart-line c4"></i><span>Dashboard</span>
+        <span>Dashboard</span>
     </div>
     {% endif %}
 
     {# Notas e Frequ&#234;ncia: todos #}
     <div class="home-card" onclick="location.href='/notas'">
-        <i class="fas fa-clipboard-list c5"></i><span>Notas</span>
+        <span>Notas</span>
     </div>
     <div class="home-card" onclick="location.href='/frequencia'">
-        <i class="fas fa-calendar-check c6"></i><span>Frequ&#234;ncia</span>
+        <span>Frequ&#234;ncia</span>
     </div>
 
     {# Acad&#234;mico: admin, financeiro, secretaria, instrutor #}
     {% if full_access or meio_access or is_instrutor %}
     <div class="home-card" onclick="location.href='/turmas'">
-        <i class="fas fa-chalkboard-teacher c7"></i><span>Turmas</span>
+        <span>Turmas</span>
     </div>
     <div class="home-card" onclick="location.href='/materias'">
-        <i class="fas fa-book c7"></i><span>Mat&#233;rias</span>
+        <span>Mat&#233;rias</span>
     </div>
     <div class="home-card" onclick="location.href='/conteudos'">
-        <i class="fas fa-book-open c6"></i><span>Conte&#250;dos</span>
+        <span>Conte&#250;dos</span>
     </div>
     <div class="home-card" onclick="location.href='/provas'">
-        <i class="fas fa-file-alt c13"></i><span>Provas e Exerc&#237;cios</span>
+        <span>Provas e Exerc&#237;cios</span>
     </div>
     {% endif %}
 
     {% if full_access or meio_access %}
     <div class="home-card" onclick="location.href='/cursos'">
-        <i class="fas fa-graduation-cap c8"></i><span>Cursos</span>
+        <span>Cursos</span>
     </div>
     <div class="home-card" onclick="location.href='/despesas'">
-        <i class="fas fa-receipt c9"></i><span>Despesas</span>
+        <span>Despesas</span>
     </div>
     <div class="home-card" onclick="location.href='/funcionario'">
-        <i class="fas fa-users c10"></i><span>Funcion&#225;rios</span>
+        <span>Funcion&#225;rios</span>
     </div>
     <div class="home-card" onclick="location.href='/relatorio'">
-        <i class="fas fa-chart-pie c11"></i><span>Relat&#243;rios</span>
+        <span>Relat&#243;rios</span>
     </div>
     {% endif %}
 
     {# Backup: admin e financeiro (acesso total) #}
     {% if full_access %}
     <div class="home-card" onclick="location.href='/backup'">
-        <i class="fas fa-database c3"></i><span>Backup</span>
+        <span>Backup</span>
     </div>
     {% endif %}
 
     <div class="home-card" onclick="location.href='/logout'">
-        <i class="fas fa-sign-out-alt c12"></i><span>Sair</span>
+        <span>Sair</span>
     </div>
 
 </div>

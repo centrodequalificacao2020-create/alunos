@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v16)
+   SISTEMA ESCOLAR — style.css  (v17)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ───────────────────────────────────────────────────── */
@@ -70,23 +70,33 @@ body {
 /* ── 3. HEADER / NAV ───────────────────────────────────── */
 header {
     background: var(--color-primary); color: var(--color-white);
-    padding: 0 32px; height: var(--nav-height);
+    padding: 0 24px; height: var(--nav-height);
     display: flex; align-items: center; justify-content: space-between;
     position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+    gap: 12px;
 }
-header h1 { margin: 0; font-size: 18px; font-weight: 600; white-space: nowrap; }
-nav { display: flex; align-items: center; flex-wrap: nowrap; overflow: visible; }
+header h1 {
+    margin: 0; font-size: 16px; font-weight: 600;
+    white-space: nowrap; flex-shrink: 0;
+}
+nav {
+    display: flex; align-items: center;
+    flex-wrap: nowrap; overflow: visible;
+    flex: 1; justify-content: flex-end;
+    gap: 2px;
+}
 nav a {
     color: rgba(255,255,255,.85);
-    margin-left: 18px;
     text-decoration: none;
-    font-size: var(--font-size-base);
-    padding: 4px 0;
-    transition: color .15s;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
     white-space: nowrap;
+    flex-shrink: 0;
 }
-nav a:hover { color: var(--color-white); }
-nav a.active { color: var(--color-white); font-weight: 600; }
+nav a:hover { color: var(--color-white); background: rgba(255,255,255,.12); }
+nav a.active { color: var(--color-white); font-weight: 600; background: rgba(255,255,255,.18); }
 
 /* ── 4. MAIN ──────────────────────────────────────────── */
 main { padding: 32px; width: 100%; max-width: 100%; }
@@ -294,7 +304,6 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
     font-weight: 600; font-size: var(--font-size-sm); text-transform: uppercase;
     border-bottom: 2px solid var(--color-primary-dark);
     padding: 10px 14px; position: sticky; top: 0; z-index: 2;
-    /* reset: cabeçalhos da tabela-excel são left por padrão */
     text-align: left;
 }
 
@@ -528,15 +537,25 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
 .mt-3 { margin-top: 16px; }
 
 /* ── 26. NAV RESPONSIVO ───────────────────────────────────── */
-.nav-toggle { display: none; background: none; border: none; color: var(--color-white); font-size: 24px; cursor: pointer; padding: 4px 8px; }
+/*
+  Estratégia em 3 camadas:
+  1) > 1400px  — tudo visível, fonte 13px, gap confortável
+  2) 900–1400px — fonte 12px, padding reduzido, sem quebra de linha
+  3) < 900px  — menu hambúrguer dropdown
+*/
+.nav-toggle { display: none; background: none; border: none; color: var(--color-white); font-size: 24px; cursor: pointer; padding: 4px 8px; flex-shrink: 0; }
 
-@media (max-width: 1200px) and (min-width: 1101px) {
-    header { padding: 0 20px; }
-    nav a  { margin-left: 12px; font-size: 13px; }
+/* Escala média: comprime links antes de esconder */
+@media (max-width: 1400px) and (min-width: 901px) {
+    header { padding: 0 16px; }
+    header h1 { font-size: 14px; }
+    nav a { font-size: 12px; padding: 4px 6px; }
 }
 
-@media (max-width: 1100px) {
-    header { padding: 0 20px; }
+/* Hambúrguer abaixo de 900px */
+@media (max-width: 900px) {
+    header { padding: 0 16px; }
+    header h1 { font-size: 15px; }
     .nav-toggle { display: block; }
     nav {
         display: none;
@@ -546,7 +565,8 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
         width: 100%;
         background: var(--color-primary-dark);
         flex-direction: column;
-        padding: 12px 0;
+        align-items: stretch;
+        padding: 8px 0;
         z-index: 999;
         box-shadow: 0 4px 12px rgba(0,0,0,.2);
     }
@@ -555,18 +575,17 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
         margin: 0;
         padding: 10px 24px;
         font-size: var(--font-size-base);
-        border-bottom: none !important;
+        border-radius: 0;
         border-left: 3px solid transparent;
+        background: none;
     }
     nav a:hover {
         background: rgba(255,255,255,.1);
-        border-bottom: none !important;
         border-left-color: rgba(255,255,255,.4);
     }
     nav a.active {
         background: rgba(255,255,255,.12);
         font-weight: 600;
-        border-bottom: none !important;
         border-left: 3px solid var(--color-white);
         padding-left: 21px;
     }
@@ -618,7 +637,7 @@ table td { padding: 10px 14px; border-bottom: 1px solid var(--color-border); fon
     .toolbar-matricula { flex-direction: column; align-items: stretch; }
     .toolbar-matricula select { max-width: 100%; }
 }
-@media (min-width: 601px) and (max-width: 1100px) {
+@media (min-width: 601px) and (max-width: 900px) {
     main { padding: 20px; }
     .dashboard-card p { font-size: 17px; }
 }
@@ -643,7 +662,7 @@ body.tema-aluno {
     --acoes-bg: #1a2f45;
 }
 body.tema-aluno header { background: rgba(13, 33, 59, 0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.10); }
-@media (max-width: 1100px) { body.tema-aluno nav { background: rgba(10, 25, 47, 0.97); } }
+@media (max-width: 900px) { body.tema-aluno nav { background: rgba(10, 25, 47, 0.97); } }
 body.tema-aluno main { padding: 24px 32px; }
 body.tema-aluno .card { background: rgba(15, 32, 55, 0.82) !important; border: 1px solid rgba(255, 255, 255, .12) !important; box-shadow: 0 8px 28px rgba(0, 0, 0, .40); color: #f0f4f8; }
 body.tema-aluno .card h2, body.tema-aluno .card h3, body.tema-aluno .card h4 { color: #e8f1fb; }
