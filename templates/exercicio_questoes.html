@@ -1,1 +1,440 @@
-EXERCICIO_QUESTOES_CONTENT
+{% extends "base.html" %}
+{% block title %}{{ 'Questões' if view == 'questoes' else 'Resultados' }} — {{ exercicio.titulo }}{% endblock %}
+
+{% block styles %}
+<style>
+/* ── badges ── */
+.tipo-badge { display:inline-block; padding:1px 7px; border-radius:6px; font-size:11px; font-weight:600; }
+.tipo-multipla    { background:#dbeafe; color:#1d4ed8; }
+.tipo-vf          { background:#fef9c3; color:#a16207; }
+.tipo-dissertativa{ background:#f3e5f5; color:#7b1fa2; }
+.ex-badge-ativo   { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; background:#dcfce7; color:#15803d; }
+.ex-badge-rasc    { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; background:#f3f4f6; color:#6b7280; }
+
+/* ── card da questão ── */
+.questao-card {
+    border:1px solid var(--color-border);
+    border-radius:var(--radius-md);
+    padding:16px 18px;
+    margin-bottom:12px;
+    background:var(--color-white);
+}
+.questao-card__header {
+    display:flex; align-items:flex-start;
+    justify-content:space-between; gap:12px;
+    margin-bottom:10px;
+}
+.questao-num { font-weight:700; color:var(--color-primary); min-width:24px; font-size:15px; }
+.questao-enunciado { flex:1; font-size:var(--font-size-base); }
+.alt-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:13px; }
+.alt-item.correta { color:var(--color-success); font-weight:600; }
+.alt-correta-icon::before { content:'\2713'; margin-right:2px; }
+
+/* ── botões de ação ── */
+.btn-acao-editar   { background:#f59e0b; color:#fff; border:none; }
+.btn-acao-editar:hover   { background:#d97706; color:#fff; }
+.btn-acao-excluir  { background:#ef4444; color:#fff; border:none; }
+.btn-acao-excluir:hover  { background:#dc2626; color:#fff; }
+
+/* ── inputs de alternativas no modal ── */
+.alt-linha {
+    display:flex; align-items:center; gap:8px; margin-bottom:8px;
+}
+.alt-linha input[type="checkbox"] {
+    flex-shrink:0;
+    width:auto !important; height:auto !important; margin-bottom:0 !important;
+}
+.btn-rm-alt {
+    flex-shrink:0;
+    background:#fee2e2; color:#dc2626;
+    border:none; border-radius:4px;
+    padding:4px 8px; font-size:13px;
+    cursor:pointer; line-height:1;
+}
+.btn-rm-alt:hover { background:#fca5a5; }
+
+/* ── resultados ── */
+.resultado-acertou   { color:var(--color-success); font-weight:700; }
+.resultado-errou     { color:var(--color-danger);  font-weight:700; }
+.pct-bar-wrap { background:#e5e7eb; border-radius:999px; height:8px; width:100%; }
+.pct-bar      { background:var(--color-primary); border-radius:999px; height:8px; transition:width .4s; }
+.pct-bar.alto  { background:#15803d; }
+.pct-bar.medio { background:#d97706; }
+.pct-bar.baixo { background:#dc2626; }
+
+/* ── tabs ── */
+.pea-tabs { display:flex; border-bottom:2px solid var(--color-border,#e0e0e0); margin-bottom:20px; }
+.pea-tab  { padding:10px 22px; font-weight:600; font-size:14px;
+            text-decoration:none; color:var(--color-text-muted,#666);
+            border-bottom:2px solid transparent; margin-bottom:-2px; }
+.pea-tab.ativo { color:var(--color-primary,#2980b9); border-bottom-color:var(--color-primary,#2980b9); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ===================================================================
+   VIEW: GERENCIAR QUESTÕES
+=================================================================== #}
+{% if view == 'questoes' %}
+
+<div class="card">
+    <div class="card-header--between">
+        <div>
+            <h2 style="margin:0">Questões &mdash; {{ exercicio.titulo }}</h2>
+            <small style="color:#888">
+                Matéria: <strong>{{ exercicio.materia.nome if exercicio.materia else '&mdash;' }}</strong>
+                &nbsp;&bull;&nbsp;
+                {% if exercicio.ativo %}<span class="ex-badge-ativo">Ativo</span>{% else %}<span class="ex-badge-rasc">Rascunho</span>{% endif %}
+                &nbsp;&bull;&nbsp;
+                {{ exercicio.total_questoes }} questão(oes) &nbsp;&bull;&nbsp; {{ exercicio.total_pontos }} pt(s)
+                {% if exercicio.tempo_limite %}&nbsp;&bull;&nbsp;Tempo: {{ exercicio.tempo_limite }} min{% endif %}
+            </small>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <a href="/exercicios/{{ exercicio.id }}/resultados" class="btn" style="background:#8b5cf6;color:#fff">Ver Resultados</a>
+            <a href="/exercicios" class="btn btn-secondary">&#8592; Voltar</a>
+        </div>
+    </div>
+
+    {# ── lista de questões existentes ── #}
+    {% if exercicio.questoes %}
+    <h3 style="margin:20px 0 10px">Questões cadastradas</h3>
+    {% for q in exercicio.questoes %}
+    <div class="questao-card">
+        <div class="questao-card__header">
+            <span class="questao-num">{{ loop.index }}.</span>
+            <div class="questao-enunciado">
+                <span class="tipo-badge {{ 'tipo-multipla' if q.tipo == 'multipla_escolha' else ('tipo-vf' if q.tipo == 'verdadeiro_falso' else 'tipo-dissertativa') }}">
+                    {{ 'Múltipla' if q.tipo == 'multipla_escolha' else ('V/F' if q.tipo == 'verdadeiro_falso' else 'Dissertativa') }}
+                </span>
+                &nbsp;
+                <strong>{{ q.enunciado }}</strong>
+                <small style="color:#888;margin-left:8px">{{ q.pontos }} pt(s)</small>
+
+                {% if q.tipo in ('multipla_escolha', 'verdadeiro_falso') and q.alternativas %}
+                <div style="margin-top:8px">
+                {% for alt in q.alternativas %}
+                    <div class="alt-item {{ 'correta' if alt.correta else '' }}">
+                        {% if alt.correta %}<span class="alt-correta-icon"></span>{% else %}<span style="display:inline-block;width:16px"></span>{% endif %}
+                        {{ alt.texto }}
+                    </div>
+                {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+                {# botão editar abre modal #}
+                <button type="button" class="btn btn-sm btn-acao-editar"
+                        onclick="abrirModalEditar({{ q.id }}, {{ q.enunciado|tojson }}, {{ q.pontos }}, {{ q.alternativas|map(attribute='id')|list|tojson }}, {{ q.alternativas|map(attribute='texto')|list|tojson }}, {{ q.alternativas|map(attribute='correta')|list|tojson }})">Editar</button>
+                <form method="post" action="/exercicios/{{ exercicio.id }}/questoes"
+                      onsubmit="return confirm('Remover esta questão?')" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="acao" value="del_questao">
+                    <input type="hidden" name="questao_id" value="{{ q.id }}">
+                    <button type="submit" class="btn btn-sm btn-acao-excluir">Remover</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state" style="padding:32px 0;text-align:center;color:#888">
+        Nenhuma questão cadastrada ainda. Adicione a primeira abaixo.
+    </div>
+    {% endif %}
+
+    {# ── formulário de nova questão ── #}
+    <div style="margin-top:24px">
+        <h3 style="margin-bottom:14px">Adicionar nova questão</h3>
+        <form method="post" action="/exercicios/{{ exercicio.id }}/questoes" id="formNovaQuestao">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="acao" value="add_questao">
+            <div class="grid-2">
+                <div class="campo grande">
+                    <label>Enunciado *</label>
+                    <textarea name="enunciado" class="observacao-grande" required
+                              style="min-height:70px"
+                              placeholder="Digite a questão aqui&hellip;"></textarea>
+                </div>
+                <div class="campo">
+                    <label>Tipo</label>
+                    <select name="tipo" id="tipoNovaQuestao" onchange="atualizarAlternativas(this.value)">
+                        <option value="multipla_escolha">Múltipla Escolha</option>
+                        <option value="verdadeiro_falso">Verdadeiro / Falso</option>
+                        <option value="dissertativa">Dissertativa</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Pontos</label>
+                    <input type="number" name="pontos" step="0.1" min="0.1" value="1.0" style="max-width:100px">
+                </div>
+            </div>
+
+            {# alternativas dinâmicas #}
+            <div id="areaAlternativas" style="margin-top:8px">
+                <label style="font-weight:600;display:block;margin-bottom:6px">
+                    Alternativas <small style="color:#888;font-weight:400">(marque a correta)</small>
+                </label>
+                <div id="listaAlternativas">
+                    {% for letra in ['A', 'B', 'C', 'D'] %}
+                    <div class="alt-linha">
+                        <input type="checkbox" name="alt_correta" value="{{ loop.index0 }}">
+                        <input type="text" name="alt_texto" placeholder="Alternativa {{ letra }}"
+                               style="flex:1;margin-bottom:0">
+                        <button type="button" class="btn-rm-alt" onclick="this.closest('.alt-linha').remove()">&times;</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-sm" onclick="addAlternativa()"
+                        style="margin-top:6px;background:#e0e0e0;color:#333">+ Alternativa</button>
+            </div>
+
+            <div class="acoes-form" style="margin-top:16px">
+                <button type="submit" class="btn btn-azul">+ Adicionar Questão</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── modal de edição ── #}
+<div id="modalEditarQuestao" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:10px;padding:28px 32px;max-width:620px;width:95%;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('modalEditarQuestao').style.display='none'"
+            style="position:absolute;top:14px;right:18px;font-size:20px;background:none;border:none;cursor:pointer;color:#888">&times;</button>
+    <h3 style="margin-bottom:18px">Editar Questão</h3>
+    <form method="post" action="/exercicios/{{ exercicio.id }}/questoes" id="formEditarQuestao">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="acao" value="edit_questao">
+        <input type="hidden" name="questao_id" id="editQuestaoId">
+        <div class="campo">
+            <label>Enunciado *</label>
+            <textarea name="enunciado" id="editEnunciado" class="observacao-grande"
+                      style="min-height:70px" required></textarea>
+        </div>
+        <div class="campo" style="max-width:120px">
+            <label>Pontos</label>
+            <input type="number" name="pontos" id="editPontos" step="0.1" min="0.1">
+        </div>
+        <div style="margin-top:10px">
+            <label style="font-weight:600;display:block;margin-bottom:6px">Alternativas</label>
+            <div id="editListaAlternativas"></div>
+            <button type="button" class="btn btn-sm" onclick="addAltEdit()"
+                    style="margin-top:6px;background:#e0e0e0;color:#333">+ Alternativa</button>
+        </div>
+        <div class="acoes-form" style="margin-top:16px">
+            <button type="submit" class="btn btn-azul">Salvar</button>
+            <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('modalEditarQuestao').style.display='none'">Cancelar</button>
+        </div>
+    </form>
+  </div>
+</div>
+
+{# ===================================================================
+   VIEW: RESULTADOS
+=================================================================== #}
+{% elif view == 'resultados' %}
+
+<div class="card">
+    <div class="card-header--between">
+        <div>
+            <h2 style="margin:0">Resultados &mdash; {{ exercicio.titulo }}</h2>
+            <small style="color:#888">
+                Matéria: <strong>{{ exercicio.materia.nome if exercicio.materia else '&mdash;' }}</strong>
+                &nbsp;&bull;&nbsp; {{ exercicio.total_questoes }} questões
+                &nbsp;&bull;&nbsp;
+                {% if exercicio.ativo %}<span class="ex-badge-ativo">Ativo</span>{% else %}<span class="ex-badge-rasc">Rascunho</span>{% endif %}
+            </small>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="/exercicios/{{ exercicio.id }}/questoes" class="btn btn-azul">Questões</a>
+            <a href="/exercicios" class="btn btn-secondary">&#8592; Voltar</a>
+        </div>
+    </div>
+
+    {% if respostas %}
+    <p style="color:#888;margin-bottom:16px">{{ respostas|length }} tentativa(s) registrada(s).</p>
+    <div class="table-responsive">
+    <table class="tabela-excel">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Aluno</th>
+                <th>Tentativa</th>
+                <th>Questões</th>
+                <th>Acertos</th>
+                <th>%</th>
+                <th>Iniciado em</th>
+                <th>Finalizado em</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in respostas %}
+        {% set pct = r.percentual|round(1) %}
+        <tr>
+            <td>{{ r.id }}</td>
+            <td><strong>{{ r.aluno.nome }}</strong></td>
+            <td style="text-align:center">{{ r.tentativa_num }}</td>
+            <td style="text-align:center">{{ r.total_questoes }}</td>
+            <td style="text-align:center">{{ r.acertos }}</td>
+            <td style="min-width:110px">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <div class="pct-bar-wrap" style="width:70px">
+                        <div class="pct-bar {{ 'alto' if pct >= 70 else ('medio' if pct >= 40 else 'baixo') }}"
+                             style="width:{{ pct }}%"></div>
+                    </div>
+                    <span class="{{ 'resultado-acertou' if pct >= 70 else 'resultado-errou' }}">{{ pct }}%</span>
+                </div>
+            </td>
+            <td>{{ r.iniciado_em or '&mdash;' }}</td>
+            <td>{{ r.finalizado_em or '&mdash;' }}</td>
+            <td>
+                <button type="button" class="btn btn-sm"
+                        style="background:#6366f1;color:#fff"
+                        onclick="verDetalhe({{ r.id }}, {{ r.respostas_questao|map(attribute='questao.enunciado')|list|tojson }}, {{ r.respostas_questao|map(attribute='acertou')|list|tojson }}, {{ r.respostas_questao|map(attribute='alternativa.texto' if r.respostas_questao else '')|list|tojson }})">
+                    Ver detalhe
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    {# ── conceder tentativas extras ── #}
+    <div style="margin-top:28px;border-top:1px solid var(--color-border);padding-top:20px">
+        <h3 style="margin-bottom:12px">Conceder tentativas extras</h3>
+        <form method="post" action="/exercicios/{{ exercicio.id }}/extra-tentativas"
+              style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="campo" style="margin-bottom:0">
+                <label>Aluno</label>
+                <select name="aluno_id" required style="min-width:220px;height:36px;margin-bottom:0">
+                    <option value="">Selecione&hellip;</option>
+                    {% set alunos_vistos = [] %}
+                    {% for r in respostas %}
+                        {% if r.aluno_id not in alunos_vistos %}
+                            {% set _ = alunos_vistos.append(r.aluno_id) %}
+                            <option value="{{ r.aluno_id }}">{{ r.aluno.nome }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="campo" style="margin-bottom:0">
+                <label>Qtd. de tentativas</label>
+                <input type="number" name="qtd" value="1" min="1" max="10"
+                       style="width:80px;height:36px;margin-bottom:0">
+            </div>
+            <button type="submit" class="btn btn-azul">Conceder</button>
+        </form>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:40px 0;text-align:center;color:#888">
+        Nenhuma tentativa registrada ainda para este exercício.
+    </div>
+    {% endif %}
+</div>
+
+{# ── modal detalhe de resposta ── #}
+<div id="modalDetalhe" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:10px;padding:28px 32px;max-width:620px;width:95%;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('modalDetalhe').style.display='none'"
+            style="position:absolute;top:14px;right:18px;font-size:20px;background:none;border:none;cursor:pointer;color:#888">&times;</button>
+    <h3 style="margin-bottom:16px">Detalhe da tentativa</h3>
+    <div id="detalheConteudo"></div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Questões: alternativas dinâmicas ── */
+var altIdx = 4;
+function addAlternativa() {
+    var div = document.createElement('div');
+    div.className = 'alt-linha';
+    div.innerHTML = '<input type="checkbox" name="alt_correta" value="' + altIdx + '">' +
+                    '<input type="text" name="alt_texto" placeholder="Nova alternativa" style="flex:1;margin-bottom:0">' +
+                    '<button type="button" class="btn-rm-alt" onclick="this.closest(\'.alt-linha\').remove()">&times;</button>';
+    document.getElementById('listaAlternativas').appendChild(div);
+    altIdx++;
+}
+
+function atualizarAlternativas(tipo) {
+    var area = document.getElementById('areaAlternativas');
+    if (tipo === 'dissertativa') {
+        area.style.display = 'none';
+    } else if (tipo === 'verdadeiro_falso') {
+        area.style.display = '';
+        document.getElementById('listaAlternativas').innerHTML =
+            '<div class="alt-linha"><input type="checkbox" name="alt_correta" value="0"><input type="text" name="alt_texto" value="Verdadeiro" style="flex:1;margin-bottom:0"></div>' +
+            '<div class="alt-linha"><input type="checkbox" name="alt_correta" value="1"><input type="text" name="alt_texto" value="Falso" style="flex:1;margin-bottom:0"></div>';
+    } else {
+        area.style.display = '';
+    }
+}
+
+/* ── modal editar questão ── */
+function abrirModalEditar(id, enun, pontos, altIds, altTextos, altCorretas) {
+    document.getElementById('editQuestaoId').value  = id;
+    document.getElementById('editEnunciado').value  = enun;
+    document.getElementById('editPontos').value     = pontos;
+
+    var cont = document.getElementById('editListaAlternativas');
+    cont.innerHTML = '';
+    for (var i = 0; i < altTextos.length; i++) {
+        cont.innerHTML += '<div class="alt-linha">' +
+            '<input type="hidden" name="alt_id" value="' + (altIds[i] || '') + '">' +
+            '<input type="checkbox" name="alt_correta" value="' + i + '"' + (altCorretas[i] ? ' checked' : '') + '>' +
+            '<input type="text" name="alt_texto" value="' + altTextos[i].replace(/"/g,'&quot;') + '" style="flex:1;margin-bottom:0">' +
+            '<button type="button" class="btn-rm-alt" onclick="this.closest(\'.alt-linha\').remove()">&times;</button>' +
+            '</div>';
+    }
+    var modal = document.getElementById('modalEditarQuestao');
+    modal.style.display = 'flex';
+}
+
+var editAltIdx = 100;
+function addAltEdit() {
+    var cont = document.getElementById('editListaAlternativas');
+    var div = document.createElement('div');
+    div.className = 'alt-linha';
+    div.innerHTML = '<input type="hidden" name="alt_id" value="">' +
+                    '<input type="checkbox" name="alt_correta" value="' + editAltIdx + '">' +
+                    '<input type="text" name="alt_texto" placeholder="Nova alternativa" style="flex:1;margin-bottom:0">' +
+                    '<button type="button" class="btn-rm-alt" onclick="this.closest(\'.alt-linha\').remove()">&times;</button>';
+    cont.appendChild(div);
+    editAltIdx++;
+}
+
+/* fechar modais clicando fora */
+document.addEventListener('click', function(e) {
+    ['modalEditarQuestao','modalDetalhe'].forEach(function(id){
+        var m = document.getElementById(id);
+        if (m && e.target === m) m.style.display = 'none';
+    });
+});
+
+/* ── Resultados: modal detalhe ── */
+function verDetalhe(id, enunciados, acertos, respostas) {
+    var html = '';
+    for (var i = 0; i < enunciados.length; i++) {
+        var ok = acertos[i];
+        html += '<div style="margin-bottom:12px;padding:10px 14px;border-radius:8px;' +
+                (ok ? 'background:#f0fdf4;border:1px solid #bbf7d0' : 'background:#fff1f2;border:1px solid #fecaca') + '">' +
+                '<strong>' + (i+1) + '.</strong> ' + enunciados[i] + '<br>' +
+                '<span style="font-size:13px;color:' + (ok ? '#15803d' : '#dc2626') + '">' +
+                (ok ? '&#10003; Correto' : '&#10007; Errado') +
+                (respostas[i] ? ' &mdash; resp: <em>' + respostas[i] + '</em>' : '') +
+                '</span></div>';
+    }
+    if (!html) html = '<p style="color:#888">Sem detalhe disponível.</p>';
+    document.getElementById('detalheConteudo').innerHTML = html;
+    document.getElementById('modalDetalhe').style.display = 'flex';
+}
+</script>
+{% endblock %}
