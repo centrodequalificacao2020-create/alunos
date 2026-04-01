@@ -6,16 +6,118 @@
 
 <script>
 function calcularTotal() {
-    const mensal     = parseFloat(document.getElementById('valor_mensal').value)    || 0;
-    const matricula  = parseFloat(document.getElementById('valor_matricula').value) || 0;
-    const parcelas   = parseFloat(document.getElementById('parcelas').value)         || 0;
-    const total      = matricula + (mensal * parcelas);
+    const mensal    = parseFloat(document.getElementById('valor_mensal').value)    || 0;
+    const matricula = parseFloat(document.getElementById('valor_matricula').value) || 0;
+    const parcelas  = parseFloat(document.getElementById('parcelas').value)        || 0;
+    const total     = matricula + (mensal * parcelas);
     document.getElementById('valor_total').value = total > 0
-        ? 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+        ? 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})
         : '';
+}
+
+/* ── helpers de badge ── */
+function badgeAluno(s) {
+    const map = {
+        'Ativo':      'status-ativo',
+        'Trancado':   'status-trancado',
+        'Cancelado':  'status-cancelado',
+        'Finalizado': 'status-finalizado',
+        'Inadimplente': 'status-inadimplente',
+    };
+    const cls = map[s] || '';
+    return `<span class="${cls}">${s}</span>`;
+}
+function badgeMatricula(s) {
+    const map = {
+        'Ativa':     'status-ativo',
+        'Trancada':  'status-trancado',
+        'Cancelada': 'status-cancelado',
+        'Concluída': 'status-finalizado',
+    };
+    const cls = map[s] || '';
+    return `<span class="${cls}">${s}</span>`;
+}
+
+/* ── tabela de alunos comum ── */
+function renderTabela(alunos) {
+    if (!alunos.length) return '<p style="color:var(--text-muted);padding:8px 0">Nenhum aluno matriculado.</p>';
+    let rows = alunos.map((a, i) =>
+        `<tr>
+          <td style="width:32px;color:var(--text-muted);font-size:.85em">${i+1}</td>
+          <td><a href="/aluno/${a.id}" style="color:var(--primary)">${a.nome}</a></td>
+          <td>${badgeAluno(a.status_aluno)}</td>
+          <td>${badgeMatricula(a.status_matricula)}</td>
+        </tr>`
+    ).join('');
+    return `<table class="tabela-excel" style="margin-top:8px">
+        <thead><tr>
+          <th>#</th><th>Nome</th>
+          <th>Status do aluno</th>
+          <th>Status da matrícula</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+}
+
+/* ── Aba "Por Curso" ── */
+async function carregarCurso() {
+    const sel    = document.getElementById('sel_curso');
+    const painel = document.getElementById('painel_curso');
+    const id     = sel.value;
+    if (!id) { painel.innerHTML = ''; return; }
+    painel.innerHTML = '<p style="color:var(--text-muted)">Carregando…</p>';
+    const res  = await fetch(`/cursos/${id}/alunos`);
+    const data = await res.json();
+    const txt  = sel.options[sel.selectedIndex].text;
+    painel.innerHTML =
+        `<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+           <strong>${txt}</strong>
+           <span class="contagem-ativo" style="font-size:.85em">${data.length} aluno(s)</span>
+         </div>` + renderTabela(data);
+}
+
+/* ── Aba "Por Tipo" ── */
+async function carregarTipo() {
+    const sel    = document.getElementById('sel_tipo');
+    const painel = document.getElementById('painel_tipo');
+    const tipo   = sel.value;
+    if (!tipo) { painel.innerHTML = ''; return; }
+    painel.innerHTML = '<p style="color:var(--text-muted)">Carregando…</p>';
+    const res  = await fetch(`/cursos/tipo/${encodeURIComponent(tipo)}/alunos`);
+    const data = await res.json();
+    if (!data.length) {
+        painel.innerHTML = '<p style="color:var(--text-muted)">Nenhum curso deste tipo cadastrado.</p>';
+        return;
+    }
+    const totalGeral = data.reduce((s, c) => s + c.total, 0);
+    let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <strong>Tipo: ${tipo}</strong>
+        <span class="contagem-ativo" style="font-size:.85em">${totalGeral} aluno(s) no total</span>
+      </div>`;
+    data.forEach(curso => {
+        html += `<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <summary style="padding:10px 14px;cursor:pointer;background:var(--surface-2);display:flex;justify-content:space-between;align-items:center">
+              <span>📚 ${curso.curso_nome}</span>
+              <span class="contagem-ativo" style="font-size:.85em">${curso.total} aluno(s)</span>
+            </summary>
+            <div style="padding:0 14px 14px">
+              ${renderTabela(curso.alunos)}
+            </div>
+          </details>`;
+    });
+    painel.innerHTML = html;
+}
+
+/* ── Troca de abas ── */
+function abrirAba(aba) {
+    document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('btn-azul'));
+    document.querySelectorAll('.aba-painel').forEach(p => p.style.display = 'none');
+    document.getElementById('aba-' + aba).style.display = 'block';
+    document.getElementById('btn-' + aba).classList.add('btn-azul');
 }
 </script>
 
+<!-- Formulário de cadastro -->
 <div class="card">
     <div class="card-header">
         <span>📚</span>
@@ -55,7 +157,7 @@ function calcularTotal() {
             <div class="campo">
                 <label for="valor_total">Valor Total</label>
                 <input type="text" id="valor_total" readonly placeholder="Calculado automaticamente"
-                       style="background:#f0f4ff; font-weight:600; color:#1a56db;">
+                       style="background:#f0f4ff;font-weight:600;color:#1a56db;">
             </div>
         </div>
         <div class="acoes-form">
@@ -64,6 +166,7 @@ function calcularTotal() {
     </form>
 </div>
 
+<!-- Tabela de cursos -->
 <div class="card">
     <h3>Cursos Cadastrados</h3>
     <div class="tabela-planilha">
@@ -104,4 +207,47 @@ function calcularTotal() {
         </table>
     </div>
 </div>
+
+<!-- Painel de alunos matriculados -->
+<div class="card">
+    <div class="card-header">
+        <span>👥</span>
+        <h2>Alunos Matriculados</h2>
+    </div>
+
+    <!-- Abas -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button id="btn-curso" class="btn aba-btn btn-azul" onclick="abrirAba('curso')">Por Curso</button>
+        <button id="btn-tipo"  class="btn aba-btn"          onclick="abrirAba('tipo')">Por Tipo</button>
+    </div>
+
+    <!-- Aba Por Curso -->
+    <div id="aba-curso" class="aba-painel">
+        <div class="campo" style="max-width:420px">
+            <label for="sel_curso">Selecione o curso</label>
+            <select id="sel_curso" onchange="carregarCurso()">
+                <option value="">— escolha um curso —</option>
+                {% for c in cursos %}
+                <option value="{{ c.id }}">{{ c.nome }}{% if c.tipo %} ({{ c.tipo }}){% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="painel_curso"></div>
+    </div>
+
+    <!-- Aba Por Tipo -->
+    <div id="aba-tipo" class="aba-painel" style="display:none">
+        <div class="campo" style="max-width:420px">
+            <label for="sel_tipo">Selecione o tipo</label>
+            <select id="sel_tipo" onchange="carregarTipo()">
+                <option value="">— escolha um tipo —</option>
+                {% for t in tipos %}
+                <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="painel_tipo"></div>
+    </div>
+</div>
+
 {% endblock %}
