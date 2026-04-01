@@ -295,43 +295,24 @@ def frequencia_aluno():
         flash("Curso n\u00e3o encontrado.", "erro")
         return redirect("/aluno/frequencia")
 
-    # Busca IDs de materias vinculadas ao curso
-    ids_materias_curso = {
-        cm.materia_id
-        for cm in CursoMateria.query.filter_by(curso_id=curso_id_param).all()
-    }
-
-    if ids_materias_curso:
-        # Frequencias com materia vinculada ao curso
-        frequencias = (
-            Frequencia.query
-            .filter(
-                Frequencia.aluno_id == aluno.id,
-                Frequencia.materia_id.in_(ids_materias_curso),
-            )
-            .order_by(Frequencia.data.desc())
-            .all()
+    # Frequencia vinculada diretamente ao curso_id (modelo nao tem materia_id)
+    frequencias = (
+        Frequencia.query
+        .filter(
+            Frequencia.aluno_id == aluno.id,
+            Frequencia.curso_id == curso_id_param,
         )
-        # Se nao encontrou nada, tenta frequencias sem materia_id
-        # (registros antigos sem vinculo) - mas SEM misturar outros cursos
-        if not frequencias:
-            frequencias = (
-                Frequencia.query
-                .filter(
-                    Frequencia.aluno_id == aluno.id,
-                    Frequencia.materia_id == None,
-                )
-                .order_by(Frequencia.data.desc())
-                .all()
-            )
-    else:
-        # Curso sem CursoMateria cadastrado: mostra apenas freq sem materia_id
-        # para nao misturar frequencias de outros cursos
+        .order_by(Frequencia.data.desc())
+        .all()
+    )
+
+    # Fallback: registros antigos sem curso_id vinculado
+    if not frequencias:
         frequencias = (
             Frequencia.query
             .filter(
                 Frequencia.aluno_id == aluno.id,
-                Frequencia.materia_id == None,
+                Frequencia.curso_id == None,
             )
             .order_by(Frequencia.data.desc())
             .all()
