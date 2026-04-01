@@ -306,8 +306,8 @@ def curso_detalhe(curso_id):
         for item in conteudos_por_mat.get(mat.id, []):
             conteudos.append(item)
 
-    # BUG5-FIX: nao silencia OperationalError (tabela ausente deve aparecer como erro
-    # explicito, nao como lista vazia)
+    # BUG-02 FIX: exercicios exibidos SOMENTE se existir registro em ExercicioLiberado
+    # BUG-05 FIX: OperationalError nao e silenciado — exibe flash de erro explicito
     exercicios_por_mat = {}
     try:
         from models import Exercicio, ExercicioLiberado, RespostaExercicio
@@ -318,10 +318,10 @@ def curso_detalhe(curso_id):
         for mat in materias_liberadas:
             exs_mat = []
             for ex in Exercicio.query.filter_by(materia_id=mat.id, ativo=1).order_by(Exercicio.ordem).all():
-                lib = ids_ex_lib.get(ex.id)
+                lib = ids_ex_lib.get(ex.id)          # BUG-02: pula se nao liberado
                 if not lib:
                     continue
-                usadas = RespostaExercicio.query.filter_by(
+                usadas   = RespostaExercicio.query.filter_by(
                     exercicio_id=ex.id, aluno_id=aluno.id
                 ).count()
                 max_tent = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
@@ -333,7 +333,7 @@ def curso_detalhe(curso_id):
                 })
             if exs_mat:
                 exercicios_por_mat[mat.id] = exs_mat
-    except OperationalError as e:
+    except OperationalError as e:                    # BUG-05: erro explicito, nao silencio
         flash(f"Erro ao carregar exercícios: {e}. Execute a migração pendente.", "erro")
 
     provas = []
@@ -460,7 +460,6 @@ def responder_exercicio(ex_id):
     agora          = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     total_questoes = len(ex.questoes)
 
-    # BUG4-FIX: flush/commit dentro de try-except com rollback explicito
     try:
         resp = RespostaExercicio(
             aluno_id       = aluno_id,
@@ -473,7 +472,7 @@ def responder_exercicio(ex_id):
             percentual     = 0.0,
         )
         db.session.add(resp)
-        db.session.flush()  # gera resp.id sem commitar
+        db.session.flush()
 
         acertos = 0
         for q in ex.questoes:
@@ -504,7 +503,7 @@ def responder_exercicio(ex_id):
         resp.percentual = percentual
         db.session.commit()
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash("Erro ao processar suas respostas. Tente novamente.", "erro")
         return redirect(f"/aluno/exercicio/{ex_id}")
@@ -523,7 +522,7 @@ def resultado_exercicio(ex_id, resp_id):
     ex       = db.get_or_404(Exercicio, ex_id)
     resp     = db.get_or_404(RespostaExercicio, resp_id)
 
-    # Garante que o resultado pertence ao aluno e esta finalizado (BUG6-FIX)
+    # BUG-07 FIX: valida que resp pertence ao aluno logado e ao exercicio correto
     if resp.aluno_id != aluno_id or resp.exercicio_id != ex_id:
         abort(403)
     if not resp.finalizado_em:
