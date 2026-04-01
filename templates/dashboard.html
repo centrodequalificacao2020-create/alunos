@@ -322,14 +322,14 @@ new Chart('graficoFinanceiro', { type:'bar',
 const vendas = {{ vendas_tipo | tojson }};
 const vOrd = [...vendas].sort((a,b)=>safeValue(b[1])-safeValue(a[1]));
 const totalVendasVal = vOrd.reduce((s,i)=>s+safeValue(i[1]),0);
-document.getElementById('totalVendas').textContent = 'Total: ' + totalVendasVal.toLocaleString('pt-BR') + ' alunos';
+document.getElementById('totalVendas').textContent = 'Total: ' + totalVendasVal.toLocaleString('pt-BR') + ' matrículas';
 new Chart('graficoVendasPizza', { type:'bar',
     data:{ labels: vOrd.map(i=>i[0]),
            datasets:[{ data: vOrd.map(i=>safeValue(i[1])),
                        backgroundColor: vOrd.map((_,i)=>i===0?'#2ecc71':'#3498db'),
                        borderRadius:4, categoryPercentage:0.75, barPercentage:0.9 }]},
     options: cfgBarra(
-        (v) => v.toLocaleString('pt-BR') + ' alunos',
+        (v) => v.toLocaleString('pt-BR') + ' matrículas',
         (v) => v.toLocaleString('pt-BR'),
         false
     )
