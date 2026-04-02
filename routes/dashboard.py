@@ -138,17 +138,17 @@ def dashboard():
         Mensalidade.vencimento.between(inicio, fim)
     ).count()
 
-    # Matrículas futuras: mensalidades do tipo "Matrícula" pendentes
+    # Matrículas futuras: mensalidades do tipo "matricula" pendentes
     # com vencimento a partir do início do mês filtrado
     matriculas_futuras = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pendente",
-        Mensalidade.tipo == "Matrícula",
+        func.lower(Mensalidade.tipo) == "matricula",
         Mensalidade.vencimento >= inicio
     ).scalar() or 0
 
     recebimento_matricula = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pago",
-        Mensalidade.tipo == "Matrícula",
+        func.lower(Mensalidade.tipo) == "matricula",
         Mensalidade.data_pagamento.between(inicio, fim)
     ).scalar() or 0
 
