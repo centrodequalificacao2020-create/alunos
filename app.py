@@ -1,6 +1,6 @@
 import os
 import re
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
@@ -78,6 +78,37 @@ def create_app(config_class=Config):
         inteiro = int(v)
         decimal = int(round((v - inteiro) * 100))
         return f"R$ {inteiro:,d},{decimal:02d}".replace(",", ".")
+
+    # ── Erro 413: arquivo maior que MAX_CONTENT_LENGTH ──────────────────────
+    @app.errorhandler(413)
+    def arquivo_muito_grande(e):
+        limite_mb = app.config.get("MAX_CONTENT_LENGTH", 0) // (1024 * 1024)
+        mensagem  = f"Arquivo muito grande. O limite máximo permitido é {limite_mb} MB."
+        # Responde JSON para requisições AJAX / fetch
+        if request.accept_mimetypes.best == "application/json" or request.is_json:
+            return jsonify(erro=mensagem), 413
+        # Resposta HTML simples para envios de formulário normais
+        html = f"""
+        <!doctype html><html lang="pt-BR"><head>
+        <meta charset="utf-8">
+        <meta http-equiv="refresh" content="4;url={request.referrer or '/'}"´>
+        <title>Arquivo muito grande</title>
+        <style>
+          body{{font-family:sans-serif;display:flex;align-items:center;
+               justify-content:center;height:100vh;margin:0;background:#f5f5f5;}}
+          .box{{background:#fff;padding:2rem 2.5rem;border-radius:10px;
+                box-shadow:0 2px 12px rgba(0,0,0,.1);text-align:center;max-width:420px;}}
+          h2{{color:#c0392b;margin-bottom:.5rem;}} p{{color:#555;}}
+          a{{color:#01696f;text-decoration:none;font-weight:600;}}
+        </style>
+        </head><body><div class="box">
+          <h2>⚠️ Arquivo muito grande</h2>
+          <p>{mensagem}</p>
+          <p>Você será redirecionado em instantes.<br>
+             <a href="{request.referrer or '/'}">Voltar agora</a></p>
+        </div></body></html>
+        """
+        return html, 413
 
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
