@@ -2,65 +2,67 @@
 {% block title %}Rematrículas — {{ mes_label }}{% endblock %}
 
 {% block content %}
-<div class="executivo" style="max-width:960px">
+<div class="executivo">
+  <div style="max-width:960px;margin:0 auto">
 
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="/dashboard?mes={{ mes }}" class="btn btn-outline" title="Voltar ao Dashboard">
-      &#8592; Dashboard
-    </a>
-    <h2 style="margin:0;font-size:20px">Rematr&#237;culas &mdash; {{ mes_label }}</h2>
-    <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
-      <input type="month" name="mes" value="{{ mes }}"
-             style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-color, #ccc);
-                    background:var(--input-bg,#fff);color:var(--text-color,#333);font-size:13px">
-      <button type="submit" class="btn btn-azul" style="font-size:13px">Filtrar</button>
-    </form>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <a href="/dashboard?mes={{ mes }}" class="btn btn-outline" title="Voltar ao Dashboard">
+        &#8592; Dashboard
+      </a>
+      <h2 style="margin:0;font-size:20px">Rematr&#237;culas &mdash; {{ mes_label }}</h2>
+      <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <input type="month" name="mes" value="{{ mes }}"
+               style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-color,#ccc);
+                      background:var(--input-bg,#fff);color:var(--text-color,#333);font-size:13px">
+        <button type="submit" class="btn btn-azul" style="font-size:13px">Filtrar</button>
+      </form>
+    </div>
+
+    {% if resultado %}
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="tabela-padrao" style="font-size:14px">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Aluno</th>
+            <th>Curso anterior</th>
+            <th>Novo curso</th>
+            <th>Data</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resultado %}
+          <tr>
+            <td style="color:var(--text-muted,#888)">{{ loop.index }}</td>
+            <td style="font-weight:600">{{ r.aluno_nome }}</td>
+            <td style="color:var(--text-muted,#888)">{{ r.curso_anterior }}</td>
+            <td style="color:var(--link-color,#0d6efd)">{{ r.curso_novo }}</td>
+            <td>
+              {% if r.data %}
+                {{ r.data.strftime('%d/%m/%Y') if r.data is not string else r.data }}
+              {% else %}&mdash;{% endif %}
+            </td>
+            <td>
+              <a href="/aluno/{{ r.aluno_id }}" class="btn btn-sm btn-outline"
+                 title="Ver ficha do aluno">Ver ficha</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:10px;font-size:13px;color:var(--text-muted,#888);text-align:center">
+      {{ resultado|length }} rematr&#237;cula{{ 's' if resultado|length != 1 else '' }} encontrada{{ 's' if resultado|length != 1 else '' }}.
+    </p>
+
+    {% else %}
+    <div style="text-align:center;padding:60px 20px;color:var(--text-muted,#888)">
+      <p style="font-size:32px;margin-bottom:12px">&#128203;</p>
+      <p style="font-size:15px">Nenhuma rematr&#237;cula registrada em {{ mes_label }}.</p>
+    </div>
+    {% endif %}
+
   </div>
-
-  {% if resultado %}
-  <div class="card" style="padding:0;overflow:hidden">
-    <table class="tabela-padrao" style="font-size:14px">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Aluno</th>
-          <th>Curso anterior</th>
-          <th>Novo curso</th>
-          <th>Data</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in resultado %}
-        <tr>
-          <td style="color:var(--text-muted,#888)">{{ loop.index }}</td>
-          <td style="font-weight:600">{{ r.aluno_nome }}</td>
-          <td style="color:var(--text-muted,#888)">{{ r.curso_anterior }}</td>
-          <td style="color:var(--link-color,#0d6efd)">{{ r.curso_novo }}</td>
-          <td>
-            {% if r.data %}
-              {{ r.data.strftime('%d/%m/%Y') if r.data is not string else r.data }}
-            {% else %}&mdash;{% endif %}
-          </td>
-          <td>
-            <a href="/aluno/{{ r.aluno_id }}" class="btn btn-sm btn-outline"
-               title="Ver ficha do aluno">Ver ficha</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <p style="margin-top:10px;font-size:13px;color:var(--text-muted,#888)">
-    {{ resultado|length }} rematr&#237;cula{{ 's' if resultado|length != 1 else '' }} encontrada{{ 's' if resultado|length != 1 else '' }}.
-  </p>
-
-  {% else %}
-  <div style="text-align:center;padding:60px 20px;color:var(--text-muted,#888)">
-    <p style="font-size:32px;margin-bottom:12px">&#128203;</p>
-    <p style="font-size:15px">Nenhuma rematr&#237;cula registrada em {{ mes_label }}.</p>
-  </div>
-  {% endif %}
-
 </div>
 {% endblock %}
