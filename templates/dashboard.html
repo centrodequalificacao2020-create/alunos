@@ -85,6 +85,13 @@
     padding: 16px 12px;
     gap: 4px;
     text-align: center;
+    text-decoration: none;
+    color: inherit;
+    transition: background .15s;
+}
+.card-duplo .lado:hover {
+    background: rgba(124, 58, 237, .07);
+    cursor: pointer;
 }
 .card-duplo .lado + .lado {
     border-left: 1px solid rgba(0,0,0,.08);
@@ -146,16 +153,16 @@
         <p class="valor-teal">{{ recebimento_matricula|moeda }}</p>
     </div>
 
-    <!-- Card duplo: Matrículas Novas | Rematrículas -->
+    <!-- Card duplo: Matrículas Novas | Rematrículas — cada lado é um link -->
     <div class="card dashboard-card card--purple card-duplo">
-        <div class="lado">
-            <h4>Matrículas Novas</h4>
+        <a href="/matriculas?mes={{ mes }}" class="lado" title="Ver matrículas novas">
+            <h4>Matr&#237;culas Novas</h4>
             <p class="num" style="color:#7c3aed">{{ matriculas_novas }}</p>
-        </div>
-        <div class="lado">
-            <h4>Rematrículas</h4>
+        </a>
+        <a href="/rematriculas?mes={{ mes }}" class="lado" title="Ver rematrículas">
+            <h4>Rematr&#237;culas</h4>
             <p class="num" style="color:#7c3aed">{{ rematriculas }}</p>
-        </div>
+        </a>
     </div>
 
     <div class="card dashboard-card card--orange">
