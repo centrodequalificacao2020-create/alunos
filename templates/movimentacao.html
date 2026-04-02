@@ -12,7 +12,6 @@ function preencherTipo(selectCurso, selectTipo) {
     }
     selectTipo.value = "";
 }
-// Preenche tipo ao carregar a página (caso curso já esteja selecionado)
 document.addEventListener("DOMContentLoaded", function() {
     const sCursoMat = document.getElementById("curso_id_mat");
     const sTipoMat  = document.getElementById("tipo_curso_mat");
@@ -70,7 +69,8 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="grid-2">
                 <div class="campo">
                     <label for="valor_matricula">Valor da Matrícula (R$)</label>
-                    <input type="number" id="valor_matricula" name="valor_matricula" step="0.01" min="0">
+                    <input type="number" id="valor_matricula" name="valor_matricula" step="0.01" min="0"
+                           placeholder="0,00">
                 </div>
                 <div class="campo">
                     <label for="data_matricula">Data do pagamento</label>
@@ -79,10 +79,13 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
 
             <h3 class="secao">📅 Mensalidade</h3>
+            {# BUG 2 FIX: removido value="1" dos campos parcelas para não forçar
+               lançamento de mensalidade quando o usuário quer só a matrícula. #}
             <div class="grid-2">
                 <div class="campo">
                     <label for="valor_mensal">Valor da Mensalidade (R$)</label>
-                    <input type="number" id="valor_mensal" name="valor_mensal" step="0.01" min="0">
+                    <input type="number" id="valor_mensal" name="valor_mensal" step="0.01" min="0"
+                           placeholder="Deixe em branco = sem mensalidades">
                 </div>
                 <div class="campo">
                     <label for="data_primeira_mensalidade">Primeiro vencimento</label>
@@ -93,11 +96,13 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="grid-2">
                 <div class="campo">
                     <label for="parcelas">Qtd. Parcelas Mensalidade</label>
-                    <input type="number" id="parcelas" name="parcelas" min="1" value="1">
+                    <input type="number" id="parcelas" name="parcelas" min="1"
+                           placeholder="Deixe em branco = sem mensalidades">
                 </div>
                 <div class="campo">
                     <label for="parcelas_material">Qtd. Parcelas Material</label>
-                    <input type="number" id="parcelas_material" name="parcelas_material" min="1" value="1">
+                    <input type="number" id="parcelas_material" name="parcelas_material" min="1"
+                           placeholder="Obrigatório se houver material">
                 </div>
             </div>
 
@@ -105,7 +110,8 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="grid-2">
                 <div class="campo">
                     <label for="valor_material">Valor do Material (R$)</label>
-                    <input type="number" id="valor_material" name="valor_material" step="0.01" min="0">
+                    <input type="number" id="valor_material" name="valor_material" step="0.01" min="0"
+                           placeholder="0,00">
                 </div>
                 <div class="campo">
                     <label for="data_material">Primeiro vencimento material</label>
@@ -182,29 +188,36 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="grid-2">
                 <div class="campo">
                     <label for="vm_pre">Valor da Matrícula (R$)</label>
-                    <input type="number" id="vm_pre" name="valor_matricula" step="0.01" min="0">
+                    <input type="number" id="vm_pre" name="valor_matricula" step="0.01" min="0"
+                           placeholder="0,00">
                 </div>
                 <div class="campo">
                     <label for="vms_pre">Valor da Mensalidade (R$)</label>
-                    <input type="number" id="vms_pre" name="valor_mensal" step="0.01" min="0">
+                    <input type="number" id="vms_pre" name="valor_mensal" step="0.01" min="0"
+                           placeholder="Deixe em branco = sem mensalidades">
                 </div>
             </div>
 
             <div class="grid-2">
                 <div class="campo">
+                    {# BUG 2 FIX: removido value="1" #}
                     <label for="parc_pre">Qtd. Parcelas</label>
-                    <input type="number" id="parc_pre" name="parcelas" min="1" value="1">
+                    <input type="number" id="parc_pre" name="parcelas" min="1"
+                           placeholder="Deixe em branco = sem mensalidades">
                 </div>
                 <div class="campo">
                     <label for="vmat_pre">Valor do Material (R$)</label>
-                    <input type="number" id="vmat_pre" name="valor_material" step="0.01" min="0">
+                    <input type="number" id="vmat_pre" name="valor_material" step="0.01" min="0"
+                           placeholder="0,00">
                 </div>
             </div>
 
             <div class="grid-2">
                 <div class="campo">
+                    {# BUG 2 FIX: removido value="1" #}
                     <label for="pmat_pre">Parcelas do Material</label>
-                    <input type="number" id="pmat_pre" name="parcelas_material" min="1" value="1">
+                    <input type="number" id="pmat_pre" name="parcelas_material" min="1"
+                           placeholder="Obrigatório se houver material">
                 </div>
                 <div class="campo">
                     <label for="dm_pre">Data pagamento matrícula</label>

@@ -47,16 +47,13 @@ def financeiro():
 
         vencidas_total = sum(m.valor for m in pendentes if _vencida(m))
 
+        # ── BUG 8 FIX: curso_nome usa curso_id da mensalidade; se NULL exibe '-' ──
         curso_map = {c.id: c.nome for c in Curso.query.all()}
         for m in pendentes + pagas:
             if m.curso_id:
                 m.curso_nome = curso_map.get(m.curso_id, "-")
             else:
-                mat = (Matricula.query
-                       .filter_by(aluno_id=aluno_id)
-                       .order_by(Matricula.id.desc())
-                       .first())
-                m.curso_nome = curso_map.get(mat.curso_id, "-") if mat else "-"
+                m.curso_nome = "-"
 
     return render_template("financeiro.html",
                            alunos=alunos,
@@ -73,6 +70,17 @@ def financeiro():
 @login_required
 def pagar(id):
     parcela = Mensalidade.query.get_or_404(id)
+
+    # ── BUG 7 FIX: bloqueia re-pagamento de parcela já paga ──────────────────
+    if parcela.status == "Pago":
+        flash(
+            f"Esta parcela já foi registrada como paga "
+            f"em {parcela.data_pagamento or 'data desconhecida'}. "
+            f"Para corrigir, use Editar Parcela.",
+            "erro"
+        )
+        return redirect(f"/financeiro?aluno_id={parcela.aluno_id}")
+
     if request.method == "POST":
         parcela.forma_pagamento   = request.form.get("forma")
         parcela.data_pagamento    = request.form.get("data_pagamento") or date.today().isoformat()
@@ -89,7 +97,17 @@ def pagar(id):
 def editar_parcela(id):
     parcela = Mensalidade.query.get_or_404(id)
     if request.method == "POST":
-        parcela.valor      = float(request.form.get("valor") or 0)
+        # ── BUG 6 FIX: rejeita valor zero ou negativo ─────────────────────────
+        try:
+            novo_valor = float(request.form.get("valor") or 0)
+        except (ValueError, TypeError):
+            novo_valor = 0.0
+
+        if novo_valor <= 0:
+            flash("O valor da parcela deve ser maior que R$ 0,00.", "erro")
+            return render_template("editar_parcela.html", parcela=parcela)
+
+        parcela.valor      = novo_valor
         parcela.vencimento = request.form.get("vencimento")
         parcela.tipo       = request.form.get("tipo")
         db.session.commit()
@@ -170,8 +188,6 @@ def lancar_mensalidade():
     curso_tipo = {c.id: (c.tipo or "") for c in cursos}
 
     if request.method == "POST":
-        # O template já envia apenas_mensalidade=1 via <input type="hidden">,
-        # passamos request.form diretamente para preservar tipos escalares.
         aluno_id = request.form.get("aluno_id", "")
         try:
             criar_matricula(request.form)
@@ -180,10 +196,8 @@ def lancar_mensalidade():
             flash(str(e), "erro")
         return redirect(f"/financeiro?aluno_id={aluno_id}")
 
-    # GET: pega aluno_id da query string para pré-selecionar o aluno
     aluno_id_qs = request.args.get("aluno_id", type=int)
 
-    # Monta lista de cursos com matrícula ativa do aluno pré-selecionado
     cursos_do_aluno = []
     if aluno_id_qs:
         mats = (Matricula.query

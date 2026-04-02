@@ -5,7 +5,6 @@
 <script>
 const CURSO_TIPO = {{ curso_tipo | tojson }};
 
-// Preenche o campo tipo_curso com base no curso selecionado
 function preencherTipo(sel) {
     const tipo = CURSO_TIPO[parseInt(sel.value)] || "";
     const st   = document.getElementById("tipo_curso");
@@ -16,7 +15,6 @@ function preencherTipo(sel) {
     st.value = "";
 }
 
-// Carrega via AJAX os cursos com matrícula ATIVA do aluno selecionado
 function carregarCursosAluno(aluno_id) {
     const sel = document.getElementById("sel-curso");
     const aviso = document.getElementById("aviso-sem-matricula");
@@ -47,7 +45,6 @@ function carregarCursosAluno(aluno_id) {
                     sel.appendChild(opt);
                 });
                 sel.disabled = false;
-                // Auto-seleciona se só tiver um curso
                 if (cursos.length === 1) {
                     sel.value = cursos[0].id;
                     preencherTipo(sel);
@@ -60,14 +57,10 @@ function carregarCursosAluno(aluno_id) {
         });
 }
 
-// Executado ao carregar a página — pré-seleciona aluno se vier da URL
 document.addEventListener("DOMContentLoaded", function() {
     {% if aluno_id_qs %}
-    // aluno já veio pré-selecionado via query string (?aluno_id=)
-    // O select de aluno já está com o valor correto; dispara o carregamento de cursos
     carregarCursosAluno({{ aluno_id_qs }});
     {% else %}
-    // Sem aluno pré-selecionado: deixa select de cursos desabilitado
     document.getElementById("sel-curso").disabled = true;
     {% endif %}
 });
@@ -103,7 +96,6 @@ document.addEventListener("DOMContentLoaded", function() {
                     onchange="preencherTipo(this)" disabled>
                 <option value="">Selecione o aluno primeiro</option>
             </select>
-            {# Aviso exibido via JS quando aluno não tem matrícula ativa #}
             <small id="aviso-sem-matricula"
                    style="display:none; color:#c0392b; font-weight:600">
                 &#9888; Este aluno não possui matrícula ativa.
@@ -113,6 +105,8 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
 
         <h3 class="secao">&#128197; Mensalidade</h3>
+        {# BUG 2 FIX: removido value="1" do campo parcelas — sem isso, campo em
+           branco + material preenchido não gerava erro desnecessário. #}
         <div class="grid-2">
             <div class="campo">
                 <label>Valor da Mensalidade (R$)</label>
@@ -121,7 +115,8 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
             <div class="campo">
                 <label>Qtd. Parcelas de Mensalidade</label>
-                <input type="number" name="parcelas" min="1" value="1">
+                <input type="number" name="parcelas" min="1"
+                       placeholder="Deixe em branco = não lança">
             </div>
         </div>
         <div class="campo">
@@ -138,7 +133,8 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
             <div class="campo">
                 <label>Qtd. Parcelas do Material</label>
-                <input type="number" name="parcelas_material" min="1" value="1">
+                <input type="number" name="parcelas_material" min="1"
+                       placeholder="Obrigatório se houver material">
                 <small style="color:#888">1 = cobra integral. 2+ = divide o valor.</small>
             </div>
         </div>

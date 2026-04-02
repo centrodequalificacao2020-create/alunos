@@ -2,7 +2,7 @@
 from db import db
 from models import Matricula, Curso, Mensalidade, Aluno
 from enums import StatusMatricula
-from datetime import date
+from datetime import date, datetime
 
 
 def get_matricula_ativa(aluno_id: int):
@@ -72,6 +72,28 @@ def _campo_enviado(form_data, campo):
     return raw is not None and str(raw).strip() != ""
 
 
+def _validar_data(data_str: str, nome_campo: str = "Data") -> str:
+    """
+    Valida que data_str está no formato YYYY-MM-DD e é uma data real.
+    Retorna a string original se válida.
+    Lança ValueError com mensagem amigável se inválida.
+    """
+    if not data_str:
+        return date.today().isoformat()
+    try:
+        dt = datetime.strptime(str(data_str).strip()[:10], "%Y-%m-%d").date()
+        # Sanidade: rejeita anos impossíveis (antes de 2000 ou mais de 10 anos no futuro)
+        if dt.year < 2000 or dt.year > date.today().year + 10:
+            raise ValueError(f"{nome_campo} com ano inválido: {dt.year}.")
+        return dt.isoformat()
+    except ValueError as e:
+        if "ano inválido" in str(e):
+            raise
+        raise ValueError(
+            f"{nome_campo} inválida: '{data_str}'. Use o formato DD/MM/AAAA."
+        )
+
+
 def criar_matricula(form_data) -> int:
     """
     Cria matrícula + parcelas a partir dos dados do formulário.
@@ -81,10 +103,12 @@ def criar_matricula(form_data) -> int:
 
     REGRAS:
     - Matrícula pode ser criada SEM mensalidades e SEM material (ambos opcionais).
-    - Se valor_mensalidade > 0, parcelas deve ser >= 1 (e vice-versa não
-      impede: parcelas=0 com valor=0 significa "sem mensalidades").
+    - Mensalidade só é lançada se AMBOS valor_mensalidade > 0 E parcelas >= 1.
+    - Se valor_mensalidade ou parcelas for omitido (campo em branco), usa padrão
+      do curso — MAS apenas se o OUTRO também estiver em branco.
+      Ou seja: digitar qualquer um dos dois desativa o fallback do curso para ambos.
     - Se valor_material > 0, parcelas_material deve ser >= 1.
-    - Nunca usa padrão do curso silenciosamente quando o usuário digitou 0.
+    - Nunca usa padrão do curso silenciosamente quando o usuário digitou um valor.
     """
     aluno_id = _get_int(form_data, "aluno_id")
     curso_id = _get_int(form_data, "curso_id")
@@ -102,34 +126,49 @@ def criar_matricula(form_data) -> int:
     if not curso:
         raise ValueError("Curso não encontrado.")
 
-    # ── Flag: lançamento avulso ──────────────────────────────────────────────────
+    # ── Flag: lançamento avulso ──────────────────────────────────────────────
     apenas_mensalidade = form_data.get("apenas_mensalidade") == "1"
 
-    # ── Valor da matrícula ──────────────────────────────────────────────────
+    # ── BUG 4 FIX: bloqueia matrícula duplicada ──────────────────────────────
+    if not apenas_mensalidade:
+        duplicada = Matricula.query.filter(
+            Matricula.aluno_id == aluno_id,
+            Matricula.curso_id == curso_id,
+            db.func.upper(Matricula.status) == StatusMatricula.ATIVA.value
+        ).first()
+        if duplicada:
+            raise ValueError(
+                f"Este aluno já possui uma matrícula ATIVA neste curso "
+                f"(matrícula #{duplicada.id}, em {duplicada.data_matricula}). "
+                f"Cancele a matrícula anterior antes de criar uma nova."
+            )
+
+    # ── Valor da matrícula ───────────────────────────────────────────────────
     valor_matricula = 0.0 if apenas_mensalidade else _get_float(form_data, "valor_matricula")
 
-    # ── Valor e qtd de mensalidades ─────────────────────────────────────────
-    # Se o campo foi enviado pelo usuário, usa exatamente o que foi digitado.
-    # Se o campo não foi enviado (ausente no form), usa o padrão do curso.
-    # Assim: digitar 0 = sem mensalidades; deixar em branco = usa curso.
-    if _campo_enviado(form_data, "valor_mensalidade") or _campo_enviado(form_data, "valor_mensal"):
-        valor_mensalidade = _get_float(form_data, "valor_mensalidade", "valor_mensal")
-    else:
-        valor_mensalidade = float(curso.valor_mensal or 0)
+    # ── BUG 1 FIX: valor e parcelas de mensalidade ───────────────────────────
+    # Regra: se o usuário preencheu QUALQUER UM dos dois campos (valor ou parcelas),
+    # usamos exatamente o que foi digitado e não recorremos ao padrão do curso.
+    # Só usamos o padrão do curso quando AMBOS os campos vieram em branco.
+    mensalidade_enviada = (
+        _campo_enviado(form_data, "valor_mensalidade") or
+        _campo_enviado(form_data, "valor_mensal")
+    )
+    parcelas_enviadas = _campo_enviado(form_data, "parcelas")
 
-    if _campo_enviado(form_data, "parcelas"):
+    if mensalidade_enviada or parcelas_enviadas:
+        # Usuário interagiu com pelo menos um campo: usa exatamente o que veio
+        valor_mensalidade = _get_float(form_data, "valor_mensalidade", "valor_mensal")
         parcelas = _get_int(form_data, "parcelas")
     else:
+        # Ambos em branco: usa padrão do curso como atalho
+        valor_mensalidade = float(curso.valor_mensal or 0)
         parcelas = int(curso.parcelas or 0)
 
     if parcelas < 0:
         parcelas = 0
 
-    # ── Validação: bloqueia apenas combinações inconsistentes ─────────────────
-    # valor=0 + parcelas=0  → OK (matrícula sem mensalidades)
-    # valor>0 + parcelas>0  → OK (lança as parcelas normalmente)
-    # valor>0 + parcelas=0  → ERRO (quanto cobrar e quando?)
-    # valor=0 + parcelas>0  → ERRO (parcelas de R$ 0,00 não fazem sentido)
+    # ── Validação: bloqueia combinações inconsistentes ───────────────────────
     if valor_mensalidade > 0 and parcelas == 0:
         raise ValueError(
             "Informe a quantidade de parcelas de mensalidade (campo está em 0)."
@@ -137,24 +176,32 @@ def criar_matricula(form_data) -> int:
     if parcelas > 0 and valor_mensalidade == 0:
         raise ValueError(
             "O valor da mensalidade está em R$ 0,00. "
-            "Preencha o valor ou zere a quantidade de parcelas para matricular sem mensalidades."
+            "Preencha o valor ou deixe a quantidade de parcelas em branco "
+            "para matricular sem mensalidades."
         )
 
-    tipo_curso     = form_data.get("tipo_curso")     or curso.tipo or ""
-    data_matricula = form_data.get("data_matricula") or date.today().isoformat()
+    tipo_curso     = form_data.get("tipo_curso") or curso.tipo or ""
     observacao     = form_data.get("observacao") or ""
 
-    # ── Material didático ──────────────────────────────────────────────────
+    # ── BUG 5 FIX: validação de data ─────────────────────────────────────────
+    data_matricula_raw = form_data.get("data_matricula") or date.today().isoformat()
+    data_matricula = _validar_data(data_matricula_raw, "Data da matrícula")
+
+    # ── Material didático ────────────────────────────────────────────────────
     material_didatico = form_data.get("material_didatico") or ""
     valor_material    = _get_float(form_data, "valor_material")
-    parcelas_material = _get_int(form_data, "parcelas_material", fallback=1)
+    parcelas_material = _get_int(form_data, "parcelas_material", fallback=0)
+
+    # ── BUG 3 FIX: parcelas_material=0 com valor>0 agora gera erro explícito ─
+    if valor_material > 0 and parcelas_material < 1:
+        raise ValueError(
+            "Informe a quantidade de parcelas do material didático (campo está em 0 ou vazio)."
+        )
+    # fallback seguro: se material=0, parcelas não importam
     if parcelas_material < 1:
         parcelas_material = 1
 
-    # Valida material: valor>0 precisa de parcelas>=1 (já garantido acima pelo min=1)
-    # valor=0 → não lança nada (opcional)
-
-    # ── Datas de vencimento ─────────────────────────────────────────────────
+    # ── Datas de vencimento ──────────────────────────────────────────────────
     mes_inicio_raw = (
         form_data.get("data_primeira_mensalidade") or
         form_data.get("mes_inicio") or
@@ -163,6 +210,9 @@ def criar_matricula(form_data) -> int:
     try:
         ano = int(mes_inicio_raw[:4])
         mes = int(mes_inicio_raw[5:7])
+        # Sanidade mínima
+        if ano < 2000 or mes < 1 or mes > 12:
+            raise ValueError
     except Exception:
         ano, mes = date.today().year, date.today().month
 
@@ -170,10 +220,12 @@ def criar_matricula(form_data) -> int:
     try:
         ano_mat = int(data_material_raw[:4])
         mes_mat = int(data_material_raw[5:7])
+        if ano_mat < 2000 or mes_mat < 1 or mes_mat > 12:
+            raise ValueError
     except Exception:
         ano_mat, mes_mat = ano, mes
 
-    # ── Cria o registro de matrícula ──────────────────────────────────────────
+    # ── Cria o registro de matrícula ─────────────────────────────────────────
     if not apenas_mensalidade:
         matricula = Matricula(
             aluno_id            = aluno_id,
@@ -200,7 +252,7 @@ def criar_matricula(form_data) -> int:
                 "Crie a matrícula primeiro na aba Matrículas."
             )
 
-    # ── Parcela de matrícula (nunca em modo avulso) ──────────────────────────
+    # ── Parcela de matrícula (nunca em modo avulso) ───────────────────────────
     if not apenas_mensalidade and valor_matricula > 0:
         db.session.add(Mensalidade(
             aluno_id    = aluno_id,
@@ -229,7 +281,7 @@ def criar_matricula(form_data) -> int:
                 parcela_ref = f"{i:02d}/{parcelas:02d}",
             ))
 
-    # ── Parcelas de material (só se valor > 0) ────────────────────────────
+    # ── Parcelas de material (só se valor > 0) ────────────────────────────────
     if valor_material > 0:
         for i in range(1, parcelas_material + 1):
             venc_mes = mes_mat + i - 1
