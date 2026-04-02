@@ -4,6 +4,8 @@
 
 <script>
 const CURSO_TIPO = {{ curso_tipo | tojson }};
+
+// Preenche o campo tipo_curso com base no curso selecionado
 function preencherTipo(sel) {
     const tipo = CURSO_TIPO[parseInt(sel.value)] || "";
     const st   = document.getElementById("tipo_curso");
@@ -13,6 +15,62 @@ function preencherTipo(sel) {
     }
     st.value = "";
 }
+
+// Carrega via AJAX os cursos com matrícula ATIVA do aluno selecionado
+function carregarCursosAluno(aluno_id) {
+    const sel = document.getElementById("sel-curso");
+    const aviso = document.getElementById("aviso-sem-matricula");
+    sel.innerHTML = '<option value="">Carregando...</option>';
+    sel.disabled = true;
+    aviso.style.display = "none";
+
+    if (!aluno_id) {
+        sel.innerHTML = '<option value="">Selecione o aluno primeiro</option>';
+        sel.disabled = true;
+        return;
+    }
+
+    fetch(`/api/cursos_ativos_aluno?aluno_id=${aluno_id}`)
+        .then(r => r.json())
+        .then(cursos => {
+            sel.innerHTML = '';
+            if (!cursos.length) {
+                sel.innerHTML = '<option value="">Nenhuma matrícula ativa encontrada</option>';
+                sel.disabled = true;
+                aviso.style.display = "block";
+            } else {
+                sel.innerHTML = '<option value="">Selecione o curso</option>';
+                cursos.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c.id;
+                    opt.textContent = c.nome;
+                    sel.appendChild(opt);
+                });
+                sel.disabled = false;
+                // Auto-seleciona se só tiver um curso
+                if (cursos.length === 1) {
+                    sel.value = cursos[0].id;
+                    preencherTipo(sel);
+                }
+            }
+        })
+        .catch(() => {
+            sel.innerHTML = '<option value="">Erro ao carregar cursos</option>';
+            sel.disabled = true;
+        });
+}
+
+// Executado ao carregar a página — pré-seleciona aluno se vier da URL
+document.addEventListener("DOMContentLoaded", function() {
+    {% if aluno_id_qs %}
+    // aluno já veio pré-selecionado via query string (?aluno_id=)
+    // O select de aluno já está com o valor correto; dispara o carregamento de cursos
+    carregarCursosAluno({{ aluno_id_qs }});
+    {% else %}
+    // Sem aluno pré-selecionado: deixa select de cursos desabilitado
+    document.getElementById("sel-curso").disabled = true;
+    {% endif %}
+});
 </script>
 
 <div class="card" style="max-width:700px">
@@ -27,31 +85,31 @@ function preencherTipo(sel) {
 
         <div class="campo">
             <label>Aluno *</label>
-            <select name="aluno_id" required>
+            <select name="aluno_id" required
+                    onchange="carregarCursosAluno(this.value)">
                 <option value="">Selecione o aluno</option>
                 {% for a in alunos %}
-                <option value="{{ a.id }}" {% if aluno_id_qs and a.id == aluno_id_qs %}selected{% endif %}>{{ a.nome }}</option>
+                <option value="{{ a.id }}"
+                    {% if aluno_id_qs and a.id == aluno_id_qs %}selected{% endif %}>
+                    {{ a.nome }}
+                </option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="campo">
             <label>Curso *</label>
-            <select name="curso_id" required onchange="preencherTipo(this)">
-                <option value="">Selecione o curso</option>
-                {% if cursos_do_aluno %}
-                    {# Mostra apenas cursos com matrícula ativa do aluno #}
-                    {% for c in cursos_do_aluno %}
-                    <option value="{{ c.id }}">{{ c.nome }}</option>
-                    {% endfor %}
-                {% else %}
-                    {# Sem aluno pré-selecionado: mostra todos os cursos #}
-                    {% for c in cursos %}
-                    <option value="{{ c.id }}">{{ c.nome }}</option>
-                    {% endfor %}
-                {% endif %}
+            <select name="curso_id" id="sel-curso" required
+                    onchange="preencherTipo(this)" disabled>
+                <option value="">Selecione o aluno primeiro</option>
             </select>
-            <small style="color:#888">O aluno deve j&aacute; ter matr&iacute;cula ativa neste curso.</small>
+            {# Aviso exibido via JS quando aluno não tem matrícula ativa #}
+            <small id="aviso-sem-matricula"
+                   style="display:none; color:#c0392b; font-weight:600">
+                &#9888; Este aluno não possui matrícula ativa.
+                <a href="/movimentacao">Cadastre uma matrícula primeiro.</a>
+            </small>
+            <small style="color:#888">Somente cursos com matrícula ativa são exibidos.</small>
         </div>
 
         <h3 class="secao">&#128197; Mensalidade</h3>
