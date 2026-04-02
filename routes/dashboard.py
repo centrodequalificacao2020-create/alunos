@@ -322,3 +322,80 @@ def relatorio_trimestre(ano, tri):
             totais["matriculas"]      += r.matriculas       or 0
             totais["matriculas_venda"]+= r.matriculas_venda or 0
     return jsonify(totais)
+
+
+@dashboard_bp.route("/rematriculas")
+@login_required
+def rematriculas_detalhe():
+    """
+    Lista os alunos que fizeram rematrícula no mês informado via ?mes=YYYY-MM.
+    Um aluno é considerado rematrícula quando já tinha ao menos 1 matrícula
+    ANTES do início do mês filtrado e criou uma nova dentro do período.
+    """
+    hoje      = datetime.today()
+    mes_atual = hoje.strftime("%Y-%m")
+    mes       = request.args.get("mes") or mes_atual
+    inicio    = f"{mes}-01"
+    fim       = _fim_mes(mes)
+
+    # IDs de alunos que tinham matrícula ANTES do período
+    ids_ja_eram = {
+        r[0] for r in db.session.query(Matricula.aluno_id)
+        .filter(
+            Matricula.data_matricula < inicio,
+            Matricula.data_matricula >= "2026-01-01"
+        )
+        .distinct()
+        .all()
+    }
+
+    # Matrículas feitas no período cujo aluno já era aluno antes
+    matriculas_periodo = (
+        db.session.query(Matricula, Aluno, Curso)
+        .join(Aluno, Aluno.id == Matricula.aluno_id)
+        .outerjoin(Curso, Curso.id == Matricula.curso_id)
+        .filter(
+            Matricula.data_matricula.between(inicio, fim),
+            Matricula.data_matricula >= "2026-01-01",
+            Matricula.aluno_id.in_(ids_ja_eram)
+        )
+        .order_by(Matricula.data_matricula.desc())
+        .all()
+    )
+
+    # Matrícula anterior de cada aluno (curso anterior)
+    resultado = []
+    for mat, aluno, curso in matriculas_periodo:
+        mat_anterior = (
+            Matricula.query
+            .filter(
+                Matricula.aluno_id == aluno.id,
+                Matricula.data_matricula < inicio,
+                Matricula.data_matricula >= "2026-01-01"
+            )
+            .order_by(Matricula.data_matricula.desc())
+            .first()
+        )
+        curso_anterior = None
+        if mat_anterior and mat_anterior.curso_id:
+            curso_anterior = Curso.query.get(mat_anterior.curso_id)
+
+        resultado.append({
+            "aluno_id":       aluno.id,
+            "aluno_nome":     aluno.nome,
+            "curso_novo":     curso.nome if curso else "—",
+            "curso_anterior": curso_anterior.nome if curso_anterior else "—",
+            "data":           mat.data_matricula,
+        })
+
+    meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
+                "Jul","Ago","Set","Out","Nov","Dez"]
+    ano_n, mes_n = int(mes[:4]), int(mes[5:7])
+    mes_label = f"{meses_pt[mes_n - 1]}/{str(ano_n)[2:]}"
+
+    return render_template(
+        "rematriculas.html",
+        mes=mes,
+        mes_label=mes_label,
+        resultado=resultado,
+    )
