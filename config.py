@@ -35,11 +35,11 @@ class Config:
         "connect_args": {"check_same_thread": False, "timeout": 30},
     }
     UPLOAD_FOLDER                  = os.path.join(BASEDIR, "static", "uploads")
-    MAX_CONTENT_LENGTH             = 10 * 1024 * 1024
+    MAX_CONTENT_LENGTH             = 50 * 1024 * 1024  # 50 MB
     EXTENSOES_PERMITIDAS           = {"pdf", "png", "jpg", "jpeg", "docx", "mp4"}
     DEBUG                          = os.getenv("FLASK_DEBUG", "False") == "True"
 
-    # ── S1: Cookie de sessão seguro ───────────────────────────────
+    # ── S1: Cookie de sessão seguro ────────────────────────────────────
     SESSION_COOKIE_HTTPONLY        = True   # JS não acessa o cookie
     SESSION_COOKIE_SAMESITE        = "Lax"  # proteção básica contra CSRF
     SESSION_COOKIE_SECURE          = os.getenv("FLASK_DEBUG", "False") != "True"
