@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, flash, session
+from flask import Blueprint, render_template, request, redirect, flash, session, jsonify
 from db import db
 from models import Aluno, Mensalidade, Matricula, Curso
 from security import login_required, verificar_senha
@@ -206,3 +206,37 @@ def lancar_mensalidade():
                            curso_tipo=curso_tipo,
                            aluno_id_qs=aluno_id_qs,
                            cursos_do_aluno=cursos_do_aluno)
+
+
+@financeiro_bp.route("/api/cursos_ativos_aluno")
+@login_required
+def api_cursos_ativos_aluno():
+    """
+    Endpoint AJAX — retorna JSON com os cursos em que o aluno
+    possui matrícula ATIVA. Usado pelo select dinâmico de
+    /lancar_mensalidade quando o usuário troca o aluno no formulário.
+
+    GET /api/cursos_ativos_aluno?aluno_id=<int>
+    Resposta: [{"id": 1, "nome": "Curso X"}, ...]
+    Se o aluno não tiver nenhuma matrícula ativa, retorna lista vazia [].
+    """
+    aluno_id = request.args.get("aluno_id", type=int)
+    if not aluno_id:
+        return jsonify([])
+
+    mats = (Matricula.query
+            .filter_by(aluno_id=aluno_id)
+            .filter(db.func.upper(Matricula.status) == "ATIVA")
+            .order_by(Matricula.id.desc())
+            .all())
+
+    ids_vistos = set()
+    resultado  = []
+    for mat in mats:
+        if mat.curso_id not in ids_vistos:
+            ids_vistos.add(mat.curso_id)
+            curso = Curso.query.get(mat.curso_id)
+            if curso:
+                resultado.append({"id": curso.id, "nome": curso.nome})
+
+    return jsonify(resultado)
