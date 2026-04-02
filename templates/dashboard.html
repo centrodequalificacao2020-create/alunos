@@ -100,8 +100,8 @@
     font-size: 11px;
     font-weight: 600;
     color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: .04em;
+    /* text-transform: uppercase; — REMOVIDO: padronizado com os demais cards */
+    letter-spacing: .02em;
     margin: 0;
     line-height: 1.3;
 }
@@ -156,7 +156,7 @@
     <!-- Card duplo: Matrículas Novas | Rematrículas — cada lado é um link -->
     <div class="card dashboard-card card--purple card-duplo">
         <a href="/matriculas?mes={{ mes }}" class="lado" title="Ver matrículas novas">
-            <h4>Matr&#237;culas Novas</h4>
+            <h4>Matr&#237;culas novas</h4>
             <p class="num" style="color:#7c3aed">{{ matriculas_novas }}</p>
         </a>
         <a href="/rematriculas?mes={{ mes }}" class="lado" title="Ver rematrículas">
@@ -170,7 +170,7 @@
         <p class="valor-orange">{{ vencendo }}</p>
     </div>
     <div class="card dashboard-card card--dark">
-        <h4>Matr&#237;culas Futuras</h4>
+        <h4>Matr&#237;culas futuras</h4>
         <p>{{ matriculas_futuras|moeda }}</p>
     </div>
 </div>
