@@ -69,10 +69,12 @@
 
 /* card dividido em dois lados */
 .card-duplo {
-    display: flex;
+    display: flex !important;
+    flex-direction: row !important;  /* sobrescreve dashboard-card column */
     gap: 0;
     padding: 0;
     overflow: hidden;
+    align-items: stretch;
 }
 .card-duplo .lado {
     flex: 1;
