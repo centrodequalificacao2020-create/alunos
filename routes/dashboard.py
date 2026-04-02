@@ -52,14 +52,7 @@ def _despesas_do_mes(mes: str) -> float:
 def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
     """
     Retorna (novas, rematriculas) para o período [inicio, fim].
-
-    - Aluno novo: primeira matrícula dele no sistema ocorre neste período.
-      (MIN(data_matricula) do aluno está entre inicio e fim)
-
-    - Rematricula: aluno que já tinha pelo menos 1 matrícula ANTES de inicio
-      E criou uma nova matrícula dentro do período.
     """
-    # todas as matrículas do período (ignora registros anteriores a 2026-01-01)
     matriculas_periodo = (
         db.session.query(Matricula.aluno_id)
         .filter(
@@ -69,7 +62,6 @@ def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
         .subquery()
     )
 
-    # alunos que têm matrícula ANTES do período (= já eram alunos)
     ja_era_aluno = (
         db.session.query(Matricula.aluno_id)
         .filter(
@@ -80,17 +72,15 @@ def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
         .subquery()
     )
 
-    # alunos que matricularam no período
     ids_periodo = [
         r[0] for r in db.session.query(matriculas_periodo.c.aluno_id).distinct().all()
     ]
 
-    # ids que já eram alunos antes
     ids_ja_eram = {
         r[0] for r in db.session.query(ja_era_aluno.c.aluno_id).all()
     }
 
-    novas       = sum(1 for aid in ids_periodo if aid not in ids_ja_eram)
+    novas        = sum(1 for aid in ids_periodo if aid not in ids_ja_eram)
     rematriculas = sum(1 for aid in ids_periodo if aid in ids_ja_eram)
 
     return novas, rematriculas
@@ -129,17 +119,14 @@ def dashboard():
 
     alunos_ativos = Aluno.query.filter_by(status="Ativo").count()
 
-    # ─ matrículas novas x rematrículas ─
     matriculas_novas, rematriculas = _matriculas_novas_e_rematriculas(inicio, fim)
-    matriculas_mes = matriculas_novas + rematriculas   # compat com resto do código
+    matriculas_mes = matriculas_novas + rematriculas
 
     vencendo = Mensalidade.query.filter(
         Mensalidade.status == "Pendente",
         Mensalidade.vencimento.between(inicio, fim)
     ).count()
 
-    # Matrículas futuras: mensalidades do tipo "matricula" pendentes
-    # com vencimento a partir do início do mês filtrado
     matriculas_futuras = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pendente",
         func.lower(Mensalidade.tipo) == "matricula",
@@ -327,13 +314,13 @@ def relatorio_trimestre(ano, tri):
     return jsonify(totais)
 
 
-@dashboard_bp.route("/rematriculas")
+@dashboard_bp.route("/matriculas")
 @login_required
-def rematriculas_detalhe():
+def matriculas_novas_detalhe():
     """
-    Lista os alunos que fizeram rematrícula no mês informado via ?mes=YYYY-MM.
-    Um aluno é considerado rematrícula quando já tinha ao menos 1 matrícula
-    ANTES do início do mês filtrado e criou uma nova dentro do período.
+    Lista os alunos que fizeram a PRIMEIRA matrícula no mês informado via ?mes=YYYY-MM.
+    Um aluno é considerado matrícula nova quando NÃO tinha nenhuma matrícula
+    anterior ao início do período filtrado.
     """
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
@@ -341,7 +328,7 @@ def rematriculas_detalhe():
     inicio    = f"{mes}-01"
     fim       = _fim_mes(mes)
 
-    # IDs de alunos que tinham matrícula ANTES do período
+    # IDs de alunos que já tinham matrícula ANTES do período
     ids_ja_eram = {
         r[0] for r in db.session.query(Matricula.aluno_id)
         .filter(
@@ -352,7 +339,66 @@ def rematriculas_detalhe():
         .all()
     }
 
-    # Matrículas feitas no período cujo aluno já era aluno antes
+    # Matrículas feitas no período cujo aluno NÃO tinha matrícula anterior
+    matriculas_periodo = (
+        db.session.query(Matricula, Aluno, Curso)
+        .join(Aluno, Aluno.id == Matricula.aluno_id)
+        .outerjoin(Curso, Curso.id == Matricula.curso_id)
+        .filter(
+            Matricula.data_matricula.between(inicio, fim),
+            Matricula.data_matricula >= "2026-01-01",
+            Matricula.aluno_id.notin_(ids_ja_eram)
+        )
+        .order_by(Matricula.data_matricula.desc())
+        .all()
+    )
+
+    resultado = [
+        {
+            "aluno_id":   aluno.id,
+            "aluno_nome": aluno.nome,
+            "curso":      curso.nome if curso else "—",
+            "data":       mat.data_matricula,
+            "status":     mat.status or "—",
+        }
+        for mat, aluno, curso in matriculas_periodo
+    ]
+
+    meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
+                "Jul","Ago","Set","Out","Nov","Dez"]
+    ano_n, mes_n = int(mes[:4]), int(mes[5:7])
+    mes_label = f"{meses_pt[mes_n - 1]}/{str(ano_n)[2:]}"
+
+    return render_template(
+        "matriculas.html",
+        mes=mes,
+        mes_label=mes_label,
+        resultado=resultado,
+    )
+
+
+@dashboard_bp.route("/rematriculas")
+@login_required
+def rematriculas_detalhe():
+    """
+    Lista os alunos que fizeram rematrícula no mês informado via ?mes=YYYY-MM.
+    """
+    hoje      = datetime.today()
+    mes_atual = hoje.strftime("%Y-%m")
+    mes       = request.args.get("mes") or mes_atual
+    inicio    = f"{mes}-01"
+    fim       = _fim_mes(mes)
+
+    ids_ja_eram = {
+        r[0] for r in db.session.query(Matricula.aluno_id)
+        .filter(
+            Matricula.data_matricula < inicio,
+            Matricula.data_matricula >= "2026-01-01"
+        )
+        .distinct()
+        .all()
+    }
+
     matriculas_periodo = (
         db.session.query(Matricula, Aluno, Curso)
         .join(Aluno, Aluno.id == Matricula.aluno_id)
@@ -366,7 +412,6 @@ def rematriculas_detalhe():
         .all()
     )
 
-    # Matrícula anterior de cada aluno (curso anterior)
     resultado = []
     for mat, aluno, curso in matriculas_periodo:
         mat_anterior = (
