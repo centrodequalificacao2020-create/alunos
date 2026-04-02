@@ -24,25 +24,14 @@ def _buscar_relatorio_mes(mes: str) -> dict:
 
 
 def _despesas_do_mes(mes: str) -> float:
-    """
-    Retorna o total de despesas (fixas + variáveis) que incidem sobre `mes` (YYYY-MM).
-
-    Lógica:
-      - Variáveis:  lançamentos cuja coluna `data` está dentro do mês.
-      - Fixas/recorrentes: registros cujo período [data_inicio, data_fim]
-        engloba o mês filtrado. Cada registro vale `valor` por mês.
-    """
     inicio = f"{mes}-01"
     fim    = _fim_mes(mes)
 
-    # 1. Despesas variáveis (avulsas) lançadas neste mês
     variaveis = db.session.query(func.sum(Despesa.valor)).filter(
         Despesa.tipo != "fixa",
         Despesa.data.between(inicio, fim)
     ).scalar() or 0
 
-    # 2. Despesas fixas cujo período cobre este mês
-    #    data_inicio <= mes  E  data_fim >= mes  (comparação de strings YYYY-MM é lexicográfica correta)
     fixas_ativas = Despesa.query.filter(
         Despesa.tipo == "fixa",
         Despesa.data_inicio <= mes,
@@ -50,7 +39,6 @@ def _despesas_do_mes(mes: str) -> float:
     ).all()
     fixas = sum(float(d.valor or 0) for d in fixas_ativas)
 
-    # 3. Retrocompat: registros antigos com recorrente=1 mas sem data_inicio/data_fim
     legadas = Despesa.query.filter(
         Despesa.tipo == "fixa",
         Despesa.recorrente == 1,
@@ -59,6 +47,53 @@ def _despesas_do_mes(mes: str) -> float:
     fixas += sum(float(d.valor or 0) for d in legadas)
 
     return float(variaveis) + fixas
+
+
+def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
+    """
+    Retorna (novas, rematriculas) para o período [inicio, fim].
+
+    - Aluno novo: primeira matrícula dele no sistema ocorre neste período.
+      (MIN(data_matricula) do aluno está entre inicio e fim)
+
+    - Rematricula: aluno que já tinha pelo menos 1 matrícula ANTES de inicio
+      E criou uma nova matrícula dentro do período.
+    """
+    # todas as matrículas do período (ignora registros anteriores a 2026-01-01)
+    matriculas_periodo = (
+        db.session.query(Matricula.aluno_id)
+        .filter(
+            Matricula.data_matricula.between(inicio, fim),
+            Matricula.data_matricula >= "2026-01-01"
+        )
+        .subquery()
+    )
+
+    # alunos que têm matrícula ANTES do período (= já eram alunos)
+    ja_era_aluno = (
+        db.session.query(Matricula.aluno_id)
+        .filter(
+            Matricula.data_matricula < inicio,
+            Matricula.data_matricula >= "2026-01-01"
+        )
+        .distinct()
+        .subquery()
+    )
+
+    # alunos que matricularam no período
+    ids_periodo = [
+        r[0] for r in db.session.query(matriculas_periodo.c.aluno_id).distinct().all()
+    ]
+
+    # ids que já eram alunos antes
+    ids_ja_eram = {
+        r[0] for r in db.session.query(ja_era_aluno.c.aluno_id).all()
+    }
+
+    novas       = sum(1 for aid in ids_periodo if aid not in ids_ja_eram)
+    rematriculas = sum(1 for aid in ids_periodo if aid in ids_ja_eram)
+
+    return novas, rematriculas
 
 
 @dashboard_bp.route("/dashboard")
@@ -94,10 +129,9 @@ def dashboard():
 
     alunos_ativos = Aluno.query.filter_by(status="Ativo").count()
 
-    matriculas_mes = Matricula.query.filter(
-        Matricula.data_matricula.between(inicio, fim),
-        Matricula.data_matricula >= "2026-01-01"
-    ).count()
+    # ─ matrículas novas x rematrículas ─
+    matriculas_novas, rematriculas = _matriculas_novas_e_rematriculas(inicio, fim)
+    matriculas_mes = matriculas_novas + rematriculas   # compat com resto do código
 
     vencendo = Mensalidade.query.filter(
         Mensalidade.status == "Pendente",
@@ -215,6 +249,8 @@ def dashboard():
         lucro_liquido=lucro_liquido,
         margem_lucro=margem_lucro,
         matriculas_mes=matriculas_mes,
+        matriculas_novas=matriculas_novas,
+        rematriculas=rematriculas,
         vencendo=vencendo,
         matriculas_futuras=matriculas_futuras,
         receita_projetada=receita_projetada,
