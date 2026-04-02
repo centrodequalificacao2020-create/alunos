@@ -70,7 +70,7 @@
 /* card dividido em dois lados */
 .card-duplo {
     display: flex !important;
-    flex-direction: row !important;  /* sobrescreve dashboard-card column */
+    flex-direction: row !important;
     gap: 0;
     padding: 0;
     overflow: hidden;
@@ -102,11 +102,6 @@
     font-size: 28px;
     font-weight: 700;
     line-height: 1.1;
-    margin: 0;
-}
-.card-duplo .sub {
-    font-size: 11px;
-    color: #9ca3af;
     margin: 0;
 }
 </style>
@@ -154,14 +149,12 @@
     <!-- Card duplo: Matrículas Novas | Rematrículas -->
     <div class="card dashboard-card card--purple card-duplo">
         <div class="lado">
-            <h4>Alunos Novos</h4>
+            <h4>Matrículas Novas</h4>
             <p class="num" style="color:#7c3aed">{{ matriculas_novas }}</p>
-            <p class="sub">1ª matrícula</p>
         </div>
         <div class="lado">
             <h4>Rematrículas</h4>
             <p class="num" style="color:#7c3aed">{{ rematriculas }}</p>
-            <p class="sub">novo curso</p>
         </div>
     </div>
 
