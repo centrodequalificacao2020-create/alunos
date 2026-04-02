@@ -19,6 +19,9 @@
     </div>
 
     {% if resultado %}
+    <p style="margin-bottom:10px;font-size:13px;font-weight:600;color:var(--text-muted,#888)">
+      Total de {{ resultado|length }} matr&#237;cula{{ 's' if resultado|length != 1 else '' }} nova{{ 's' if resultado|length != 1 else '' }}
+    </p>
     <div class="card" style="padding:0;overflow:hidden">
       <table class="tabela-padrao" style="font-size:14px">
         <thead>
@@ -56,9 +59,6 @@
         </tbody>
       </table>
     </div>
-    <p style="margin-top:10px;font-size:13px;color:var(--text-muted,#888);text-align:center">
-      {{ resultado|length }} matr&#237;cula{{ 's' if resultado|length != 1 else '' }} nova{{ 's' if resultado|length != 1 else '' }} encontrada{{ 's' if resultado|length != 1 else '' }}.
-    </p>
 
     {% else %}
     <div style="text-align:center;padding:60px 20px;color:var(--text-muted,#888)">
