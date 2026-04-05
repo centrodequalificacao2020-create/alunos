@@ -1,4 +1,4 @@
-# RELATÓRIO FINAL CONSOLIDADO v2.3 — Sistema CQP "alunos"
+# RELATÓRIO FINAL CONSOLIDADO v2.4 — Sistema CQP "alunos"
 **Auditoria Técnica · Revisão Abril 2026**
 
 > Contexto real incorporado: PythonAnywhere + SQLite + SQLAlchemy (sem Docker em produção)
@@ -21,6 +21,7 @@
 | v2.1 | 05/04/2026 | **Fase 1 concluída** — BUG-01 a BUG-06 marcados como corrigidos |
 | v2.2 | 05/04/2026 | **BUG-07 e BUG-08 corrigidos** — timer server-side + embaralhamento seguro |
 | v2.3 | 05/04/2026 | **Fase 2 concluída** — BUG-09 a BUG-15 marcados como corrigidos |
+| v2.4 | 05/04/2026 | **BUG-19 e BUG-20 corrigidos** — moeda pt-BR no template + cascade delete matrícula |
 
 ---
 
@@ -30,7 +31,7 @@
 |---|---|---|
 | **Fase 1 — Segurança Imediata** | BUG-01 a BUG-06 | ✅ **CONCLUÍDA** (05/04/2026) |
 | **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | ✅ **CONCLUÍDA** (05/04/2026) |
-| **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | 🔲 Pendente |
+| **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | 🔄 **PARCIAL** — BUG-19 ✅ BUG-20 ✅ · BUG-16/17/18 pendentes |
 | **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | 🔲 Pendente |
 | **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente |
 
@@ -356,11 +357,13 @@ except Exception as e:
 
 ---
 
-## FASE 3 — PERFORMANCE E DADOS CORRETOS
+## FASE 3 — PERFORMANCE E DADOS CORRETOS 🔄 PARCIAL
 
-> Sem mudança de schema (exceto BUG-20). Baixo risco. Total estimado: ~1,5 horas.
+> BUG-19 e BUG-20 corrigidos em 05/04/2026. BUG-16, BUG-17 e BUG-18 pendentes.
+> Sem mudança de schema (exceto BUG-20). Baixo risco. Total estimado restante: ~40 min.
 
 ### BUG-16 · N+1 queries: atividades sem eager loading
+🔲 **PENDENTE**
 
 - **Arquivo:** `routes/portal_aluno.py`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
@@ -376,6 +379,7 @@ atividades = Atividade.query \
 ---
 
 ### BUG-17 · _buscar_aluno_por_login() faz full table scan
+🔲 **PENDENTE**
 
 - **Arquivo:** `routes/portal_aluno.py` → `_buscar_aluno_por_login()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
@@ -397,6 +401,7 @@ alunos_candidatos = Aluno.query.filter(
 ---
 
 ### BUG-18 · Política de acesso indefinida quando MateriaLiberada está vazia
+🔲 **PENDENTE**
 
 - **Arquivo:** `routes/portal_aluno.py` → `_curso_tem_acesso()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
@@ -418,39 +423,20 @@ def _curso_tem_acesso(aluno_id, curso_id):
 ---
 
 ### BUG-19 · Formato monetário inconsistente no portal do aluno
+✅ **CORRIGIDO em 05/04/2026** — `templates/aluno/financeiro.html`
+> Todas as ocorrências de `'%.2f'|format(valor)` substituídas pelo filtro `{{ valor|moeda }}` já registrado em `app.py`. Resultado: `R$ 150,00` em vez de `R$ 150.0`.
 
-- **Arquivo:** `app.py` + `templates/aluno/financeiro.html` (e outros)
+- **Arquivo:** `templates/aluno/financeiro.html`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 20 min
-- **Sintoma:** `"R$ 150.0"` vs `"R$ 150,00"`
-
-**Correção** (em `app.py`, após `create_app`):
-```python
-@app.template_filter('moeda')
-def moeda_filter(value):
-    try:
-        v = float(value)
-        return f"R$ {v:,.2f}".replace(',','X').replace('.',',').replace('X','.')
-    except (TypeError, ValueError):
-        return "R$ 0,00"
-```
-Substituir nos templates: `{{ m.valor }}` → `{{ m.valor|moeda }}`
 
 ---
 
 ### BUG-20 · Cascade delete ausente: filhos órfãos ao cancelar matrícula
+✅ **CORRIGIDO em 05/04/2026** — `routes/aluno.py`
+> `excluir_matricula()` agora executa 4 DELETEs em sequência antes do commit: `Mensalidade`, `MateriaLiberada`, `acesso_conteudo_curso` e por último a `Matricula` em si. Sem alteração de schema.
 
-- **Arquivo:** `models.py` → `class Matricula`
-- **Esforço:** P | **Risco:** MÉDIO | **Schema:** **SIM** | **Tempo:** 30 min
-
-**Correção:**
-```python
-class Matricula(db.Model):
-    mensalidades = db.relationship(
-        "Mensalidade", backref="matricula", lazy=True,
-        cascade="all, delete-orphan"
-    )
-```
-Após editar `models.py`: `flask db migrate -m "cascade-matricula" && flask db upgrade`
+- **Arquivo:** `routes/aluno.py` → `excluir_matricula()`
+- **Esforço:** P | **Risco:** MÉDIO | **Schema:** Não (solução via DELETE explícito) | **Tempo:** 30 min
 
 ---
 
@@ -459,6 +445,7 @@ Após editar `models.py`: `flask db migrate -m "cascade-matricula" && flask db u
 > Bugs que tornam features inutilizáveis. Sem mudança de schema. Total estimado: ~2 horas.
 
 ### BUG-21 · Filtro de busca de alunos ignora CPF
+🔲 **PENDENTE**
 
 - **Arquivo:** `routes/aluno.py` → listagem/busca
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
@@ -476,6 +463,7 @@ Aluno.query.filter(
 ---
 
 ### BUG-22 · Relatório mensal não exclui cancelamentos
+🔲 **PENDENTE**
 
 - **Arquivo:** `routes/dashboard.py` ou `routes/relatorio.py`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 20 min
@@ -485,6 +473,7 @@ Aluno.query.filter(
 ---
 
 ### BUG-23 · Export CSV sem encoding correto (acentos quebrados)
+🔲 **PENDENTE**
 
 - **Arquivo:** `routes/aluno.py` ou equivalente → exportar CSV
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
@@ -505,6 +494,7 @@ response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
 > Refatorações sem impacto funcional imediato. Total estimado: ~3 horas.
 
 ### BUG-24 · models.py monolítico (28 KB)
+🔲 **PENDENTE**
 
 - **Arquivo:** `models.py`
 - **Esforço:** G | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 90 min
@@ -513,6 +503,7 @@ response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
 ---
 
 ### BUG-25 · Sem paginação em listagens longas
+🔲 **PENDENTE**
 
 - **Arquivo:** `routes/aluno.py`, `routes/financeiro.py`
 - **Esforço:** M | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 45 min
@@ -521,6 +512,7 @@ response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
 ---
 
 ### BUG-26 · SECRET_KEY sem fallback seguro em desenvolvimento
+🔲 **PENDENTE**
 
 - **Arquivo:** `config.py`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
@@ -536,6 +528,7 @@ if not os.environ.get("SECRET_KEY"):
 ---
 
 ### BUG-27 · Arquivos Docker/Nginx obsoletos no repositório
+🔲 **PENDENTE**
 
 - **Arquivo:** `Dockerfile`, `docker-compose.yml`, `nginx.conf` (raiz do repo)
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
