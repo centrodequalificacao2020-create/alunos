@@ -1,5 +1,6 @@
 import os
 import secrets
+import warnings
 from datetime import timedelta
 from dotenv import load_dotenv
 
@@ -12,15 +13,25 @@ DB_PATH = os.path.join(BASEDIR, "cqp.db")
 
 def _secret_key() -> str:
     key = os.getenv("FLASK_SECRET_KEY")
-    if not key:
-        if os.getenv("FLASK_DEBUG", "False") == "True":
-            key = secrets.token_hex(32)
-        else:
-            raise RuntimeError(
-                "FLASK_SECRET_KEY não definida.\n"
-                "Execute: python -c \"import secrets; print(secrets.token_hex(32))\""
-                " e adicione ao .env"
-            )
+    if key:
+        return key
+
+    # Em produção: falhar ruidosamente — chave temporária invalida todas as sessões a cada restart
+    if os.getenv("FLASK_ENV") == "production":
+        raise RuntimeError(
+            "FLASK_SECRET_KEY não definida em produção.\n"
+            "Execute: python -c \"import secrets; print(secrets.token_hex(32))\""
+            " e adicione ao .env"
+        )
+
+    # Em desenvolvimento/staging: gerar chave temporária com aviso claro
+    key = secrets.token_hex(32)
+    warnings.warn(
+        "FLASK_SECRET_KEY não definida — usando chave temporária gerada em memória. "
+        "Sessões serão invalidadas a cada restart. "
+        "Adicione FLASK_SECRET_KEY ao .env para desenvolvimento consistente.",
+        stacklevel=2,
+    )
     return key
 
 
@@ -42,7 +53,7 @@ class Config:
     # ── S1: Cookie de sessão seguro ────────────────────────────────────
     SESSION_COOKIE_HTTPONLY        = True   # JS não acessa o cookie
     SESSION_COOKIE_SAMESITE        = "Lax"  # proteção básica contra CSRF
-    SESSION_COOKIE_SECURE          = os.getenv("FLASK_DEBUG", "False") != "True"
+    SESSION_COOKIE_SECURE          = os.getenv("FLASK_ENV") == "production"
 
     # ── S5: Expiração automática da sessão em 1 hora ──────────────
     PERMANENT_SESSION_LIFETIME     = timedelta(hours=1)
