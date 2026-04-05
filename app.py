@@ -76,27 +76,23 @@ def create_app(config_class=Config):
             v = float(valor or 0)
         except (TypeError, ValueError):
             v = 0.0
-        # Formata com separador de milhar e 2 casas decimais no padrão pt-BR
-        # Estratégia: formata em en-US primeiro (1,234.56) e depois converte
-        formatado = f"{v:,.2f}"          # "1,234.56"
-        formatado = formatado.replace(",", "X")  # "1X234.56"
-        formatado = formatado.replace(".", ",")  # "1X234,56"
-        formatado = formatado.replace("X", ".")  # "1.234,56"
+        formatado = f"{v:,.2f}"
+        formatado = formatado.replace(",", "X")
+        formatado = formatado.replace(".", ",")
+        formatado = formatado.replace("X", ".")
         return f"R$ {formatado}"
 
-    # ── Erro 413: arquivo maior que MAX_CONTENT_LENGTH ──────────────────────
+    # ── Erro 413: arquivo maior que MAX_CONTENT_LENGTH ───────────────────────
     @app.errorhandler(413)
     def arquivo_muito_grande(e):
         limite_mb = app.config.get("MAX_CONTENT_LENGTH", 0) // (1024 * 1024)
         mensagem  = f"Arquivo muito grande. O limite máximo permitido é {limite_mb} MB."
-        # Responde JSON para requisições AJAX / fetch
         if request.accept_mimetypes.best == "application/json" or request.is_json:
             return jsonify(erro=mensagem), 413
-        # Resposta HTML simples para envios de formulário normais
         html = f"""
         <!doctype html><html lang="pt-BR"><head>
         <meta charset="utf-8">
-        <meta http-equiv="refresh" content="4;url={request.referrer or '/'}"´>
+        <meta http-equiv="refresh" content="4;url={request.referrer or '/'}">
         <title>Arquivo muito grande</title>
         <style>
           body{{font-family:sans-serif;display:flex;align-items:center;

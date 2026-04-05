@@ -127,7 +127,7 @@ def remover_aluno_turma(turma_id, aluno_id):
     return redirect(f"/turmas/{turma_id}/editar")
 
 
-# ──────────────────────────── MATÉRIAS ────────────────────────────
+# ────────────────────────── MATÉRIAS ──────────────────────────
 
 @academico_bp.route("/materias", methods=["GET", "POST"])
 @login_required
@@ -175,7 +175,7 @@ def materias():
                            materias_por_curso=materias_por_curso)
 
 
-# ──────────────────────────── NOTAS ────────────────────────────
+# ─────────────────────────── NOTAS ───────────────────────────
 
 @academico_bp.route("/notas", methods=["GET", "POST"])
 @login_required
@@ -236,7 +236,7 @@ def notas_visualizar(aluno_id):
                            boletim=boletim)
 
 
-# ──────────────────────────── FREQUÊNCIA ────────────────────────────
+# ───────────────────────── FREQUÊNCIA ─────────────────────────
 
 @academico_bp.route("/frequencia", methods=["GET", "POST"])
 @login_required
@@ -329,7 +329,7 @@ def frequencia_historico():
                            percentual=percentual)
 
 
-# ──────────────────────────── PDFs ────────────────────────────
+# ─────────────────────────── PDFs ───────────────────────────
 
 @academico_bp.route("/notas_pdf/<int:aluno_id>/<int:curso_id>")
 @login_required
@@ -385,28 +385,6 @@ def declaracao_conclusao_pdf(aluno_id, curso_id):
                      mimetype="application/pdf")
 
 
-# ──────────────────────────── BACKUP ────────────────────────────
-
-@academico_bp.route("/backup")
-@login_required
-def backup():
-    import sqlite3, io
-    src_path = os.path.join(current_app.root_path, "cqp.db")
-    if not os.path.exists(src_path):
-        src_path = "/home/site/wwwroot/cqp.db"
-    if not os.path.exists(src_path):
-        flash("Banco de dados não encontrado.", "erro")
-        return redirect("/")
-    buf = io.BytesIO()
-    with sqlite3.connect(src_path) as src_conn:
-        dst = sqlite3.connect(":memory:")
-        src_conn.backup(dst)
-        for chunk in dst.iterdump():
-            buf.write((chunk + "\n").encode())
-    buf.seek(0)
-    return send_file(
-        buf,
-        as_attachment=True,
-        download_name=f"backup_cqp_{date.today().isoformat()}.sql",
-        mimetype="text/plain"
-    )
+# NOTA: a rota /backup foi removida deste blueprint.
+# O backup do banco de dados é feito exclusivamente via routes/backup.py
+# com @admin_required, evitando acesso não autorizado.
