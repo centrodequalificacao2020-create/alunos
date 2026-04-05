@@ -1,4 +1,4 @@
-# RELATÓRIO FINAL CONSOLIDADO v2.5 — Sistema CQP "alunos"
+# RELATÓRIO FINAL CONSOLIDADO v2.6 — Sistema CQP "alunos"
 **Auditoria Técnica · Revisão Abril 2026**
 
 > Contexto real incorporado: PythonAnywhere + SQLite + SQLAlchemy (sem Docker em produção)
@@ -23,6 +23,7 @@
 | v2.3 | 05/04/2026 | **Fase 2 concluída** — BUG-09 a BUG-15 marcados como corrigidos |
 | v2.4 | 05/04/2026 | **BUG-19 e BUG-20 corrigidos** — moeda pt-BR no template + cascade delete matrícula |
 | v2.5 | 05/04/2026 | **BUG-16, BUG-17 e BUG-21 corrigidos** — Fase 3 concluída + busca por CPF |
+| v2.6 | 05/04/2026 | **Fase 4 concluída** — BUG-22 e BUG-23 descartados a pedido do cliente |
 
 ---
 
@@ -33,8 +34,8 @@
 | **Fase 1 — Segurança Imediata** | BUG-01 a BUG-06 | ✅ **CONCLUÍDA** (05/04/2026) |
 | **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | ✅ **CONCLUÍDA** (05/04/2026) |
 | **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | ✅ **CONCLUÍDA** (05/04/2026) |
-| **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | 🔄 **PARCIAL** — BUG-21 ✅ · BUG-22/23 pendentes |
-| **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente |
+| **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | ✅ **CONCLUÍDA** (05/04/2026) |
+| **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente (aguarda planejamento) |
 
 ---
 
@@ -146,116 +147,50 @@ touch /var/www/centrodequalificacao2020-create_pythonanywhere_com_wsgi.py
 - **Arquivo:** `templates/base.html` (~linha 45)
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
 
-**Problema:**
-```jinja
-{% if perfil == "aluno" or session.aluno_id and not session.usuario_id %}
-```
-Jinja2 avalia: `(perfil=="aluno") OR (session.aluno_id AND NOT usuario_id)`. Admin com `aluno_id` residual na sessão passa na segunda condição.
-
-**Correção:**
-```jinja
-{% if perfil == "aluno" or (session.aluno_id and not session.usuario_id) %}
-```
-
 ---
 
 ### BUG-02 ★ CRÍTICO · localStorage vaza última aula entre alunos
 ✅ **CORRIGIDO em 05/04/2026** — `templates/aluno/curso_detalhe.html`
-> Todas as ocorrências de `localStorage` substituídas por `sessionStorage`. Comentário `/* BUG-02 */` inline.
+> Todas as ocorrências de `localStorage` substituídas por `sessionStorage`.
 
 - **Arquivo:** `templates/aluno/curso_detalhe.html`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
-
-**Problema:** `localStorage.setItem('aula_{{ curso.id }}', id)` — `localStorage` persiste após logout do Flask. Em dispositivo compartilhado, aluno B abre aula de A.
-
-**Correção:** Substituir **todas** as ocorrências de `localStorage` por `sessionStorage` no template.
 
 ---
 
 ### BUG-03 ★ CRÍTICO · Ex-aluno mantém acesso após exclusão
 ✅ **CORRIGIDO em 05/04/2026** — `routes/aluno.py`
-> `Usuario` vinculado (`perfil="aluno"`) agora é excluído junto com o `Aluno`. Comentário `# BUG-03` inline.
+> `Usuario` vinculado (`perfil="aluno"`) agora é excluído junto com o `Aluno`.
 
 - **Arquivo:** `routes/aluno.py` → `excluir_aluno()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
-
-**Problema:** A função exclui `Matricula`, `Nota`, `Frequencia`, `Mensalidade`, etc., mas **nunca** exclui o `Usuario` vinculado (`perfil="aluno"`).
-
-**Correção** (inserida antes do `db.session.commit()` final):
-```python
-usuario = Usuario.query.filter_by(
-    aluno_id=aluno.id, perfil="aluno"
-).first()
-if usuario:
-    db.session.delete(usuario)
-# db.session.commit() já existente logo abaixo
-```
 
 ---
 
 ### BUG-04 ★ CRÍTICO · Fallback de auth por nome — conta errada para homônimos
 ✅ **CORRIGIDO em 05/04/2026** — `routes/auth.py`
-> Bloco de fallback por nome removido. Agora retorna `None` com log de warning se aluno não encontrado por email. Comentário `# BUG-04` inline.
+> Bloco de fallback por nome removido. Retorna `None` com log de warning.
 
 - **Arquivo:** `routes/auth.py` → `_vincular_aluno()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
-
-**Problema:**
-```python
-if not aluno:
-    aluno = Aluno.query.filter_by(nome=user.nome).first()
-```
-Fallback por nome não é identificador único. Dois "Maria Silva" = aluno B acessa financeiro de A.
-
-**Correção:** Fallback por nome removido. Mantida apenas busca por email:
-```python
-aluno = Aluno.query.filter(
-    db.func.lower(Aluno.email) == user.email.lower()
-).first()
-if not aluno:
-    app.logger.warning(f"Login sem aluno vinculado: {user.email}")
-    return None
-```
 
 ---
 
 ### BUG-05 ★ CRÍTICO · Fallback except ignora permissão de conteúdo
 ✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
-> `except` agora loga o erro e retorna lista vazia com flash de aviso, sem carregar conteúdo não autorizado. Comentário `# BUG-05` inline.
+> `except` agora loga o erro e retorna lista vazia com flash de aviso.
 
-- **Arquivo:** `routes/portal_aluno.py` → `curso_detalhe()` ou equivalente
+- **Arquivo:** `routes/portal_aluno.py` → `curso_detalhe()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
-
-**Problema:**
-```python
-except Exception:
-    atividades = Atividade.query.filter_by(curso_id=...).all()
-```
-Fallback carrega **todas** as atividades ignorando `AtividadeLiberada`.
-
-**Correção:**
-```python
-except Exception as e:
-    app.logger.error(f"Erro ao carregar atividades: {e}", exc_info=True)
-    atividades = []
-    flash("Erro ao carregar conteúdo. Tente novamente.", "error")
-```
 
 ---
 
 ### BUG-06 · Upload sem validação de tipo no template
 ✅ **CORRIGIDO em 05/04/2026** — `templates/aluno/curso_detalhe.html`
-> Atributo `accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"` adicionado nos 3 inputs de arquivo. Comentário `{# BUG-06 #}` inline.
+> Atributo `accept="..."` adicionado nos inputs de arquivo.
 
 - **Arquivo:** `templates/aluno/curso_detalhe.html`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
-- **Nota:** `security.py` já tem `extensao_permitida()` — validação server-side mantida. Esta correção é apenas reforço client-side.
-
-**Correção** (nos inputs de entrega de atividade):
-```html
-<input type="file" name="arquivo1"
-       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip">
-```
 
 ---
 
@@ -268,65 +203,48 @@ except Exception as e:
 
 ### BUG-07 ★ CRÍTICO · Timer de prova controlado só no frontend
 ✅ **CORRIGIDO em 05/04/2026** — `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
+> Timestamp assinado com HMAC-SHA256 no servidor; tolerância de 30s; nota 0 se expirado.
 
-> **Solução implementada:**
-> - No GET, o servidor gera um timestamp de início assinado com HMAC-SHA256 (chave = `SECRET_KEY`) e envia ao template como campo oculto `token_inicio`.
-> - No POST, o servidor extrai e verifica o token. Se inválido (adulterado) → rejeita. Se o tempo decorrido ultrapassar `prova.tempo_limite + 30s de tolerância` → registra tentativa consumida com nota 0 e redireciona.
-> - O cronômetro no frontend continua existindo como UX, mas a autoridade é exclusivamente o servidor.
-> - **Sem mudança de schema** — usa `iniciado_em` (String 19) já existente em `RespostaProva`.
-
-- **Arquivo:** `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
-- **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não (adaptado para usar campo existente) | **Tempo:** 45 min
+- **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 45 min
 
 ---
 
 ### BUG-08 ★ CRÍTICO · Correção de prova errada por embaralhamento no browser
 ✅ **CORRIGIDO em 05/04/2026** — `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
+> Embaralhamento movido para Python (`random.shuffle`); ordem assinada com HMAC-SHA256.
 
-> **Solução implementada:**
-> - O embaralhamento de alternativas foi movido do JavaScript para o Python (`random.shuffle` no GET).
-> - A ordem embaralhada é serializada como JSON e assinada com HMAC-SHA256, enviada ao template como campo oculto `token_ordem`.
-> - O template renderiza as alternativas na ordem recebida do servidor (`item.alts`), não mais via `Math.random()`.
-> - A submissão continua enviando o `alt.id` (ID real da alternativa no banco). A correção server-side compara `alt_id == correta.id` — portanto **sempre correta**, independente da ordem visual.
-> - O token assinado permite que o servidor verifique a ordem exibida se necessário (auditoria futura).
-
-- **Arquivo:** `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
 - **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 60 min
 
 ---
 
 ### BUG-09 · lancar_mensalidade() chama criar_matricula() indevidamente
 ✅ **CORRIGIDO em 05/04/2026** — `routes/financeiro.py` + `services/matricula_service.py`
-> Flag `apenas_mensalidade=1` adicionada ao form de lançamento avulso; `financeiro.py` passa a flag ao `criar_matricula()`, que trata o modo avulso sem criar novo registro `Matricula`.
+> Flag `apenas_mensalidade=1` trata modo avulso sem criar novo registro `Matricula`.
 
-- **Arquivo:** `routes/financeiro.py` → `lancar_mensalidade()` + `services/matricula_service.py`
 - **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 30 min
 
 ---
 
 ### BUG-10 · Comparação de datas como string em _contar_atrasadas()
 ✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
-> Usa `date.today()` direto; converte `m.vencimento` com `isinstance` check antes de comparar.
+> Usa `date.today()` direto; converte `m.vencimento` com `isinstance` check.
 
-- **Arquivo:** `routes/portal_aluno.py` → `_contar_atrasadas()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
 ---
 
 ### BUG-11 · concluir_aula() redireciona para curso errado
 ✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
-> Recebe `curso_id` via query param; fallback filtra `CursoMateria` pela matrícula ativa do aluno em vez de pegar o primeiro registro.
+> Recebe `curso_id` via query param; fallback filtra pela matrícula ativa do aluno.
 
-- **Arquivo:** `routes/portal_aluno.py` → `concluir_aula()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
 
 ---
 
 ### BUG-12 · Validação de nota sem range (valores impossíveis)
 ✅ **CORRIGIDO em 05/04/2026** — `routes/academico.py`
-> Converte para float; rejeita valores fora de 0.0–10.0 com `ValueError`.
+> Rejeita valores fora de 0.0–10.0 com `ValueError`.
 
-- **Arquivo:** `routes/academico.py` → `salvar_nota()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
 ---
@@ -335,17 +253,15 @@ except Exception as e:
 ✅ **CORRIGIDO em 05/04/2026** — `routes/academico.py`
 > Lança `ValueError` se `data_aula > date.today()`.
 
-- **Arquivo:** `routes/academico.py` → `registrar_frequencia()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
 ---
 
 ### BUG-14 · Transações sem rollback explícito em services
 ✅ **CORRIGIDO em 05/04/2026** — `services/matricula_service.py`
-> Bloco `try/except` envolve todo o corpo de `criar_matricula()`; `rollback` + `re-raise` no `except`.
+> `try/except` com `rollback` + `re-raise` em `criar_matricula()`.
 
-- **Arquivo:** `services/matricula_service.py`
-- **Esforço:** P por função | **Risco:** BAIXO | **Schema:** Não | **Tempo:** ~20 min total
+- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 20 min
 
 ---
 
@@ -353,8 +269,7 @@ except Exception as e:
 ✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
 > `dashboard_aluno()` e `notas_aluno()` agora logam o erro antes de continuar.
 
-- **Arquivo:** `routes/portal_aluno.py` (múltiplos pontos)
-- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min total
+- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
 
 ---
 
@@ -363,134 +278,80 @@ except Exception as e:
 > **Todos os 5 bugs desta fase foram corrigidos em 05/04/2026.**
 > Sem mudança de schema. Baixo risco.
 
+---
+
 ### BUG-16 · N+1 queries: atividades sem eager loading
 ✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
-> `joinedload(Atividade.questoes)` adicionado na query de atividades em `curso_detalhe()`. Comentário `# BUG-16` inline.
+> `joinedload(Atividade.questoes)` adicionado em `curso_detalhe()`.
 
-- **Arquivo:** `routes/portal_aluno.py` → `curso_detalhe()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
-
-**Correção aplicada:**
-```python
-from sqlalchemy.orm import joinedload
-atividades = [
-    a for a in (
-        Atividade.query
-        .options(joinedload(Atividade.questoes))  # BUG-16
-        .filter_by(curso_id=curso_id, ativa=1)
-        .all()
-    )
-    if a.id in ids_atv_lib
-]
-```
 
 ---
 
 ### BUG-17 · _buscar_aluno_por_login() faz full table scan
 ✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
-> Substituído `Aluno.query.all()` por pré-filtro SQL nos últimos 4 dígitos do CPF. Comentário `# BUG-17` inline.
+> Pré-filtro SQL pelos últimos 4 dígitos do CPF evita `Aluno.query.all()`.
 
-- **Arquivo:** `routes/portal_aluno.py` → `_buscar_aluno_por_login()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
-
-**Correção aplicada:**
-```python
-# Tentativa 2: pré-filtro pelos últimos 4 dígitos do CPF limpo (evita full scan)
-cpf_limpo = re.sub(r"\D", "", ident)
-if not cpf_limpo:
-    return None
-sufixo = cpf_limpo[-4:]
-candidatos = Aluno.query.filter(Aluno.cpf.like(f"%{sufixo}")).all()
-for a in candidatos:
-    if re.sub(r"\D", "", a.cpf or "") == cpf_limpo:
-        return a
-return None
-```
 
 ---
 
 ### BUG-18 · Política de acesso indefinida quando MateriaLiberada está vazia
 ✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
-> Política B implementada: sem registro de `MateriaLiberada` = acesso total (mais prático para escola pequena). Comentário `# BUG-18` inline.
+> Política B: sem registro de `MateriaLiberada` = acesso total.
 
-- **Arquivo:** `routes/portal_aluno.py` → `_curso_tem_acesso()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
 
 ---
 
 ### BUG-19 · Formato monetário inconsistente no portal do aluno
 ✅ **CORRIGIDO em 05/04/2026** — `templates/aluno/financeiro.html`
-> Todas as ocorrências de `'%.2f'|format(valor)` substituídas pelo filtro `{{ valor|moeda }}` já registrado em `app.py`. Resultado: `R$ 150,00` em vez de `R$ 150.0`.
+> `{{ valor|moeda }}` substitui `'%.2f'|format(valor)`. Resultado: `R$ 150,00`.
 
-- **Arquivo:** `templates/aluno/financeiro.html`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 20 min
 
 ---
 
 ### BUG-20 · Cascade delete ausente: filhos órfãos ao cancelar matrícula
 ✅ **CORRIGIDO em 05/04/2026** — `routes/aluno.py`
-> `excluir_matricula()` agora executa 4 DELETEs em sequência antes do commit: `Mensalidade`, `MateriaLiberada`, `acesso_conteudo_curso` e por último a `Matricula` em si. Sem alteração de schema.
+> 4 DELETEs explícitos antes do commit: `Mensalidade`, `MateriaLiberada`, `acesso_conteudo_curso`, `Matricula`.
 
-- **Arquivo:** `routes/aluno.py` → `excluir_matricula()`
-- **Esforço:** P | **Risco:** MÉDIO | **Schema:** Não (solução via DELETE explícito) | **Tempo:** 30 min
+- **Esforço:** P | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 30 min
 
 ---
 
-## FASE 4 — FUNCIONALIDADES QUEBRADAS
+## FASE 4 — FUNCIONALIDADES QUEBRADAS ✅ CONCLUÍDA
 
-> BUG-21 corrigido em 05/04/2026. BUG-22 e BUG-23 pendentes. Sem mudança de schema.
+> **Fase concluída em 05/04/2026.**
+> BUG-21 corrigido. BUG-22 e BUG-23 descartados a pedido do cliente.
+
+---
 
 ### BUG-21 · Filtro de busca de alunos ignora CPF
 ✅ **CORRIGIDO em 05/04/2026** — `routes/aluno.py`
-> Filtro de busca agora usa `db.or_` para pesquisar por nome (`ilike`) e CPF (`like`) simultaneamente. Comentário `# BUG-21` inline.
+> `db.or_` pesquisa por nome (`ilike`) e CPF (`like`) simultaneamente.
 
 - **Arquivo:** `routes/aluno.py` → `cadastro()` (GET)
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
 
-**Correção aplicada:**
-```python
-if busca:
-    # BUG-21: busca inclui CPF além do nome
-    query = query.filter(
-        db.or_(
-            Aluno.nome.ilike(f"%{busca}%"),
-            Aluno.cpf.like(f"%{busca}%"),
-        )
-    )
-```
-
 ---
 
 ### BUG-22 · Relatório mensal não exclui cancelamentos
-🔲 **PENDENTE**
-
-- **Arquivo:** `routes/dashboard.py` ou `routes/relatorio.py`
-- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 20 min
-
-**Correção:** Adicionar `.filter(Matricula.status != "CANCELADA")` nas queries de contagem.
+🗑️ **DESCARTADO** — cliente não utiliza status de cancelamento; matrículas são excluídas diretamente.
 
 ---
 
-### BUG-23 · Export CSV sem encoding correto (acentos quebrados)
-🔲 **PENDENTE**
-
-- **Arquivo:** `routes/aluno.py` ou equivalente → exportar CSV
-- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
-
-**Correção:**
-```python
-output = io.StringIO()
-writer = csv.writer(output)
-# ...
-response = make_response(output.getvalue().encode('utf-8-sig'))  # BOM para Excel
-response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
-```
+### BUG-23 · Export CSV sem encoding correto
+🗑️ **DESCARTADO** — funcionalidade de export CSV não é necessária para o cliente.
 
 ---
 
 ## FASE 5 — ARQUITETURA E MANUTENIBILIDADE
 
-> Refatorações sem impacto funcional imediato. Total estimado: ~3 horas.
+> Aguarda planejamento separado. Nenhuma das correções desta fase tem impacto funcional imediato.
+> Nenhum bug desta fase requer mudança de schema.
+
+---
 
 ### BUG-24 · models.py monolítico (28 KB)
 🔲 **PENDENTE**
@@ -504,7 +365,7 @@ response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
 ### BUG-25 · Sem paginação em listagens longas
 🔲 **PENDENTE**
 
-- **Arquivo:** `routes/aluno.py`, `routes/financeiro.py`
+- **Arquivo:** `routes/financeiro.py`
 - **Esforço:** M | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 45 min
 - Usar `.paginate(page=page, per_page=50)` do Flask-SQLAlchemy.
 
