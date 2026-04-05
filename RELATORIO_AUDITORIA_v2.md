@@ -1,4 +1,4 @@
-# RELATÓRIO FINAL CONSOLIDADO v2.6 — Sistema CQP "alunos"
+# RELATÓRIO FINAL CONSOLIDADO v2.7 — Sistema CQP "alunos"
 **Auditoria Técnica · Revisão Abril 2026**
 
 > Contexto real incorporado: PythonAnywhere + SQLite + SQLAlchemy (sem Docker em produção)
@@ -24,6 +24,7 @@
 | v2.4 | 05/04/2026 | **BUG-19 e BUG-20 corrigidos** — moeda pt-BR no template + cascade delete matrícula |
 | v2.5 | 05/04/2026 | **BUG-16, BUG-17 e BUG-21 corrigidos** — Fase 3 concluída + busca por CPF |
 | v2.6 | 05/04/2026 | **Fase 4 concluída** — BUG-22 e BUG-23 descartados a pedido do cliente |
+| v2.7 | 05/04/2026 | **BUG-26 e BUG-27 corrigidos** — SECRET_KEY com fallback seguro + arquivos Docker removidos |
 
 ---
 
@@ -35,7 +36,7 @@
 | **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | ✅ **CONCLUÍDA** (05/04/2026) |
 | **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | ✅ **CONCLUÍDA** (05/04/2026) |
 | **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | ✅ **CONCLUÍDA** (05/04/2026) |
-| **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente (aguarda planejamento) |
+| **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🟡 **EM ANDAMENTO** (BUG-26 e BUG-27 concluídos) |
 
 ---
 
@@ -53,9 +54,6 @@
 | Auth | Werkzeug hash + decorators em `security.py` |
 | Deploy | `git pull` + `touch <wsgi_file>.py` |
 
-> ⚠ Arquivos Docker/Nginx no repositório são **artefatos do plano Azure** (nunca usados em produção — podem ser ignorados ou removidos)
-> ⚠ `INSTALL.md` descreve self-host com Docker — não é o ambiente atual
-
 Console PythonAnywhere: https://www.pythonanywhere.com/user/centrodequalificacao2020-create/consoles/
 
 ---
@@ -67,7 +65,7 @@ Console PythonAnywhere: https://www.pythonanywhere.com/user/centrodequalificacao
 | `app.py` | `create_app()` factory; registra 10 blueprints |
 | `db.py` | SQLAlchemy init; WAL mode; `engine.connect()` |
 | `security.py` | `hash_senha`, `verificar_senha`, `@login_required`, `@admin_required`, `@aluno_login_required`, `extensao_permitida` |
-| `config.py` | `SECRET_KEY` e `UPLOAD_FOLDER` via `.env`; `MAX_CONTENT_LENGTH = 10 MB` |
+| `config.py` | `SECRET_KEY` via `.env`; fallback seguro com `warnings.warn` em dev; erro explícito só em `FLASK_ENV=production` |
 | `models.py` | 15 modelos ORM (28 KB — maior arquivo Python) |
 | `routes/` | 10 blueprints (ver tabela abaixo) |
 | `services/` | `matricula_service.py`, `pdf_service.py` |
@@ -346,10 +344,10 @@ touch /var/www/centrodequalificacao2020-create_pythonanywhere_com_wsgi.py
 
 ---
 
-## FASE 5 — ARQUITETURA E MANUTENIBILIDADE
+## FASE 5 — ARQUITETURA E MANUTENIBILIDADE 🟡 EM ANDAMENTO
 
-> Aguarda planejamento separado. Nenhuma das correções desta fase tem impacto funcional imediato.
-> Nenhum bug desta fase requer mudança de schema.
+> BUG-26 e BUG-27 concluídos em 05/04/2026.
+> BUG-24 e BUG-25 pendentes — requerem sessão dedicada.
 
 ---
 
@@ -359,6 +357,7 @@ touch /var/www/centrodequalificacao2020-create_pythonanywhere_com_wsgi.py
 - **Arquivo:** `models.py`
 - **Esforço:** G | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 90 min
 - Separar em `models/` com `__init__.py` re-exportando tudo.
+- **Atenção:** mapear todos os imports dos 10 blueprints antes de refatorar.
 
 ---
 
@@ -366,30 +365,27 @@ touch /var/www/centrodequalificacao2020-create_pythonanywhere_com_wsgi.py
 🔲 **PENDENTE**
 
 - **Arquivo:** `routes/financeiro.py`
-- **Esforço:** M | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 45 min
+- **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 45 min
 - Usar `.paginate(page=page, per_page=50)` do Flask-SQLAlchemy.
+- **Atenção:** atualizar o template de financeiro junto, ou a página quebra.
 
 ---
 
 ### BUG-26 · SECRET_KEY sem fallback seguro em desenvolvimento
-🔲 **PENDENTE**
+✅ **CORRIGIDO em 05/04/2026** — `config.py`
 
-- **Arquivo:** `config.py`
+> - Em `FLASK_ENV=production`: levanta `RuntimeError` explícito (comportamento anterior mantido).
+> - Em desenvolvimento/staging (sem a variável): gera `secrets.token_hex(32)` automático + emite `warnings.warn` visível no terminal.
+> - `SESSION_COOKIE_SECURE` agora usa `FLASK_ENV == "production"` como critério (mais robusto que `FLASK_DEBUG != True`).
+
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
-
-**Correção:**
-```python
-SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
-if not os.environ.get("SECRET_KEY"):
-    import warnings
-    warnings.warn("SECRET_KEY não definida — usando chave temporária (sessões resetam a cada deploy)")
-```
 
 ---
 
 ### BUG-27 · Arquivos Docker/Nginx obsoletos no repositório
-🔲 **PENDENTE**
+✅ **CORRIGIDO em 05/04/2026** — raiz do repositório
 
-- **Arquivo:** `Dockerfile`, `docker-compose.yml`, `nginx.conf` (raiz do repo)
+> `Dockerfile`, `docker-compose.yml`, `nginx.conf` e `.dockerignore` removidos.
+> Eram artefatos do plano Azure (mar/2026) — nunca usados em produção no PythonAnywhere.
+
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
-- Mover para `_legado/azure/` ou remover. Adicionar nota no `README.md`.
