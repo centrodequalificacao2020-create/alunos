@@ -38,14 +38,14 @@ def conteudos():
             os.makedirs(pasta_abs, exist_ok=True)
             caminho_abs = os.path.join(pasta_abs, nome_seg)
             arquivo.save(caminho_abs)
-            caminho_db  = os.path.join("static", "uploads", nome_seg)
+            caminho_db  = f"static/uploads/{nome_seg}"  # sempre forward slash
 
         c = Conteudo(
             titulo     = titulo,
             materia_id = materia_id,
             modulo     = modulo or None,
-            arquivo    = caminho_db,   # ← campo separado para arquivo físico
-            video      = video,        # ← campo separado para link de vídeo
+            arquivo    = caminho_db,
+            video      = video,
         )
         db.session.add(c)
         db.session.commit()
@@ -90,7 +90,6 @@ def editar_conteudo(id):
         if not extensao_permitida(arquivo.filename):
             flash("Tipo de arquivo não permitido.", "erro")
             return redirect("/conteudos")
-        # Remove arquivo antigo se existir
         if c.arquivo and not c.arquivo.startswith("http"):
             antigo = os.path.join(current_app.root_path, c.arquivo)
             if os.path.isfile(antigo):
@@ -100,7 +99,7 @@ def editar_conteudo(id):
         os.makedirs(pasta_abs, exist_ok=True)
         caminho_abs = os.path.join(pasta_abs, nome_seg)
         arquivo.save(caminho_abs)
-        c.arquivo   = os.path.join("static", "uploads", nome_seg)
+        c.arquivo   = f"static/uploads/{nome_seg}"  # sempre forward slash
 
     db.session.commit()
     flash("Conteúdo atualizado.", "sucesso")

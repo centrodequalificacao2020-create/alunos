@@ -30,7 +30,7 @@ def despesas():
 
         if tipo == "fixa":
             d.data_inicio  = f.get("data_inicio") or _mes_str(date.today())
-            d.data_fim     = f.get("data_fim")    or d.data_inicio
+            d.data_fim     = f.get("data_fim") or None  # None = vitalícia
             d.recorrente   = 1
         else:
             d.data = f.get("data") or hoje
@@ -43,13 +43,11 @@ def despesas():
     # ── GET ────────────────────────────────────────────────────────────
     page   = request.args.get("page", 1, type=int)
     busca  = request.args.get("q", "").strip()
-    mes    = request.args.get("mes", "").strip()   # formato YYYY-MM
+    mes    = request.args.get("mes", "").strip()
 
-    # Despesas fixas: sempre exibe todas (geralmente < 20 registros)
     fixas     = Despesa.query.filter_by(tipo="fixa").order_by(Despesa.data_inicio).all()
     total_fix = sum(d.valor for d in fixas)
 
-    # Despesas variáveis: paginadas com filtros opcionais
     q_var = Despesa.query.filter(Despesa.tipo != "fixa")
 
     if busca:
@@ -60,7 +58,7 @@ def despesas():
     q_var      = q_var.order_by(Despesa.data.desc())
     paginacao  = q_var.paginate(page=page, per_page=20, error_out=False)
     variaveis  = paginacao.items
-    total_var  = sum(d.valor for d in q_var.all())   # total real (todos os filtrados)
+    total_var  = sum(d.valor for d in q_var.all())
 
     return render_template(
         "despesas.html",
@@ -71,7 +69,6 @@ def despesas():
         total_var=total_var,
         busca=busca,
         mes=mes,
-        # compat legado
         despesas=fixas + variaveis,
         total=total_fix + total_var,
     )
@@ -90,10 +87,11 @@ def editar_despesa(id):
         d.observacao = f.get("observacao", "")
         if tipo == "fixa":
             d.data_inicio = f.get("data_inicio") or d.data_inicio
-            d.data_fim    = f.get("data_fim")    or d.data_fim
+            # String vazia explicitamente enviada = limpar data_fim (vitalícia)
+            d.data_fim    = None if f.get("data_fim") == "" else (f.get("data_fim") or d.data_fim)
             d.recorrente  = 1
         else:
-            d.data       = f.get("data") or d.data
+            d.data        = f.get("data") or d.data
             d.data_inicio = None
             d.data_fim    = None
             d.recorrente  = 0

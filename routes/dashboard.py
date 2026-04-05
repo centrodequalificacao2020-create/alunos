@@ -32,10 +32,11 @@ def _despesas_do_mes(mes: str) -> float:
         Despesa.data.between(inicio, fim)
     ).scalar() or 0
 
+    # Inclui fixas com data_fim definida E fixas vitalícias (data_fim NULL ou '')
     fixas_ativas = Despesa.query.filter(
         Despesa.tipo == "fixa",
         Despesa.data_inicio <= mes,
-        Despesa.data_fim    >= mes
+        db.or_(Despesa.data_fim >= mes, Despesa.data_fim.is_(None), Despesa.data_fim == "")
     ).all()
     fixas = sum(float(d.valor or 0) for d in fixas_ativas)
 
@@ -50,9 +51,6 @@ def _despesas_do_mes(mes: str) -> float:
 
 
 def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
-    """
-    Retorna (novas, rematriculas) para o período [inicio, fim].
-    """
     matriculas_periodo = (
         db.session.query(Matricula.aluno_id)
         .filter(
@@ -317,18 +315,12 @@ def relatorio_trimestre(ano, tri):
 @dashboard_bp.route("/matriculas")
 @login_required
 def matriculas_novas_detalhe():
-    """
-    Lista os alunos que fizeram a PRIMEIRA matrícula no mês informado via ?mes=YYYY-MM.
-    Um aluno é considerado matrícula nova quando NÃO tinha nenhuma matrícula
-    anterior ao início do período filtrado.
-    """
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
     mes       = request.args.get("mes") or mes_atual
     inicio    = f"{mes}-01"
     fim       = _fim_mes(mes)
 
-    # IDs de alunos que já tinham matrícula ANTES do período
     ids_ja_eram = {
         r[0] for r in db.session.query(Matricula.aluno_id)
         .filter(
@@ -339,7 +331,6 @@ def matriculas_novas_detalhe():
         .all()
     }
 
-    # Matrículas feitas no período cujo aluno NÃO tinha matrícula anterior
     matriculas_periodo = (
         db.session.query(Matricula, Aluno, Curso)
         .join(Aluno, Aluno.id == Matricula.aluno_id)
@@ -380,9 +371,6 @@ def matriculas_novas_detalhe():
 @dashboard_bp.route("/rematriculas")
 @login_required
 def rematriculas_detalhe():
-    """
-    Lista os alunos que fizeram rematrícula no mês informado via ?mes=YYYY-MM.
-    """
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
     mes       = request.args.get("mes") or mes_atual
