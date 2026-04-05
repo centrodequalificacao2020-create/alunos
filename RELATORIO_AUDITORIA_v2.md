@@ -1,4 +1,4 @@
-# RELATÓRIO FINAL CONSOLIDADO v2.2 — Sistema CQP "alunos"
+# RELATÓRIO FINAL CONSOLIDADO v2.3 — Sistema CQP "alunos"
 **Auditoria Técnica · Revisão Abril 2026**
 
 > Contexto real incorporado: PythonAnywhere + SQLite + SQLAlchemy (sem Docker em produção)
@@ -20,6 +20,7 @@
 | v2.0 | 05/04/2026 | Relatório consolidado inicial (Sessões S2–S6) |
 | v2.1 | 05/04/2026 | **Fase 1 concluída** — BUG-01 a BUG-06 marcados como corrigidos |
 | v2.2 | 05/04/2026 | **BUG-07 e BUG-08 corrigidos** — timer server-side + embaralhamento seguro |
+| v2.3 | 05/04/2026 | **Fase 2 concluída** — BUG-09 a BUG-15 marcados como corrigidos |
 
 ---
 
@@ -28,7 +29,7 @@
 | Fase | Bugs | Status |
 |---|---|---|
 | **Fase 1 — Segurança Imediata** | BUG-01 a BUG-06 | ✅ **CONCLUÍDA** (05/04/2026) |
-| **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | 🔄 Em andamento (BUG-07 ✅ BUG-08 ✅) |
+| **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | ✅ **CONCLUÍDA** (05/04/2026) |
 | **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | 🔲 Pendente |
 | **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | 🔲 Pendente |
 | **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente |
@@ -256,9 +257,12 @@ except Exception as e:
 
 ---
 
-## FASE 2 — INTEGRIDADE DE DADOS
+## FASE 2 — INTEGRIDADE DE DADOS ✅ CONCLUÍDA
 
-> Corrigir após Fase 1. Sem mudança de banco (exceto BUG-07). Testar fluxo afetado. Total estimado: ~3 horas.
+> **Todos os 9 bugs desta fase foram corrigidos em 05/04/2026.**
+> Sem mudança de banco. Total estimado: ~3 horas.
+
+---
 
 ### BUG-07 ★ CRÍTICO · Timer de prova controlado só no frontend
 ✅ **CORRIGIDO em 05/04/2026** — `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
@@ -290,129 +294,65 @@ except Exception as e:
 ---
 
 ### BUG-09 · lancar_mensalidade() chama criar_matricula() indevidamente
+✅ **CORRIGIDO em 05/04/2026** — `routes/financeiro.py` + `services/matricula_service.py`
+> Flag `apenas_mensalidade=1` adicionada ao form de lançamento avulso; `financeiro.py` passa a flag ao `criar_matricula()`, que trata o modo avulso sem criar novo registro `Matricula`.
 
 - **Arquivo:** `routes/financeiro.py` → `lancar_mensalidade()` + `services/matricula_service.py`
 - **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 30 min
 
-**Problema:** Cada lançamento avulso cria matrícula fantasma no banco.
-
-**Correção:** Criar `services/financeiro_service.py`:
-```python
-def criar_mensalidade_avulsa(aluno_id, valor, vencimento, descricao, tipo):
-    m = Mensalidade(
-        aluno_id=aluno_id, valor=valor,
-        vencimento=vencimento, descricao=descricao,
-        tipo=tipo, status="Pendente"
-    )
-    db.session.add(m)
-    db.session.commit()
-    return m
-```
-Em `financeiro.py`, substituir a chamada a `criar_matricula()` pela nova função.
-
 ---
 
 ### BUG-10 · Comparação de datas como string em _contar_atrasadas()
+✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
+> Usa `date.today()` direto; converte `m.vencimento` com `isinstance` check antes de comparar.
 
 - **Arquivo:** `routes/portal_aluno.py` → `_contar_atrasadas()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
-**Correção:**
-```python
-from datetime import date
-hoje = date.today()
-def _contar_atrasadas(mensalidades):
-    return sum(
-        1 for m in mensalidades
-        if m.status != "Pago" and m.vencimento and
-        (m.vencimento if isinstance(m.vencimento, date)
-         else date.fromisoformat(str(m.vencimento))) < hoje
-    )
-```
-
 ---
 
 ### BUG-11 · concluir_aula() redireciona para curso errado
+✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
+> Recebe `curso_id` via query param; fallback filtra `CursoMateria` pela matrícula ativa do aluno em vez de pegar o primeiro registro.
 
 - **Arquivo:** `routes/portal_aluno.py` → `concluir_aula()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
 
-**Correção:** Adicionar `curso_id` como parâmetro na URL de conclusão:
-```python
-curso_id = request.args.get('curso_id', type=int)
-if not curso_id:
-    mat = Matricula.query.filter_by(
-        aluno_id=session['aluno_id'], status='ATIVA'
-    ).first()
-    curso_id = mat.curso_id if mat else None
-return redirect(url_for('portal_aluno.conteudo', curso_id=curso_id))
-```
-
 ---
 
 ### BUG-12 · Validação de nota sem range (valores impossíveis)
+✅ **CORRIGIDO em 05/04/2026** — `routes/academico.py`
+> Converte para float; rejeita valores fora de 0.0–10.0 com `ValueError`.
 
 - **Arquivo:** `routes/academico.py` → `salvar_nota()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
-**Correção** (na rota, antes do insert):
-```python
-nota_val = float(request.form.get('nota', 0))
-if not (0.0 <= nota_val <= 10.0):
-    flash("Nota deve estar entre 0 e 10.", "error")
-    return redirect(request.referrer or url_for('academico.notas'))
-```
-
 ---
 
 ### BUG-13 · Validação de data futura em frequência ausente
+✅ **CORRIGIDO em 05/04/2026** — `routes/academico.py`
+> Lança `ValueError` se `data_aula > date.today()`.
 
 - **Arquivo:** `routes/academico.py` → `registrar_frequencia()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
-**Correção:**
-```python
-from datetime import date
-data_aula = datetime.strptime(request.form['data'], '%Y-%m-%d').date()
-if data_aula > date.today():
-    flash("Não é possível registrar frequência para data futura.", "error")
-    return redirect(request.referrer)
-```
-
 ---
 
 ### BUG-14 · Transações sem rollback explícito em services
+✅ **CORRIGIDO em 05/04/2026** — `services/matricula_service.py`
+> Bloco `try/except` envolve todo o corpo de `criar_matricula()`; `rollback` + `re-raise` no `except`.
 
-- **Arquivo:** `services/matricula_service.py` + outros services
+- **Arquivo:** `services/matricula_service.py`
 - **Esforço:** P por função | **Risco:** BAIXO | **Schema:** Não | **Tempo:** ~20 min total
-
-**Padrão a aplicar em cada função de escrita:**
-```python
-def criar_matricula(dados):
-    try:
-        # lógica existente sem alteração
-        db.session.commit()
-        return matricula
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"[criar_matricula] {e}", exc_info=True)
-        raise
-```
 
 ---
 
 ### BUG-15 · Logging ausente nos excepts críticos
+✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
+> `dashboard_aluno()` e `notas_aluno()` agora logam o erro antes de continuar.
 
-- **Arquivo:** `routes/` e `services/` (múltiplos pontos)
+- **Arquivo:** `routes/portal_aluno.py` (múltiplos pontos)
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min total
-
-**Padrão a aplicar em cada `except` que hoje tem `pass` ou só `rollback`:**
-```python
-except Exception as e:
-    db.session.rollback()
-    app.logger.error(f"[{request.endpoint}] Erro: {e}", exc_info=True)
-    flash("Ocorreu um erro. Tente novamente.", "error")
-```
 
 ---
 
