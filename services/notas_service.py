@@ -38,12 +38,32 @@ def get_boletim(aluno_id: int, curso_id: int) -> list:
 
 
 def salvar_notas(aluno_id: int, curso_id: int, form_data: dict):
-    """Persiste notas vindas do form. form_data = request.form."""
+    """Persiste notas vindas do form. form_data = request.form.
+
+    BUG-12: valida que o valor está no intervalo 0.0–10.0.
+    Lança ValueError com mensagem amigável se fora do range.
+    """
     mats = get_materias_do_curso(curso_id)
     for m in mats:
-        nota_val  = form_data.get(f"nota_{m.id}") or None
+        nota_raw  = form_data.get(f"nota_{m.id}")
         resultado = form_data.get(f"resultado_{m.id}") or None
-        nota_obj  = Nota.query.filter_by(
+        nota_val  = None
+
+        if nota_raw is not None and str(nota_raw).strip() != "":
+            try:
+                nota_val = float(nota_raw)
+            except (ValueError, TypeError):
+                raise ValueError(
+                    f"Nota inválida para a matéria '{m.nome}': '{nota_raw}'. "
+                    f"Informe um número entre 0 e 10."
+                )
+            if not (0.0 <= nota_val <= 10.0):
+                raise ValueError(
+                    f"Nota fora do intervalo para '{m.nome}': {nota_val}. "
+                    f"O valor deve estar entre 0,0 e 10,0."
+                )
+
+        nota_obj = Nota.query.filter_by(
             aluno_id=aluno_id, materia_id=m.id, curso_id=curso_id
         ).first()
         if nota_obj:

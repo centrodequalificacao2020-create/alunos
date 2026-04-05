@@ -71,11 +71,21 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
 
 
 def _contar_atrasadas(mensalidades):
-    hoje = date.today().strftime("%Y-%m-%d")
-    return sum(
-        1 for m in mensalidades
-        if m.status != "Pago" and m.vencimento and str(m.vencimento) < hoje
-    )
+    # BUG-10: comparação com objeto date nativo, não string
+    hoje = date.today()
+    count = 0
+    for m in mensalidades:
+        if m.status == "Pago" or not m.vencimento:
+            continue
+        venc = m.vencimento if isinstance(m.vencimento, date) else None
+        if venc is None:
+            try:
+                venc = date.fromisoformat(str(m.vencimento)[:10])
+            except (ValueError, TypeError):
+                continue
+        if venc < hoje:
+            count += 1
+    return count
 
 
 def _registrar_login(aluno_id):
@@ -92,7 +102,11 @@ def _registrar_login(aluno_id):
         db.session.commit()
     except OperationalError:
         db.session.rollback()
-    except Exception:
+    except Exception as e:  # BUG-15: loga erro em vez de suprimir silenciosamente
+        current_app.logger.error(
+            f"[_registrar_login] Erro ao registrar login do aluno_id={aluno_id}: {e}",
+            exc_info=True
+        )
         db.session.rollback()
 
 
@@ -138,10 +152,10 @@ def login_aluno():
         senha         = request.form.get("senha", "")
         aluno = _buscar_aluno_por_login(identificador)
         if not aluno:
-            flash("Usu\u00e1rio n\u00e3o encontrado. Verifique o CPF ou e-mail digitado.", "erro")
+            flash("Usuário não encontrado. Verifique o CPF ou e-mail digitado.", "erro")
             return redirect("/aluno/login")
         if not aluno.senha:
-            flash("Sua senha ainda n\u00e3o foi definida. Entre em contato com a secretaria.", "erro")
+            flash("Sua senha ainda não foi definida. Entre em contato com a secretaria.", "erro")
             return redirect("/aluno/login")
         if not verificar_senha(senha, aluno.senha):
             flash("Senha incorreta. Tente novamente.", "erro")
@@ -181,8 +195,11 @@ def dashboard_aluno():
             .limit(2).all()
         )
         ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
-    except Exception:
-        pass
+    except Exception as e:  # BUG-15: loga erro
+        current_app.logger.error(
+            f"[dashboard_aluno] Erro ao buscar histórico de login aluno_id={aluno.id}: {e}",
+            exc_info=True
+        )
 
     return render_template("aluno/dashboard.html", aluno=aluno,
         matricula=matricula, atrasadas=atrasadas, valor_pendente=val_pend,
@@ -220,7 +237,7 @@ def financeiro_aluno():
     ).first()
 
     if not matricula:
-        flash("Curso n\u00e3o encontrado ou sem matr\u00edcula ativa.", "erro")
+        flash("Curso não encontrado ou sem matrícula ativa.", "erro")
         return redirect("/aluno/financeiro")
 
     curso = db.session.get(Curso, curso_id_param)
@@ -287,12 +304,12 @@ def frequencia_aluno():
     ).first()
 
     if not matricula:
-        flash("Curso n\u00e3o encontrado ou sem matr\u00edcula ativa.", "erro")
+        flash("Curso não encontrado ou sem matrícula ativa.", "erro")
         return redirect("/aluno/frequencia")
 
     curso = db.session.get(Curso, curso_id_param)
     if not curso:
-        flash("Curso n\u00e3o encontrado.", "erro")
+        flash("Curso não encontrado.", "erro")
         return redirect("/aluno/frequencia")
 
     frequencias = (
@@ -361,7 +378,7 @@ def notas_aluno():
     ).first()
 
     if not matricula:
-        flash("Curso n\u00e3o encontrado ou sem matr\u00edcula ativa.", "erro")
+        flash("Curso não encontrado ou sem matrícula ativa.", "erro")
         return redirect("/aluno/notas")
 
     curso = db.session.get(Curso, curso_id_param)
@@ -399,8 +416,11 @@ def notas_aluno():
         for rp in provas_realizadas:
             if rp.prova_id not in melhor_por_prova:
                 melhor_por_prova[rp.prova_id] = rp
-    except Exception:
-        pass
+    except Exception as e:  # BUG-15: loga erro
+        current_app.logger.error(
+            f"[notas_aluno] Erro ao carregar provas do aluno_id={aluno.id}: {e}",
+            exc_info=True
+        )
 
     return render_template(
         "aluno/notas.html",
@@ -455,7 +475,7 @@ def curso_detalhe(curso_id):
         abort(403)
 
     if not _curso_tem_acesso(aluno.id, curso_id):
-        flash("O acesso ao conte\u00fado deste curso ainda n\u00e3o foi liberado. "
+        flash("O acesso ao conteúdo deste curso ainda não foi liberado. "
               "Entre em contato com a secretaria.", "aviso")
         return redirect("/aluno/cursos")
 
@@ -518,7 +538,7 @@ def curso_detalhe(curso_id):
             if exs_mat:
                 exercicios_por_mat[mat.id] = exs_mat
     except OperationalError as e:
-        flash(f"Erro ao carregar exerc\u00edcios: {e}. Execute a migra\u00e7\u00e3o pendente.", "erro")
+        flash(f"Erro ao carregar exercícios: {e}. Execute a migração pendente.", "erro")
 
     provas = []
     try:
@@ -536,8 +556,11 @@ def curso_detalhe(curso_id):
                 "tentativas_usadas": usadas,
                 "pode_fazer":        usadas < (p.tentativas or 1),
             })
-    except Exception:
-        pass
+    except Exception as e:  # BUG-15: loga erro
+        current_app.logger.error(
+            f"[curso_detalhe] Erro ao carregar provas aluno_id={aluno.id} curso_id={curso_id}: {e}",
+            exc_info=True
+        )
 
     atividades   = []
     entregas_map = {}
@@ -595,17 +618,17 @@ def realizar_exercicio(ex_id):
         aluno_id=aluno_id, exercicio_id=ex_id, liberado=1
     ).first()
     if not lib:
-        flash("Este exerc\u00edcio n\u00e3o est\u00e1 liberado para voc\u00ea.", "erro")
+        flash("Este exercício não está liberado para você.", "erro")
         return redirect("/aluno/cursos")
 
     usadas   = RespostaExercicio.query.filter_by(exercicio_id=ex_id, aluno_id=aluno_id).count()
     max_tent = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
     if usadas >= max_tent:
-        flash("Voc\u00ea j\u00e1 esgotou todas as tentativas neste exerc\u00edcio.", "erro")
+        flash("Você já esgotou todas as tentativas neste exercício.", "erro")
         return redirect("/aluno/cursos")
 
     if not ex.questoes:
-        flash("Este exerc\u00edcio ainda n\u00e3o possui quest\u00f5es. Aguarde.", "aviso")
+        flash("Este exercício ainda não possui questões. Aguarde.", "aviso")
         return redirect("/aluno/cursos")
 
     return render_template(
@@ -820,16 +843,34 @@ def abrir_arquivo_conteudo(conteudo_id):
 @portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>")
 @aluno_login_required
 def concluir_aula(conteudo_id):
+    # BUG-11: prioriza curso_id passado via query param para evitar ambiguidade
+    # quando a matéria pertence a mais de um curso.
+    curso_id = request.args.get("curso_id", type=int)
+
     conteudo = db.get_or_404(Conteudo, conteudo_id)
-    materia  = db.session.get(Materia, conteudo.materia_id)
-    curso_id = None
-    if materia:
-        cm = CursoMateria.query.filter_by(materia_id=materia.id).first()
-        if cm:
-            curso_id = cm.curso_id
-    p = ProgressoAula.query.filter_by(aluno_id=session["aluno_id"], conteudo_id=conteudo_id).first()
+
+    if not curso_id:
+        # Fallback: filtra CursoMateria pelas matrículas ativas do aluno
+        aluno_id = session["aluno_id"]
+        ids_cursos_ativos = {
+            m.curso_id for m in _matriculas_ativas(aluno_id)
+        }
+        materia = db.session.get(Materia, conteudo.materia_id)
+        if materia:
+            cm = CursoMateria.query.filter(
+                CursoMateria.materia_id == materia.id,
+                CursoMateria.curso_id.in_(ids_cursos_ativos)
+            ).first()
+            if cm:
+                curso_id = cm.curso_id
+
+    p = ProgressoAula.query.filter_by(
+        aluno_id=session["aluno_id"], conteudo_id=conteudo_id
+    ).first()
     if not p:
-        db.session.add(ProgressoAula(aluno_id=session["aluno_id"], conteudo_id=conteudo_id, concluido=1))
+        db.session.add(ProgressoAula(
+            aluno_id=session["aluno_id"], conteudo_id=conteudo_id, concluido=1
+        ))
     else:
         p.concluido = 1
     db.session.commit()
@@ -888,7 +929,7 @@ def trocar_senha():
             flash("A nova senha deve ter pelo menos 6 caracteres.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         if nova != confirma:
-            flash("As senhas n\u00e3o conferem.", "erro")
+            flash("As senhas não conferem.", "erro")
             return render_template("aluno/trocar_senha.html", aluno=aluno)
         aluno.senha = hash_senha(nova)
         db.session.commit()

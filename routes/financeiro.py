@@ -189,8 +189,14 @@ def lancar_mensalidade():
 
     if request.method == "POST":
         aluno_id = request.form.get("aluno_id", "")
+        # BUG-09: injetamos apenas_mensalidade=1 para que criar_matricula()
+        # não crie um novo registro de Matricula — apenas lança as parcelas
+        # na matrícula ativa já existente do aluno.
+        form_data = request.form.copy()
+        form_data = form_data.to_dict()
+        form_data["apenas_mensalidade"] = "1"
         try:
-            criar_matricula(request.form)
+            criar_matricula(form_data)
             flash("Parcelas lançadas com sucesso.", "sucesso")
         except ValueError as e:
             flash(str(e), "erro")
