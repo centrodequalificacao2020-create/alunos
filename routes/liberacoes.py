@@ -18,7 +18,7 @@ def _operador():
     return session.get("usuario_nome") or session.get("usuario") or session.get("nome") or "sistema"
 
 
-# ─── PAINEL ───────────────────────────────────────────────────────────────────
+# ─── PAINEL ─────────────────────────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/aluno/<int:aluno_id>")
 @login_required
@@ -104,7 +104,7 @@ def painel_liberacoes(aluno_id):
     )
 
 
-# ─── BLOQUEAR CURSO INTEIRO ───────────────────────────────────────────────────
+# ─── BLOQUEAR CURSO INTEIRO ───────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/curso/bloquear", methods=["POST"])
 @login_required
@@ -144,7 +144,7 @@ def bloquear_curso():
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}")
 
 
-# ─── TOGGLE MATÉRIA ───────────────────────────────────────────────────────────
+# ─── TOGGLE MATÉRIA ─────────────────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/materia", methods=["POST"])
 @login_required
@@ -175,7 +175,7 @@ def toggle_materia():
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}")
 
 
-# ─── TOGGLE TODAS AS MATÉRIAS DO CURSO ────────────────────────────────────────
+# ─── TOGGLE TODAS AS MATÉRIAS DO CURSO ────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/materia/todas", methods=["POST"])
 @login_required
@@ -209,7 +209,7 @@ def toggle_todas_materias():
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}")
 
 
-# ─── TOGGLE PROVA ─────────────────────────────────────────────────────────────
+# ─── TOGGLE PROVA ─────────────────────────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/prova", methods=["POST"])
 @login_required
@@ -240,7 +240,7 @@ def toggle_prova():
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}" if curso_id else f"/liberacoes/aluno/{aluno_id}")
 
 
-# ─── TOGGLE TODAS AS PROVAS DO CURSO ──────────────────────────────────────────
+# ─── TOGGLE TODAS AS PROVAS DO CURSO ────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/prova/todas", methods=["POST"])
 @login_required
@@ -270,7 +270,7 @@ def toggle_todas_provas():
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}")
 
 
-# ─── TOGGLE EXERCÍCIO ─────────────────────────────────────────────────────────
+# ─── TOGGLE EXERCÍCIO ─────────────────────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/exercicio", methods=["POST"])
 @login_required
@@ -297,13 +297,13 @@ def toggle_exercicio():
     ex = db.session.get(Exercicio, exercicio_id)
     nome = ex.titulo if ex else f"ID {exercicio_id}"
     curso_id = 0
-    if ex and ex.materia and ex.materia.curso_materias:
-        curso_id = ex.materia.curso_materias[0].curso_id
+    if ex and ex.materia:
+        curso_id = ex.materia.curso_id
     flash(f"Exercício '{nome}' {'liberado' if liberado_val else 'bloqueado'}.", "sucesso" if liberado_val else "aviso")
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}" if curso_id else f"/liberacoes/aluno/{aluno_id}")
 
 
-# ─── TOGGLE TODOS OS EXERCÍCIOS DO CURSO ──────────────────────────────────────
+# ─── TOGGLE TODOS OS EXERCÍCIOS DO CURSO ──────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/exercicio/todos", methods=["POST"])
 @login_required
@@ -334,7 +334,7 @@ def toggle_todos_exercicios():
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}")
 
 
-# ─── TOGGLE ATIVIDADE ─────────────────────────────────────────────────────────
+# ─── TOGGLE ATIVIDADE ─────────────────────────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/atividade", methods=["POST"])
 @login_required
@@ -371,7 +371,7 @@ def toggle_atividade():
     return redirect(f"/liberacoes/aluno/{aluno_id}?curso_id={curso_id}" if curso_id else f"/liberacoes/aluno/{aluno_id}")
 
 
-# ─── TOGGLE TODAS AS ATIVIDADES DO CURSO ──────────────────────────────────────
+# ─── TOGGLE TODAS AS ATIVIDADES DO CURSO ──────────────────────────────────────────────────────────
 
 @liberacoes_bp.route("/liberacoes/atividade/todas", methods=["POST"])
 @login_required
