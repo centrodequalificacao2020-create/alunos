@@ -1,4 +1,4 @@
-# RELATÓRIO FINAL CONSOLIDADO v2 — Sistema CQP "alunos"
+# RELATÓRIO FINAL CONSOLIDADO v2.1 — Sistema CQP "alunos"
 **Auditoria Técnica · Revisão Abril 2026**
 
 > Contexto real incorporado: PythonAnywhere + SQLite + SQLAlchemy (sem Docker em produção)
@@ -10,6 +10,27 @@
 ║  antes de pedir qualquer correção. Ele substitui o PROJECT_BRIEF.md ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
+
+---
+
+## HISTÓRICO DE VERSÕES
+
+| Versão | Data | Alteração |
+|---|---|---|
+| v2.0 | 05/04/2026 | Relatório consolidado inicial (Sessões S2–S6) |
+| v2.1 | 05/04/2026 | **Fase 1 concluída** — BUG-01 a BUG-06 marcados como corrigidos |
+
+---
+
+## STATUS DAS FASES
+
+| Fase | Bugs | Status |
+|---|---|---|
+| **Fase 1 — Segurança Imediata** | BUG-01 a BUG-06 | ✅ **CONCLUÍDA** (05/04/2026) |
+| **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | 🔲 Pendente |
+| **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | 🔲 Pendente |
+| **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | 🔲 Pendente |
+| **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente |
 
 ---
 
@@ -107,11 +128,16 @@ touch /var/www/centrodequalificacao2020-create_pythonanywhere_com_wsgi.py
 
 ---
 
-## FASE 1 — SEGURANÇA IMEDIATA
+## FASE 1 — SEGURANÇA IMEDIATA ✅ CONCLUÍDA
 
-> Corrigir primeiro. Zero risco de efeito colateral. Sem mudança de banco. Total estimado: ~45 min.
+> **Todos os 6 bugs desta fase foram corrigidos em 05/04/2026.**
+> Sem mudança de banco. Total estimado: ~45 min.
+
+---
 
 ### BUG-01 ★ CRÍTICO · Precedência de operador — admin vê menu de aluno
+✅ **CORRIGIDO em 05/04/2026** — `templates/base.html`
+> Parênteses adicionados: `{% if perfil == "aluno" or (session.aluno_id and not session.usuario_id) %}`
 
 - **Arquivo:** `templates/base.html` (~linha 45)
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
@@ -130,24 +156,28 @@ Jinja2 avalia: `(perfil=="aluno") OR (session.aluno_id AND NOT usuario_id)`. Adm
 ---
 
 ### BUG-02 ★ CRÍTICO · localStorage vaza última aula entre alunos
+✅ **CORRIGIDO em 05/04/2026** — `templates/aluno/curso_detalhe.html`
+> Todas as ocorrências de `localStorage` substituídas por `sessionStorage`. Comentário `/* BUG-02 */` inline.
 
-- **Arquivo:** `templates/aluno/curso_detalhe.html` (ou `conteudo.html`)
+- **Arquivo:** `templates/aluno/curso_detalhe.html`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
 
 **Problema:** `localStorage.setItem('aula_{{ curso.id }}', id)` — `localStorage` persiste após logout do Flask. Em dispositivo compartilhado, aluno B abre aula de A.
 
-**Correção:** Substituir **todas** as ocorrências de `localStorage` por `sessionStorage` no template. `sessionStorage` é limpo ao fechar o navegador/aba.
+**Correção:** Substituir **todas** as ocorrências de `localStorage` por `sessionStorage` no template.
 
 ---
 
 ### BUG-03 ★ CRÍTICO · Ex-aluno mantém acesso após exclusão
+✅ **CORRIGIDO em 05/04/2026** — `routes/aluno.py`
+> `Usuario` vinculado (`perfil="aluno"`) agora é excluído junto com o `Aluno`. Comentário `# BUG-03` inline.
 
 - **Arquivo:** `routes/aluno.py` → `excluir_aluno()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
 **Problema:** A função exclui `Matricula`, `Nota`, `Frequencia`, `Mensalidade`, etc., mas **nunca** exclui o `Usuario` vinculado (`perfil="aluno"`).
 
-**Correção** (inserir antes do `db.session.commit()` final):
+**Correção** (inserida antes do `db.session.commit()` final):
 ```python
 usuario = Usuario.query.filter_by(
     aluno_id=aluno.id, perfil="aluno"
@@ -160,6 +190,8 @@ if usuario:
 ---
 
 ### BUG-04 ★ CRÍTICO · Fallback de auth por nome — conta errada para homônimos
+✅ **CORRIGIDO em 05/04/2026** — `routes/auth.py`
+> Bloco de fallback por nome removido. Agora retorna `None` com log de warning se aluno não encontrado por email. Comentário `# BUG-04` inline.
 
 - **Arquivo:** `routes/auth.py` → `_vincular_aluno()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
@@ -171,7 +203,7 @@ if not aluno:
 ```
 Fallback por nome não é identificador único. Dois "Maria Silva" = aluno B acessa financeiro de A.
 
-**Correção:** Remover o bloco de fallback por nome completamente. Manter apenas busca por email:
+**Correção:** Fallback por nome removido. Mantida apenas busca por email:
 ```python
 aluno = Aluno.query.filter(
     db.func.lower(Aluno.email) == user.email.lower()
@@ -184,6 +216,8 @@ if not aluno:
 ---
 
 ### BUG-05 ★ CRÍTICO · Fallback except ignora permissão de conteúdo
+✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
+> `except` agora loga o erro e retorna lista vazia com flash de aviso, sem carregar conteúdo não autorizado. Comentário `# BUG-05` inline.
 
 - **Arquivo:** `routes/portal_aluno.py` → `curso_detalhe()` ou equivalente
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
@@ -206,10 +240,12 @@ except Exception as e:
 ---
 
 ### BUG-06 · Upload sem validação de tipo no template
+✅ **CORRIGIDO em 05/04/2026** — `templates/aluno/curso_detalhe.html`
+> Atributo `accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"` adicionado nos 3 inputs de arquivo. Comentário `{# BUG-06 #}` inline.
 
-- **Arquivo:** `templates/aluno/curso_detalhe.html` (ou `conteudo.html`)
+- **Arquivo:** `templates/aluno/curso_detalhe.html`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
-- **Nota:** `security.py` já tem `extensao_permitida()` — confirmar se validação server-side já existe antes de duplicar.
+- **Nota:** `security.py` já tem `extensao_permitida()` — validação server-side mantida. Esta correção é apenas reforço client-side.
 
 **Correção** (nos inputs de entrega de atividade):
 ```html
@@ -625,37 +661,37 @@ def preparar_provas_aluno(aluno_id, curso_id):
 
 ## TABELA RESUMO — ORDEM DE EXECUÇÃO
 
-| Fase | Bug | Descrição resumida | Impacto | Esforço | Risco | Schema | Tempo |
-|---|---|---|---|---|---|---|---|
-| F1 | B-01 | Precedência operador menu base.html | CRÍTICO | P | BAIXO | Não | 5 min |
-| F1 | B-02 | localStorage → sessionStorage | CRÍTICO | P | BAIXO | Não | 5 min |
-| F1 | B-03 | Excluir Usuario ao excluir Aluno | CRÍTICO | P | BAIXO | Não | 10 min |
-| F1 | B-04 | Remover fallback login por nome | CRÍTICO | P | BAIXO | Não | 10 min |
-| F1 | B-05 | Remover except que ignora permissão | CRÍTICO | P | BAIXO | Não | 10 min |
-| F1 | B-06 | accept= nos inputs de arquivo | ALTO | P | BAIXO | Não | 5 min |
-| F2 | B-07 | Timer de prova server-side | CRÍTICO | M | MÉDIO | **SIM** | 45 min |
-| F2 | B-08 | Embaralhamento alternativas no servidor | CRÍTICO | M | MÉDIO | Não | 60 min |
-| F2 | B-09 | Separar lançamento avulso de criar_matricula | ALTO | M | MÉDIO | Não | 30 min |
-| F2 | B-10 | Comparação de datas robusta | MÉDIO | P | BAIXO | Não | 10 min |
-| F2 | B-11 | curso_id na URL de concluir_aula | MÉDIO | P | BAIXO | Não | 15 min |
-| F2 | B-12 | Validação de range em nota | ALTO | P | BAIXO | Não | 10 min |
-| F2 | B-13 | Bloquear data futura em frequência | MÉDIO | P | BAIXO | Não | 10 min |
-| F2 | B-14 | try/except/rollback em services | ALTO | P | BAIXO | Não | 20 min |
-| F2 | B-15 | logger.error nos excepts | ALTO | P | BAIXO | Não | 15 min |
-| F3 | B-16 | joinedload em atividades.questoes | MÉDIO | P | BAIXO | Não | 10 min |
-| F3 | B-17 | Corrigir full table scan no login | MÉDIO | P | BAIXO | Não | 15 min |
-| F3 | B-18 | Política explícita MateriaLiberada vazia | ALTO | P | BAIXO | Não | 15 min |
-| F3 | B-19 | Filtro Jinja2 \|moeda uniforme | BAIXO | P | BAIXO | Não | 20 min |
-| F3 | B-20 | Cascade delete Matricula → filhos | MÉDIO | P | MÉDIO | **SIM** | 30 min |
-| F4 | B-21 | Verificar path do backup SQLite no PA | ALTO | P | BAIXO | Não | 10 min |
-| F4 | B-22 | Paginação listagem de alunos | MÉDIO | M | MÉDIO | Não | 45 min |
-| F4 | B-23 | Bloquear dupla matrícula ativa | ALTO | P | BAIXO | Não | 10 min |
-| F5 | B-24 | Centralizar permissões de menu | BAIXO | G | MÉDIO | Não | 90 min |
-| F5 | B-25 | Mover migrate_*.py para scripts/legacy/ | BAIXO | M | BAIXO | Não | 30 min |
-| F5 | B-26 | Extrair lógica de provas.html para service | BAIXO | G | ALTO | Não | 4 horas |
-| F5 | B-27 | CSS inline → seção 32 style.css | BAIXO | G | MÉDIO | Não | 3 horas |
+| Fase | Bug | Descrição resumida | Impacto | Esforço | Risco | Schema | Tempo | Status |
+|---|---|---|---|---|---|---|---|---|
+| F1 | B-01 | Precedência operador menu base.html | CRÍTICO | P | BAIXO | Não | 5 min | ✅ |
+| F1 | B-02 | localStorage → sessionStorage | CRÍTICO | P | BAIXO | Não | 5 min | ✅ |
+| F1 | B-03 | Excluir Usuario ao excluir Aluno | CRÍTICO | P | BAIXO | Não | 10 min | ✅ |
+| F1 | B-04 | Remover fallback login por nome | CRÍTICO | P | BAIXO | Não | 10 min | ✅ |
+| F1 | B-05 | Remover except que ignora permissão | CRÍTICO | P | BAIXO | Não | 10 min | ✅ |
+| F1 | B-06 | accept= nos inputs de arquivo | ALTO | P | BAIXO | Não | 5 min | ✅ |
+| F2 | B-07 | Timer de prova server-side | CRÍTICO | M | MÉDIO | **SIM** | 45 min | 🔲 |
+| F2 | B-08 | Embaralhamento alternativas no servidor | CRÍTICO | M | MÉDIO | Não | 60 min | 🔲 |
+| F2 | B-09 | Separar lançamento avulso de criar_matricula | ALTO | M | MÉDIO | Não | 30 min | 🔲 |
+| F2 | B-10 | Comparação de datas robusta | MÉDIO | P | BAIXO | Não | 10 min | 🔲 |
+| F2 | B-11 | curso_id na URL de concluir_aula | MÉDIO | P | BAIXO | Não | 15 min | 🔲 |
+| F2 | B-12 | Validação de range em nota | ALTO | P | BAIXO | Não | 10 min | 🔲 |
+| F2 | B-13 | Bloquear data futura em frequência | MÉDIO | P | BAIXO | Não | 10 min | 🔲 |
+| F2 | B-14 | try/except/rollback em services | ALTO | P | BAIXO | Não | 20 min | 🔲 |
+| F2 | B-15 | logger.error nos excepts | ALTO | P | BAIXO | Não | 15 min | 🔲 |
+| F3 | B-16 | joinedload em atividades.questoes | MÉDIO | P | BAIXO | Não | 10 min | 🔲 |
+| F3 | B-17 | Corrigir full table scan no login | MÉDIO | P | BAIXO | Não | 15 min | 🔲 |
+| F3 | B-18 | Política explícita MateriaLiberada vazia | ALTO | P | BAIXO | Não | 15 min | 🔲 |
+| F3 | B-19 | Filtro Jinja2 \|moeda uniforme | BAIXO | P | BAIXO | Não | 20 min | 🔲 |
+| F3 | B-20 | Cascade delete Matricula → filhos | MÉDIO | P | MÉDIO | **SIM** | 30 min | 🔲 |
+| F4 | B-21 | Verificar path do backup SQLite no PA | ALTO | P | BAIXO | Não | 10 min | 🔲 |
+| F4 | B-22 | Paginação listagem de alunos | MÉDIO | M | MÉDIO | Não | 45 min | 🔲 |
+| F4 | B-23 | Bloquear dupla matrícula ativa | ALTO | P | BAIXO | Não | 10 min | 🔲 |
+| F5 | B-24 | Centralizar permissões de menu | BAIXO | G | MÉDIO | Não | 90 min | 🔲 |
+| F5 | B-25 | Mover migrate_*.py para scripts/legacy/ | BAIXO | M | BAIXO | Não | 30 min | 🔲 |
+| F5 | B-26 | Extrair lógica de provas.html para service | BAIXO | G | ALTO | Não | 4 horas | 🔲 |
+| F5 | B-27 | CSS inline → seção 32 style.css | BAIXO | G | MÉDIO | Não | 3 horas | 🔲 |
 
-**Totais:** F1 ~45 min · F2 ~3 h · F3 ~1,5 h · F4 ~1 h · F5 ~8 h
+**Totais:** F1 ✅ ~45 min · F2 ~3 h · F3 ~1,5 h · F4 ~1 h · F5 ~8 h
 
 ---
 
@@ -694,9 +730,11 @@ Nenhum teste automatizado. Qualquer correção pode quebrar funcionalidade adjac
 
 ## FIM DO RELATÓRIO
 
-**Versão 2.0 · Abril 2026**
+**Versão 2.1 · Abril 2026**
 Baseado em: Sessões S2–S6 de análise do repositório + confirmação do ambiente real (PythonAnywhere + SQLite)
 
 - Bugs catalogados: 27
+- Bugs corrigidos: 6 (Fase 1 concluída em 05/04/2026)
+- Bugs pendentes: 21
 - Bugs removidos/revisados da v1 (contexto incorreto): 2
-- Estimativa total Fases 1–4: **~6 horas de trabalho técnico**
+- Estimativa restante Fases 2–4: **~5,5 horas de trabalho técnico**
