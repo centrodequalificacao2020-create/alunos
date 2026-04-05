@@ -178,6 +178,10 @@ def excluir_aluno(id):
     ProgressoAula.query.filter_by(aluno_id=id).delete()
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
+    # BUG-03: excluir Usuario vinculado para impedir acesso residual ao portal
+    usuario_vinculado = Usuario.query.filter_by(aluno_id=id, perfil="aluno").first()
+    if usuario_vinculado:
+        db.session.delete(usuario_vinculado)
     try:
         db.session.execute(
             text("DELETE FROM acesso_conteudo_curso WHERE aluno_id = :aid"),

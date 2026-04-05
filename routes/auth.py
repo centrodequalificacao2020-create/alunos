@@ -7,14 +7,30 @@ auth_bp = Blueprint("auth", __name__)
 
 
 def _vincular_aluno(user):
-    """Tenta vincular session[aluno_id] cruzando Usuario com Aluno por email ou nome."""
-    aluno = None
-    if user.email:
-        aluno = Aluno.query.filter_by(email=user.email).first()
-    if not aluno:
-        aluno = Aluno.query.filter_by(nome=user.nome).first()
+    """Tenta vincular session[aluno_id] cruzando Usuario com Aluno por email.
+
+    BUG-04: fallback por nome removido — nomes não são identificadores únicos
+    e causariam que alunos homônimos acessassem a conta errada.
+    """
+    if not user.email:
+        from flask import current_app
+        current_app.logger.warning(
+            f"[_vincular_aluno] Usuario id={user.id} sem email — aluno não vinculado."
+        )
+        return
+    aluno = Aluno.query.filter(
+        Aluno.email.isnot(None),
+        Aluno.email != "",
+    ).filter(
+        Aluno.email.collate("NOCASE") == user.email
+    ).first()
     if aluno:
         session["aluno_id"] = aluno.id
+    else:
+        from flask import current_app
+        current_app.logger.warning(
+            f"[_vincular_aluno] Login sem aluno vinculado: {user.email}"
+        )
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])

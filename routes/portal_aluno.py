@@ -1,6 +1,6 @@
 import os
 from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response
+from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response, current_app
 from models import (
     Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula,
     ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno
@@ -295,7 +295,6 @@ def frequencia_aluno():
         flash("Curso n\u00e3o encontrado.", "erro")
         return redirect("/aluno/frequencia")
 
-    # Frequencia vinculada diretamente ao curso_id (modelo nao tem materia_id)
     frequencias = (
         Frequencia.query
         .filter(
@@ -306,7 +305,6 @@ def frequencia_aluno():
         .all()
     )
 
-    # Fallback: registros antigos sem curso_id vinculado
     if not frequencias:
         frequencias = (
             Frequencia.query
@@ -543,6 +541,8 @@ def curso_detalhe(curso_id):
 
     atividades   = []
     entregas_map = {}
+    # BUG-05: fallback que ignorava AtividadeLiberada foi removido.
+    # Em caso de erro, logamos e retornamos lista vazia — nunca expor conteúdo sem verificar permissão.
     try:
         from models import Atividade, EntregaAtividade, AtividadeLiberada
         ids_atv_lib = {
@@ -557,16 +557,15 @@ def curso_detalhe(curso_id):
             e.atividade_id: e
             for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
         }
-    except Exception:
-        try:
-            from models import Atividade, EntregaAtividade
-            atividades = Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
-            entregas_map = {
-                e.atividade_id: e
-                for e in EntregaAtividade.query.filter_by(aluno_id=aluno.id).all()
-            }
-        except Exception:
-            pass
+    except Exception as e:
+        current_app.logger.error(
+            f"[curso_detalhe] Erro ao carregar atividades para aluno_id={aluno.id} "
+            f"curso_id={curso_id}: {e}",
+            exc_info=True
+        )
+        atividades   = []
+        entregas_map = {}
+        flash("Erro ao carregar atividades. Tente novamente.", "error")
 
     return render_template(
         "aluno/curso_detalhe.html",
@@ -843,7 +842,6 @@ def concluir_aula(conteudo_id):
 @aluno_login_required
 def entregar_atividade(atividade_id):
     from werkzeug.utils import secure_filename
-    from flask import current_app
     aluno = db.get_or_404(Aluno, session["aluno_id"])
     try:
         from models import Atividade, EntregaAtividade
