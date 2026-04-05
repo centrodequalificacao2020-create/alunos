@@ -136,11 +136,21 @@ html,body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff;
 
     <form method="POST" id="formProva">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="iniciado_em" id="iniciado_em">
 
-        {% for q in questoes %}
-        <div class="q-wrap" id="qwrap-{{ loop.index0 }}" data-idx="{{ loop.index0 }}">
-            <div class="q-num">Quest&atilde;o {{ loop.index }} de {{ questoes|length }}
+        {# BUG-07: timestamp de início assinado pelo servidor — não pode ser adulterado pelo aluno #}
+        <input type="hidden" name="token_inicio" value="{{ token_inicio }}">
+
+        {# BUG-08: ordem de alternativas assinada pelo servidor #}
+        <input type="hidden" name="token_ordem" value="{{ token_ordem }}">
+
+        {% set letras = ['A','B','C','D','E','F','G','H'] %}
+
+        {# BUG-08: iterar sobre questoes_display (ordem embaralhada vinda do servidor) #}
+        {% for item in questoes_display %}
+        {% set q = item.questao %}
+        {% set q_idx = loop.index0 %}
+        <div class="q-wrap" id="qwrap-{{ q_idx }}" data-idx="{{ q_idx }}">
+            <div class="q-num">Quest&atilde;o {{ loop.index }} de {{ questoes_display|length }}
                 {% if q.tipo == 'dissertativa' %}
                 &nbsp;&bull;&nbsp;<span style="color:var(--purple)">Dissertativa</span>
                 {% endif %}
@@ -153,15 +163,16 @@ html,body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff;
                 name="questao_{{ q.id }}"
                 id="diss_{{ q.id }}"
                 placeholder="Digite sua resposta aqui&hellip;"
-                oninput="onDiss({{ loop.index0 }}, this)"
+                oninput="onDiss({{ q_idx }}, this)"
             ></textarea>
-            <div class="diss-counter" id="diss-cnt-{{ loop.index0 }}">0 caracteres</div>
+            <div class="diss-counter" id="diss-cnt-{{ q_idx }}">0 caracteres</div>
 
             {% else %}
-            {% set letras = ['A','B','C','D','E','F','G','H'] %}
-            {% for alt in q.alternativas|sort(attribute='ordem') %}
+            {# BUG-08: alternativas na ordem embaralhada pelo servidor (item.alts) #}
+            {% for alt in item.alts %}
             <label class="alt-label" id="alt-lbl-{{ q.id }}-{{ alt.id }}"
-                   onclick="selecionarAlternativa({{ loop.index0 }}, {{ loop.index - 1 }}, '{{ q.id }}-{{ alt.id }}')">
+                   onclick="selecionarAlternativa({{ q_idx }}, {{ loop.index0 }}, '{{ q.id }}-{{ alt.id }}')">
+                {# submete o ID real da alternativa — correção server-side por ID (BUG-08) #}
                 <input type="radio" name="questao_{{ q.id }}" value="{{ alt.id }}"
                        id="radio-{{ q.id }}-{{ alt.id }}">
                 <span class="alt-letra">{{ letras[loop.index0] }}</span>
@@ -172,13 +183,13 @@ html,body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff;
         </div>
         {% endfor %}
 
-        <div style="height:70px"></div>{# espaco rodape #}
+        <div style="height:70px"></div>{# espaço rodapé #}
     </form>
 </div>
 
 <div id="rodape-fixo">
     <div class="resp-resumo" id="resp-resumo">
-        {% for q in questoes %}
+        {% for item in questoes_display %}
         <div class="bolinha" id="bolinha-{{ loop.index0 }}"></div>
         {% endfor %}
     </div>
@@ -188,19 +199,15 @@ html,body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff;
 </div>
 
 <script>
-const TOTAL_QUESTOES = {{ questoes|length }};
+const TOTAL_QUESTOES = {{ questoes_display|length }};
 const TEMPO_LIMITE   = {{ prova.tempo_limite or 'null' }}; // minutos
 let respondidas = new Array(TOTAL_QUESTOES).fill(false);
 let tempoRestante;
-
-// Registra hora de início
-document.getElementById('iniciado_em').value = new Date().toISOString().slice(0,19).replace('T',' ');
 
 // ── Progresso ───────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const feitas = respondidas.filter(Boolean).length;
     document.getElementById('barra-prog-fill').style.width = (feitas / TOTAL_QUESTOES * 100) + '%';
-    // bolinhas
     for (let i = 0; i < TOTAL_QUESTOES; i++) {
         document.getElementById('bolinha-' + i)?.classList.toggle('ok', respondidas[i]);
     }
@@ -208,10 +215,8 @@ function atualizarProgresso() {
 
 // ── Selecionar alternativa ───────────────────────────────────────────────────
 function selecionarAlternativa(qIdx, altIdxLocal, labelKey) {
-    // desmarca visuais anteriores da questão
     const qWrap = document.getElementById('qwrap-' + qIdx);
     qWrap.querySelectorAll('.alt-label').forEach(l => l.classList.remove('selecionada'));
-    // marca o radio e o label
     const radio = document.getElementById('radio-' + labelKey);
     if (radio) radio.checked = true;
     document.getElementById('alt-lbl-' + labelKey)?.classList.add('selecionada');
@@ -230,14 +235,14 @@ function onDiss(qIdx, el) {
     atualizarProgresso();
 }
 
-// ── Cronômetro ───────────────────────────────────────────────────────────────
+// ── Cronômetro (BUG-07: apenas visual — autoridade é o servidor) ─────────────
 if (TEMPO_LIMITE) {
     tempoRestante = TEMPO_LIMITE * 60; // em segundos
-    const elTxt = document.getElementById('tempo-txt');
+    const elTxt  = document.getElementById('tempo-txt');
     const elCron = document.getElementById('cronometro');
 
     function formatarTempo(s) {
-        const m = Math.floor(s / 60).toString().padStart(2,'0');
+        const m   = Math.floor(s / 60).toString().padStart(2,'0');
         const sec = (s % 60).toString().padStart(2,'0');
         return m + ':' + sec;
     }
@@ -248,7 +253,6 @@ if (TEMPO_LIMITE) {
         tempoRestante--;
         elTxt.textContent = formatarTempo(tempoRestante);
 
-        // avisos visuais
         const pct = tempoRestante / (TEMPO_LIMITE * 60);
         if (pct <= 0.10) {
             elCron.className = 'crit';
@@ -256,6 +260,7 @@ if (TEMPO_LIMITE) {
             elCron.className = 'warn';
         }
 
+        // BUG-07: submit automático ao zerar — servidor validará o tempo real
         if (tempoRestante <= 0) {
             clearInterval(timer);
             document.getElementById('formProva').submit();
