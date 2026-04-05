@@ -27,6 +27,7 @@
         {% set full_access   = is_admin or is_financeiro %}
         {% set meio_access   = is_secretaria %}
 
+        {# BUG-01: parênteses adicionados para garantir precedência correta do operador #}
         {% if perfil == "aluno" or (session.aluno_id and not session.usuario_id) %}
             <a href="/aluno/dashboard" class="{{ 'active' if request.path == '/aluno/dashboard' }}">In&#237;cio</a>
             <a href="/aluno/conteudo"  class="{{ 'active' if request.path.startswith('/aluno/conteudo') }}">Aulas</a>
