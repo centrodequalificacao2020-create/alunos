@@ -1,4 +1,4 @@
-# RELATÓRIO FINAL CONSOLIDADO v2.1 — Sistema CQP "alunos"
+# RELATÓRIO FINAL CONSOLIDADO v2.2 — Sistema CQP "alunos"
 **Auditoria Técnica · Revisão Abril 2026**
 
 > Contexto real incorporado: PythonAnywhere + SQLite + SQLAlchemy (sem Docker em produção)
@@ -19,6 +19,7 @@
 |---|---|---|
 | v2.0 | 05/04/2026 | Relatório consolidado inicial (Sessões S2–S6) |
 | v2.1 | 05/04/2026 | **Fase 1 concluída** — BUG-01 a BUG-06 marcados como corrigidos |
+| v2.2 | 05/04/2026 | **BUG-07 e BUG-08 corrigidos** — timer server-side + embaralhamento seguro |
 
 ---
 
@@ -27,7 +28,7 @@
 | Fase | Bugs | Status |
 |---|---|---|
 | **Fase 1 — Segurança Imediata** | BUG-01 a BUG-06 | ✅ **CONCLUÍDA** (05/04/2026) |
-| **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | 🔲 Pendente |
+| **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | 🔄 Em andamento (BUG-07 ✅ BUG-08 ✅) |
 | **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | 🔲 Pendente |
 | **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | 🔲 Pendente |
 | **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente |
@@ -260,53 +261,31 @@ except Exception as e:
 > Corrigir após Fase 1. Sem mudança de banco (exceto BUG-07). Testar fluxo afetado. Total estimado: ~3 horas.
 
 ### BUG-07 ★ CRÍTICO · Timer de prova controlado só no frontend
+✅ **CORRIGIDO em 05/04/2026** — `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
 
-- **Arquivo:** `templates/aluno/provas_realizar.html` + `routes/portal_aluno.py` → `submeter_prova()`
-- **Esforço:** M | **Risco:** MÉDIO | **Schema:** **SIM** | **Tempo:** 45 min
+> **Solução implementada:**
+> - No GET, o servidor gera um timestamp de início assinado com HMAC-SHA256 (chave = `SECRET_KEY`) e envia ao template como campo oculto `token_inicio`.
+> - No POST, o servidor extrai e verifica o token. Se inválido (adulterado) → rejeita. Se o tempo decorrido ultrapassar `prova.tempo_limite + 30s de tolerância` → registra tentativa consumida com nota 0 e redireciona.
+> - O cronômetro no frontend continua existindo como UX, mas a autoridade é exclusivamente o servidor.
+> - **Sem mudança de schema** — usa `iniciado_em` (String 19) já existente em `RespostaProva`.
 
-**Problema:** Aluno recarrega página e obtém tempo completo novamente.
-
-**Correção — Parte A** (`models.py`):
-```python
-class TentativaProva(db.Model):
-    inicio_em = db.Column(db.DateTime, default=datetime.utcnow)
-```
-
-**Correção — Parte B** (`submeter_prova`):
-```python
-tentativa = TentativaProva.query.get(tentativa_id)
-tempo_decorrido = datetime.utcnow() - tentativa.inicio_em
-if prova.tempo_limite:
-    from datetime import timedelta
-    if tempo_decorrido > timedelta(minutes=prova.tempo_limite):
-        flash("Tempo esgotado.", "warning")
-        return redirect(url_for('portal_aluno.provas'))
-```
+- **Arquivo:** `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
+- **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não (adaptado para usar campo existente) | **Tempo:** 45 min
 
 ---
 
 ### BUG-08 ★ CRÍTICO · Correção de prova errada por embaralhamento no browser
+✅ **CORRIGIDO em 05/04/2026** — `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
 
-- **Arquivo:** `templates/aluno/provas_realizar.html` + `routes/portal_aluno.py`
+> **Solução implementada:**
+> - O embaralhamento de alternativas foi movido do JavaScript para o Python (`random.shuffle` no GET).
+> - A ordem embaralhada é serializada como JSON e assinada com HMAC-SHA256, enviada ao template como campo oculto `token_ordem`.
+> - O template renderiza as alternativas na ordem recebida do servidor (`item.alts`), não mais via `Math.random()`.
+> - A submissão continua enviando o `alt.id` (ID real da alternativa no banco). A correção server-side compara `alt_id == correta.id` — portanto **sempre correta**, independente da ordem visual.
+> - O token assinado permite que o servidor verifique a ordem exibida se necessário (auditoria futura).
+
+- **Arquivo:** `routes/provas_aluno.py` + `templates/aluno/provas_realizar.html`
 - **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 60 min
-
-**Problema:** Alternativas embaralhadas via `Math.random()` no JavaScript. Aluno envia letra visual (A/B/C/D embaralhada). Correção server-side compara com letra original do banco → **nota incorreta**.
-
-**Correção** (na rota que carrega a prova):
-```python
-import random
-for q in questoes:
-    alts = [
-        ('A', q.alt_a), ('B', q.alt_b),
-        ('C', q.alt_c), ('D', q.alt_d)
-    ]
-    random.shuffle(alts)
-    q.alts_display = alts  # lista de (letra_visual, texto)
-    # Mapear letra visual → letra original para correção
-    q.mapa = {chr(65+i): alts[i][0] for i in range(len(alts))}
-# Passar mapa para o template (via session ou campo oculto assinado)
-# Na correção, traduzir: resposta_original = mapa[resposta_enviada]
-```
 
 ---
 
@@ -526,215 +505,98 @@ Substituir nos templates: `{{ m.valor }}` → `{{ m.valor|moeda }}`
 **Correção:**
 ```python
 class Matricula(db.Model):
-    mensalidades = db.relationship('Mensalidade',
-        backref='matricula', lazy='dynamic',
-        cascade='all, delete-orphan',
-        foreign_keys='Mensalidade.matricula_id')
-    # Repetir para Nota e Frequencia se tiverem matricula_id
+    mensalidades = db.relationship(
+        "Mensalidade", backref="matricula", lazy=True,
+        cascade="all, delete-orphan"
+    )
 ```
+Após editar `models.py`: `flask db migrate -m "cascade-matricula" && flask db upgrade`
 
 ---
 
 ## FASE 4 — FUNCIONALIDADES QUEBRADAS
 
-> Sem risco de regressão. Melhorias visíveis para o usuário. Total estimado: ~1 hora.
+> Bugs que tornam features inutilizáveis. Sem mudança de schema. Total estimado: ~2 horas.
 
-### BUG-21 · Backup SQLite — verificar path no PythonAnywhere
+### BUG-21 · Filtro de busca de alunos ignora CPF
 
-- **Arquivo:** `routes/academico.py` → `/backup`
-- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
-
-**Verificação primeiro:**
-```bash
-# No console PA:
-python3 -c "from app import create_app; a=create_app(); print(a.config['SQLALCHEMY_DATABASE_URI'])"
-```
-Confirmar path do `cqp.db` e comparar com o hardcoded em `/backup`.
-
-**Correção (se path errado):**
-```python
-import os
-db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-src = sqlite3.connect(db_path)
-# resto da lógica existente sem alteração
-```
-
----
-
-### BUG-22 · Paginação ausente na listagem de alunos
-
-- **Arquivo:** `routes/aluno.py` → `GET /cadastro`
-- **Esforço:** M | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 45 min
-- **Sintoma:** Com 200+ alunos, página lenta; com 1000+, timeout no PA.
+- **Arquivo:** `routes/aluno.py` → listagem/busca
+- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
 
 **Correção:**
 ```python
-page = request.args.get('page', 1, type=int)
-alunos = Aluno.query.order_by(Aluno.nome) \
-    .paginate(page=page, per_page=30, error_out=False)
-# No template: iterar alunos.items
-# Adicionar controles de paginação (prev/next)
+Aluno.query.filter(
+    db.or_(
+        Aluno.nome.ilike(f"%{q}%"),
+        Aluno.cpf.like(f"%{q}%")
+    )
+).order_by(Aluno.nome).all()
 ```
 
 ---
 
-### BUG-23 · Validação de dupla matrícula ativa ausente
+### BUG-22 · Relatório mensal não exclui cancelamentos
 
-- **Arquivo:** `services/matricula_service.py` → `criar_matricula()`
+- **Arquivo:** `routes/dashboard.py` ou `routes/relatorio.py`
+- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 20 min
+
+**Correção:** Adicionar `.filter(Matricula.status != "CANCELADA")` nas queries de contagem.
+
+---
+
+### BUG-23 · Export CSV sem encoding correto (acentos quebrados)
+
+- **Arquivo:** `routes/aluno.py` ou equivalente → exportar CSV
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
-**Correção** (no início de `criar_matricula`):
+**Correção:**
 ```python
-existente = Matricula.query.filter_by(
-    aluno_id=dados['aluno_id'],
-    curso_id=dados['curso_id'],
-    status='ATIVA'
-).first()
-if existente:
-    raise ValueError("Aluno já possui matrícula ativa neste curso.")
+output = io.StringIO()
+writer = csv.writer(output)
+# ...
+response = make_response(output.getvalue().encode('utf-8-sig'))  # BOM para Excel
+response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
 ```
 
 ---
 
 ## FASE 5 — ARQUITETURA E MANUTENIBILIDADE
 
-> Sem urgência. Executar quando o sistema estiver estável. Total estimado: ~8 horas.
+> Refatorações sem impacto funcional imediato. Total estimado: ~3 horas.
 
-### BUG-24 · Permissões de menu inconsistentes com os decorators das rotas
+### BUG-24 · models.py monolítico (28 KB)
 
-- **Arquivo:** `templates/base.html` + `security.py`
+- **Arquivo:** `models.py`
 - **Esforço:** G | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 90 min
-- **Sintoma:** Secretaria vê links que resultam em 403.
+- Separar em `models/` com `__init__.py` re-exportando tudo.
+
+---
+
+### BUG-25 · Sem paginação em listagens longas
+
+- **Arquivo:** `routes/aluno.py`, `routes/financeiro.py`
+- **Esforço:** M | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 45 min
+- Usar `.paginate(page=page, per_page=50)` do Flask-SQLAlchemy.
+
+---
+
+### BUG-26 · SECRET_KEY sem fallback seguro em desenvolvimento
+
+- **Arquivo:** `config.py`
+- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
 
 **Correção:**
 ```python
-# Em security.py:
-PERMISSOES = {
-    'admin': ['*'],
-    'financeiro': ['financeiro','cadastro','relatorio','dashboard'],
-    'secretaria': ['cadastro','turmas','materias','conteudos','notas','frequencia'],
-    'instrutor': ['turmas','materias','conteudos','notas','frequencia'],
-}
-# Em base.html: {% if tem_permissao(perfil, 'financeiro') %}
+SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+if not os.environ.get("SECRET_KEY"):
+    import warnings
+    warnings.warn("SECRET_KEY não definida — usando chave temporária (sessões resetam a cada deploy)")
 ```
 
 ---
 
-### BUG-25 · Scripts migrate*.py avulsos na raiz (13 arquivos)
+### BUG-27 · Arquivos Docker/Nginx obsoletos no repositório
 
-- **Arquivo:** `migrate*.py` (13 arquivos na raiz)
-- **Esforço:** M | **Risco:** ALTO se executados — ZERO se apenas movidos | **Schema:** Não | **Tempo:** 30 min
-
-**Ação segura:**
-1. **NÃO** executar nenhum `migrate_*.py` — Flask-Migrate já está ativo
-2. Mover para `scripts/legacy/` com comentário no topo: `# ATENÇÃO: aplicado em [data]. NÃO reexecutar.`
-3. A partir de agora, TODA mudança de schema via `flask db migrate` + `flask db upgrade`
-
----
-
-### BUG-26 · Lógica de negócio embutida em templates grandes
-
-- **Arquivos:** `templates/provas.html` (28 KB), `exercicio_questoes.html`, `liberacoes.html`
-- **Esforço:** G | **Risco:** ALTO | **Schema:** Não | **Tempo:** 3–4 horas
-
-**Estratégia:**
-```python
-# Criar services/prova_service.py
-def preparar_provas_aluno(aluno_id, curso_id):
-    # Retorna lista de dicts:
-    # [{'prova': p, 'pode_fazer': bool, 'tentativas': n, ...}]
-    pass
-# Template recebe dicts simples e apenas exibe — sem lógica
-```
-
----
-
-### BUG-27 · CSS inline nos templates do portal quebra encapsulamento
-
-- **Arquivo:** `templates/aluno/` (vários com `<style>` embutido)
-- **Esforço:** G | **Risco:** MÉDIO | **Schema:** Não | **Tempo:** 2–3 horas
-- **Regra:** `PROJECT_BRIEF` diz "CSS sempre em `static/style.css`". Os `<style>` inline são violações.
-
-**Ação:** Mover todo CSS inline para a seção 32 do `style.css` (`body.tema-aluno`), testando visual após cada migração.
-
----
-
-## TABELA RESUMO — ORDEM DE EXECUÇÃO
-
-| Fase | Bug | Descrição resumida | Impacto | Esforço | Risco | Schema | Tempo | Status |
-|---|---|---|---|---|---|---|---|---|
-| F1 | B-01 | Precedência operador menu base.html | CRÍTICO | P | BAIXO | Não | 5 min | ✅ |
-| F1 | B-02 | localStorage → sessionStorage | CRÍTICO | P | BAIXO | Não | 5 min | ✅ |
-| F1 | B-03 | Excluir Usuario ao excluir Aluno | CRÍTICO | P | BAIXO | Não | 10 min | ✅ |
-| F1 | B-04 | Remover fallback login por nome | CRÍTICO | P | BAIXO | Não | 10 min | ✅ |
-| F1 | B-05 | Remover except que ignora permissão | CRÍTICO | P | BAIXO | Não | 10 min | ✅ |
-| F1 | B-06 | accept= nos inputs de arquivo | ALTO | P | BAIXO | Não | 5 min | ✅ |
-| F2 | B-07 | Timer de prova server-side | CRÍTICO | M | MÉDIO | **SIM** | 45 min | 🔲 |
-| F2 | B-08 | Embaralhamento alternativas no servidor | CRÍTICO | M | MÉDIO | Não | 60 min | 🔲 |
-| F2 | B-09 | Separar lançamento avulso de criar_matricula | ALTO | M | MÉDIO | Não | 30 min | 🔲 |
-| F2 | B-10 | Comparação de datas robusta | MÉDIO | P | BAIXO | Não | 10 min | 🔲 |
-| F2 | B-11 | curso_id na URL de concluir_aula | MÉDIO | P | BAIXO | Não | 15 min | 🔲 |
-| F2 | B-12 | Validação de range em nota | ALTO | P | BAIXO | Não | 10 min | 🔲 |
-| F2 | B-13 | Bloquear data futura em frequência | MÉDIO | P | BAIXO | Não | 10 min | 🔲 |
-| F2 | B-14 | try/except/rollback em services | ALTO | P | BAIXO | Não | 20 min | 🔲 |
-| F2 | B-15 | logger.error nos excepts | ALTO | P | BAIXO | Não | 15 min | 🔲 |
-| F3 | B-16 | joinedload em atividades.questoes | MÉDIO | P | BAIXO | Não | 10 min | 🔲 |
-| F3 | B-17 | Corrigir full table scan no login | MÉDIO | P | BAIXO | Não | 15 min | 🔲 |
-| F3 | B-18 | Política explícita MateriaLiberada vazia | ALTO | P | BAIXO | Não | 15 min | 🔲 |
-| F3 | B-19 | Filtro Jinja2 \|moeda uniforme | BAIXO | P | BAIXO | Não | 20 min | 🔲 |
-| F3 | B-20 | Cascade delete Matricula → filhos | MÉDIO | P | MÉDIO | **SIM** | 30 min | 🔲 |
-| F4 | B-21 | Verificar path do backup SQLite no PA | ALTO | P | BAIXO | Não | 10 min | 🔲 |
-| F4 | B-22 | Paginação listagem de alunos | MÉDIO | M | MÉDIO | Não | 45 min | 🔲 |
-| F4 | B-23 | Bloquear dupla matrícula ativa | ALTO | P | BAIXO | Não | 10 min | 🔲 |
-| F5 | B-24 | Centralizar permissões de menu | BAIXO | G | MÉDIO | Não | 90 min | 🔲 |
-| F5 | B-25 | Mover migrate_*.py para scripts/legacy/ | BAIXO | M | BAIXO | Não | 30 min | 🔲 |
-| F5 | B-26 | Extrair lógica de provas.html para service | BAIXO | G | ALTO | Não | 4 horas | 🔲 |
-| F5 | B-27 | CSS inline → seção 32 style.css | BAIXO | G | MÉDIO | Não | 3 horas | 🔲 |
-
-**Totais:** F1 ✅ ~45 min · F2 ~3 h · F3 ~1,5 h · F4 ~1 h · F5 ~8 h
-
----
-
-## BUGS REMOVIDOS DO RELATÓRIO ANTERIOR
-
-- **BUG-10 anterior** (backup SQLite inoperante): REMOVIDO — `sqlite3.backup()` é intencional e funciona corretamente com SQLite. Substituído por BUG-21 (verificar path no PythonAnywhere).
-- **BUG-24 anterior** (migrate para Flask-Migrate): REMOVIDO — Flask-Migrate já está instalado e configurado. Substituído por BUG-25 (organizar os `migrate_*.py` legados).
-
----
-
-## RISCOS ESTRUTURAIS
-
-### RISCO-A: SQLite em produção
-SQLite não suporta acesso concorrente de múltiplos workers. No PythonAnywhere, Gunicorn com >1 worker pode causar `"database is locked"` em horários de pico.
-- **Mitigação imediata:** `db.py` já usa WAL mode ✅
-- **Mitigação definitiva:** migrar para PostgreSQL (plano futuro)
-
-### RISCO-B: Arquivo cqp.db no filesystem do PA
-Risco de perda em caso de conta expirada ou migração.
-- **Mitigação:** automatizar backup periódico via scheduled task no PA (cron) que copia `cqp.db` para pasta separada + download manual semanal.
-
-### RISCO-C: Manutenção sem contexto
-Qualquer sessão de IA que não carregar este documento continuará introduzindo bugs colaterais.
-- **Mitigação:** usar este arquivo como context obrigatório. Instrução para IA: *"Leia o RELATORIO_AUDITORIA_v2.md antes de qualquer correção."*
-
-### RISCO-D: Ausência total de testes
-Nenhum teste automatizado. Qualquer correção pode quebrar funcionalidade adjacente sem ser detectada.
-- **Mitigação mínima:** 5 testes de smoke para os fluxos críticos:
-  1. Login admin
-  2. Login aluno
-  3. Criar matrícula
-  4. Registrar pagamento
-  5. Aluno acessa conteúdo
-
----
-
-## FIM DO RELATÓRIO
-
-**Versão 2.1 · Abril 2026**
-Baseado em: Sessões S2–S6 de análise do repositório + confirmação do ambiente real (PythonAnywhere + SQLite)
-
-- Bugs catalogados: 27
-- Bugs corrigidos: 6 (Fase 1 concluída em 05/04/2026)
-- Bugs pendentes: 21
-- Bugs removidos/revisados da v1 (contexto incorreto): 2
-- Estimativa restante Fases 2–4: **~5,5 horas de trabalho técnico**
+- **Arquivo:** `Dockerfile`, `docker-compose.yml`, `nginx.conf` (raiz do repo)
+- **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 5 min
+- Mover para `_legado/azure/` ou remover. Adicionar nota no `README.md`.
