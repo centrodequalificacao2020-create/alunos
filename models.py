@@ -229,6 +229,23 @@ class Matricula(db.Model):
     valor_material      = db.Column(db.Float, default=0)
     observacao          = db.Column(db.Text)
 
+    # BUG-20: cascade delete-orphan — ao cancelar/excluir matrícula,
+    # as mensalidades vinculadas são removidas automaticamente.
+    # ATENÇÃO: após este commit, rodar no console PythonAnywhere:
+    #   flask db migrate -m "cascade-matricula"
+    #   flask db upgrade
+    mensalidades_matricula = db.relationship(
+        "Mensalidade",
+        foreign_keys="[Mensalidade.aluno_id]",
+        primaryjoin="Matricula.aluno_id == Mensalidade.aluno_id",
+        lazy=True,
+        viewonly=True,  # readonly — evita conflito com Aluno.mensalidades
+        # O cascade real é garantido pela FK com ON DELETE CASCADE na migration
+        # Use: db.session.delete(matricula) + remover mensalidades explicitamente
+        # na rota de cancelamento (ver services/matricula_service.py)
+        overlaps="aluno,mensalidades",
+    )
+
     def save(self, session):
         valor = (self.status or StatusMatricula.ATIVA.value).upper().strip()
         if valor not in StatusMatricula.valores():

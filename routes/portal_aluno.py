@@ -9,6 +9,7 @@ from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
 from app import limiter
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import joinedload
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
@@ -49,14 +50,19 @@ def _ids_materias_liberadas(aluno_id, curso_id):
 
 
 def _curso_tem_acesso(aluno_id, curso_id):
-    return len(_ids_materias_liberadas(aluno_id, curso_id)) > 0
+    # BUG-18: Política B — sem nenhum registro de MateriaLiberada = acesso total
+    # (escola pequena: secretaria libera conforme necessário; ausência = sem restrição)
+    from models import MateriaLiberada
+    count = MateriaLiberada.query.filter_by(
+        aluno_id=aluno_id, curso_id=curso_id
+    ).count()
+    return count == 0 or len(_ids_materias_liberadas(aluno_id, curso_id)) > 0
 
 
 def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
     matriculas = _matriculas_ativas(aluno_id)
     for mat in matriculas:
-        ids_lib = _ids_materias_liberadas(aluno_id, mat.curso_id)
-        if not ids_lib:
+        if not _curso_tem_acesso(aluno_id, mat.curso_id):
             continue
         vinculo = (
             db.session.query(CursoMateria)
@@ -65,8 +71,10 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
                 CursoMateria.curso_id   == mat.curso_id,
             ).first()
         )
-        if vinculo and conteudo.materia_id in ids_lib:
-            return True
+        if vinculo:
+            ids_lib = _ids_materias_liberadas(aluno_id, mat.curso_id)
+            if not ids_lib or conteudo.materia_id in ids_lib:
+                return True
     return False
 
 
@@ -111,20 +119,28 @@ def _registrar_login(aluno_id):
 
 
 def _buscar_aluno_por_login(identificador: str):
+    # BUG-17: substituído Aluno.query.all() por pré-filtro SQL para evitar full table scan
     import re
     ident = identificador.strip()
     if not ident:
         return None
     if "@" in ident:
         return Aluno.query.filter(db.func.lower(Aluno.email) == ident.lower()).first()
+
+    # Tentativa 1: CPF exato como está no banco
     aluno = Aluno.query.filter_by(cpf=ident).first()
     if aluno:
         return aluno
+
+    # Tentativa 2: pré-filtro pelos últimos 4 dígitos do CPF limpo (evita full scan)
     cpf_limpo = re.sub(r"\D", "", ident)
-    if cpf_limpo:
-        for a in Aluno.query.all():
-            if re.sub(r"\D", "", a.cpf or "") == cpf_limpo:
-                return a
+    if not cpf_limpo:
+        return None
+    sufixo = cpf_limpo[-4:]
+    candidatos = Aluno.query.filter(Aluno.cpf.like(f"%{sufixo}")).all()
+    for a in candidatos:
+        if re.sub(r"\D", "", a.cpf or "") == cpf_limpo:
+            return a
     return None
 
 
@@ -488,7 +504,11 @@ def curso_detalhe(curso_id):
         .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1)
         .order_by(Materia.nome).all()
     )
-    materias_liberadas = [m for m in materias_do_curso if m.id in ids_mat_lib]
+    # BUG-18: se não há registros de liberação, todas as matérias são visíveis
+    if ids_mat_lib:
+        materias_liberadas = [m for m in materias_do_curso if m.id in ids_mat_lib]
+    else:
+        materias_liberadas = materias_do_curso
 
     ids_materias_visiveis = {m.id for m in materias_liberadas}
     conteudos_raw = (
@@ -565,7 +585,7 @@ def curso_detalhe(curso_id):
     atividades   = []
     entregas_map = {}
     # BUG-05: fallback que ignorava AtividadeLiberada foi removido.
-    # Em caso de erro, logamos e retornamos lista vazia — nunca expor conteúdo sem verificar permissão.
+    # BUG-16: joinedload em questoes para evitar N+1 queries
     try:
         from models import Atividade, EntregaAtividade, AtividadeLiberada
         ids_atv_lib = {
@@ -573,7 +593,12 @@ def curso_detalhe(curso_id):
             for al in AtividadeLiberada.query.filter_by(aluno_id=aluno.id, liberado=1).all()
         }
         atividades = [
-            a for a in Atividade.query.filter_by(curso_id=curso_id, ativa=1).all()
+            a for a in (
+                Atividade.query
+                .options(joinedload(Atividade.questoes))  # BUG-16
+                .filter_by(curso_id=curso_id, ativa=1)
+                .all()
+            )
             if a.id in ids_atv_lib
         ]
         entregas_map = {

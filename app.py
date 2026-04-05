@@ -68,16 +68,21 @@ def create_app(config_class=Config):
     app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
     app.register_blueprint(provas_aluno_bp, url_prefix="/aluno")
 
+    # BUG-19: filtro moeda corrigido — formato brasileiro R$ 1.234,56
     @app.template_filter("moeda")
     def filtro_moeda(valor):
-        """R$ 1.234,56"""
+        """Formata valor float como moeda brasileira: R$ 1.234,56"""
         try:
             v = float(valor or 0)
         except (TypeError, ValueError):
             v = 0.0
-        inteiro = int(v)
-        decimal = int(round((v - inteiro) * 100))
-        return f"R$ {inteiro:,d},{decimal:02d}".replace(",", ".")
+        # Formata com separador de milhar e 2 casas decimais no padrão pt-BR
+        # Estratégia: formata em en-US primeiro (1,234.56) e depois converte
+        formatado = f"{v:,.2f}"          # "1,234.56"
+        formatado = formatado.replace(",", "X")  # "1X234.56"
+        formatado = formatado.replace(".", ",")  # "1X234,56"
+        formatado = formatado.replace("X", ".")  # "1.234,56"
+        return f"R$ {formatado}"
 
     # ── Erro 413: arquivo maior que MAX_CONTENT_LENGTH ──────────────────────
     @app.errorhandler(413)
