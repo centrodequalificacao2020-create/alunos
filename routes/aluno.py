@@ -386,17 +386,34 @@ def matricular_aluno():
 @aluno_bp.route("/excluir_matricula/<int:matricula_id>", methods=["POST"])
 @login_required
 def excluir_matricula(matricula_id):
+    # BUG-20: apaga mensalidades e matérias liberadas do aluno neste curso
+    # antes de deletar a matrícula, evitando registros órfãos no banco
+    from models import MateriaLiberada
     m          = db.get_or_404(Matricula, matricula_id)
     aluno_id   = m.aluno_id
-    curso      = db.session.get(Curso, m.curso_id)
+    curso_id   = m.curso_id
+    curso      = db.session.get(Curso, curso_id)
     nome_curso = curso.nome if curso else "curso"
+
+    # 1) Remove mensalidades vinculadas ao aluno+curso desta matrícula
+    Mensalidade.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).delete()
+
+    # 2) Remove liberações de matéria do aluno neste curso
+    try:
+        MateriaLiberada.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).delete()
+    except OperationalError:
+        db.session.rollback()
+
+    # 3) Remove registro de acesso ao conteúdo do curso
     try:
         db.session.execute(
             text("DELETE FROM acesso_conteudo_curso WHERE aluno_id=:a AND curso_id=:c"),
-            {"a": aluno_id, "c": m.curso_id}
+            {"a": aluno_id, "c": curso_id}
         )
     except OperationalError:
         db.session.rollback()
+
+    # 4) Deleta a matrícula em si
     db.session.delete(m)
     db.session.commit()
     flash(f"Matr\u00edcula em \u201c{nome_curso}\u201d exclu\u00edda com sucesso.", "sucesso")
