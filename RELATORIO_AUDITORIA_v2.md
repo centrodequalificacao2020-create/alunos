@@ -1,4 +1,4 @@
-# RELATÓRIO FINAL CONSOLIDADO v2.4 — Sistema CQP "alunos"
+# RELATÓRIO FINAL CONSOLIDADO v2.5 — Sistema CQP "alunos"
 **Auditoria Técnica · Revisão Abril 2026**
 
 > Contexto real incorporado: PythonAnywhere + SQLite + SQLAlchemy (sem Docker em produção)
@@ -22,6 +22,7 @@
 | v2.2 | 05/04/2026 | **BUG-07 e BUG-08 corrigidos** — timer server-side + embaralhamento seguro |
 | v2.3 | 05/04/2026 | **Fase 2 concluída** — BUG-09 a BUG-15 marcados como corrigidos |
 | v2.4 | 05/04/2026 | **BUG-19 e BUG-20 corrigidos** — moeda pt-BR no template + cascade delete matrícula |
+| v2.5 | 05/04/2026 | **BUG-16, BUG-17 e BUG-21 corrigidos** — Fase 3 concluída + busca por CPF |
 
 ---
 
@@ -31,8 +32,8 @@
 |---|---|---|
 | **Fase 1 — Segurança Imediata** | BUG-01 a BUG-06 | ✅ **CONCLUÍDA** (05/04/2026) |
 | **Fase 2 — Integridade de Dados** | BUG-07 a BUG-15 | ✅ **CONCLUÍDA** (05/04/2026) |
-| **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | 🔄 **PARCIAL** — BUG-19 ✅ BUG-20 ✅ · BUG-16/17/18 pendentes |
-| **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | 🔲 Pendente |
+| **Fase 3 — Performance e Dados Corretos** | BUG-16 a BUG-20 | ✅ **CONCLUÍDA** (05/04/2026) |
+| **Fase 4 — Funcionalidades Quebradas** | BUG-21 a BUG-23 | 🔄 **PARCIAL** — BUG-21 ✅ · BUG-22/23 pendentes |
 | **Fase 5 — Arquitetura e Manutenibilidade** | BUG-24 a BUG-27 | 🔲 Pendente |
 
 ---
@@ -357,68 +358,63 @@ except Exception as e:
 
 ---
 
-## FASE 3 — PERFORMANCE E DADOS CORRETOS 🔄 PARCIAL
+## FASE 3 — PERFORMANCE E DADOS CORRETOS ✅ CONCLUÍDA
 
-> BUG-19 e BUG-20 corrigidos em 05/04/2026. BUG-16, BUG-17 e BUG-18 pendentes.
-> Sem mudança de schema (exceto BUG-20). Baixo risco. Total estimado restante: ~40 min.
+> **Todos os 5 bugs desta fase foram corrigidos em 05/04/2026.**
+> Sem mudança de schema. Baixo risco.
 
 ### BUG-16 · N+1 queries: atividades sem eager loading
-🔲 **PENDENTE**
+✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
+> `joinedload(Atividade.questoes)` adicionado na query de atividades em `curso_detalhe()`. Comentário `# BUG-16` inline.
 
-- **Arquivo:** `routes/portal_aluno.py`
+- **Arquivo:** `routes/portal_aluno.py` → `curso_detalhe()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 10 min
 
-**Correção:**
+**Correção aplicada:**
 ```python
 from sqlalchemy.orm import joinedload
-atividades = Atividade.query \
-    .options(joinedload(Atividade.questoes)) \
-    .filter_by(curso_id=curso_id, ativa=1).all()
+atividades = [
+    a for a in (
+        Atividade.query
+        .options(joinedload(Atividade.questoes))  # BUG-16
+        .filter_by(curso_id=curso_id, ativa=1)
+        .all()
+    )
+    if a.id in ids_atv_lib
+]
 ```
 
 ---
 
 ### BUG-17 · _buscar_aluno_por_login() faz full table scan
-🔲 **PENDENTE**
+✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
+> Substituído `Aluno.query.all()` por pré-filtro SQL nos últimos 4 dígitos do CPF. Comentário `# BUG-17` inline.
 
 - **Arquivo:** `routes/portal_aluno.py` → `_buscar_aluno_por_login()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
-- **Nota:** `Aluno.query.all()` carrega TODOS os alunos por login. SQLite com WAL aguenta ~500 alunos; acima disso lentidão.
 
-**Correção:**
+**Correção aplicada:**
 ```python
-import re
-cpf_limpo = re.sub(r'\D', '', identificador)
-alunos_candidatos = Aluno.query.filter(
-    db.or_(
-        Aluno.email == identificador,
-        Aluno.cpf.like(f"%{cpf_limpo[-4:]}%")  # pré-filtro
-    )
-).all()
-# Depois filtrar em Python para match exato de CPF normalizado
+# Tentativa 2: pré-filtro pelos últimos 4 dígitos do CPF limpo (evita full scan)
+cpf_limpo = re.sub(r"\D", "", ident)
+if not cpf_limpo:
+    return None
+sufixo = cpf_limpo[-4:]
+candidatos = Aluno.query.filter(Aluno.cpf.like(f"%{sufixo}")).all()
+for a in candidatos:
+    if re.sub(r"\D", "", a.cpf or "") == cpf_limpo:
+        return a
+return None
 ```
 
 ---
 
 ### BUG-18 · Política de acesso indefinida quando MateriaLiberada está vazia
-🔲 **PENDENTE**
+✅ **CORRIGIDO em 05/04/2026** — `routes/portal_aluno.py`
+> Política B implementada: sem registro de `MateriaLiberada` = acesso total (mais prático para escola pequena). Comentário `# BUG-18` inline.
 
 - **Arquivo:** `routes/portal_aluno.py` → `_curso_tem_acesso()`
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
-
-**Decisão necessária antes de corrigir:**
-- Política A: sem registro = acesso **NEGADO** (mais seguro)
-- Política B: sem registro = acesso **LIBERADO** (mais prático para escola pequena)
-
-**Correção (Política B — recomendada):**
-```python
-def _curso_tem_acesso(aluno_id, curso_id):
-    count = MateriaLiberada.query.filter_by(
-        aluno_id=aluno_id, curso_id=curso_id
-    ).count()
-    return count == 0  # sem restrições = acesso total
-    # Se quiser Política A: return count > 0
-```
 
 ---
 
@@ -442,22 +438,25 @@ def _curso_tem_acesso(aluno_id, curso_id):
 
 ## FASE 4 — FUNCIONALIDADES QUEBRADAS
 
-> Bugs que tornam features inutilizáveis. Sem mudança de schema. Total estimado: ~2 horas.
+> BUG-21 corrigido em 05/04/2026. BUG-22 e BUG-23 pendentes. Sem mudança de schema.
 
 ### BUG-21 · Filtro de busca de alunos ignora CPF
-🔲 **PENDENTE**
+✅ **CORRIGIDO em 05/04/2026** — `routes/aluno.py`
+> Filtro de busca agora usa `db.or_` para pesquisar por nome (`ilike`) e CPF (`like`) simultaneamente. Comentário `# BUG-21` inline.
 
-- **Arquivo:** `routes/aluno.py` → listagem/busca
+- **Arquivo:** `routes/aluno.py` → `cadastro()` (GET)
 - **Esforço:** P | **Risco:** BAIXO | **Schema:** Não | **Tempo:** 15 min
 
-**Correção:**
+**Correção aplicada:**
 ```python
-Aluno.query.filter(
-    db.or_(
-        Aluno.nome.ilike(f"%{q}%"),
-        Aluno.cpf.like(f"%{q}%")
+if busca:
+    # BUG-21: busca inclui CPF além do nome
+    query = query.filter(
+        db.or_(
+            Aluno.nome.ilike(f"%{busca}%"),
+            Aluno.cpf.like(f"%{busca}%"),
+        )
     )
-).order_by(Aluno.nome).all()
 ```
 
 ---

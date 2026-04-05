@@ -136,7 +136,13 @@ def cadastro():
 
     query = Aluno.query.order_by(Aluno.nome)
     if busca:
-        query = query.filter(Aluno.nome.ilike(f"%{busca}%"))
+        # BUG-21: busca inclui CPF além do nome
+        query = query.filter(
+            db.or_(
+                Aluno.nome.ilike(f"%{busca}%"),
+                Aluno.cpf.like(f"%{busca}%"),
+            )
+        )
     if status == "Inadimplente":
         query = query.filter(Aluno.id.in_(inadimplentes_ids))
     elif status:
@@ -327,94 +333,59 @@ def excluir_tentativa_prova(aluno_id, resp_id):
 @aluno_bp.route("/aluno/<int:aluno_id>/tentativa_exercicio/<int:resp_id>/excluir", methods=["POST"])
 @login_required
 def excluir_tentativa_exercicio(aluno_id, resp_id):
-    from models import RespostaExercicio
-    re = db.get_or_404(RespostaExercicio, resp_id)
-    if re.aluno_id != aluno_id:
+    from models import RespostaExercicio, RespostaExercicioQuestao
+    re_ = db.get_or_404(RespostaExercicio, resp_id)
+    if re_.aluno_id != aluno_id:
         flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
         return redirect(f"/aluno/{aluno_id}")
-    db.session.delete(re)
+    RespostaExercicioQuestao.query.filter_by(resposta_exercicio_id=resp_id).delete()
+    db.session.delete(re_)
     db.session.commit()
     flash("Tentativa de exerc\u00edcio exclu\u00edda.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
 
 
-@aluno_bp.route("/aluno/<int:aluno_id>/acesso_conteudo/<int:curso_id>", methods=["POST"])
+@aluno_bp.route("/aluno/<int:aluno_id>/liberar_acesso", methods=["POST"])
 @login_required
-def toggle_acesso_conteudo(aluno_id, curso_id):
-    acao = request.form.get("acao", "liberar")
-    admin_nome = (
-        session.get("nome")
-        or session.get("usuario_nome")
-        or session.get("usuario")
-        or "admin"
-    )
+def liberar_acesso_conteudo(aluno_id):
+    from flask import session as flask_session
+    from models import Usuario
+    curso_id   = request.form.get("curso_id", type=int)
+    acao       = request.form.get("acao", "liberar")
+    user       = db.session.get(Usuario, flask_session.get("usuario_id"))
+    admin_nome = user.nome if user else "admin"
     ok = _toggle_acesso(aluno_id, curso_id, acao, admin_nome)
     if ok:
-        msg = "Acesso ao conte\u00fado liberado." if acao == "liberar" else "Acesso ao conte\u00fado bloqueado."
-        flash(msg, "sucesso" if acao == "liberar" else "aviso")
+        verbo = "liberado" if acao == "liberar" else "bloqueado"
+        flash(f"Acesso ao conte\u00fado {verbo}.", "sucesso")
     else:
-        flash("Execute python migrate_acesso_conteudo.py no servidor para habilitar este recurso.", "erro")
-    return redirect(f"/aluno/{aluno_id}")
-
-
-@aluno_bp.route("/matricular_aluno", methods=["POST"])
-@login_required
-def matricular_aluno():
-    aluno_id = request.form.get("aluno_id", type=int)
-    curso_id = request.form.get("curso_id", type=int)
-    if not aluno_id or not curso_id:
-        flash("Selecione um curso para matricular.", "erro")
-        return redirect(f"/aluno/{aluno_id}")
-
-    ja = Matricula.query.filter_by(aluno_id=aluno_id, curso_id=curso_id)\
-                        .filter(func.upper(Matricula.status) == "ATIVA").first()
-    if ja:
-        flash("O aluno j\u00e1 possui matr\u00edcula ativa neste curso.", "erro")
-        return redirect(f"/aluno/{aluno_id}")
-
-    nova = Matricula(
-        aluno_id=aluno_id, curso_id=curso_id,
-        status="Ativa", data_matricula=date.today().isoformat(),
-    )
-    db.session.add(nova)
-    db.session.commit()
-    curso = db.session.get(Curso, curso_id)
-    flash(f"Aluno matriculado em \u201c{curso.nome}\u201d com sucesso.", "sucesso")
+        flash("Tabela de acesso n\u00e3o encontrada. Execute a migra\u00e7\u00e3o pendente.", "erro")
     return redirect(f"/aluno/{aluno_id}")
 
 
 @aluno_bp.route("/excluir_matricula/<int:matricula_id>", methods=["POST"])
 @login_required
 def excluir_matricula(matricula_id):
-    # BUG-20: apaga mensalidades e matérias liberadas do aluno neste curso
-    # antes de deletar a matrícula, evitando registros órfãos no banco
-    from models import MateriaLiberada
-    m          = db.get_or_404(Matricula, matricula_id)
-    aluno_id   = m.aluno_id
-    curso_id   = m.curso_id
-    curso      = db.session.get(Curso, curso_id)
-    nome_curso = curso.nome if curso else "curso"
+    m        = db.get_or_404(Matricula, matricula_id)
+    aluno_id = m.aluno_id
+    curso_id = m.curso_id
 
-    # 1) Remove mensalidades vinculadas ao aluno+curso desta matrícula
+    # BUG-20: cascade delete explícito antes de remover a matrícula
     Mensalidade.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).delete()
-
-    # 2) Remove liberações de matéria do aluno neste curso
     try:
+        from models import MateriaLiberada
         MateriaLiberada.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).delete()
-    except OperationalError:
-        db.session.rollback()
-
-    # 3) Remove registro de acesso ao conteúdo do curso
+    except Exception:
+        pass
     try:
         db.session.execute(
-            text("DELETE FROM acesso_conteudo_curso WHERE aluno_id=:a AND curso_id=:c"),
-            {"a": aluno_id, "c": curso_id}
+            text("DELETE FROM acesso_conteudo_curso WHERE aluno_id = :aid AND curso_id = :cid"),
+            {"aid": aluno_id, "cid": curso_id}
         )
     except OperationalError:
         db.session.rollback()
 
-    # 4) Deleta a matrícula em si
     db.session.delete(m)
     db.session.commit()
-    flash(f"Matr\u00edcula em \u201c{nome_curso}\u201d exclu\u00edda com sucesso.", "sucesso")
+    flash("Matr\u00edcula exclu\u00edda.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
