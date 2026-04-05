@@ -142,7 +142,7 @@ body {
     {% if atrasadas > 0 %}
     <div class="alerta-box pendente">
         <p class="alerta-titulo">Voc&ecirc; tem {{ atrasadas }} parcela{{ 's' if atrasadas > 1 }} em atraso</p>
-        <p class="alerta-valor">R$ {{ '%.2f'|format(valor_pendente) }}</p>
+        <p class="alerta-valor">{{ valor_pendente | moeda }}</p>
         <p class="alerta-sub">Regularize com a secretaria</p>
     </div>
     {% else %}
@@ -171,7 +171,7 @@ body {
                 <td>{{ m.parcela_ref or '&mdash;' }}</td>
                 <td>{{ m.vencimento }}</td>
                 <td>{{ m.tipo or '&mdash;' }}</td>
-                <td>R$ {{ '%.2f'|format(m.valor) }}</td>
+                <td>{{ m.valor | moeda }}</td>
                 <td>
                     {% if m.status == 'Pago' %}
                     <span class="pill pill-ok"><i class="fas fa-check"></i> Pago</span>
