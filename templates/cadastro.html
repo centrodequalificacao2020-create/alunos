@@ -188,20 +188,21 @@
 
 {# Modal de exclusão com senha e aviso de pendências #}
 <div id="modalExclusao" class="modal-overlay">
-    <div class="modal">
+    <form id="formExclusao" method="POST" class="modal">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <h3>Confirmar exclusão</h3>
         <p>Deseja realmente excluir o aluno <strong id="modalExclusaoNome"></strong>?<br>
            <span id="modalExclusaoAviso" class="alerta erro" style="display:none;"></span>
         </p>
         <div class="campo">
             <label for="senhaExclusao">Senha do administrador</label>
-            <input type="password" id="senhaExclusao" placeholder="Digite a senha">
+            <input type="password" name="senha" id="senhaExclusao" placeholder="Digite a senha">
         </div>
         <div class="acoes-form">
             <button type="button" class="btn btn-vermelho" onclick="executarExclusao()">Excluir</button>
             <button type="button" class="btn btn-azul"     onclick="fecharModal()">Cancelar</button>
         </div>
-    </div>
+    </form>
 </div>
 
 {% endblock %}
