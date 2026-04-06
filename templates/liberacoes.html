@@ -224,31 +224,6 @@
       {% endif %}
     </div>{# /secao matérias #}
 
-    {# ════════ AÇÕES EM MASSA — EXERCÍCIOS ════════ #}
-    {% if total_ex.v > 0 %}
-    <div class="secao-bloco">
-      <div class="secao-header">
-        <div class="secao-label"><i class="fas fa-pencil-alt"></i> Exercícios — ações em massa</div>
-        <div class="btn-massa-grupo">
-          <form method="POST" action="/liberacoes/exercicio/todos">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="aluno_id"   value="{{ aluno.id }}">
-            <input type="hidden" name="curso_id"   value="{{ cd.curso.id }}">
-            <input type="hidden" name="acao"       value="liberar">
-            <button type="submit" class="btn-massa lib"><i class="fas fa-unlock"></i> Liberar todos</button>
-          </form>
-          <form method="POST" action="/liberacoes/exercicio/todos">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="aluno_id"   value="{{ aluno.id }}">
-            <input type="hidden" name="curso_id"   value="{{ cd.curso.id }}">
-            <input type="hidden" name="acao"       value="bloquear">
-            <button type="submit" class="btn-massa blk"><i class="fas fa-lock"></i> Bloquear todos</button>
-          </form>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
     {# ════════ PROVAS ════════ #}
     <div class="secao-bloco">
       <div class="secao-header">
