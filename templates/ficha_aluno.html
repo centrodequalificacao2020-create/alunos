@@ -8,7 +8,7 @@
             <h2>{{ aluno.nome }}</h2>
             <p class="card-subtitle">Ficha completa do aluno</p>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="ficha-header-acoes">
             <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno">✏️</a>
             <a href="/cadastro" class="btn btn-azul">← Voltar</a>
         </div>
@@ -37,39 +37,33 @@
 
     {# Acesso ao portal #}
     {% set ul = aluno.ultimo_login %}
-    <div style="margin-top:16px;padding:14px 18px;
-                background:#f8f9fa;
-                border-radius:var(--radius-md);
-                border:1px solid #dee2e6;
-                display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
+    <div class="ficha-portal-banner">
         <div>
-            <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
-                       text-transform:uppercase;letter-spacing:.5px;">Portal do Aluno</p>
+            <p class="ficha-portal-label">Portal do Aluno</p>
             {% if aluno.senha %}
-                <p style="margin:5px 0 0;font-size:13px;font-weight:700;color:#198754;">&#10003; Acesso ativado</p>
+                <p class="ficha-portal-status ficha-portal-status--ok">&#10003; Acesso ativado</p>
             {% else %}
-                <p style="margin:5px 0 0;font-size:13px;font-weight:700;color:#dc3545;">&#10007; Sem acesso</p>
+                <p class="ficha-portal-status ficha-portal-status--erro">&#10007; Sem acesso</p>
             {% endif %}
         </div>
-        <div style="width:1px;height:36px;background:#dee2e6;flex-shrink:0;"></div>
+        <div class="ficha-portal-divider"></div>
         <div>
-            <p style="margin:0;font-size:11px;font-weight:600;color:#6c757d;
-                       text-transform:uppercase;letter-spacing:.5px;">Último Login</p>
+            <p class="ficha-portal-label">Último Login</p>
             {% if ul %}
                 {% set d = ul.login_em %}
-                <p style="margin:5px 0 0;font-size:14px;font-weight:700;color:#212529;">
+                <p class="ficha-portal-data">
                     {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
-                    <span style="color:#495057;">&#224;s {{ d[11:16] }}</span>
+                    <span class="ficha-portal-hora">&#224;s {{ d[11:16] }}</span>
                 </p>
             {% else %}
-                <p style="margin:5px 0 0;font-size:13px;font-weight:600;color:#adb5bd;font-style:italic;">Nunca acessou</p>
+                <p class="ficha-portal-nunca">Nunca acessou</p>
             {% endif %}
         </div>
     </div>
 </div>
 
 {# ===== MATRÍCULAS ===== #}
-<div class="card" style="margin-top:20px">
+<div class="card ficha-card-secao">
     <h3>📋 Matrículas</h3>
 
     {% if cursos_disponiveis %}
@@ -85,7 +79,7 @@
         <button type="submit" class="btn btn-azul">➕ Matricular</button>
     </form>
     {% else %}
-    <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:10px">
+    <p class="text-muted small ficha-aviso-matriculas">
         Aluno já matriculado em todos os cursos disponíveis.
     </p>
     {% endif %}
@@ -99,7 +93,7 @@
                     <th>Data Matrícula</th>
                     <th>Cadastrado em</th>
                     <th>Status</th>
-                    <th style="text-align:center">Conteúdo</th>
+                    <th class="ficha-th-centro">Conteúdo</th>
                     <th class="acoes-texto">Ações</th>
                 </tr>
             </thead>
@@ -108,7 +102,7 @@
                 <tr>
                     <td><strong>{{ m.curso_nome }}</strong></td>
                     <td>{{ m.data_matricula or '-' }}</td>
-                    <td style="font-size:12px;color:var(--color-text-muted);">
+                    <td class="ficha-td-cadastro">
                         {% if m.data_cadastro %}
                             {% set dc = m.data_cadastro %}
                             {{ dc[8:10] }}/{{ dc[5:7] }}/{{ dc[0:4] }}
@@ -117,10 +111,9 @@
                     </td>
                     <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
 
-                    <td style="text-align:center;vertical-align:middle;">
+                    <td class="ficha-td-conteudo">
                         <a href="/liberacoes/aluno/{{ aluno.id }}?curso_id={{ m.curso_id }}"
-                           class="btn btn-sm"
-                           style="background:#6f42c110;color:#9b59b6;border:1px solid #6f42c1;min-width:130px;text-align:center;">
+                           class="btn btn-sm btn-lib-conteudo">
                            📚 Liberar conteúdos
                         </a>
                     </td>
@@ -131,7 +124,7 @@
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
                            class="btn btn-sm btn-azul" target="_blank">📊 Presença</a>
                         <form method="POST" action="/excluir_matricula/{{ m.id }}"
-                              style="display:inline-flex;align-items:center"
+                              class="ficha-form-inline"
                               onsubmit="return confirm('Excluir permanentemente a matrícula em {{ m.curso_nome }}?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
@@ -149,7 +142,7 @@
 </div>
 
 {# ===== TENTATIVAS DE PROVAS ===== #}
-<div class="card" style="margin-top:20px">
+<div class="card ficha-card-secao">
     <h3>📝 Tentativas de Provas</h3>
     {% if tentativas_provas %}
     <div class="tabela-planilha">
@@ -162,28 +155,28 @@
                     <th>Realizada em</th>
                     <th>Nota</th>
                     <th>Situação</th>
-                    <th style="text-align:center">Ações</th>
+                    <th class="ficha-th-centro">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 {% for tp in tentativas_provas %}
                 {% set titulo_prova = tp.prova_titulo | replace("'", "") %}
                 <tr>
-                    <td style="font-size:12px;color:var(--color-text-muted);">{{ tp.id }}</td>
+                    <td class="ficha-td-id">{{ tp.id }}</td>
                     <td><strong>{{ tp.prova_titulo }}</strong></td>
-                    <td style="text-align:center;">{{ tp.tentativa_num }}</td>
-                    <td style="font-size:12px;">
+                    <td class="ficha-td-centro">{{ tp.tentativa_num }}</td>
+                    <td class="ficha-td-data">
                         {% if tp.finalizado_em %}
                             {% set d = tp.finalizado_em %}
                             {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
                         {% else %}—{% endif %}
                     </td>
-                    <td style="text-align:center;font-weight:600;">
+                    <td class="ficha-td-nota">
                         {% if tp.nota_obtida is not none %}
                             {{ tp.nota_obtida }}
                         {% else %}
-                            <span style="color:var(--color-text-muted);font-style:italic;">Pendente</span>
+                            <span class="ficha-pendente">Pendente</span>
                         {% endif %}
                     </td>
                     <td>
@@ -192,10 +185,10 @@
                         {% elif tp.aprovado == 0 %}
                             <span class="status-inativo">Reprovado</span>
                         {% else %}
-                            <span style="color:var(--color-text-muted);font-size:12px;">Aguard. correção</span>
+                            <span class="ficha-aguardando">Aguard. correção</span>
                         {% endif %}
                     </td>
-                    <td style="text-align:center;">
+                    <td class="ficha-td-centro">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_prova/{{ tp.id }}/excluir"
                               onsubmit="return confirm('Excluir esta tentativa da prova {{ titulo_prova }}? Esta acao libera uma tentativa para o aluno.')">
@@ -215,7 +208,7 @@
 </div>
 
 {# ===== TENTATIVAS DE EXERCÍCIOS ===== #}
-<div class="card" style="margin-top:20px">
+<div class="card ficha-card-secao">
     <h3>🏋️ Tentativas de Exercícios</h3>
     {% if tentativas_exercicios %}
     <div class="tabela-planilha">
@@ -228,28 +221,28 @@
                     <th>Realizado em</th>
                     <th>Nota</th>
                     <th>Situação</th>
-                    <th style="text-align:center">Ações</th>
+                    <th class="ficha-th-centro">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 {% for te in tentativas_exercicios %}
                 {% set titulo_exercicio = te.exercicio_titulo | replace("'", "") %}
                 <tr>
-                    <td style="font-size:12px;color:var(--color-text-muted);">{{ te.id }}</td>
+                    <td class="ficha-td-id">{{ te.id }}</td>
                     <td><strong>{{ te.exercicio_titulo }}</strong></td>
-                    <td style="text-align:center;">{{ te.tentativa_num }}</td>
-                    <td style="font-size:12px;">
+                    <td class="ficha-td-centro">{{ te.tentativa_num }}</td>
+                    <td class="ficha-td-data">
                         {% if te.finalizado_em %}
                             {% set d = te.finalizado_em %}
                             {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
                         {% else %}—{% endif %}
                     </td>
-                    <td style="text-align:center;font-weight:600;">
+                    <td class="ficha-td-nota">
                         {% if te.nota_obtida is not none %}
                             {{ te.nota_obtida }}
                         {% else %}
-                            <span style="color:var(--color-text-muted);font-style:italic;">Pendente</span>
+                            <span class="ficha-pendente">Pendente</span>
                         {% endif %}
                     </td>
                     <td>
@@ -258,10 +251,10 @@
                         {% elif te.aprovado == 0 %}
                             <span class="status-inativo">Reprovado</span>
                         {% else %}
-                            <span style="color:var(--color-text-muted);font-size:12px;">Aguard. correção</span>
+                            <span class="ficha-aguardando">Aguard. correção</span>
                         {% endif %}
                     </td>
-                    <td style="text-align:center;">
+                    <td class="ficha-td-centro">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_exercicio/{{ te.id }}/excluir"
                               onsubmit="return confirm('Excluir esta tentativa do exercicio {{ titulo_exercicio }}? Esta acao libera uma tentativa para o aluno.')">
