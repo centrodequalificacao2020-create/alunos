@@ -138,14 +138,27 @@ function fecharModal() {
 function executarExclusao() {
     const senha = document.getElementById('senhaExclusao').value;
     if (!senha) { alert('Digite a senha do administrador.'); return; }
+
     const form  = document.createElement('form');
     form.method = 'POST';
     form.action = urlExclusaoAtual;
+
+    // FIX: inclui o CSRF token para que o Flask-WTF aceite o POST
+    const csrfField = document.querySelector('#formExclusao input[name="csrftoken"]');
+    if (csrfField) {
+        const csrf  = document.createElement('input');
+        csrf.type   = 'hidden';
+        csrf.name   = 'csrftoken';
+        csrf.value  = csrfField.value;
+        form.appendChild(csrf);
+    }
+
     const input = document.createElement('input');
     input.type  = 'hidden';
     input.name  = 'senha';
     input.value = senha;
     form.appendChild(input);
+
     document.body.appendChild(form);
     form.submit();
 }
