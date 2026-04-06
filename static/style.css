@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v23)
+   SISTEMA ESCOLAR — style.css  (v24)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ─────────────────────────────────────────────── */
@@ -793,3 +793,81 @@ body.tema-aluno .aula.ativa  { background:rgba(0,198,255,.22); }
 body.tema-aluno .progresso-barra { background:rgba(255,255,255,.15); }
 body.tema-aluno .btn-secondary { background:rgba(255,255,255,.12);color:#f0f4f8;border:1px solid rgba(255,255,255,.25); }
 body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:1; }
+
+/* ════════════════════════════════════════════════════════════════
+   33. FICHA DO ALUNO (ficha_aluno.html)
+   ════════════════════════════════════════════════════════════════ */
+
+/* Cabeçalho do card principal */
+.ficha-header-acoes { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+
+/* Card de seção com margem superior padrão */
+.ficha-card-secao { margin-top:20px; }
+
+/* Banner de acesso ao portal */
+.ficha-portal-banner {
+    margin-top:16px;
+    padding:14px 18px;
+    background:var(--color-surface);
+    border-radius:var(--radius-md);
+    border:1px solid var(--color-border);
+    display:flex;align-items:center;gap:32px;flex-wrap:wrap;
+}
+.ficha-portal-label {
+    margin:0;
+    font-size:11px;font-weight:600;
+    color:var(--color-text-muted);
+    text-transform:uppercase;letter-spacing:.5px;
+}
+.ficha-portal-status {
+    margin:5px 0 0;
+    font-size:13px;font-weight:700;
+}
+.ficha-portal-status--ok   { color:var(--color-success); }
+.ficha-portal-status--erro { color:var(--color-danger); }
+.ficha-portal-divider {
+    width:1px;height:36px;
+    background:var(--color-border);
+    flex-shrink:0;
+}
+.ficha-portal-data {
+    margin:5px 0 0;
+    font-size:14px;font-weight:700;
+    color:var(--color-text);
+}
+.ficha-portal-hora  { color:var(--color-text-muted); }
+.ficha-portal-nunca {
+    margin:5px 0 0;
+    font-size:13px;font-weight:600;
+    color:var(--color-text-muted);
+    font-style:italic;
+}
+
+/* Aviso de cursos esgotados */
+.ficha-aviso-matriculas { margin-bottom:10px; }
+
+/* Botão liberar conteúdos (roxo outline — mesmo padrão das abas de liberações) */
+.btn-lib-conteudo {
+    background:rgba(107,66,193,.08);
+    color:var(--color-purple);
+    border:1px solid var(--color-purple);
+    min-width:130px;
+    text-align:center;
+}
+.btn-lib-conteudo:hover { background:var(--color-purple-light);opacity:1; }
+
+/* Células de tabela */
+.ficha-td-cadastro { font-size:12px;color:var(--color-text-muted); }
+.ficha-td-conteudo { text-align:center;vertical-align:middle; }
+.ficha-td-id       { font-size:12px;color:var(--color-text-muted); }
+.ficha-td-centro   { text-align:center; }
+.ficha-td-data     { font-size:12px; }
+.ficha-td-nota     { text-align:center;font-weight:600; }
+.ficha-th-centro   { text-align:center!important; }
+
+/* Helpers de estado */
+.ficha-pendente    { color:var(--color-text-muted);font-style:italic; }
+.ficha-aguardando  { color:var(--color-text-muted);font-size:12px; }
+
+/* Form inline dentro de célula */
+.ficha-form-inline { display:inline-flex;align-items:center; }
