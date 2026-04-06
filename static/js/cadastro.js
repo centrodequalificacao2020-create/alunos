@@ -143,13 +143,17 @@ function executarExclusao() {
     form.method = 'POST';
     form.action = urlExclusaoAtual;
 
-    // FIX: inclui o CSRF token para que o Flask-WTF aceite o POST
-    const csrfField = document.querySelector('#formExclusao input[name="csrftoken"]');
-    if (csrfField) {
+    // Lê o CSRF token da <meta name="csrf-token"> presente no base.html.
+    // Isso é mais confiável do que buscar um campo oculto no DOM, pois
+    // o Flask-WTF pode usar "csrf_token" (com underscore) ou "csrftoken"
+    // dependendo da versão, enquanto a meta tag é sempre atualizada pelo
+    // script global de injeção no base.html.
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken && metaToken.content) {
         const csrf  = document.createElement('input');
         csrf.type   = 'hidden';
-        csrf.name   = 'csrftoken';
-        csrf.value  = csrfField.value;
+        csrf.name   = 'csrf_token';   // nome correto exigido pelo Flask-WTF
+        csrf.value  = metaToken.content;
         form.appendChild(csrf);
     }
 
