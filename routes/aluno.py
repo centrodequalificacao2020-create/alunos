@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, flash, jsonify, session, url_for
 from db import db
 from models import Aluno, Curso, Mensalidade, Matricula
 from security import login_required, verificar_senha, hash_senha
@@ -360,7 +360,8 @@ def liberar_acesso_conteudo(aluno_id):
         flash(f"Acesso ao conte\u00fado {verbo}.", "sucesso")
     else:
         flash("Tabela de acesso n\u00e3o encontrada. Execute a migra\u00e7\u00e3o pendente.", "erro")
-    return redirect(f"/aluno/{aluno_id}")
+    # FIX: usar url_for para gerar URL absoluta correta e evitar Internal Server Error
+    return redirect(url_for("aluno.ficha_aluno", aluno_id=aluno_id))
 
 
 @aluno_bp.route("/excluir_matricula/<int:matricula_id>", methods=["POST"])
