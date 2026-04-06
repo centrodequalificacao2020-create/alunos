@@ -1,413 +1,325 @@
-# Guia de Instalação — Servidor CQP
+# INSTALL.md — Centro de Qualificacao
 
-Este guia foi escrito para você instalar o sistema CQP no seu servidor sem precisar de conhecimento técnico. Você vai digitar alguns comandos no terminal — nada além disso. Siga os passos na ordem e não pule nenhum.
-
-Se algo não funcionar como descrito, anote o que apareceu na tela e entre em contato com o desenvolvedor antes de tentar qualquer outra coisa.
-
----
-
-## O que você vai precisar
-
-- O servidor ligado e conectado à internet
-- Um segundo computador (notebook ou desktop) na mesma rede
-- O arquivo de backup do banco de dados (`.sql`) — fornecido pelo desenvolvedor
-- Os arquivos `logo_escola.png` e `assinatura.png` — fornecidos pelo desenvolvedor
-- A senha de administrador do servidor (definida durante a instalação do Ubuntu)
+Sistema de gestao escolar EAD baseado em Flask + SQLAlchemy + SQLite.
+Deploy em servidor self-hosted (i5-3210M, 6 GB RAM, SSD 500 GB).
 
 ---
 
-## Parte 1 — Conectar ao servidor pelo segundo computador
+## Requisitos
 
-O servidor não precisa de monitor nem teclado para funcionar. Você vai acessá-lo remotamente a partir do seu computador normal, usando um recurso chamado SSH — pense nele como um controle remoto para o servidor.
-
-### 1.1 Descobrir o IP do servidor
-
-Na primeira vez, conecte um monitor e teclado diretamente no servidor. Ligue-o e, quando aparecer o prompt de comando, digite:
-
-```
-ip a
-```
-
-Procure uma linha com `inet 192.168.1.XX/24`. O número `192.168.1.XX` é o endereço do servidor na sua rede. Anote esse número — você vai usar várias vezes.
-
-Depois disso, pode desconectar o monitor e o teclado. Não serão mais necessários.
-
-### 1.2 Conectar pelo segundo computador
-
-No Windows, abra o terminal: pressione `Win + R`, digite `cmd` e pressione Enter.
-
-Digite o comando abaixo, trocando `192.168.1.XX` pelo IP que você anotou:
-
-```
-ssh usuario@192.168.1.XX
-```
-
-Na primeira vez, vai aparecer uma pergunta sobre confiar no servidor. Digite `yes` e pressione Enter. Depois informe a senha do servidor. A senha não aparece na tela enquanto você digita — isso é normal.
-
-Se aparecer uma linha como `usuario@servidor:~$`, você está dentro do servidor.
-
-A partir daqui, todos os comandos são digitados nesta janela.
+- Python 3.10 ou superior
+- pip
+- Git
+- Sistema operacional Linux (Ubuntu 22.04 recomendado) ou Windows 10+ para desenvolvimento local
 
 ---
 
-## Parte 2 — Instalar o Docker
-
-O Docker é o programa responsável por rodar o sistema CQP. Execute os três comandos abaixo, um de cada vez:
+## 1. Clonar o repositorio
 
 ```bash
-curl -fsSL https://get.docker.com | sudo sh
-```
-
-Este primeiro comando baixa e instala o Docker. Pode demorar alguns minutos.
-
-```bash
-sudo usermod -aG docker $USER
-```
-
-```bash
-newgrp docker
-```
-
-Para confirmar que tudo correu bem:
-
-```bash
-docker --version
-```
-
-Deve aparecer algo como `Docker version 26.x.x`. Se aparecer, pode seguir em frente.
-
----
-
-## Parte 3 — Configurar acesso ao repositório privado
-
-O código do sistema fica em um repositório privado no GitHub. Para que o servidor consiga baixar esse código sem pedir senha toda vez, vamos criar uma chave de acesso dedicada.
-
-### 3.1 Gerar a chave
-
-```bash
-ssh-keygen -t ed25519 -C "cqp-servidor" -f ~/.ssh/cqp_deploy
-```
-
-Quando perguntar por uma senha (`Enter passphrase`), pressione Enter duas vezes sem digitar nada.
-
-### 3.2 Exibir a chave pública
-
-```bash
-cat ~/.ssh/cqp_deploy.pub
-```
-
-Vai aparecer uma linha longa começando com `ssh-ed25519 AAAA...`. Copie essa linha completa e envie para o desenvolvedor.
-
-Aguarde a confirmação do desenvolvedor antes de continuar. Ele precisa cadastrar essa chave no GitHub.
-
-### 3.3 Configurar o SSH para usar a chave
-
-```bash
-mkdir -p ~/.ssh && nano ~/.ssh/config
-```
-
-Um editor de texto simples vai abrir. Cole o texto abaixo exatamente como está:
-
-```
-Host github-cqp
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/cqp_deploy
-    IdentitiesOnly yes
-```
-
-Para salvar e sair: pressione `Ctrl + X`, depois `Y`, depois `Enter`.
-
-### 3.4 Testar a conexão
-
-```bash
-ssh -T github-cqp
-```
-
-Deve aparecer uma mensagem parecida com:
-`Hi centrodequalificacao2020-create! You've successfully authenticated...`
-
-Se apareceu, a conexão está funcionando.
-
----
-
-## Parte 4 — Baixar o sistema
-
-```bash
-git clone git@github-cqp:centrodequalificacao2020-create/alunos.git
-```
-
-```bash
+git clone https://github.com/centrodequalificacao2020-create/alunos.git
 cd alunos
 ```
 
 ---
 
-## Parte 5 — Configurar o sistema
+## 2. Criar e ativar ambiente virtual
 
-### 5.1 Criar o arquivo de configuração
+**Linux / macOS:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**Windows:**
+```cmd
+python -m venv venv
+venv\Scripts\activate
+```
+
+---
+
+## 3. Instalar dependencias
+
+```bash
+pip install -r requirements.txt
+```
+
+Pacotes principais utilizados pelo sistema:
+
+- `flask` — framework web
+- `flask-sqlalchemy` — ORM
+- `flask-wtf` — protecao CSRF
+- `flask-limiter` — rate limiting nas rotas de login
+- `werkzeug` — hashing de senhas (`generate_password_hash`, `check_password_hash`)
+- `python-dotenv` — carregamento do arquivo `.env`
+- `reportlab` ou equivalente — geracao de PDFs (recibos e carnes)
+
+---
+
+## 4. Configurar variaveis de ambiente
+
+Copie o arquivo de exemplo e edite com os valores reais:
 
 ```bash
 cp .env.example .env
 ```
 
-Agora gere uma chave de segurança única para o sistema:
+Conteudo minimo do `.env`:
+
+```
+FLASK_SECRET_KEY=substitua-por-uma-chave-gerada
+FLASK_DEBUG=False
+FLASK_ENV=production
+```
+
+Para gerar uma chave segura:
 
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Vai aparecer uma sequência longa de letras e números. Copie esse valor.
+**Importante:** Em producao, `FLASK_SECRET_KEY` e obrigatoria. O sistema rejeita a inicializacao com `RuntimeError` se a variavel estiver ausente e `FLASK_ENV=production`.
 
-Abra o arquivo de configuração:
-
-```bash
-nano .env
-```
-
-Substitua o texto `substitua-por-uma-chave-gerada` pela sequência copiada. O arquivo deve ficar assim:
+Variavel opcional para banco externo (padrao: SQLite local `cqp.db`):
 
 ```
-FLASK_SECRET_KEY=a1b2c3d4e5f6...  (o seu valor aqui)
-FLASK_DEBUG=False
-```
-
-Para salvar: `Ctrl + X`, depois `Y`, depois `Enter`.
-
-### 5.2 Restaurar o banco de dados
-
-Crie a pasta onde o banco vai ficar:
-
-```bash
-mkdir -p data
-```
-
-Abra um **segundo terminal** no Windows (deixe o primeiro aberto) e envie o arquivo `.sql` para o servidor:
-
-```
-scp C:\caminho\para\backup.sql usuario@192.168.1.XX:/home/usuario/alunos/data/
-```
-
-Troque o caminho pelo local real do arquivo no seu computador e `192.168.1.XX` pelo IP do servidor.
-
-Volte ao terminal conectado ao servidor e execute:
-
-```bash
-sqlite3 data/cqp.db < data/backup_cqp.sql
-```
-
-### 5.3 Copiar as imagens institucionais
-
-Ainda no terminal do Windows, envie os arquivos de imagem:
-
-```
-scp C:\caminho\para\logo_escola.png usuario@192.168.1.XX:/home/usuario/alunos/static/
-scp C:\caminho\para\assinatura.png  usuario@192.168.1.XX:/home/usuario/alunos/static/
+DATABASE_URL=sqlite:////caminho/absoluto/cqp.db
 ```
 
 ---
 
-## Parte 6 — Subir o sistema
+## 5. Inicializar o banco de dados
+
+Execute apenas no primeiro deploy ou apos resetar o banco:
 
 ```bash
-docker compose up -d
+python initdbauto.py
 ```
 
-Na primeira vez esse comando demora um pouco — ele baixa as imagens necessárias e monta tudo. Aguarde até o prompt `$` aparecer novamente.
+Este script cria todas as tabelas definidas em `models.py` via `db.create_all()`.
 
-Para verificar se está tudo certo:
+Alternativa de fallback (ambientes sem Flask-Migrate):
 
 ```bash
-docker compose ps
-```
-
-Devem aparecer dois itens: `cqp_web` e `cqp_nginx`, ambos com status `Up` ou `healthy`. Se os dois estiverem assim, o sistema está no ar.
-
-Acesse pelo navegador de qualquer computador na mesma rede:
-
-```
-http://192.168.1.XX
+python initdb.py
 ```
 
 ---
 
-## Parte 7 — Iniciar automaticamente com o servidor
-
-O sistema já está configurado para reiniciar sozinho se o Docker cair. Mas é preciso garantir que o Docker em si também inicie junto com o sistema operacional:
+## 6. Criar o usuario administrador
 
 ```bash
-sudo systemctl enable docker
+python criaradmin.py
 ```
 
-Com isso, se o servidor for desligado por queda de energia ou qualquer outro motivo, o sistema CQP volta sozinho quando a máquina ligar de novo.
+Credenciais iniciais criadas:
+
+- Login: `admin`
+- Senha: `admin123`
+
+Troque a senha imediatamente apos o primeiro acesso.
 
 ---
 
-## Parte 8 — Atualizar o sistema no futuro
+## 7. Criar indices de banco de dados (recomendado)
 
-Quando o desenvolvedor lançar uma atualização, conecte ao servidor via SSH e execute:
-
-```bash
-cd alunos
-git pull
-docker compose up -d --build
-```
-
-O sistema é atualizado sem perder nenhum dado. O banco de dados fica separado do código justamente para garantir isso.
-
----
-
-## Parte 9 — Acesso externo com Cloudflare Tunnel
-
-Esta parte é opcional. Ela permite acessar o sistema de qualquer lugar — celular, casa, outros computadores fora da escola — sem precisar mexer no roteador e com HTTPS automático. O serviço é gratuito.
-
-Antes de começar, você precisa ter:
-- Um domínio registrado (ex: `suaescola.com.br`) com o DNS gerenciado pela Cloudflare
-- Uma conta na Cloudflare: https://dash.cloudflare.com/sign-up
-
-Se ainda não tem um domínio, fale com o desenvolvedor antes de continuar.
-
-### 9.1 Instalar o cloudflared
+Melhora o desempenho das consultas mais frequentes (mensalidades, matriculas, frequencias):
 
 ```bash
-curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
-sudo dpkg -i cloudflared.deb
-rm cloudflared.deb
-```
-
-Confirme a instalação:
-
-```bash
-cloudflared --version
-```
-
-### 9.2 Autenticar na Cloudflare
-
-Como o servidor não tem navegador, a autenticação funciona assim: o servidor gera um link, você copia e abre no seu computador normal.
-
-No servidor, execute:
-
-```bash
-cloudflared tunnel login
-```
-
-Vai aparecer um link longo começando com `https://dash.cloudflare.com/argotunnel?...`
-
-Não feche esse terminal. Copie o link, abra no navegador do segundo computador e faça login na sua conta Cloudflare. Selecione o domínio e clique em Authorize.
-
-Volte ao terminal do servidor. Em alguns segundos vai aparecer a confirmação de que o login foi concluído.
-
-### 9.3 Criar o túnel
-
-```bash
-cloudflared tunnel create cqp
-```
-
-Vai aparecer o ID do túnel, parecido com:
-
-```
-Created tunnel cqp with id a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-
-Anote esse ID. Você vai usá-lo no próximo passo.
-
-### 9.4 Criar o arquivo de configuração do túnel
-
-```bash
-nano ~/.cloudflared/config.yml
-```
-
-Cole o conteúdo abaixo, fazendo as substituições indicadas:
-
-```yaml
-tunnel: cqp
-credentials-file: /home/USUARIO/.cloudflared/a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx.json
-
-ingress:
-  - hostname: sistema.suaescola.com.br
-    service: http://localhost:80
-  - service: http_status:404
-```
-
-Substitua `USUARIO` pelo nome do seu usuário no servidor, o ID pelo que você anotou, e o subdomínio pelo endereço que preferir.
-
-Para salvar: `Ctrl + X`, depois `Y`, depois `Enter`.
-
-### 9.5 Criar o registro DNS
-
-```bash
-cloudflared tunnel route dns cqp sistema.suaescola.com.br
-```
-
-Troque pelo subdomínio que você usou. Deve aparecer a confirmação de que o registro foi criado.
-
-### 9.6 Ativar o túnel como serviço
-
-```bash
-sudo cloudflared service install
-sudo systemctl enable cloudflared
-sudo systemctl start cloudflared
-```
-
-Para confirmar que está rodando:
-
-```bash
-sudo systemctl status cloudflared
-```
-
-Deve aparecer `active (running)`.
-
-### 9.7 Testar
-
-No celular fora do Wi-Fi da escola, ou em qualquer outro computador, abra o navegador e acesse:
-
-```
-https://sistema.suaescola.com.br
-```
-
-O sistema deve carregar normalmente com o cadeado de segurança. O HTTPS é configurado automaticamente pela Cloudflare, não é preciso fazer mais nada.
-
-### 9.8 Ajuste final no .env
-
-Com o Cloudflare ativo, certifique-se de que o arquivo `.env` não contém a linha `SESSION_COOKIE_SECURE=False`. Se tiver, remova-a. Depois reinicie:
-
-```bash
-cd ~/alunos
-docker compose restart
+python scripts/criarindices.py
 ```
 
 ---
 
-## Comandos do dia a dia
+## 8. Executar em desenvolvimento
 
-| Situação | Comando |
+```bash
+python app.py
+```
+
+A aplicacao sobe em `http://127.0.0.1:5000` com `DEBUG=True` quando `FLASK_DEBUG=True` no `.env`.
+
+---
+
+## 9. Deploy em producao (self-hosted com Gunicorn + Nginx)
+
+### 9.1 Instalar Gunicorn
+
+```bash
+pip install gunicorn
+```
+
+### 9.2 Testar o Gunicorn manualmente
+
+```bash
+gunicorn "app:create_app()" --bind 0.0.0.0:8000 --workers 2
+```
+
+Para a maquina de deploy (i5-3210M, 2 cores fisicos), 2 workers sincrono e o valor adequado.
+
+### 9.3 Criar servico systemd
+
+Crie o arquivo `/etc/systemd/system/cqp.service`:
+
+```ini
+[Unit]
+Description=Centro de Qualificacao - Flask App
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/home/site/wwwroot
+ExecStart=/home/site/wwwroot/venv/bin/gunicorn "app:create_app()" \
+    --bind 127.0.0.1:8000 \
+    --workers 2 \
+    --timeout 120 \
+    --access-logfile /home/site/wwwroot/logs/access.log \
+    --error-logfile /home/site/wwwroot/logs/error.log
+Restart=always
+EnvironmentFile=/home/site/wwwroot/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Ative e inicie:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable cqp
+sudo systemctl start cqp
+```
+
+### 9.4 Configurar Nginx como proxy reverso
+
+Crie `/etc/nginx/sites-available/cqp`:
+
+```nginx
+server {
+    listen 80;
+    server_name seu-dominio-ou-ip;
+
+    client_max_body_size 55M;
+
+    location /static/ {
+        alias /home/site/wwwroot/static/;
+        expires 7d;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Ative o site:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/cqp /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+O limite `client_max_body_size 55M` respeita o `MAX_CONTENT_LENGTH = 50 * 1024 * 1024` definido em `config.py`.
+
+---
+
+## 10. Migracoes e scripts de manutencao
+
+Os scripts abaixo ficam na pasta `scripts/` e devem ser executados pontualmente conforme necessidade:
+
+| Script | Quando executar |
 |---|---|
-| Ver se o sistema está rodando | `docker compose ps` |
-| Ver o que está acontecendo | `docker compose logs -f web` |
-| Reiniciar o sistema | `docker compose restart` |
-| Parar o sistema | `docker compose down` |
-| Ligar o sistema novamente | `docker compose up -d` |
-| Ver se o túnel Cloudflare está ativo | `sudo systemctl status cloudflared` |
-| Reiniciar o túnel Cloudflare | `sudo systemctl restart cloudflared` |
+| `scripts/migrar_senhas.py` | Primeiro deploy com alunos sem senha cadastrada |
+| `scripts/migrate_status_matricula.py` | Padronizar `matriculas.status` para maiusculas |
+| `scripts/migrate_unique_cursomateria.py` | Adicionar indice UNIQUE em `cursos_materias` |
+| `scripts/criar_indices.py` | Otimizar consultas apos primeiro deploy |
+
+Exemplo de execucao:
+
+```bash
+python scripts/migrar_senhas.py
+```
 
 ---
 
-## Backup manual do banco de dados
+## 11. Backup do banco de dados
+
+O sistema disponibiliza rota de download do banco autenticada para administradores em `/backup`.
+
+Para automacao via cron, utilize o script de backup:
 
 ```bash
-cp ~/alunos/data/cqp.db ~/backup_$(date +%Y%m%d).db
+bash scripts/backup_auto.sh
 ```
 
-Isso cria um arquivo com a data de hoje no nome. Guarde em um pen drive ou em outro computador.
+Agende no crontab para execucao diaria:
+
+```
+0 2 * * * /bin/bash /home/site/wwwroot/scripts/backup_auto.sh
+```
+
+O arquivo gerado segue o padrao `backup_cqp_YYYYMMDDHHMMSS.db`.
 
 ---
 
-## Algo deu errado?
+## 12. Estrutura de pastas relevante
 
-Antes de entrar em contato com o desenvolvedor, execute:
-
-```bash
-docker compose logs web
+```
+.
++-- app.py                  # factory create_app(), registro dos blueprints
++-- config.py               # classe Config, leitura do .env
++-- db.py                   # instancia SQLAlchemy, init_db()
++-- models.py               # todos os modelos ORM
++-- security.py             # decoradores de acesso, hash de senhas
++-- enums.py                # constantes de dominio (perfis, status)
++-- routes/                 # blueprints por modulo funcional
++-- services/               # logica de negocio (matricula, pdf, notas, etc.)
++-- templates/              # templates Jinja2
++-- static/
+|   +-- uploads/            # arquivos enviados por usuarios (pdf, imagens, mp4)
++-- scripts/                # scripts de migracao e manutencao
++-- logs/                   # logs rotativos (app.log)
++-- cqp.db                  # banco SQLite (nao versionar)
++-- .env                    # variaveis de ambiente (nao versionar)
 ```
 
-Copie tudo que aparecer e envie junto com a descrição do que aconteceu. Com essa informação o problema é resolvido muito mais rápido.
+---
+
+## 13. Perfis de acesso
+
+| Perfil | Descricao |
+|---|---|
+| `admin` / `administrador` | Acesso total, incluindo exclusao de dados e backup |
+| `financeiro` | Acesso ao modulo financeiro (parcelas, recibos, carnes, despesas) |
+| `secretaria` | Gestao de alunos, matriculas e conteudos |
+| `instrutor` | Notas, frequencia e atividades |
+| `aluno` | Portal do aluno (rota `/aluno/`) |
+
+O modulo financeiro (`/financeiro`, `/despesas`) exige perfil `administrador`, `admin` ou `financeiro` via decorador `@financeiro_required`.
+
+---
+
+## 14. Variaveis de configuracao disponiveis
+
+| Variavel | Padrao | Descricao |
+|---|---|---|
+| `FLASK_SECRET_KEY` | Obrigatoria em producao | Chave de assinatura das sessoes |
+| `FLASK_DEBUG` | `False` | Ativa modo debug (nunca usar em producao) |
+| `FLASK_ENV` | `production` | Controla comportamento do `config.py` |
+| `DATABASE_URL` | `sqlite:///cqp.db` | URI do banco de dados |
+
+---
+
+## Observacoes gerais
+
+- O banco `cqp.db` e o arquivo `.env` nao devem ser commitados. Ambos estao no `.gitignore`.
+- A pasta `static/uploads/` e criada automaticamente pela aplicacao na primeira execucao.
+- A pasta `logs/` e criada automaticamente pelo modulo `logging_config.py`.
+- Sessoes expiram em 1 hora (`PERMANENT_SESSION_LIFETIME = timedelta(hours=1)`).
+- O cookie de sessao e marcado como `HttpOnly` e `SameSite=Lax`. Em producao com HTTPS, e tambem `Secure`.
