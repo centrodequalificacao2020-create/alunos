@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, render_template, request, redirect, flash, current_app
 from db import db
-from models import Conteudo, Materia, CursoMateria, Curso
+from models import Conteudo, Materia, CursoMateria, Curso, ProgressoAula
 from security import login_required, extensao_permitida
 
 
@@ -61,10 +61,15 @@ def conteudos():
 @login_required
 def excluir_conteudo(id):
     c = Conteudo.query.get_or_404(id)
+
+    # Remove registros filhos que não têm cascade configurado
+    ProgressoAula.query.filter_by(conteudo_id=id).delete()
+
     if c.arquivo and not c.arquivo.startswith("http"):
         caminho_abs = os.path.join(current_app.root_path, c.arquivo)
         if os.path.isfile(caminho_abs):
             os.remove(caminho_abs)
+
     db.session.delete(c)
     db.session.commit()
     flash("Conteúdo excluído.", "sucesso")
