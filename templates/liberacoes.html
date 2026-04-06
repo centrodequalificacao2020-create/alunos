@@ -3,180 +3,6 @@
 
 {% block styles %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<style>
-/* ── Layout ── */
-.lib-wrap { max-width: 900px; margin: 0 auto; padding-bottom: 60px; }
-
-/* ── Cabeçalho da página ── */
-.lib-page-header {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
-}
-.lib-page-title {
-  font-size: 20px; font-weight: 700; color: var(--color-text);
-  display: flex; align-items: center; gap: 8px; margin: 0;
-}
-.lib-aluno-banner {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 14px 18px;
-  display: flex; align-items: center; gap: 14px;
-  margin-bottom: 24px;
-}
-.lib-avatar {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: var(--color-primary);
-  color: #fff; font-size: 18px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.lib-aluno-nome { font-size: 15px; font-weight: 700; color: var(--color-text); }
-.lib-aluno-sub  { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
-
-/* ── Card de curso ── */
-.curso-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 20px 22px;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-sm);
-}
-.curso-card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 10px;
-  padding-bottom: 14px; margin-bottom: 18px;
-  border-bottom: 1px solid var(--color-divider);
-}
-.curso-titulo {
-  font-size: 14px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: .8px; color: var(--color-text);
-  display: flex; align-items: center; gap: 8px;
-}
-.badge-curso {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
-}
-.badge-curso.ok   { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-.badge-curso.lock { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-
-/* ── Barra de progresso ── */
-.lib-progress { margin-bottom: 16px; }
-.lib-progress-label {
-  font-size: 11px; font-weight: 600; color: var(--color-text-muted);
-  text-transform: uppercase; letter-spacing: .6px;
-  display: flex; justify-content: space-between; margin-bottom: 5px;
-}
-.lib-progress-bar-bg {
-  height: 6px; background: var(--color-surface-offset);
-  border-radius: 999px; overflow: hidden;
-}
-.lib-progress-bar-fill {
-  height: 100%; border-radius: 999px;
-  background: var(--color-primary);
-  transition: width .3s ease;
-}
-.lib-progress-bar-fill.zero { background: var(--color-border); }
-
-/* ── Seção (Matérias / Provas / etc.) ── */
-.secao-bloco { margin-bottom: 18px; }
-.secao-header {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 8px;
-  margin-bottom: 8px;
-}
-.secao-label {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1.2px; color: var(--color-text-muted);
-  display: flex; align-items: center; gap: 6px;
-}
-.btn-massa-grupo { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-massa {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 11px; border-radius: 6px; font-size: 11px; font-weight: 700;
-  border: 1px solid; cursor: pointer; transition: background .15s;
-  background: transparent;
-}
-.btn-massa.lib { color: #065f46; border-color: #6ee7b7; }
-.btn-massa.lib:hover { background: #d1fae5; }
-.btn-massa.blk { color: #991b1b; border-color: #fca5a5; }
-.btn-massa.blk:hover { background: #fee2e2; }
-
-/* ── Item de liberação ── */
-.lib-item {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 10px 14px; margin-bottom: 6px;
-  transition: box-shadow .15s;
-}
-.lib-item:hover { box-shadow: var(--shadow-sm); }
-.lib-item.liberado { border-left: 3px solid #6ee7b7; }
-.lib-item.bloqueado { border-left: 3px solid var(--color-border); }
-
-.lib-item-nome {
-  font-size: 13px; font-weight: 600; color: var(--color-text);
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-
-/* ── Item filho (exercício) ── */
-.ex-item {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap;
-  background: var(--color-surface);
-  border: 1px solid var(--color-divider);
-  border-radius: var(--radius-md);
-  padding: 8px 14px; margin: 3px 0 3px 20px;
-}
-.ex-item-nome {
-  font-size: 12px; font-weight: 500; color: var(--color-text-muted);
-  display: flex; align-items: center; gap: 7px;
-}
-
-/* ── Badges de status ── */
-.badge-status {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700;
-}
-.badge-status.ok   { background: #d1fae5; color: #065f46; }
-.badge-status.lock { background: #fee2e2; color: #991b1b; }
-
-/* ── Botões de ação por item ── */
-.btn-lib {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 12px; border-radius: var(--radius-sm);
-  font-size: 11px; font-weight: 700; border: 1px solid;
-  cursor: pointer; transition: background .15s; background: transparent;
-  white-space: nowrap;
-}
-.btn-liberar  { color: #065f46; border-color: #6ee7b7; }
-.btn-liberar:hover  { background: #d1fae5; }
-.btn-bloquear { color: #991b1b; border-color: #fca5a5; }
-.btn-bloquear:hover { background: #fee2e2; }
-
-/* ── Botão bloquear curso inteiro ── */
-.btn-danger {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: var(--radius-sm);
-  font-size: 12px; font-weight: 700;
-  background: transparent; color: #991b1b;
-  border: 1px solid #fca5a5; cursor: pointer; transition: background .15s;
-}
-.btn-danger:hover { background: #fee2e2; }
-
-/* ── Vazio ── */
-.lib-vazio {
-  background: var(--color-surface-offset);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  font-size: 13px; color: var(--color-text-muted);
-  display: flex; align-items: center; gap: 8px;
-}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -187,10 +13,10 @@
     <h1 class="lib-page-title">
       <i class="fas fa-unlock-alt"></i> Liberações
       {% if curso_filtrado %}
-        <span style="font-weight:400;color:var(--color-text-muted);font-size:15px">— {{ curso_filtrado.nome }}</span>
+        <span class="lib-page-title-sub">— {{ curso_filtrado.nome }}</span>
       {% endif %}
     </h1>
-    <a href="/aluno/{{ aluno.id }}" class="btn btn-azul" style="font-size:13px;">
+    <a href="/aluno/{{ aluno.id }}" class="btn btn-azul lib-btn-voltar">
       <i class="fas fa-arrow-left"></i> Voltar para a Ficha
     </a>
   </div>
@@ -198,7 +24,7 @@
   {# ── Flashes ── #}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
-      <div class="alert alert-{{ cat }}" style="margin-bottom:12px;">
+      <div class="flash {{ cat }}">
         <i class="fas fa-info-circle"></i> {{ msg }}
       </div>
     {% endfor %}
@@ -250,7 +76,7 @@
     {# ── Cabeçalho do curso ── #}
     <div class="curso-card-header">
       <div class="curso-titulo">
-        <i class="fas fa-graduation-cap" style="color:var(--color-primary)"></i>
+        <i class="fas fa-graduation-cap curso-titulo-icon"></i>
         {{ cd.curso.nome }}
         {% if cd.curso_liberado %}
           <span class="badge-curso ok"><i class="fas fa-unlock"></i> Acesso Liberado</span>
@@ -273,7 +99,7 @@
     {% if total_mat > 0 %}
     <div class="lib-progress">
       <div class="lib-progress-label">
-        <span><i class="fas fa-book" style="margin-right:4px"></i>Matérias</span>
+        <span><i class="fas fa-book lib-progress-icon"></i>Matérias</span>
         <span>{{ lib_mat }}/{{ total_mat }} liberadas</span>
       </div>
       <div class="lib-progress-bar-bg">
@@ -285,7 +111,7 @@
     {% if total_pv > 0 %}
     <div class="lib-progress">
       <div class="lib-progress-label">
-        <span><i class="fas fa-file-alt" style="margin-right:4px"></i>Provas</span>
+        <span><i class="fas fa-file-alt lib-progress-icon"></i>Provas</span>
         <span>{{ lib_pv }}/{{ total_pv }} liberadas</span>
       </div>
       <div class="lib-progress-bar-bg">
@@ -297,7 +123,7 @@
     {% if total_ex.v > 0 %}
     <div class="lib-progress">
       <div class="lib-progress-label">
-        <span><i class="fas fa-pencil-alt" style="margin-right:4px"></i>Exercícios</span>
+        <span><i class="fas fa-pencil-alt lib-progress-icon"></i>Exercícios</span>
         <span>{{ lib_ex.v }}/{{ total_ex.v }} liberados</span>
       </div>
       <div class="lib-progress-bar-bg">
@@ -309,7 +135,7 @@
     {% if total_atv > 0 %}
     <div class="lib-progress">
       <div class="lib-progress-label">
-        <span><i class="fas fa-tasks" style="margin-right:4px"></i>Atividades</span>
+        <span><i class="fas fa-tasks lib-progress-icon"></i>Atividades</span>
         <span>{{ lib_atv }}/{{ total_atv }} liberadas</span>
       </div>
       <div class="lib-progress-bar-bg">
@@ -346,8 +172,7 @@
         {% set lib = (mat.id, cd.curso.id) in cd.ids_mat_lib %}
         <div class="lib-item {{ 'liberado' if lib else 'bloqueado' }}">
           <div class="lib-item-nome">
-            <i class="fas fa-{{ 'lock-open' if lib else 'lock' }}"
-               style="color:{{ '#059669' if lib else 'var(--color-text-muted)' }}"></i>
+            <i class="fas fa-{{ 'lock-open' if lib else 'lock' }} {{ 'lib-item-icon--lib' if lib else 'lib-item-icon--lock' }}"></i>
             {{ mat.nome }}
             <span class="badge-status {{ 'ok' if lib else 'lock' }}">
               <i class="fas fa-{{ 'check' if lib else 'ban' }}"></i>
@@ -373,9 +198,9 @@
           {% set ex_lib = ex.id in cd.ids_ex_lib %}
           <div class="ex-item">
             <div class="ex-item-nome">
-              <i class="fas fa-pencil-alt" style="opacity:.4"></i>
+              <i class="fas fa-pencil-alt ex-item-icon"></i>
               {{ ex.titulo }}
-              <span class="badge-status {{ 'ok' if ex_lib else 'lock' }}" style="font-size:10px">
+              <span class="badge-status {{ 'ok' if ex_lib else 'lock' }}">
                 <i class="fas fa-{{ 'check' if ex_lib else 'ban' }}"></i>
                 {{ 'Liberado' if ex_lib else 'Bloqueado' }}
               </span>
@@ -385,8 +210,7 @@
               <input type="hidden" name="aluno_id"      value="{{ aluno.id }}">
               <input type="hidden" name="exercicio_id"  value="{{ ex.id }}">
               <input type="hidden" name="acao"          value="{{ 'bloquear' if ex_lib else 'liberar' }}">
-              <button type="submit" class="btn-lib {{ 'btn-bloquear' if ex_lib else 'btn-liberar' }}"
-                      style="padding:4px 10px;font-size:11px">
+              <button type="submit" class="btn-lib ex-btn-lib {{ 'btn-bloquear' if ex_lib else 'btn-liberar' }}">
                 <i class="fas fa-{{ 'lock' if ex_lib else 'lock-open' }}"></i>
                 {{ 'Bloquear' if ex_lib else 'Liberar' }}
               </button>
@@ -454,11 +278,10 @@
         {% set lib = pv.id in cd.ids_prova_lib %}
         <div class="lib-item {{ 'liberado' if lib else 'bloqueado' }}">
           <div class="lib-item-nome">
-            <i class="fas fa-{{ 'lock-open' if lib else 'lock' }}"
-               style="color:{{ '#059669' if lib else 'var(--color-text-muted)' }}"></i>
+            <i class="fas fa-{{ 'lock-open' if lib else 'lock' }} {{ 'lib-item-icon--lib' if lib else 'lib-item-icon--lock' }}"></i>
             {{ pv.titulo }}
             {% if pv.materia %}
-              <span style="font-size:11px;color:var(--color-text-muted)">({{ pv.materia.nome }})</span>
+              <span class="lib-prova-materia">({{ pv.materia.nome }})</span>
             {% endif %}
             <span class="badge-status {{ 'ok' if lib else 'lock' }}">
               <i class="fas fa-{{ 'check' if lib else 'ban' }}"></i>
@@ -509,8 +332,7 @@
       {% set atv_lib = atv.id in cd.ids_atv_lib %}
       <div class="lib-item {{ 'liberado' if atv_lib else 'bloqueado' }}">
         <div class="lib-item-nome">
-          <i class="fas fa-{{ 'lock-open' if atv_lib else 'lock' }}"
-             style="color:{{ '#059669' if atv_lib else 'var(--color-text-muted)' }}"></i>
+          <i class="fas fa-{{ 'lock-open' if atv_lib else 'lock' }} {{ 'lib-item-icon--lib' if atv_lib else 'lib-item-icon--lock' }}"></i>
           {{ atv.titulo }}
           <span class="badge-status {{ 'ok' if atv_lib else 'lock' }}">
             <i class="fas fa-{{ 'check' if atv_lib else 'ban' }}"></i>
