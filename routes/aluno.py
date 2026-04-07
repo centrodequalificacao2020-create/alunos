@@ -62,12 +62,13 @@ def _contagens_globais():
     }
 
     return {
-        "cnt_ativos":      por_status.get("Ativo", 0),
-        "cnt_trancados":   por_status.get("Trancado", 0),
-        "cnt_cancelados":  por_status.get("Cancelado", 0),
-        "cnt_finalizados": por_status.get("Finalizado", 0),
-        "inadimplentes":   len(inadimplentes_ids),
-        "inadimplentes_ids": inadimplentes_ids,
+        "cnt_ativos":         por_status.get("Ativo", 0),
+        "cnt_trancados":      por_status.get("Trancado", 0),
+        "cnt_cancelados":     por_status.get("Cancelado", 0),
+        "cnt_finalizados":    por_status.get("Finalizado", 0),
+        "cnt_pre_matricula":  por_status.get("Pr\u00e9-Matr\u00edcula", 0),
+        "inadimplentes":      len(inadimplentes_ids),
+        "inadimplentes_ids":  inadimplentes_ids,
     }
 
 
@@ -83,7 +84,7 @@ def cadastro():
                 func.replace(func.replace(func.replace(Aluno.cpf, ".", ""), "-", ""), " ", "") == cpf
             ).first()
             if existente:
-                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 c = _contagens_globais()
                 paginacao = Aluno.query.order_by(Aluno.nome).paginate(page=1, per_page=20, error_out=False)
                 for a in paginacao.items:
@@ -172,7 +173,7 @@ def excluir_aluno(id):
     senha = request.form.get("senha", "")
     user  = db.session.get(Usuario, session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
-        flash("Senha incorreta. Exclusão cancelada.", "erro")
+        flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
         return redirect("/cadastro")
     a    = db.get_or_404(Aluno, id)
     nome = a.nome
@@ -191,7 +192,7 @@ def excluir_aluno(id):
         db.session.rollback()
     db.session.delete(a)
     db.session.commit()
-    flash(f"Aluno \u201c{nome}\u201d excluído com sucesso.", "sucesso")
+    flash(f"Aluno \u201c{nome}\u201d exclu\u00eddo com sucesso.", "sucesso")
     return redirect("/cadastro")
 
 
@@ -208,7 +209,7 @@ def editar_aluno(id):
                 Aluno.id != id
             ).first()
             if existente:
-                flash(f"CPF já cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
+                flash(f"CPF j\u00e1 cadastrado para o aluno \u201c{existente.nome}\u201d.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
 
@@ -231,7 +232,7 @@ def editar_aluno(id):
         confirm    = f.get("senha_portal_confirm", "").strip()
         if nova_senha:
             if nova_senha != confirm:
-                flash("As senhas do portal não conferem.", "erro")
+                flash("As senhas do portal n\u00e3o conferem.", "erro")
                 cursos = Curso.query.order_by(Curso.nome).all()
                 return render_template("editar_aluno.html", aluno=a, cursos=cursos)
             a.senha = hash_senha(nova_senha)
@@ -295,7 +296,7 @@ def ficha_aluno(aluno_id):
         )
         for te in tentativas_exercicios:
             ex = db.session.get(Exercicio, te.exercicio_id)
-            te.exercicio_titulo = ex.titulo if ex else f"Exercício #{te.exercicio_id}"
+            te.exercicio_titulo = ex.titulo if ex else f"Exerc\u00edcio #{te.exercicio_id}"
     except Exception:
         tentativas_exercicios = []
 
@@ -331,12 +332,12 @@ def excluir_tentativa_prova(aluno_id, resp_id):
     from models import RespostaProva, RespostaQuestao
     rp = db.get_or_404(RespostaProva, resp_id)
     if rp.aluno_id != aluno_id:
-        flash("Operação inválida.", "erro")
+        flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
         return redirect(f"/aluno/{aluno_id}")
     RespostaQuestao.query.filter_by(resposta_prova_id=resp_id).delete()
     db.session.delete(rp)
     db.session.commit()
-    flash("Tentativa de prova excluída.", "sucesso")
+    flash("Tentativa de prova exclu\u00edda.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
 
 
@@ -346,12 +347,12 @@ def excluir_tentativa_exercicio(aluno_id, resp_id):
     from models import RespostaExercicio, RespostaExercicioQuestao
     re_ = db.get_or_404(RespostaExercicio, resp_id)
     if re_.aluno_id != aluno_id:
-        flash("Operação inválida.", "erro")
+        flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
         return redirect(f"/aluno/{aluno_id}")
     RespostaExercicioQuestao.query.filter_by(resposta_exercicio_id=resp_id).delete()
     db.session.delete(re_)
     db.session.commit()
-    flash("Tentativa de exercício excluída.", "sucesso")
+    flash("Tentativa de exerc\u00edcio exclu\u00edda.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
 
 
@@ -361,11 +362,11 @@ def excluir_entrega_atividade(aluno_id, entrega_id):
     from models import EntregaAtividade
     ea = db.get_or_404(EntregaAtividade, entrega_id)
     if ea.aluno_id != aluno_id:
-        flash("Operação inválida.", "erro")
+        flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
         return redirect(f"/aluno/{aluno_id}")
     db.session.delete(ea)
     db.session.commit()
-    flash("Entrega de atividade excluída.", "sucesso")
+    flash("Entrega de atividade exclu\u00edda.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
 
 
@@ -381,9 +382,9 @@ def liberar_acesso_conteudo(aluno_id):
     ok = _toggle_acesso(aluno_id, curso_id, acao, admin_nome)
     if ok:
         verbo = "liberado" if acao == "liberar" else "bloqueado"
-        flash(f"Acesso ao conteúdo {verbo}.", "sucesso")
+        flash(f"Acesso ao conte\u00fado {verbo}.", "sucesso")
     else:
-        flash("Tabela de acesso não encontrada. Execute a migração pendente.", "erro")
+        flash("Tabela de acesso n\u00e3o encontrada. Execute a migra\u00e7\u00e3o pendente.", "erro")
     return redirect(url_for("aluno.ficha_aluno", aluno_id=aluno_id))
 
 
@@ -410,5 +411,5 @@ def excluir_matricula(matricula_id):
 
     db.session.delete(m)
     db.session.commit()
-    flash("Matrícula excluída.", "sucesso")
+    flash("Matr\u00edcula exclu\u00edda.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
