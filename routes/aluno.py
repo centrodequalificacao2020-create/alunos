@@ -49,7 +49,6 @@ def _contagens_globais():
     """Retorna dict com totais reais do banco, independente de paginacao ou filtro."""
     hoje = date.today().isoformat()
 
-    # Contagens por status via SQL aggregate (uma query so)
     rows = (
         db.session.query(Aluno.status, func.count(Aluno.id))
         .group_by(Aluno.status)
@@ -136,7 +135,6 @@ def cadastro():
 
     query = Aluno.query.order_by(Aluno.nome)
     if busca:
-        # BUG-21: busca inclui CPF além do nome
         query = query.filter(
             db.or_(
                 Aluno.nome.ilike(f"%{busca}%"),
@@ -184,9 +182,6 @@ def excluir_aluno(id):
     ProgressoAula.query.filter_by(aluno_id=id).delete()
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
-    # Alunos se autenticam pela tabela `alunos` (campo senha).
-    # A tabela `usuarios` e exclusiva de funcionarios e nao possui aluno_id.
-    # Nao ha registro em `usuarios` a excluir aqui.
     try:
         db.session.execute(
             text("DELETE FROM acesso_conteudo_curso WHERE aluno_id = :aid"),
@@ -304,6 +299,21 @@ def ficha_aluno(aluno_id):
     except Exception:
         tentativas_exercicios = []
 
+    entregas_atividades = []
+    try:
+        from models import EntregaAtividade, Atividade
+        entregas_atividades = (
+            EntregaAtividade.query
+            .filter_by(aluno_id=aluno_id)
+            .order_by(EntregaAtividade.entregue_em.desc())
+            .all()
+        )
+        for ea in entregas_atividades:
+            atv = db.session.get(Atividade, ea.atividade_id)
+            ea.atividade_titulo = atv.titulo if atv else f"Atividade #{ea.atividade_id}"
+    except Exception:
+        entregas_atividades = []
+
     return render_template(
         "ficha_aluno.html",
         aluno=aluno,
@@ -311,6 +321,7 @@ def ficha_aluno(aluno_id):
         cursos_disponiveis=cursos_disponiveis,
         tentativas_provas=tentativas_provas,
         tentativas_exercicios=tentativas_exercicios,
+        entregas_atividades=entregas_atividades,
     )
 
 
@@ -344,6 +355,20 @@ def excluir_tentativa_exercicio(aluno_id, resp_id):
     return redirect(f"/aluno/{aluno_id}")
 
 
+@aluno_bp.route("/aluno/<int:aluno_id>/entrega_atividade/<int:entrega_id>/excluir", methods=["POST"])
+@login_required
+def excluir_entrega_atividade(aluno_id, entrega_id):
+    from models import EntregaAtividade
+    ea = db.get_or_404(EntregaAtividade, entrega_id)
+    if ea.aluno_id != aluno_id:
+        flash("Operação inválida.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+    db.session.delete(ea)
+    db.session.commit()
+    flash("Entrega de atividade excluída.", "sucesso")
+    return redirect(f"/aluno/{aluno_id}")
+
+
 @aluno_bp.route("/aluno/<int:aluno_id>/liberar_acesso", methods=["POST"])
 @login_required
 def liberar_acesso_conteudo(aluno_id):
@@ -369,7 +394,6 @@ def excluir_matricula(matricula_id):
     aluno_id = m.aluno_id
     curso_id = m.curso_id
 
-    # BUG-20: cascade delete explícito antes de remover a matrícula
     Mensalidade.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).delete()
     try:
         from models import MateriaLiberada
