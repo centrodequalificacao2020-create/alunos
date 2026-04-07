@@ -38,9 +38,9 @@ def _calcular_nota(total_pontos, pontos_max):
     return round((total_pontos / pontos_max) * 10, 2)
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # LISTAGEM GERAL
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios")
 @login_required
@@ -70,9 +70,9 @@ def exercicios_geral():
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # CRIAR EXERCICIO
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/novo", methods=["GET", "POST"])
 @login_required
@@ -133,9 +133,9 @@ def novo_exercicio():
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # EDITAR EXERCICIO
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/editar", methods=["GET", "POST"])
 @login_required
@@ -179,9 +179,9 @@ def editar_exercicio(ex_id):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # TOGGLE ATIVO / RASCUNHO
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/toggle", methods=["POST"])
 @login_required
@@ -197,9 +197,9 @@ def toggle_exercicio(ex_id):
     return redirect("/exercicios")
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # EXCLUIR EXERCICIO
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/excluir", methods=["POST"])
 @login_required
@@ -211,9 +211,9 @@ def excluir_exercicio(ex_id):
     return redirect("/exercicios")
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # GERENCIAR QUESTOES
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/questoes", methods=["GET", "POST"])
 @login_required
@@ -309,12 +309,12 @@ def gerenciar_questoes_exercicio(ex_id):
             flash("Quest\u00e3o atualizada.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
 
-    return render_template("exercicio_questoes.html", exercicio=ex, view="questoes")
+    return render_template("exercicios_geral.html", exercicio=ex, view="questoes")
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # RESULTADOS DO EXERCICIO
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/resultados")
 @login_required
@@ -326,13 +326,25 @@ def resultados_exercicio(ex_id):
         .order_by(RespostaExercicio.finalizado_em.desc())
         .all()
     )
-    return render_template("exercicio_questoes.html",
-                           exercicio=ex, respostas=respostas, view="resultados")
+    # pendentes: tentativas com questão dissertativa ainda sem nota
+    tem_dissertativa = any(q.tipo == "dissertativa" for q in ex.questoes)
+    pendentes = sum(
+        1 for r in respostas
+        if tem_dissertativa and r.nota_obtida is None
+    ) if tem_dissertativa else 0
+
+    return render_template(
+        "exercicios_geral.html",
+        exercicio = ex,
+        respostas = respostas,
+        pendentes = pendentes,
+        view      = "resultados",
+    )
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # CORRIGIR TENTATIVA (dissertativas) — espelho de provas
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/tentativa/<int:resp_id>/corrigir",
                      methods=["GET", "POST"])
@@ -356,22 +368,27 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
         pontos_max   = sum(q.pontos for _, q in respostas)
 
         for rq, q in respostas:
-            campo_pts = f"pontos_{rq.id}"
-            try:
-                pts = float(request.form.get(campo_pts, rq.pontos_obtidos or 0))
-                pts = max(0.0, min(float(q.pontos), pts))
-            except (ValueError, TypeError):
+            if q.tipo == "dissertativa":
+                campo_pts = f"pontos_{rq.id}"
+                try:
+                    pts = float(request.form.get(campo_pts, rq.pontos_obtidos or 0))
+                    pts = max(0.0, min(float(q.pontos), pts))
+                except (ValueError, TypeError):
+                    pts = rq.pontos_obtidos or 0.0
+                rq.pontos_obtidos = pts
+                rq.corrigida      = 1
+            else:
+                # multipla_escolha / verdadeiro_falso: pontuação já calculada
+                # automaticamente ao responder; usa o valor gravado
                 pts = rq.pontos_obtidos or 0.0
-            rq.pontos_obtidos = pts
-            rq.corrigida      = 1
-            total_pontos     += pts
+            total_pontos += pts
 
         nota_final  = _calcular_nota(total_pontos, pontos_max)
         nota_minima = float(ex.nota_minima or 6.0)
         resp.nota_obtida = nota_final
         resp.aprovado    = 1 if nota_final >= nota_minima else 0
         db.session.commit()
-        flash(f"Correção salva. Nota: {nota_final}.", "sucesso")
+        flash(f"Corre\u00e7\u00e3o salva. Nota: {nota_final}.", "sucesso")
         return redirect(f"/exercicios/{ex_id}/resultados")
 
     aluno = db.session.get(Aluno, resp.aluno_id)
@@ -384,9 +401,9 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # CONCEDER TENTATIVAS EXTRAS
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/extra-tentativas", methods=["POST"])
 @login_required
@@ -415,9 +432,9 @@ def extra_tentativas_exercicio(ex_id):
     return redirect(f"/exercicios/{ex_id}/resultados")
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # ROTAS LEGADAS
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/materias/<int:materia_id>/exercicios")
 @login_required
@@ -479,9 +496,9 @@ def criar_exercicio(materia_id):
     return redirect(f"/exercicios/{ex.id}/questoes")
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # SERVIR ARQUIVO
-# ─────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/arquivo")
 @login_required
