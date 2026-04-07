@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Corrigir Exerc&iacute;cio &mdash; {{ exercicio.titulo }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header--between">
+        <div>
+            <h2>Corrigir: {{ exercicio.titulo }}</h2>
+            {% if aluno %}
+            <p class="card-subtitle">Aluno: <strong>{{ aluno.nome }}</strong> &mdash; Tentativa #{{ resp.tentativa_num }}</p>
+            {% endif %}
+        </div>
+        <a href="/exercicios/{{ exercicio.id }}/resultados" class="btn btn-azul">&larr; Voltar</a>
+    </div>
+
+    <form method="POST"
+          action="/exercicios/{{ exercicio.id }}/tentativa/{{ resp.id }}/corrigir">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="tabela-planilha" style="margin-top:1.2rem;">
+            <table class="tabela-excel">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Quest&atilde;o</th>
+                        <th>Resposta do Aluno</th>
+                        <th>Tipo</th>
+                        <th style="width:130px;">Pontos (m&aacute;x: <span id="pts-max"></span>)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rq, q in respostas %}
+                    <tr>
+                        <td class="ficha-td-id">{{ loop.index }}</td>
+                        <td style="max-width:380px;white-space:pre-wrap;">{{ q.enunciado }}</td>
+                        <td>
+                            {% if q.tipo == "dissertativa" %}
+                                <span style="white-space:pre-wrap;">{{ rq.texto_resposta or '(sem resposta)' }}</span>
+                            {% else %}
+                                {% if rq.alternativa_id %}
+                                    {% set alt = rq.alternativa %}
+                                    {% if alt %}
+                                        <span class="{% if rq.acertou %}status-ativo{% else %}status-inativo{% endif %}">
+                                            {{ alt.texto }}
+                                        </span>
+                                    {% else %}
+                                        <em>Alternativa removida</em>
+                                    {% endif %}
+                                {% else %}
+                                    <em>N&atilde;o respondeu</em>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if q.tipo == "dissertativa" %}
+                                <span class="badge badge-aviso">Dissertativa</span>
+                            {% elif q.tipo == "verdadeiro_falso" %}
+                                <span class="badge">V/F</span>
+                            {% else %}
+                                <span class="badge">M&uacute;ltipla</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if q.tipo == "dissertativa" %}
+                                <input type="number"
+                                       name="pontos_{{ rq.id }}"
+                                       value="{{ rq.pontos_obtidos if rq.pontos_obtidos is not none else '' }}"
+                                       min="0" max="{{ q.pontos }}" step="0.1"
+                                       class="input-pontos"
+                                       data-max="{{ q.pontos }}"
+                                       placeholder="0 &ndash; {{ q.pontos }}">
+                            {% else %}
+                                <input type="number"
+                                       name="pontos_{{ rq.id }}"
+                                       value="{{ rq.pontos_obtidos if rq.pontos_obtidos is not none else (q.pontos if rq.acertou else 0) }}"
+                                       min="0" max="{{ q.pontos }}" step="0.1"
+                                       class="input-pontos"
+                                       data-max="{{ q.pontos }}"
+                                       readonly>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ficha-portal-banner" style="margin-top:1.2rem;gap:2rem;">
+            <div>
+                <p class="ficha-portal-label">Nota m&iacute;nima para aprova&ccedil;&atilde;o</p>
+                <p><strong>{{ exercicio.nota_minima or 6.0 }}</strong></p>
+            </div>
+            <div>
+                <p class="ficha-portal-label">Nota atual (calculada ap&oacute;s salvar)</p>
+                {% if resp.nota_obtida is not none %}
+                    <p><strong>{{ resp.nota_obtida }}</strong>
+                        {% if resp.aprovado == 1 %}
+                            <span class="status-ativo">&nbsp;Aprovado</span>
+                        {% elif resp.aprovado == 0 %}
+                            <span class="status-inativo">&nbsp;Reprovado</span>
+                        {% endif %}
+                    </p>
+                {% else %}
+                    <p class="ficha-aguardando">Pendente</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top:1.5rem;">
+            <button type="submit" class="btn btn-azul">Salvar corre&ccedil;&atilde;o</button>
+            <a href="/exercicios/{{ exercicio.id }}/resultados" class="btn btn-outline" style="margin-left:.6rem;">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
