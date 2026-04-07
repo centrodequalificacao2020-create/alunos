@@ -9,8 +9,8 @@
             <p class="card-subtitle">Ficha completa do aluno</p>
         </div>
         <div class="ficha-header-acoes">
-            <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno">✏️</a>
-            <a href="/cadastro" class="btn btn-azul">← Voltar</a>
+            <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno">&#9998;</a>
+            <a href="/cadastro" class="btn btn-azul">&larr; Voltar</a>
         </div>
     </div>
 
@@ -62,21 +62,21 @@
     </div>
 </div>
 
-{# ===== MATRÍCULAS ===== #}
+{# ===== MATRICULAS ===== #}
 <div class="card ficha-card-secao">
-    <h3>📋 Matrículas</h3>
+    <h3>Matrículas</h3>
 
     {% if cursos_disponiveis %}
     <form method="POST" action="/matricular_aluno" class="toolbar-matricula">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
         <select name="curso_id" required>
-            <option value="">Selecione um curso…</option>
+            <option value="">Selecione um curso&hellip;</option>
             {% for c in cursos_disponiveis %}
             <option value="{{ c.id }}">{{ c.nome }}</option>
             {% endfor %}
         </select>
-        <button type="submit" class="btn btn-azul">➕ Matricular</button>
+        <button type="submit" class="btn btn-azul">Matricular</button>
     </form>
     {% else %}
     <p class="text-muted small ficha-aviso-matriculas">
@@ -114,21 +114,21 @@
                     <td class="ficha-td-conteudo">
                         <a href="/liberacoes/aluno/{{ aluno.id }}?curso_id={{ m.curso_id }}"
                            class="btn btn-sm btn-lib-conteudo">
-                           📚 Liberar conteúdos
+                           Liberar conteúdos
                         </a>
                     </td>
 
                     <td class="acoes-texto">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-azul" target="_blank">📄 Declaração</a>
+                           class="btn btn-sm btn-azul" target="_blank">Declaração</a>
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-azul" target="_blank">📊 Presença</a>
+                           class="btn btn-sm btn-azul" target="_blank">Presença</a>
                         <form method="POST" action="/excluir_matricula/{{ m.id }}"
                               class="ficha-form-inline"
                               onsubmit="return confirm('Excluir permanentemente a matrícula em {{ m.curso_nome }}?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
-                                    data-tooltip="Excluir matrícula">🗑️ Excluir</button>
+                                    data-tooltip="Excluir matrícula">Excluir</button>
                         </form>
                     </td>
                 </tr>
@@ -143,7 +143,7 @@
 
 {# ===== TENTATIVAS DE PROVAS ===== #}
 <div class="card ficha-card-secao">
-    <h3>📝 Tentativas de Provas</h3>
+    <h3>Tentativas de Provas</h3>
     {% if tentativas_provas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
@@ -154,8 +154,8 @@
                     <th>Tentativa</th>
                     <th>Realizada em</th>
                     <th>Nota</th>
-                    <th>Situação</th>
-                    <th class="ficha-th-centro">Ações</th>
+                    <th>Situa&ccedil;&atilde;o</th>
+                    <th class="ficha-th-centro">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -170,7 +170,7 @@
                             {% set d = tp.finalizado_em %}
                             {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
-                        {% else %}—{% endif %}
+                        {% else %}&mdash;{% endif %}
                     </td>
                     <td class="ficha-td-nota">
                         {% if tp.nota_obtida is not none %}
@@ -185,7 +185,7 @@
                         {% elif tp.aprovado == 0 %}
                             <span class="status-inativo">Reprovado</span>
                         {% else %}
-                            <span class="ficha-aguardando">Aguard. correção</span>
+                            <span class="ficha-aguardando">Aguard. corre&ccedil;&atilde;o</span>
                         {% endif %}
                     </td>
                     <td class="ficha-td-centro">
@@ -194,7 +194,7 @@
                               onsubmit="return confirm('Excluir esta tentativa da prova {{ titulo_prova }}? Esta acao libera uma tentativa para o aluno.')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
-                                    data-tooltip="Excluir tentativa">🗑️ Apagar</button>
+                                    data-tooltip="Excluir tentativa">Apagar</button>
                         </form>
                     </td>
                 </tr>
@@ -207,21 +207,21 @@
     {% endif %}
 </div>
 
-{# ===== TENTATIVAS DE EXERCÍCIOS ===== #}
+{# ===== TENTATIVAS DE EXERCICIOS ===== #}
 <div class="card ficha-card-secao">
-    <h3>🏋️ Tentativas de Exercícios</h3>
+    <h3>Tentativas de Exerc&iacute;cios</h3>
     {% if tentativas_exercicios %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Exercício</th>
+                    <th>Exerc&iacute;cio</th>
                     <th>Tentativa</th>
                     <th>Realizado em</th>
                     <th>Nota</th>
-                    <th>Situação</th>
-                    <th class="ficha-th-centro">Ações</th>
+                    <th>Situa&ccedil;&atilde;o</th>
+                    <th class="ficha-th-centro">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -236,7 +236,7 @@
                             {% set d = te.finalizado_em %}
                             {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
-                        {% else %}—{% endif %}
+                        {% else %}&mdash;{% endif %}
                     </td>
                     <td class="ficha-td-nota">
                         {% if te.nota_obtida is not none %}
@@ -251,7 +251,7 @@
                         {% elif te.aprovado == 0 %}
                             <span class="status-inativo">Reprovado</span>
                         {% else %}
-                            <span class="ficha-aguardando">Aguard. correção</span>
+                            <span class="ficha-aguardando">Aguard. corre&ccedil;&atilde;o</span>
                         {% endif %}
                     </td>
                     <td class="ficha-td-centro">
@@ -260,7 +260,7 @@
                               onsubmit="return confirm('Excluir esta tentativa do exercicio {{ titulo_exercicio }}? Esta acao libera uma tentativa para o aluno.')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
-                                    data-tooltip="Excluir tentativa">🗑️ Apagar</button>
+                                    data-tooltip="Excluir tentativa">Apagar</button>
                         </form>
                     </td>
                 </tr>
@@ -269,7 +269,63 @@
         </table>
     </div>
     {% else %}
-    <p class="empty-state">Nenhuma tentativa de exercício registrada.</p>
+    <p class="empty-state">Nenhuma tentativa de exerc&iacute;cio registrada.</p>
+    {% endif %}
+</div>
+
+{# ===== ENTREGAS DE ATIVIDADES ===== #}
+<div class="card ficha-card-secao">
+    <h3>Entregas de Atividades</h3>
+    {% if entregas_atividades %}
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Atividade</th>
+                    <th>Entregue em</th>
+                    <th>Status</th>
+                    <th class="ficha-th-centro">A&ccedil;&otilde;es</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ea in entregas_atividades %}
+                {% set titulo_atividade = ea.atividade_titulo | replace("'", "") %}
+                <tr>
+                    <td class="ficha-td-id">{{ ea.id }}</td>
+                    <td><strong>{{ ea.atividade_titulo }}</strong></td>
+                    <td class="ficha-td-data">
+                        {% if ea.entregue_em %}
+                            {% set d = ea.entregue_em %}
+                            {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+                            {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
+                        {% else %}&mdash;{% endif %}
+                    </td>
+                    <td>
+                        {% if ea.status == 'corrigida' %}
+                            <span class="status-ativo">Corrigida</span>
+                        {% elif ea.status == 'entregue' %}
+                            <span class="ficha-aguardando">Entregue</span>
+                        {% else %}
+                            <span class="ficha-pendente">{{ ea.status or 'Pendente' }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="ficha-td-centro">
+                        <form method="POST"
+                              action="/aluno/{{ aluno.id }}/entrega_atividade/{{ ea.id }}/excluir"
+                              onsubmit="return confirm('Excluir a entrega da atividade {{ titulo_atividade }}? O aluno podера entregar novamente.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-vermelho tooltip"
+                                    data-tooltip="Excluir entrega">Apagar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">Nenhuma entrega de atividade registrada.</p>
     {% endif %}
 </div>
 {% endblock %}
