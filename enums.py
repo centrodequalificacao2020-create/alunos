@@ -40,10 +40,12 @@ class StatusMensalidade(str, Enum):
 
 
 class StatusAluno(str, Enum):
-    ATIVO     = "Ativo"
-    INATIVO   = "Inativo"
-    TRANCADO  = "Trancado"
-    CANCELADO = "Cancelado"
+    ATIVO         = "Ativo"
+    INATIVO       = "Inativo"
+    TRANCADO      = "Trancado"
+    CANCELADO     = "Cancelado"
+    FINALIZADO    = "Finalizado"     # formaliza valor já usado nos templates
+    PRE_MATRICULA = "Pré-Matrícula"  # novo: aluno aguardando confirmação
 
     @classmethod
     def valores(cls):
