@@ -9,7 +9,7 @@
 
 <div class="card">
     <div class="card-header">
-        <span>👥</span>
+        <span>&#128101;</span>
         <h2>Cadastrar Aluno</h2>
     </div>
 
@@ -40,6 +40,7 @@
                 <label for="status">Status</label>
                 <select id="status" name="status">
                     <option value="Ativo">Ativo</option>
+                    <option value="Pr&#233;-Matr&#237;cula">Pr&#233;-Matr&#237;cula</option>
                     <option value="Trancado">Trancado</option>
                     <option value="Cancelado">Cancelado</option>
                     <option value="Finalizado">Finalizado</option>
@@ -63,18 +64,18 @@
         </div>
 
         <div id="bloco_responsavel" class="bloco-oculto">
-            <h3 class="secao">👨‍👩‍👧 Responsável Legal</h3>
+            <h3 class="secao">&#128106; Respons&#225;vel Legal</h3>
             <div class="grid-4">
                 <div class="campo">
-                    <label for="responsavel_nome">Nome do responsável</label>
+                    <label for="responsavel_nome">Nome do respons&#225;vel</label>
                     <input type="text" id="responsavel_nome" name="responsavel_nome">
                 </div>
                 <div class="campo">
-                    <label for="responsavel_cpf">CPF do responsável</label>
+                    <label for="responsavel_cpf">CPF do respons&#225;vel</label>
                     <input type="text" id="responsavel_cpf" name="responsavel_cpf" inputmode="numeric" placeholder="000.000.000-00">
                 </div>
                 <div class="campo">
-                    <label for="responsavel_telefone">Telefone do responsável</label>
+                    <label for="responsavel_telefone">Telefone do respons&#225;vel</label>
                     <input type="text" id="responsavel_telefone" name="responsavel_telefone" inputmode="numeric">
                 </div>
                 <div class="campo">
@@ -87,28 +88,29 @@
         {% include 'partials/form_endereco.html' %}
 
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">💾 Salvar</button>
+            <button type="submit" class="btn btn-azul">&#128190; Salvar</button>
         </div>
 
     </form>
 </div>
 
 <div class="toolbar-alunos">
-    <h4>👥 Alunos Matriculados</h4>
+    <h4>&#128101; Alunos Matriculados</h4>
     <div class="toolbar-alunos__filtros">
         <form method="GET" action="/cadastro" style="display:contents">
             <input type="text" name="q" id="buscaAluno"
                    placeholder="Buscar aluno..."
                    value="{{ busca }}">
             <select name="status" id="filtroStatus" onchange="this.form.submit()">
-                <option value=""             {% if not status %}selected{% endif %}>Todos os status</option>
-                <option value="Ativo"        {% if status == 'Ativo' %}selected{% endif %}>Ativos</option>
-                <option value="Inadimplente" {% if status == 'Inadimplente' %}selected{% endif %}>Inadimplentes</option>
-                <option value="Trancado"     {% if status == 'Trancado' %}selected{% endif %}>Trancados</option>
-                <option value="Cancelado"    {% if status == 'Cancelado' %}selected{% endif %}>Cancelados</option>
-                <option value="Finalizado"   {% if status == 'Finalizado' %}selected{% endif %}>Finalizados</option>
+                <option value=""                  {% if not status %}selected{% endif %}>Todos os status</option>
+                <option value="Ativo"             {% if status == 'Ativo' %}selected{% endif %}>Ativos</option>
+                <option value="Pr&#233;-Matr&#237;cula" {% if status == 'Pré-Matrícula' %}selected{% endif %}>Pr&#233;-Matr&#237;cula</option>
+                <option value="Inadimplente"      {% if status == 'Inadimplente' %}selected{% endif %}>Inadimplentes</option>
+                <option value="Trancado"          {% if status == 'Trancado' %}selected{% endif %}>Trancados</option>
+                <option value="Cancelado"         {% if status == 'Cancelado' %}selected{% endif %}>Cancelados</option>
+                <option value="Finalizado"        {% if status == 'Finalizado' %}selected{% endif %}>Finalizados</option>
             </select>
-            <button type="submit" class="btn btn-azul">🔍</button>
+            <button type="submit" class="btn btn-azul">&#128269;</button>
         </form>
     </div>
 </div>
@@ -120,9 +122,9 @@
                 <th>Nome</th>
                 <th>WhatsApp</th>
                 <th>E-mail</th>
-                <th>Situação</th>
+                <th>Situa&#231;&#227;o</th>
                 <th>Tel. Resp.</th>
-                <th class="acoes">Ação</th>
+                <th class="acoes">A&#231;&#227;o</th>
             </tr>
         </thead>
         <tbody>
@@ -131,16 +133,16 @@
                 <td>{{ aluno.nome }}</td>
                 <td>{{ aluno.telefone or '' }}</td>
                 <td>{{ aluno.email or '' }}</td>
-                <td><span class="status-{{ aluno.status|lower }}">{{ aluno.status }}</span></td>
+                <td><span class="status-{{ aluno.status|lower|replace(' ', '-')|replace('é', 'e')|replace('í', 'i') }}">{{ aluno.status }}</span></td>
                 <td>{{ aluno.telefone_contato or '' }}</td>
                 <td class="acoes">
-                    <a href="/aluno/{{ aluno.id }}" class="btn btn-info tooltip" data-tooltip="Ver ficha">🔍</a>
-                    <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">✏️</a>
+                    <a href="/aluno/{{ aluno.id }}" class="btn btn-info tooltip" data-tooltip="Ver ficha">&#128269;</a>
+                    <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar">&#9999;&#65039;</a>
                     <button type="button"
                             class="btn btn-lixeira tooltip"
                             data-tooltip="Excluir"
                             onclick="confirmarExclusao('/excluir_aluno/{{ aluno.id }}', '{{ aluno.nome }}', {{ aluno.id }})"
-                    >🗑️</button>
+                    >&#128465;&#65039;</button>
                 </td>
             </tr>
             {% else %}
@@ -153,7 +155,7 @@
 {% if paginacao.pages > 1 %}
 <div class="paginacao" style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;align-items:center">
     {% if paginacao.has_prev %}
-    <a class="btn" href="?page={{ paginacao.prev_num }}&q={{ busca }}&status={{ status }}">‹ Anterior</a>
+    <a class="btn" href="?page={{ paginacao.prev_num }}&q={{ busca }}&status={{ status }}">&#8249; Anterior</a>
     {% endif %}
 
     {% for p in paginacao.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
@@ -164,22 +166,22 @@
             <a class="btn" href="?page={{ p }}&q={{ busca }}&status={{ status }}">{{ p }}</a>
             {% endif %}
         {% else %}
-        <span class="btn" style="pointer-events:none">…</span>
+        <span class="btn" style="pointer-events:none">&#8230;</span>
         {% endif %}
     {% endfor %}
 
     {% if paginacao.has_next %}
-    <a class="btn" href="?page={{ paginacao.next_num }}&q={{ busca }}&status={{ status }}">Próxima ›</a>
+    <a class="btn" href="?page={{ paginacao.next_num }}&q={{ busca }}&status={{ status }}">Pr&#243;xima &#8250;</a>
     {% endif %}
 
-    <small style="color:var(--text-muted)">Página {{ paginacao.page }} de {{ paginacao.pages }} &nbsp;·&nbsp; {{ paginacao.total }} alunos</small>
+    <small style="color:var(--text-muted)">P&#225;gina {{ paginacao.page }} de {{ paginacao.pages }} &nbsp;&#183;&nbsp; {{ paginacao.total }} alunos</small>
 </div>
 {% endif %}
 
-{# Rodapé de contagem — usa totais reais do banco passados pela rota,
-   NÃO filtra a lista 'alunos' que é paginada (apenas a página atual). #}
+{# Rodapé de contagem #}
 <div class="rodape-contagem">
     <span class="contagem-ativo">Ativos: {{ cnt_ativos }}</span>
+    <span class="contagem-pre-matricula">Pr&#233;-Matr&#237;cula: {{ cnt_pre_matricula }}</span>
     <span class="contagem-trancado">Trancados: {{ cnt_trancados }}</span>
     <span class="contagem-cancelado">Cancelados: {{ cnt_cancelados }}</span>
     <span class="contagem-finalizado">Finalizados: {{ cnt_finalizados }}</span>
@@ -190,7 +192,7 @@
 <div id="modalExclusao" class="modal-overlay">
     <form id="formExclusao" method="POST" class="modal">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <h3>Confirmar exclusão</h3>
+        <h3>Confirmar exclus&#227;o</h3>
         <p>Deseja realmente excluir o aluno <strong id="modalExclusaoNome"></strong>?<br>
            <span id="modalExclusaoAviso" class="alerta erro" style="display:none;"></span>
         </p>
