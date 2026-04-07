@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 from db import db
 from models import (
     Materia, Exercicio, ExercicioQuestao, ExercicioAlternativa,
-    RespostaExercicio, ExercicioLiberado,
+    RespostaExercicio, RespostaExercicioQuestao, ExercicioLiberado,
     Curso, CursoMateria, Aluno
 )
 from security import login_required
@@ -31,6 +31,13 @@ def _materias_json():
     return materias, [{"id": m.id, "nome": m.nome, "curso_id": m.curso_id} for m in materias]
 
 
+def _calcular_nota(total_pontos, pontos_max):
+    """Nota na escala 0-10. Retorna 0.0 se pontos_max <= 0."""
+    if not pontos_max or pontos_max <= 0.0:
+        return 0.0
+    return round((total_pontos / pontos_max) * 10, 2)
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # LISTAGEM GERAL
 # ─────────────────────────────────────────────────────────────────────────
@@ -42,7 +49,6 @@ def exercicios_geral():
     materias, materias_json = _materias_json()
     curso_id_sel  = request.args.get("curso_id", type=int)
 
-    # FIX: mostra todos (ativo=0 e ativo=1), igual às provas
     query = Exercicio.query
     if curso_id_sel:
         mids = [
@@ -65,7 +71,7 @@ def exercicios_geral():
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# CRIAR EXERCICIO  (GET renderiza form, POST salva)
+# CRIAR EXERCICIO
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/novo", methods=["GET", "POST"])
@@ -78,15 +84,15 @@ def novo_exercicio():
         f            = request.form
         titulo       = f.get("titulo", "").strip()
         materia_id   = f.get("materia_id", type=int)
-        curso_id     = f.get("curso_id", type=int)
         descricao    = f.get("descricao", "").strip() or None
         ordem        = f.get("ordem", 1, type=int)
         tentativas   = max(1, f.get("tentativas", 1, type=int))
         tempo_limite = f.get("tempo_limite", type=int) or None
+        nota_minima  = f.get("nota_minima", 6.0, type=float)
         ativo        = 1 if f.get("ativo") else 0
 
         if not titulo or not materia_id:
-            flash("Título e matéria são obrigatórios.", "erro")
+            flash("T\u00edtulo e mat\u00e9ria s\u00e3o obrigat\u00f3rios.", "erro")
             return redirect("/exercicios/novo")
 
         arquivo_nome = None
@@ -108,13 +114,14 @@ def novo_exercicio():
             ordem        = ordem,
             tentativas   = tentativas,
             tempo_limite = tempo_limite,
+            nota_minima  = nota_minima,
             ativo        = ativo,
             criado_em    = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             criado_por   = session.get("usuario") or "",
         )
         db.session.add(ex)
         db.session.commit()
-        flash(f"Exercício \u201c{titulo}\u201d criado! Adicione as questões.", "sucesso")
+        flash(f"Exerc\u00edcio \u201c{titulo}\u201d criado! Adicione as quest\u00f5es.", "sucesso")
         return redirect(f"/exercicios/{ex.id}/questoes")
 
     return render_template(
@@ -127,7 +134,7 @@ def novo_exercicio():
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# EDITAR EXERCICIO  (GET renderiza form, POST salva)
+# EDITAR EXERCICIO
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/editar", methods=["GET", "POST"])
@@ -145,6 +152,7 @@ def editar_exercicio(ex_id):
         ex.ordem        = f.get("ordem", ex.ordem, type=int)
         ex.tentativas   = max(1, f.get("tentativas", ex.tentativas or 1, type=int))
         ex.tempo_limite = f.get("tempo_limite", type=int) or None
+        ex.nota_minima  = f.get("nota_minima", ex.nota_minima or 6.0, type=float)
         ex.ativo        = 1 if f.get("ativo") else 0
 
         arq = request.files.get("arquivo")
@@ -158,7 +166,7 @@ def editar_exercicio(ex_id):
             ex.arquivo = f"exercicios/{nome_seguro}"
 
         db.session.commit()
-        flash("Exercício atualizado!", "sucesso")
+        flash("Exerc\u00edcio atualizado!", "sucesso")
         return redirect("/exercicios")
 
     return render_template(
@@ -180,17 +188,17 @@ def editar_exercicio(ex_id):
 def toggle_exercicio(ex_id):
     ex = db.get_or_404(Exercicio, ex_id)
     if ex.total_questoes == 0 and not ex.ativo:
-        flash("Adicione ao menos uma questão antes de ativar o exercício.", "erro")
+        flash("Adicione ao menos uma quest\u00e3o antes de ativar o exerc\u00edcio.", "erro")
         return redirect("/exercicios")
     ex.ativo = 0 if ex.ativo else 1
     db.session.commit()
     estado = "ativado" if ex.ativo else "colocado em rascunho"
-    flash(f"Exercício {estado}.", "sucesso")
+    flash(f"Exerc\u00edcio {estado}.", "sucesso")
     return redirect("/exercicios")
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# EXCLUIR EXERCICIO  (delete real, igual às provas)
+# EXCLUIR EXERCICIO
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/excluir", methods=["POST"])
@@ -199,12 +207,12 @@ def excluir_exercicio(ex_id):
     ex = db.get_or_404(Exercicio, ex_id)
     db.session.delete(ex)
     db.session.commit()
-    flash("Exercício excluído.", "sucesso")
+    flash("Exerc\u00edcio exclu\u00eddo.", "sucesso")
     return redirect("/exercicios")
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# GERENCIAR QUESTOES DE UM EXERCICIO
+# GERENCIAR QUESTOES
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/questoes", methods=["GET", "POST"])
@@ -225,7 +233,7 @@ def gerenciar_questoes_exercicio(ex_id):
             pontos = max(0.1, pontos)
 
             if not enunciado:
-                flash("Enunciado não pode ser vazio.", "erro")
+                flash("Enunciado n\u00e3o pode ser vazio.", "erro")
                 return redirect(f"/exercicios/{ex_id}/questoes")
 
             ordem = (db.session.query(db.func.max(ExercicioQuestao.ordem))
@@ -250,18 +258,18 @@ def gerenciar_questoes_exercicio(ex_id):
                         ordem=i + 1,
                     ))
             db.session.commit()
-            flash("Questão adicionada.", "sucesso")
+            flash("Quest\u00e3o adicionada.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
 
         elif acao == "del_questao":
             q_id = int(request.form.get("questao_id"))
             q    = db.get_or_404(ExercicioQuestao, q_id)
             if q.exercicio_id != ex_id:
-                flash("Operação inválida.", "erro")
+                flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
                 return redirect(f"/exercicios/{ex_id}/questoes")
             db.session.delete(q)
             db.session.commit()
-            flash("Questão removida.", "sucesso")
+            flash("Quest\u00e3o removida.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
 
         elif acao == "edit_questao":
@@ -284,12 +292,12 @@ def gerenciar_questoes_exercicio(ex_id):
                 texto = texto.strip()
                 if not texto:
                     continue
-                if alt_id:  # alternativa existente
+                if alt_id:
                     alt = db.session.get(ExercicioAlternativa, int(alt_id))
                     if alt and alt.questao_id == q.id:
                         alt.texto   = texto
                         alt.correta = 1 if str(idx) in corretas else 0
-                else:       # FIX: nova alternativa adicionada pelo modal
+                else:
                     db.session.add(ExercicioAlternativa(
                         questao_id=q.id, texto=texto,
                         correta=1 if str(idx) in corretas else 0,
@@ -298,7 +306,7 @@ def gerenciar_questoes_exercicio(ex_id):
                     nova_ordem += 1
 
             db.session.commit()
-            flash("Questão atualizada.", "sucesso")
+            flash("Quest\u00e3o atualizada.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
 
     return render_template("exercicio_questoes.html", exercicio=ex, view="questoes")
@@ -323,17 +331,71 @@ def resultados_exercicio(ex_id):
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# CORRIGIR TENTATIVA (dissertativas) — espelho de provas
+# ─────────────────────────────────────────────────────────────────────────
+
+@exercicios_bp.route("/exercicios/<int:ex_id>/tentativa/<int:resp_id>/corrigir",
+                     methods=["GET", "POST"])
+@login_required
+def corrigir_tentativa_exercicio(ex_id, resp_id):
+    ex   = db.get_or_404(Exercicio, ex_id)
+    resp = db.get_or_404(RespostaExercicio, resp_id)
+    if resp.exercicio_id != ex_id:
+        abort(403)
+
+    respostas = (
+        db.session.query(RespostaExercicioQuestao, ExercicioQuestao)
+        .join(ExercicioQuestao, ExercicioQuestao.id == RespostaExercicioQuestao.questao_id)
+        .filter(RespostaExercicioQuestao.resposta_exercicio_id == resp_id)
+        .order_by(ExercicioQuestao.ordem)
+        .all()
+    )
+
+    if request.method == "POST":
+        total_pontos = 0.0
+        pontos_max   = sum(q.pontos for _, q in respostas)
+
+        for rq, q in respostas:
+            campo_pts = f"pontos_{rq.id}"
+            try:
+                pts = float(request.form.get(campo_pts, rq.pontos_obtidos or 0))
+                pts = max(0.0, min(float(q.pontos), pts))
+            except (ValueError, TypeError):
+                pts = rq.pontos_obtidos or 0.0
+            rq.pontos_obtidos = pts
+            rq.corrigida      = 1
+            total_pontos     += pts
+
+        nota_final  = _calcular_nota(total_pontos, pontos_max)
+        nota_minima = float(ex.nota_minima or 6.0)
+        resp.nota_obtida = nota_final
+        resp.aprovado    = 1 if nota_final >= nota_minima else 0
+        db.session.commit()
+        flash(f"Correção salva. Nota: {nota_final}.", "sucesso")
+        return redirect(f"/exercicios/{ex_id}/resultados")
+
+    aluno = db.session.get(Aluno, resp.aluno_id)
+    return render_template(
+        "exercicio_corrigir.html",
+        exercicio = ex,
+        resp      = resp,
+        respostas = respostas,
+        aluno     = aluno,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # CONCEDER TENTATIVAS EXTRAS
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/extra-tentativas", methods=["POST"])
 @login_required
 def extra_tentativas_exercicio(ex_id):
-    ex       = db.get_or_404(Exercicio, ex_id)
+    db.get_or_404(Exercicio, ex_id)
     aluno_id = request.form.get("aluno_id", type=int)
     qtd      = request.form.get("qtd", 1, type=int)
     if not aluno_id:
-        flash("Aluno não informado.", "erro")
+        flash("Aluno n\u00e3o informado.", "erro")
         return redirect(f"/exercicios/{ex_id}/resultados")
     lib = ExercicioLiberado.query.filter_by(aluno_id=aluno_id, exercicio_id=ex_id).first()
     if lib:
@@ -354,7 +416,7 @@ def extra_tentativas_exercicio(ex_id):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# ROTAS LEGADAS (mantidas para compatibilidade)
+# ROTAS LEGADAS
 # ─────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/materias/<int:materia_id>/exercicios")
@@ -385,7 +447,7 @@ def criar_exercicio(materia_id):
     tentativas   = request.form.get("tentativas", 1, type=int)
     tempo_limite = request.form.get("tempo_limite", type=int)
     if not titulo:
-        flash("Título é obrigatório.", "erro")
+        flash("T\u00edtulo \u00e9 obrigat\u00f3rio.", "erro")
         return redirect(f"/materias/{materia_id}/exercicios")
 
     arquivo_nome = None
@@ -413,7 +475,7 @@ def criar_exercicio(materia_id):
     )
     db.session.add(ex)
     db.session.commit()
-    flash(f"Exercício '{titulo}' criado!", "sucesso")
+    flash(f"Exerc\u00edcio '{titulo}' criado!", "sucesso")
     return redirect(f"/exercicios/{ex.id}/questoes")
 
 
