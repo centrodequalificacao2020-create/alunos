@@ -83,7 +83,7 @@ def novo_exercicio():
         ativo       = 1 if f.get("ativo") else 0
 
         if not titulo or not materia_id:
-            flash("T\u00edtulo e mat\u00e9ria s\u00e3o obrigat\u00f3rios.", "erro")
+            flash("Título e matéria são obrigatórios.", "erro")
             return redirect("/exercicios/novo")
 
         arquivo_nome = None
@@ -106,7 +106,7 @@ def novo_exercicio():
         )
         db.session.add(ex)
         db.session.commit()
-        flash(f"Exerc\u00edcio \u201c{titulo}\u201d criado! Adicione as quest\u00f5es.", "sucesso")
+        flash(f"Exercício \u201c{titulo}\u201d criado! Adicione as questões.", "sucesso")
         return redirect(f"/exercicios/{ex.id}/questoes")
 
     return render_template(
@@ -146,7 +146,7 @@ def editar_exercicio(ex_id):
             ex.arquivo = f"exercicios/{nome_seguro}"
 
         db.session.commit()
-        flash("Exerc\u00edcio atualizado!", "sucesso")
+        flash("Exercício atualizado!", "sucesso")
         return redirect("/exercicios")
 
     return render_template(
@@ -163,12 +163,12 @@ def editar_exercicio(ex_id):
 def toggle_exercicio(ex_id):
     ex = db.get_or_404(Exercicio, ex_id)
     if ex.total_questoes == 0 and not ex.ativo:
-        flash("Adicione ao menos uma quest\u00e3o antes de ativar o exerc\u00edcio.", "erro")
+        flash("Adicione ao menos uma questão antes de ativar o exercício.", "erro")
         return redirect("/exercicios")
     ex.ativo = 0 if ex.ativo else 1
     db.session.commit()
     estado = "ativado" if ex.ativo else "colocado em rascunho"
-    flash(f"Exerc\u00edcio {estado}.", "sucesso")
+    flash(f"Exercício {estado}.", "sucesso")
     return redirect("/exercicios")
 
 
@@ -180,7 +180,7 @@ def excluir_exercicio(ex_id):
     ex = db.get_or_404(Exercicio, ex_id)
     db.session.delete(ex)
     db.session.commit()
-    flash("Exerc\u00edcio exclu\u00eddo.", "sucesso")
+    flash("Exercício excluído.", "sucesso")
     return redirect("/exercicios")
 
 
@@ -204,7 +204,7 @@ def gerenciar_questoes_exercicio(ex_id):
             pontos = max(0.1, pontos)
 
             if not enunciado:
-                flash("Enunciado n\u00e3o pode ser vazio.", "erro")
+                flash("Enunciado não pode ser vazio.", "erro")
                 return redirect(f"/exercicios/{ex_id}/questoes")
 
             ordem = (db.session.query(db.func.max(ExercicioQuestao.ordem))
@@ -229,18 +229,18 @@ def gerenciar_questoes_exercicio(ex_id):
                         ordem=i + 1,
                     ))
             db.session.commit()
-            flash("Quest\u00e3o adicionada.", "sucesso")
+            flash("Questão adicionada.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
 
         elif acao == "del_questao":
             q_id = int(request.form.get("questao_id"))
             q    = db.get_or_404(ExercicioQuestao, q_id)
             if q.exercicio_id != ex_id:
-                flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
+                flash("Operação inválida.", "erro")
                 return redirect(f"/exercicios/{ex_id}/questoes")
             db.session.delete(q)
             db.session.commit()
-            flash("Quest\u00e3o removida.", "sucesso")
+            flash("Questão removida.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
 
         elif acao == "edit_questao":
@@ -277,7 +277,7 @@ def gerenciar_questoes_exercicio(ex_id):
                     nova_ordem += 1
 
             db.session.commit()
-            flash("Quest\u00e3o atualizada.", "sucesso")
+            flash("Questão atualizada.", "sucesso")
             return redirect(f"/exercicios/{ex_id}/questoes")
 
     return render_template("exercicios_geral.html", exercicio=ex, view="questoes")
@@ -303,6 +303,87 @@ def resultados_exercicio(ex_id):
     )
 
 
+# ── RECALCULAR NOTAS EM LOTE ──────────────────────────────────────────────────
+# Corrige tentativas que ficaram com nota_obtida=NULL porque foram salvas por
+# versões antigas do código (só objetivas; dissertativas são ignoradas).
+# Acessível em: POST /exercicios/<ex_id>/recalcular-notas
+#           ou: POST /exercicios/recalcular-notas  (todos os exercícios)
+
+def _recalcular_tentativas_sem_nota(exercicio_id=None):
+    """
+    Recalcula nota_obtida e aprovado para todas as RespostaExercicio com
+    nota_obtida IS NULL que NÃO possuem questão dissertativa pendente de correção.
+    Retorna (corrigidas, ignoradas).
+    """
+    query = RespostaExercicio.query.filter(RespostaExercicio.nota_obtida.is_(None))
+    if exercicio_id:
+        query = query.filter_by(exercicio_id=exercicio_id)
+
+    corrigidas = 0
+    ignoradas  = 0  # têm dissertativa não corrigida — precisam de correção manual
+
+    for resp in query.all():
+        ex = db.session.get(Exercicio, resp.exercicio_id)
+        if not ex:
+            continue
+
+        respostas_q = (
+            db.session.query(RespostaExercicioQuestao, ExercicioQuestao)
+            .join(ExercicioQuestao, ExercicioQuestao.id == RespostaExercicioQuestao.questao_id)
+            .filter(RespostaExercicioQuestao.resposta_exercicio_id == resp.id)
+            .all()
+        )
+
+        # Verifica se há dissertativa não corrigida
+        tem_diss_pendente = any(
+            q.tipo == "dissertativa" and not rq.corrigida
+            for rq, q in respostas_q
+        )
+        if tem_diss_pendente:
+            ignoradas += 1
+            continue
+
+        # Soma pontos de todas as questões
+        total_pontos = 0.0
+        pontos_max   = 0.0
+        for rq, q in respostas_q:
+            pts_questao  = max(0.0, float(q.pontos or 0.0))
+            pontos_max  += pts_questao
+            total_pontos += (rq.pontos_obtidos or 0.0)
+
+        nota_final       = _calcular_nota(total_pontos, pontos_max)
+        resp.nota_obtida = nota_final
+        resp.aprovado    = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
+        corrigidas      += 1
+
+    db.session.commit()
+    return corrigidas, ignoradas
+
+
+@exercicios_bp.route("/exercicios/<int:ex_id>/recalcular-notas", methods=["POST"])
+@login_required
+def recalcular_notas_exercicio(ex_id):
+    db.get_or_404(Exercicio, ex_id)
+    corrigidas, ignoradas = _recalcular_tentativas_sem_nota(exercicio_id=ex_id)
+    msg = f"{corrigidas} nota(s) recalculada(s)."
+    if ignoradas:
+        msg += f" {ignoradas} tentativa(s) ignorada(s) (têm dissertativa pendente — use 'Corrigir')."
+    flash(msg, "sucesso" if corrigidas else "aviso")
+    return redirect(f"/exercicios/{ex_id}/resultados")
+
+
+@exercicios_bp.route("/exercicios/recalcular-notas", methods=["POST"])
+@login_required
+def recalcular_notas_todos():
+    """Recalcula notas pendentes de TODOS os exercícios de uma vez."""
+    corrigidas, ignoradas = _recalcular_tentativas_sem_nota()
+    msg = f"{corrigidas} nota(s) recalculada(s) em todos os exercícios."
+    if ignoradas:
+        msg += f" {ignoradas} ignorada(s) (dissertativas pendentes)."
+    flash(msg, "sucesso" if corrigidas else "aviso")
+    return redirect("/exercicios")
+
+
 # ── CORRIGIR TENTATIVA ────────────────────────────────────────────────────────
 # Espelho exato de routes/provas.py → corrigir_tentativa
 
@@ -316,7 +397,6 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
         abort(403)
     aluno = db.get_or_404(Aluno, resp.aluno_id)
 
-    # Carrega todas as respostas de questoes desta tentativa
     respostas = (
         db.session.query(RespostaExercicioQuestao, ExercicioQuestao)
         .join(ExercicioQuestao, ExercicioQuestao.id == RespostaExercicioQuestao.questao_id)
@@ -333,7 +413,6 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
             pts_questao  = max(0.0, float(q.pontos or 0.0))
             pontos_max  += pts_questao
             if q.tipo == "dissertativa":
-                # Lê pontuação manual do form
                 try:
                     pts = float(request.form.get(f"pontos_{rq.id}", 0))
                     pts = max(0.0, min(pts, pts_questao))
@@ -343,7 +422,6 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
                 rq.corrigida      = 1
                 total_pontos     += pts
             else:
-                # Objetiva: usa valor já gravado pelo portal do aluno, nunca sobrescreve
                 total_pontos += (rq.pontos_obtidos or 0.0)
 
         nota_final       = _calcular_nota(total_pontos, pontos_max)
@@ -352,13 +430,12 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
         db.session.commit()
 
         flash(
-            f"Corre\u00e7\u00e3o salva! {aluno.nome} \u2014 "
+            f"Correção salva! {aluno.nome} \u2014 "
             f"Nota: {nota_final} ({'Aprovado' if resp.aprovado else 'Reprovado'}).",
             "sucesso"
         )
         return redirect(f"/exercicios/{ex_id}/resultados")
 
-    # GET: monta gabarito igual ao de provas
     gabarito = []
     for rq, q in respostas:
         correta   = ExercicioAlternativa.query.filter_by(questao_id=q.id, correta=1).first()
@@ -385,7 +462,7 @@ def extra_tentativas_exercicio(ex_id):
     aluno_id = request.form.get("aluno_id", type=int)
     qtd      = request.form.get("qtd", 1, type=int)
     if not aluno_id:
-        flash("Aluno n\u00e3o informado.", "erro")
+        flash("Aluno não informado.", "erro")
         return redirect(f"/exercicios/{ex_id}/resultados")
     lib = ExercicioLiberado.query.filter_by(aluno_id=aluno_id, exercicio_id=ex_id).first()
     if lib:
@@ -433,7 +510,7 @@ def criar_exercicio(materia_id):
     tentativas   = request.form.get("tentativas", 1, type=int)
     tempo_limite = request.form.get("tempo_limite", type=int)
     if not titulo:
-        flash("T\u00edtulo \u00e9 obrigat\u00f3rio.", "erro")
+        flash("Título é obrigatório.", "erro")
         return redirect(f"/materias/{materia_id}/exercicios")
 
     arquivo_nome = None
@@ -457,7 +534,7 @@ def criar_exercicio(materia_id):
     )
     db.session.add(ex)
     db.session.commit()
-    flash(f"Exerc\u00edcio '{titulo}' criado!", "sucesso")
+    flash(f"Exercício '{titulo}' criado!", "sucesso")
     return redirect(f"/exercicios/{ex.id}/questoes")
 
 
