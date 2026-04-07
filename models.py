@@ -200,14 +200,11 @@ class AtividadeLiberada(db.Model):
     id               = db.Column(db.Integer, primary_key=True)
     aluno_id         = db.Column(db.Integer, db.ForeignKey("alunos.id"),     nullable=False)
     atividade_id     = db.Column(db.Integer, db.ForeignKey("atividades.id"), nullable=False)
-    # BUG-01 FIX: colunas de controle de liberacao faltavam no modelo
     liberado         = db.Column(db.Integer, nullable=False, default=1)
     liberado_por     = db.Column(db.String(120))
     liberado_em      = db.Column(db.String(19))
     extra_tentativas = db.Column(db.Integer, default=0)
     aluno     = db.relationship("Aluno",     backref="atividades_liberadas", lazy=True)
-    # BUG-10 FIX: backref renomeado de "liberacoes" para "atv_liberacoes" para
-    # evitar colisao com Exercicio.liberacoes (ExercicioLiberado)
     atividade = db.relationship("Atividade", backref="atv_liberacoes", lazy=True)
 
 
@@ -229,20 +226,12 @@ class Matricula(db.Model):
     valor_material      = db.Column(db.Float, default=0)
     observacao          = db.Column(db.Text)
 
-    # BUG-20: cascade delete-orphan — ao cancelar/excluir matrícula,
-    # as mensalidades vinculadas são removidas automaticamente.
-    # ATENÇÃO: após este commit, rodar no console PythonAnywhere:
-    #   flask db migrate -m "cascade-matricula"
-    #   flask db upgrade
     mensalidades_matricula = db.relationship(
         "Mensalidade",
         foreign_keys="[Mensalidade.aluno_id]",
         primaryjoin="Matricula.aluno_id == Mensalidade.aluno_id",
         lazy=True,
-        viewonly=True,  # readonly — evita conflito com Aluno.mensalidades
-        # O cascade real é garantido pela FK com ON DELETE CASCADE na migration
-        # Use: db.session.delete(matricula) + remover mensalidades explicitamente
-        # na rota de cancelamento (ver services/matricula_service.py)
+        viewonly=True,
         overlaps="aluno,mensalidades",
     )
 
@@ -368,6 +357,7 @@ class Exercicio(db.Model):
     ativo        = db.Column(db.Integer, default=1)
     tentativas   = db.Column(db.Integer, default=1)
     tempo_limite = db.Column(db.Integer, nullable=True)
+    nota_minima  = db.Column(db.Float, default=6.0)
     criado_em    = db.Column(db.String(19))
     criado_por   = db.Column(db.String(80))
     liberacoes   = db.relationship("ExercicioLiberado",
@@ -418,7 +408,7 @@ class ExercicioAlternativa(db.Model):
 
 
 class RespostaExercicio(db.Model):
-    """Resultado de uma tentativa de exercicio por aluno. NAO e lancado no boletim."""
+    """Resultado de uma tentativa de exercicio por aluno."""
     __tablename__ = "respostas_exercicio"
     __table_args__ = (
         db.Index("ix_resp_ex_aluno_id",    "aluno_id"),
@@ -433,6 +423,9 @@ class RespostaExercicio(db.Model):
     total_questoes   = db.Column(db.Integer, default=0)
     acertos          = db.Column(db.Integer, default=0)
     percentual       = db.Column(db.Float,   default=0.0)
+    # Campos espelhados de RespostaProva para uniformidade na ficha do aluno
+    nota_obtida   = db.Column(db.Float,   nullable=True)
+    aprovado      = db.Column(db.Integer, nullable=True)
     aluno = db.relationship("Aluno", backref="respostas_exercicio", lazy=True)
     respostas_questao = db.relationship(
         "RespostaExercicioQuestao",
@@ -470,6 +463,10 @@ class RespostaExercicioQuestao(db.Model):
         nullable=True,
     )
     acertou               = db.Column(db.Integer, default=0)
+    # Campos espelhados de RespostaQuestao para suporte a questoes dissertativas
+    texto_resposta = db.Column(db.Text,    nullable=True)
+    pontos_obtidos = db.Column(db.Float,   nullable=True)
+    corrigida      = db.Column(db.Integer, default=0)
     questao      = db.relationship("ExercicioQuestao",    lazy="joined")
     alternativa  = db.relationship("ExercicioAlternativa", lazy="joined",
                                    foreign_keys=[alternativa_id])
