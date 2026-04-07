@@ -13,6 +13,8 @@ from sqlalchemy.orm import joinedload
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
+_STATUS_BLOQUEADOS = {"Trancado", "Cancelado", "Finalizado"}
+
 
 def _calcular_nota(total_pontos, pontos_max):
     """Nota na escala 0-10. Retorna 0.0 se pontos_max <= 0."""
@@ -176,6 +178,13 @@ def login_aluno():
             return redirect("/aluno/login")
         if not verificar_senha(senha, aluno.senha):
             flash("Senha incorreta. Tente novamente.", "erro")
+            return redirect("/aluno/login")
+        if aluno.status in _STATUS_BLOQUEADOS:
+            flash(
+                f"Acesso bloqueado. Sua situação atual é '{aluno.status}'. "
+                "Entre em contato com a secretaria.",
+                "erro"
+            )
             return redirect("/aluno/login")
         session.clear()
         session.permanent = True
