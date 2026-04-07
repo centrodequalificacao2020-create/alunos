@@ -9,7 +9,7 @@
 
 <div class="card">
     <div class="card-header">
-        <span>✏️</span>
+        <span>&#9999;&#65039;</span>
         <h2>Editar Aluno</h2>
     </div>
     <p class="card-subtitle">{{ aluno.nome }}</p>
@@ -45,7 +45,7 @@
             <div class="campo">
                 <label for="status">Status</label>
                 <select id="status" name="status">
-                    {% for s in ['Ativo','Trancado','Cancelado','Finalizado'] %}
+                    {% for s in ['Ativo', 'Pré-Matrícula', 'Trancado', 'Cancelado', 'Finalizado'] %}
                     <option value="{{ s }}" {% if aluno.status == s %}selected{% endif %}>{{ s }}</option>
                     {% endfor %}
                 </select>
@@ -60,7 +60,7 @@
                        inputmode="numeric" placeholder="(00) 00000-0000">
             </div>
             <div class="campo">
-                <label for="telefone_contato">Telefone do responsável</label>
+                <label for="telefone_contato">Telefone do respons&#225;vel</label>
                 <input type="text" id="telefone_contato" name="telefone_contato"
                        value="{{ aluno.telefone_contato or '' }}"
                        inputmode="numeric">
@@ -74,15 +74,15 @@
         </div>
 
         <div id="bloco_responsavel" class="bloco-oculto">
-            <h3 class="secao">👨‍👩‍👧 Responsável Legal</h3>
+            <h3 class="secao">&#128106; Respons&#225;vel Legal</h3>
             <div class="grid-4">
                 <div class="campo">
-                    <label for="responsavel_nome">Nome do responsável</label>
+                    <label for="responsavel_nome">Nome do respons&#225;vel</label>
                     <input type="text" id="responsavel_nome" name="responsavel_nome"
                            value="{{ aluno.responsavel_nome or '' }}">
                 </div>
                 <div class="campo">
-                    <label for="responsavel_cpf">CPF do responsável</label>
+                    <label for="responsavel_cpf">CPF do respons&#225;vel</label>
                     <input type="text" id="responsavel_cpf" name="responsavel_cpf"
                            value="{{ aluno.responsavel_cpf or '' }}"
                            inputmode="numeric" placeholder="000.000.000-00">
@@ -103,16 +103,16 @@
 
         {% include 'partials/form_endereco.html' %}
 
-        <h3 class="secao">🔐 Acesso ao Portal do Aluno</h3>
+        <h3 class="secao">&#128272; Acesso ao Portal do Aluno</h3>
         <p style="font-size:13px;color:#666;margin-bottom:12px;">
-            A senha inicial é o <strong>CPF sem pontos e traço</strong>.
+            A senha inicial &#233; o <strong>CPF sem pontos e tra&#231;o</strong>.
             Use os campos abaixo para definir uma nova senha.
         </p>
         <div class="grid-4">
             <div class="campo">
                 <label for="senha_portal">Nova senha do portal</label>
                 <input type="password" id="senha_portal" name="senha_portal"
-                       placeholder="Deixe em branco para não alterar">
+                       placeholder="Deixe em branco para n&#227;o alterar">
             </div>
             <div class="campo">
                 <label for="senha_portal_confirm">Confirmar senha</label>
@@ -122,8 +122,8 @@
         </div>
 
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">💾 Salvar Alterações</button>
-            <a href="/cadastro" class="btn btn-vermelho">✖ Cancelar</a>
+            <button type="submit" class="btn btn-azul">&#128190; Salvar Altera&#231;&#245;es</button>
+            <a href="/cadastro" class="btn btn-vermelho">&#10006; Cancelar</a>
         </div>
     </form>
 </div>
