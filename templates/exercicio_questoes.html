@@ -273,6 +273,21 @@
         <tbody>
         {% for r in respostas %}
         {% set pct = r.percentual|round(1) %}
+        {# ── pré-calcula listas seguras para o modal JS ── #}
+        {% set _enuns = [] %}
+        {% set _acertos = [] %}
+        {% set _resps = [] %}
+        {% for rq in r.respostas_questao %}
+            {% set _ = _enuns.append(rq.questao.enunciado if rq.questao else '') %}
+            {% set _ = _acertos.append(rq.acertou) %}
+            {% if rq.alternativa %}
+                {% set _ = _resps.append(rq.alternativa.texto) %}
+            {% elif rq.texto_resposta %}
+                {% set _ = _resps.append(rq.texto_resposta) %}
+            {% else %}
+                {% set _ = _resps.append('') %}
+            {% endif %}
+        {% endfor %}
         <tr>
             <td>{{ r.id }}</td>
             <td><strong>{{ r.aluno.nome }}</strong></td>
@@ -290,12 +305,14 @@
             </td>
             <td>{{ r.iniciado_em or '&mdash;' }}</td>
             <td>{{ r.finalizado_em or '&mdash;' }}</td>
-            <td>
+            <td style="display:flex;gap:4px;flex-wrap:wrap">
                 <button type="button" class="btn btn-sm"
                         style="background:#6366f1;color:#fff"
-                        onclick="verDetalhe({{ r.id }}, {{ r.respostas_questao|map(attribute='questao.enunciado')|list|tojson }}, {{ r.respostas_questao|map(attribute='acertou')|list|tojson }}, {{ r.respostas_questao|map(attribute='alternativa.texto' if r.respostas_questao else '')|list|tojson }})">
+                        onclick="verDetalhe({{ r.id }}, {{ _enuns|tojson }}, {{ _acertos|tojson }}, {{ _resps|tojson }})">
                     Ver detalhe
                 </button>
+                <a href="/exercicios/{{ exercicio.id }}/tentativa/{{ r.id }}/corrigir"
+                   class="btn btn-sm" style="background:#f59e0b;color:#fff">Corrigir</a>
             </td>
         </tr>
         {% endfor %}
