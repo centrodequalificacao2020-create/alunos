@@ -109,7 +109,28 @@
                             {% if dc|length >= 16 %}&#224;s {{ dc[11:16] }}{% endif %}
                         {% else %}-{% endif %}
                     </td>
-                    <td><span class="status-{{ m.status|lower }}">{{ m.status }}</span></td>
+                    <td>
+                        {# Select inline para alterar status da matrícula #}
+                        <form method="POST"
+                              action="/matricula/{{ m.id }}/status"
+                              class="form-status-matricula"
+                              onchange="this.submit()">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <select name="status" class="select-status-matricula status-{{ m.status|lower }}">
+                                {% for s, label in [
+                                    ('ATIVA',     'Ativa'),
+                                    ('TRANCADA',  'Trancada'),
+                                    ('INATIVA',   'Inativa'),
+                                    ('CONCLUIDA', 'Concluída')
+                                ] %}
+                                <option value="{{ s }}"
+                                    {% if m.status and m.status.upper() == s %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </td>
 
                     <td class="ficha-td-conteudo">
                         <a href="/liberacoes/aluno/{{ aluno.id }}?curso_id={{ m.curso_id }}"
@@ -313,7 +334,7 @@
                     <td class="ficha-td-centro">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/entrega_atividade/{{ ea.id }}/excluir"
-                              onsubmit="return confirm('Excluir a entrega da atividade {{ titulo_atividade }}? O aluno podера entregar novamente.')">
+                              onsubmit="return confirm('Excluir a entrega da atividade {{ titulo_atividade }}? O aluno poderá entregar novamente.')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-vermelho tooltip"
                                     data-tooltip="Excluir entrega">Apagar</button>
