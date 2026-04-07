@@ -749,7 +749,10 @@ def responder_exercicio(ex_id):
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/resultado/<int:resp_id>")
 @aluno_login_required
 def resultado_exercicio(ex_id, resp_id):
-    from models import Exercicio, RespostaExercicio
+    from models import (
+        Exercicio, RespostaExercicio,
+        RespostaExercicioQuestao, ExercicioQuestao, ExercicioAlternativa,
+    )
     aluno_id = session["aluno_id"]
     aluno    = db.get_or_404(Aluno, aluno_id)
     ex       = db.get_or_404(Exercicio, ex_id)
@@ -760,13 +763,23 @@ def resultado_exercicio(ex_id, resp_id):
     if not resp.finalizado_em:
         abort(404)
 
+    # BUG-2 FIX: query explícita com join — evita acesso lazy (DetachedInstanceError)
+    # Mesmo padrão usado corretamente em resultado_prova_aluno()
+    respostas = (
+        db.session.query(RespostaExercicioQuestao, ExercicioQuestao)
+        .join(ExercicioQuestao, ExercicioQuestao.id == RespostaExercicioQuestao.questao_id)
+        .filter(RespostaExercicioQuestao.resposta_exercicio_id == resp_id)
+        .order_by(ExercicioQuestao.ordem)
+        .all()
+    )
+
     gabarito = []
-    for rq in sorted(resp.respostas_questao, key=lambda r: r.questao.ordem):
-        q           = rq.questao
+    for rq, q in respostas:
         correta_alt = next((a for a in q.alternativas if a.correta), None)
+        escolhida   = db.session.get(ExercicioAlternativa, rq.alternativa_id) if rq.alternativa_id else None
         gabarito.append({
-            "questao":   q,
-            "escolhida": rq.alternativa,
+            "questao":  q,
+            "escolhida": escolhida,
             "correta":   correta_alt,
             "acertou":   bool(rq.acertou),
         })
