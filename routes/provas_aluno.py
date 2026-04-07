@@ -94,8 +94,9 @@ def _verificar_token_inicio(token: str, aluno_id: int, prova_id: int):
         payload, sig = parts
         if not hmac.compare_digest(sig, _assinar(payload)):
             return None
-        # payload = aluno_id:prova_id:agora_str
-        p_parts = payload.split(":")
+        # payload = aluno_id:prova_id:YYYY-MM-DD HH:MM:SS
+        # split(":", 2) limita a 2 divisões → preserva o timestamp completo como 3ª parte
+        p_parts = payload.split(":", 2)
         if len(p_parts) != 3:
             return None
         p_aluno, p_prova, p_ts = p_parts
