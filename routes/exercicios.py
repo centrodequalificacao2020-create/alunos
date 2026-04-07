@@ -32,22 +32,19 @@ def _materias_json():
 
 
 def _calcular_nota(total_pontos, pontos_max):
-    """Nota na escala 0-10. Retorna 0.0 se pontos_max <= 0."""
     if not pontos_max or pontos_max <= 0.0:
         return 0.0
     return round((total_pontos / pontos_max) * 10, 2)
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# LISTAGEM GERAL
-# ───────────────────────────────────────────────────────────────────────────
+# ── LISTAGEM GERAL ────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios")
 @login_required
 def exercicios_geral():
-    cursos        = Curso.query.order_by(Curso.nome).all()
+    cursos = Curso.query.order_by(Curso.nome).all()
     materias, materias_json = _materias_json()
-    curso_id_sel  = request.args.get("curso_id", type=int)
+    curso_id_sel = request.args.get("curso_id", type=int)
 
     query = Exercicio.query
     if curso_id_sel:
@@ -61,35 +58,29 @@ def exercicios_geral():
 
     return render_template(
         "exercicios_geral.html",
-        cursos        = cursos,
-        materias      = materias,
-        materias_json = materias_json,
-        exercicios    = exercicios,
-        curso_id_sel  = curso_id_sel,
-        view          = "lista",
+        cursos=cursos, materias=materias, materias_json=materias_json,
+        exercicios=exercicios, curso_id_sel=curso_id_sel, view="lista",
     )
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# CRIAR EXERCICIO
-# ───────────────────────────────────────────────────────────────────────────
+# ── CRIAR EXERCICIO ───────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/novo", methods=["GET", "POST"])
 @login_required
 def novo_exercicio():
-    cursos        = Curso.query.order_by(Curso.nome).all()
+    cursos = Curso.query.order_by(Curso.nome).all()
     materias, materias_json = _materias_json()
 
     if request.method == "POST":
-        f            = request.form
-        titulo       = f.get("titulo", "").strip()
-        materia_id   = f.get("materia_id", type=int)
-        descricao    = f.get("descricao", "").strip() or None
-        ordem        = f.get("ordem", 1, type=int)
-        tentativas   = max(1, f.get("tentativas", 1, type=int))
+        f = request.form
+        titulo      = f.get("titulo", "").strip()
+        materia_id  = f.get("materia_id", type=int)
+        descricao   = f.get("descricao", "").strip() or None
+        ordem       = f.get("ordem", 1, type=int)
+        tentativas  = max(1, f.get("tentativas", 1, type=int))
         tempo_limite = f.get("tempo_limite", type=int) or None
-        nota_minima  = f.get("nota_minima", 6.0, type=float)
-        ativo        = 1 if f.get("ativo") else 0
+        nota_minima = f.get("nota_minima", 6.0, type=float)
+        ativo       = 1 if f.get("ativo") else 0
 
         if not titulo or not materia_id:
             flash("T\u00edtulo e mat\u00e9ria s\u00e3o obrigat\u00f3rios.", "erro")
@@ -107,17 +98,11 @@ def novo_exercicio():
             arquivo_nome = f"exercicios/{nome_seguro}"
 
         ex = Exercicio(
-            materia_id   = materia_id,
-            titulo       = titulo,
-            descricao    = descricao,
-            arquivo      = arquivo_nome,
-            ordem        = ordem,
-            tentativas   = tentativas,
-            tempo_limite = tempo_limite,
-            nota_minima  = nota_minima,
-            ativo        = ativo,
-            criado_em    = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            criado_por   = session.get("usuario") or "",
+            materia_id=materia_id, titulo=titulo, descricao=descricao,
+            arquivo=arquivo_nome, ordem=ordem, tentativas=tentativas,
+            tempo_limite=tempo_limite, nota_minima=nota_minima, ativo=ativo,
+            criado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            criado_por=session.get("usuario") or "",
         )
         db.session.add(ex)
         db.session.commit()
@@ -126,22 +111,17 @@ def novo_exercicio():
 
     return render_template(
         "exercicios_geral.html",
-        cursos        = cursos,
-        materias      = materias,
-        materias_json = materias_json,
-        view          = "novo",
+        cursos=cursos, materias=materias, materias_json=materias_json, view="novo",
     )
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# EDITAR EXERCICIO
-# ───────────────────────────────────────────────────────────────────────────
+# ── EDITAR EXERCICIO ──────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_exercicio(ex_id):
-    ex            = db.get_or_404(Exercicio, ex_id)
-    cursos        = Curso.query.order_by(Curso.nome).all()
+    ex = db.get_or_404(Exercicio, ex_id)
+    cursos = Curso.query.order_by(Curso.nome).all()
     materias, materias_json = _materias_json()
 
     if request.method == "POST":
@@ -171,17 +151,12 @@ def editar_exercicio(ex_id):
 
     return render_template(
         "exercicios_geral.html",
-        exercicio     = ex,
-        cursos        = cursos,
-        materias      = materias,
-        materias_json = materias_json,
-        view          = "editar",
+        exercicio=ex, cursos=cursos, materias=materias,
+        materias_json=materias_json, view="editar",
     )
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# TOGGLE ATIVO / RASCUNHO
-# ───────────────────────────────────────────────────────────────────────────
+# ── TOGGLE ATIVO ──────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/toggle", methods=["POST"])
 @login_required
@@ -197,9 +172,7 @@ def toggle_exercicio(ex_id):
     return redirect("/exercicios")
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# EXCLUIR EXERCICIO
-# ───────────────────────────────────────────────────────────────────────────
+# ── EXCLUIR EXERCICIO ─────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/excluir", methods=["POST"])
 @login_required
@@ -211,9 +184,7 @@ def excluir_exercicio(ex_id):
     return redirect("/exercicios")
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# GERENCIAR QUESTOES
-# ───────────────────────────────────────────────────────────────────────────
+# ── GERENCIAR QUESTÕES ────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/questoes", methods=["GET", "POST"])
 @login_required
@@ -312,9 +283,7 @@ def gerenciar_questoes_exercicio(ex_id):
     return render_template("exercicios_geral.html", exercicio=ex, view="questoes")
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# RESULTADOS DO EXERCICIO
-# ───────────────────────────────────────────────────────────────────────────
+# ── RESULTADOS ────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/resultados")
 @login_required
@@ -326,35 +295,28 @@ def resultados_exercicio(ex_id):
         .order_by(RespostaExercicio.finalizado_em.desc())
         .all()
     )
-    # pendentes: tentativas com questão dissertativa ainda sem nota
-    tem_dissertativa = any(q.tipo == "dissertativa" for q in ex.questoes)
-    pendentes = sum(
-        1 for r in respostas
-        if tem_dissertativa and r.nota_obtida is None
-    ) if tem_dissertativa else 0
-
+    pendentes = sum(1 for r in respostas if r.nota_obtida is None)
     return render_template(
         "exercicios_geral.html",
-        exercicio = ex,
-        respostas = respostas,
-        pendentes = pendentes,
-        view      = "resultados",
+        exercicio=ex, respostas=respostas,
+        pendentes=pendentes, view="resultados",
     )
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# CORRIGIR TENTATIVA (dissertativas) — espelho de provas
-# ───────────────────────────────────────────────────────────────────────────
+# ── CORRIGIR TENTATIVA ────────────────────────────────────────────────────────
+# Espelho exato de routes/provas.py → corrigir_tentativa
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/tentativa/<int:resp_id>/corrigir",
                      methods=["GET", "POST"])
 @login_required
 def corrigir_tentativa_exercicio(ex_id, resp_id):
-    ex   = db.get_or_404(Exercicio, ex_id)
     resp = db.get_or_404(RespostaExercicio, resp_id)
+    ex   = db.get_or_404(Exercicio, ex_id)
     if resp.exercicio_id != ex_id:
         abort(403)
+    aluno = db.get_or_404(Aluno, resp.aluno_id)
 
+    # Carrega todas as respostas de questoes desta tentativa
     respostas = (
         db.session.query(RespostaExercicioQuestao, ExercicioQuestao)
         .join(ExercicioQuestao, ExercicioQuestao.id == RespostaExercicioQuestao.questao_id)
@@ -365,45 +327,56 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
 
     if request.method == "POST":
         total_pontos = 0.0
-        pontos_max   = sum(q.pontos for _, q in respostas)
+        pontos_max   = 0.0
 
         for rq, q in respostas:
+            pts_questao  = max(0.0, float(q.pontos or 0.0))
+            pontos_max  += pts_questao
             if q.tipo == "dissertativa":
-                campo_pts = f"pontos_{rq.id}"
+                # Lê pontuação manual do form
                 try:
-                    pts = float(request.form.get(campo_pts, rq.pontos_obtidos or 0))
-                    pts = max(0.0, min(float(q.pontos), pts))
+                    pts = float(request.form.get(f"pontos_{rq.id}", 0))
+                    pts = max(0.0, min(pts, pts_questao))
                 except (ValueError, TypeError):
-                    pts = rq.pontos_obtidos or 0.0
+                    pts = 0.0
                 rq.pontos_obtidos = pts
                 rq.corrigida      = 1
+                total_pontos     += pts
             else:
-                # multipla_escolha / verdadeiro_falso: pontuação já calculada
-                # automaticamente ao responder; usa o valor gravado
-                pts = rq.pontos_obtidos or 0.0
-            total_pontos += pts
+                # Objetiva: usa valor já gravado pelo portal do aluno, nunca sobrescreve
+                total_pontos += (rq.pontos_obtidos or 0.0)
 
-        nota_final  = _calcular_nota(total_pontos, pontos_max)
-        nota_minima = float(ex.nota_minima or 6.0)
+        nota_final       = _calcular_nota(total_pontos, pontos_max)
         resp.nota_obtida = nota_final
-        resp.aprovado    = 1 if nota_final >= nota_minima else 0
+        resp.aprovado    = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
         db.session.commit()
-        flash(f"Corre\u00e7\u00e3o salva. Nota: {nota_final}.", "sucesso")
+
+        flash(
+            f"Corre\u00e7\u00e3o salva! {aluno.nome} \u2014 "
+            f"Nota: {nota_final} ({'Aprovado' if resp.aprovado else 'Reprovado'}).",
+            "sucesso"
+        )
         return redirect(f"/exercicios/{ex_id}/resultados")
 
-    aluno = db.session.get(Aluno, resp.aluno_id)
+    # GET: monta gabarito igual ao de provas
+    gabarito = []
+    for rq, q in respostas:
+        correta   = ExercicioAlternativa.query.filter_by(questao_id=q.id, correta=1).first()
+        escolhida = db.session.get(ExercicioAlternativa, rq.alternativa_id) if rq.alternativa_id else None
+        gabarito.append({
+            "questao":   q,
+            "rq":        rq,
+            "correta":   correta,
+            "escolhida": escolhida,
+        })
+
     return render_template(
         "exercicio_corrigir.html",
-        exercicio = ex,
-        resp      = resp,
-        respostas = respostas,
-        aluno     = aluno,
+        exercicio=ex, resp=resp, aluno=aluno, gabarito=gabarito,
     )
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# CONCEDER TENTATIVAS EXTRAS
-# ───────────────────────────────────────────────────────────────────────────
+# ── TENTATIVAS EXTRAS ─────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/extra-tentativas", methods=["POST"])
 @login_required
@@ -419,12 +392,10 @@ def extra_tentativas_exercicio(ex_id):
         lib.extra_tentativas = (lib.extra_tentativas or 0) + max(1, qtd)
     else:
         lib = ExercicioLiberado(
-            aluno_id         = aluno_id,
-            exercicio_id     = ex_id,
-            liberado         = 1,
-            liberado_por     = session.get("usuario", ""),
-            liberado_em      = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            extra_tentativas = max(1, qtd),
+            aluno_id=aluno_id, exercicio_id=ex_id, liberado=1,
+            liberado_por=session.get("usuario", ""),
+            liberado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            extra_tentativas=max(1, qtd),
         )
         db.session.add(lib)
     db.session.commit()
@@ -432,9 +403,7 @@ def extra_tentativas_exercicio(ex_id):
     return redirect(f"/exercicios/{ex_id}/resultados")
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# ROTAS LEGADAS
-# ───────────────────────────────────────────────────────────────────────────
+# ── ROTAS LEGADAS ─────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/materias/<int:materia_id>/exercicios")
 @login_required
@@ -479,16 +448,12 @@ def criar_exercicio(materia_id):
         arquivo_nome = f"exercicios/{nome_seguro}"
 
     ex = Exercicio(
-        materia_id   = materia_id,
-        titulo       = titulo,
-        descricao    = descricao or None,
-        arquivo      = arquivo_nome,
-        ordem        = ordem,
-        tentativas   = max(1, tentativas or 1),
-        tempo_limite = tempo_limite or None,
-        ativo        = 1,
-        criado_em    = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        criado_por   = session.get("usuario") or "",
+        materia_id=materia_id, titulo=titulo,
+        descricao=descricao or None, arquivo=arquivo_nome,
+        ordem=ordem, tentativas=max(1, tentativas or 1),
+        tempo_limite=tempo_limite or None, ativo=1,
+        criado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        criado_por=session.get("usuario") or "",
     )
     db.session.add(ex)
     db.session.commit()
@@ -496,9 +461,7 @@ def criar_exercicio(materia_id):
     return redirect(f"/exercicios/{ex.id}/questoes")
 
 
-# ───────────────────────────────────────────────────────────────────────────
-# SERVIR ARQUIVO
-# ───────────────────────────────────────────────────────────────────────────
+# ── SERVIR ARQUIVO ────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/arquivo")
 @login_required
@@ -513,6 +476,6 @@ def ver_arquivo_exercicio(ex_id):
     mime, _ = mimetypes.guess_type(caminho)
     with open(caminho, "rb") as fp:
         dados = fp.read()
-    resp = Response(dados, mimetype=mime or "application/octet-stream")
-    resp.headers["Content-Disposition"] = "inline"
-    return resp
+    r = Response(dados, mimetype=mime or "application/octet-stream")
+    r.headers["Content-Disposition"] = "inline"
+    return r

@@ -1,115 +1,160 @@
 {% extends "base.html" %}
 {% block title %}Corrigir Exerc&iacute;cio &mdash; {{ exercicio.titulo }}{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+    --bg-page:   #0f1923;
+    --bg-card:   rgba(255,255,255,.06);
+    --border:    rgba(255,255,255,.12);
+    --accent:    #00c6ff;
+    --green:     #00ff9d;
+    --red:       #ff4d4d;
+    --yellow:    #ffd700;
+    --purple:    #c77dff;
+}
+body   { background:#0f1923; font-family:'Segoe UI',sans-serif; color:#fff; min-height:100vh; }
+.wrap  { max-width:860px; margin:auto; padding:30px 20px 60px; }
+
+.info-bar{
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:14px; padding:16px 20px; margin-bottom:28px;
+}
+.info-bar i    { font-size:26px; }
+.info-bar h2   { margin:0; font-size:18px; }
+.info-bar small{ opacity:.55; font-size:13px; display:block; }
+.pill{
+    display:inline-block; padding:3px 12px; border-radius:999px;
+    font-size:12px; font-weight:700;
+}
+.pill-pend { background:rgba(255,215,0,.15);  color:var(--yellow); border:1px solid var(--yellow); }
+.pill-ok   { background:rgba(0,255,157,.15);  color:var(--green);  border:1px solid var(--green); }
+.pill-err  { background:rgba(255,77,77,.15);  color:var(--red);    border:1px solid var(--red); }
+
+.q-card{
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:14px; padding:20px 22px; margin-bottom:18px;
+}
+.q-card.q-obj  { border-left:4px solid var(--accent); }
+.q-card.q-diss { border-left:4px solid var(--purple); }
+.q-num   { font-size:11px; opacity:.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.q-enunc { font-size:15px; line-height:1.6; margin-bottom:14px; }
+
+.alt-row { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; margin-bottom:6px; font-size:14px; }
+.alt-row.certa  { background:rgba(0,255,157,.12); color:var(--green); }
+.alt-row.errada { background:rgba(255,77,77,.12);  color:var(--red); }
+.alt-row.neutra { opacity:.45; }
+
+.diss-box{
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1);
+    border-radius:10px; padding:12px 16px; font-size:14px;
+    white-space:pre-wrap; margin-bottom:14px; min-height:60px; color:#e2e8f0;
+}
+.pontos-row { display:flex; align-items:center; gap:12px; margin-top:10px; }
+.pontos-row label { font-size:13px; opacity:.7; }
+.pontos-inp{
+    width:80px; padding:7px 10px; border-radius:8px; font-size:15px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
+    color:#fff; text-align:center;
+}
+.pontos-inp:focus { outline:none; border-color:var(--accent); }
+.pontos-max { font-size:12px; opacity:.5; }
+
+.btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:12px 24px; border-radius:10px; font-size:15px; font-weight:600;
+    cursor:pointer; border:none; text-decoration:none; transition:.25s;
+}
+.btn-salvar { background:linear-gradient(135deg,#00c6ff,#0072ff); color:#fff; width:100%; justify-content:center; margin-top:12px; }
+.btn-salvar:hover { opacity:.85; }
+.btn-voltar { background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.2); }
+.btn-voltar:hover { background:rgba(255,255,255,.14); }
+.topo-acoes { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:10px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <div class="card-header--between">
-        <div>
-            <h2>Corrigir: {{ exercicio.titulo }}</h2>
-            {% if aluno %}
-            <p class="card-subtitle">Aluno: <strong>{{ aluno.nome }}</strong> &mdash; Tentativa #{{ resp.tentativa_num }}</p>
+<div class="wrap">
+
+    <div class="topo-acoes">
+        <a href="/exercicios/{{ exercicio.id }}/resultados" class="btn btn-voltar">
+            <i class="fas fa-arrow-left"></i> Voltar aos resultados
+        </a>
+        {% if resp.nota_obtida is not none %}
+            {% if resp.aprovado %}
+            <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ resp.nota_obtida }}</span>
+            {% else %}
+            <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ resp.nota_obtida }}</span>
             {% endif %}
-        </div>
-        <a href="/exercicios/{{ exercicio.id }}/resultados" class="btn btn-azul">&larr; Voltar</a>
+        {% else %}
+            <span class="pill pill-pend"><i class="fas fa-clock"></i> Aguardando corre&ccedil;&atilde;o</span>
+        {% endif %}
     </div>
 
-    <form method="POST"
-          action="/exercicios/{{ exercicio.id }}/tentativa/{{ resp.id }}/corrigir">
+    <div class="info-bar">
+        <i class="fas fa-user-graduate" style="color:#c77dff"></i>
+        <div>
+            <h2>{{ aluno.nome }}</h2>
+            <small>{{ exercicio.titulo }} &mdash; Tentativa {{ resp.tentativa_num }}</small>
+            <small>Enviada em: {{ resp.finalizado_em }}</small>
+        </div>
+    </div>
+
+    <form method="POST" action="/exercicios/{{ exercicio.id }}/tentativa/{{ resp.id }}/corrigir">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <div class="tabela-planilha" style="margin-top:1.2rem;">
-            <table class="tabela-excel">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Quest&atilde;o</th>
-                        <th>Resposta do Aluno</th>
-                        <th>Tipo</th>
-                        <th style="width:130px;">Pontos (m&aacute;x: <span id="pts-max"></span>)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for rq, q in respostas %}
-                    <tr>
-                        <td class="ficha-td-id">{{ loop.index }}</td>
-                        <td style="max-width:380px;white-space:pre-wrap;">{{ q.enunciado }}</td>
-                        <td>
-                            {% if q.tipo == "dissertativa" %}
-                                <span style="white-space:pre-wrap;">{{ rq.texto_resposta or '(sem resposta)' }}</span>
-                            {% else %}
-                                {% if rq.alternativa_id %}
-                                    {% set alt = rq.alternativa %}
-                                    {% if alt %}
-                                        <span class="{% if rq.acertou %}status-ativo{% else %}status-inativo{% endif %}">
-                                            {{ alt.texto }}
-                                        </span>
-                                    {% else %}
-                                        <em>Alternativa removida</em>
-                                    {% endif %}
-                                {% else %}
-                                    <em>N&atilde;o respondeu</em>
-                                {% endif %}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if q.tipo == "dissertativa" %}
-                                <span class="badge badge-aviso">Dissertativa</span>
-                            {% elif q.tipo == "verdadeiro_falso" %}
-                                <span class="badge">V/F</span>
-                            {% else %}
-                                <span class="badge">M&uacute;ltipla</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if q.tipo == "dissertativa" %}
-                                <input type="number"
-                                       name="pontos_{{ rq.id }}"
-                                       value="{{ rq.pontos_obtidos if rq.pontos_obtidos is not none else '' }}"
-                                       min="0" max="{{ q.pontos }}" step="0.1"
-                                       class="input-pontos"
-                                       data-max="{{ q.pontos }}"
-                                       placeholder="0 &ndash; {{ q.pontos }}">
-                            {% else %}
-                                <input type="number"
-                                       name="pontos_{{ rq.id }}"
-                                       value="{{ rq.pontos_obtidos if rq.pontos_obtidos is not none else (q.pontos if rq.acertou else 0) }}"
-                                       min="0" max="{{ q.pontos }}" step="0.1"
-                                       class="input-pontos"
-                                       data-max="{{ q.pontos }}"
-                                       readonly>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% for item in gabarito %}
+        {% set q  = item.questao %}
+        {% set rq = item.rq %}
+
+        {% if q.tipo == 'dissertativa' %}
+        {# ── DISSERTATIVA: campo editável de pontuação ── #}
+        <div class="q-card q-diss">
+            <div class="q-num">Quest&atilde;o {{ loop.index }} &mdash; <span style="color:#c77dff">Dissertativa</span> &mdash; m&aacute;ximo {{ q.pontos }} pt{{ 's' if q.pontos != 1 }}</div>
+            <div class="q-enunc">{{ q.enunciado }}</div>
+            <div class="diss-box">{{ rq.texto_resposta or '(sem resposta)' }}</div>
+            <div class="pontos-row">
+                <label for="pontos_{{ rq.id }}">Pontua&ccedil;&atilde;o:</label>
+                <input
+                    class="pontos-inp"
+                    type="number" step="0.5" min="0" max="{{ q.pontos }}"
+                    id="pontos_{{ rq.id }}" name="pontos_{{ rq.id }}"
+                    value="{{ rq.pontos_obtidos if rq.pontos_obtidos is not none else '' }}"
+                    placeholder="0"
+                >
+                <span class="pontos-max">/ {{ q.pontos }}</span>
+            </div>
         </div>
 
-        <div class="ficha-portal-banner" style="margin-top:1.2rem;gap:2rem;">
-            <div>
-                <p class="ficha-portal-label">Nota m&iacute;nima para aprova&ccedil;&atilde;o</p>
-                <p><strong>{{ exercicio.nota_minima or 6.0 }}</strong></p>
-            </div>
-            <div>
-                <p class="ficha-portal-label">Nota atual (calculada ap&oacute;s salvar)</p>
-                {% if resp.nota_obtida is not none %}
-                    <p><strong>{{ resp.nota_obtida }}</strong>
-                        {% if resp.aprovado == 1 %}
-                            <span class="status-ativo">&nbsp;Aprovado</span>
-                        {% elif resp.aprovado == 0 %}
-                            <span class="status-inativo">&nbsp;Reprovado</span>
-                        {% endif %}
-                    </p>
+        {% else %}
+        {# ── OBJETIVA: apenas informativo, sem input editável ── #}
+        {% set acertou = item.escolhida and item.correta and item.escolhida.id == item.correta.id %}
+        <div class="q-card q-obj">
+            <div class="q-num">Quest&atilde;o {{ loop.index }} &mdash; {{ q.tipo|replace('_',' ')|title }} &mdash; {{ q.pontos }} pt{{ 's' if q.pontos != 1 }}</div>
+            <div class="q-enunc">{{ q.enunciado }}</div>
+            {% for alt in q.alternativas|sort(attribute='ordem') %}
+                {% if item.correta and alt.id == item.correta.id %}
+                <div class="alt-row certa"><i class="fas fa-check-circle"></i> {{ alt.texto }}</div>
+                {% elif item.escolhida and alt.id == item.escolhida.id %}
+                <div class="alt-row errada"><i class="fas fa-times-circle"></i> {{ alt.texto }}</div>
                 {% else %}
-                    <p class="ficha-aguardando">Pendente</p>
+                <div class="alt-row neutra">{{ alt.texto }}</div>
                 {% endif %}
+            {% endfor %}
+            <div style="font-size:13px;margin-top:10px;opacity:.6">
+                Pontos obtidos: <strong style="color:{{ '#00ff9d' if acertou else '#ff4d4d' }}">{{ rq.pontos_obtidos or 0 }}</strong> / {{ q.pontos }}
             </div>
         </div>
+        {% endif %}
 
-        <div style="margin-top:1.5rem;">
-            <button type="submit" class="btn btn-azul">Salvar corre&ccedil;&atilde;o</button>
-            <a href="/exercicios/{{ exercicio.id }}/resultados" class="btn btn-outline" style="margin-left:.6rem;">Cancelar</a>
-        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-salvar">
+            <i class="fas fa-save"></i> Salvar corre&ccedil;&atilde;o e calcular nota final
+        </button>
     </form>
+
 </div>
 {% endblock %}
