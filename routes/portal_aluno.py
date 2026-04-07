@@ -14,6 +14,13 @@ from sqlalchemy.orm import joinedload
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 
+def _calcular_nota(total_pontos, pontos_max):
+    """Nota na escala 0-10. Retorna 0.0 se pontos_max <= 0."""
+    if not pontos_max or pontos_max <= 0.0:
+        return 0.0
+    return round((total_pontos / pontos_max) * 10, 2)
+
+
 def _matriculas_ativas(aluno_id):
     return (
         Matricula.query
@@ -50,8 +57,6 @@ def _ids_materias_liberadas(aluno_id, curso_id):
 
 
 def _curso_tem_acesso(aluno_id, curso_id):
-    # BUG-18: Política B — sem nenhum registro de MateriaLiberada = acesso total
-    # (escola pequena: secretaria libera conforme necessário; ausência = sem restrição)
     from models import MateriaLiberada
     count = MateriaLiberada.query.filter_by(
         aluno_id=aluno_id, curso_id=curso_id
@@ -79,7 +84,6 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
 
 
 def _contar_atrasadas(mensalidades):
-    # BUG-10: comparação com objeto date nativo, não string
     hoje = date.today()
     count = 0
     for m in mensalidades:
@@ -110,7 +114,7 @@ def _registrar_login(aluno_id):
         db.session.commit()
     except OperationalError:
         db.session.rollback()
-    except Exception as e:  # BUG-15: loga erro em vez de suprimir silenciosamente
+    except Exception as e:
         current_app.logger.error(
             f"[_registrar_login] Erro ao registrar login do aluno_id={aluno_id}: {e}",
             exc_info=True
@@ -119,7 +123,6 @@ def _registrar_login(aluno_id):
 
 
 def _buscar_aluno_por_login(identificador: str):
-    # BUG-17: substituído Aluno.query.all() por pré-filtro SQL para evitar full table scan
     import re
     ident = identificador.strip()
     if not ident:
@@ -127,12 +130,10 @@ def _buscar_aluno_por_login(identificador: str):
     if "@" in ident:
         return Aluno.query.filter(db.func.lower(Aluno.email) == ident.lower()).first()
 
-    # Tentativa 1: CPF exato como está no banco
     aluno = Aluno.query.filter_by(cpf=ident).first()
     if aluno:
         return aluno
 
-    # Tentativa 2: pré-filtro pelos últimos 4 dígitos do CPF limpo (evita full scan)
     cpf_limpo = re.sub(r"\D", "", ident)
     if not cpf_limpo:
         return None
@@ -211,7 +212,7 @@ def dashboard_aluno():
             .limit(2).all()
         )
         ultimo_login = logins[1] if len(logins) >= 2 else (logins[0] if logins else None)
-    except Exception as e:  # BUG-15: loga erro
+    except Exception as e:
         current_app.logger.error(
             f"[dashboard_aluno] Erro ao buscar histórico de login aluno_id={aluno.id}: {e}",
             exc_info=True
@@ -432,7 +433,7 @@ def notas_aluno():
         for rp in provas_realizadas:
             if rp.prova_id not in melhor_por_prova:
                 melhor_por_prova[rp.prova_id] = rp
-    except Exception as e:  # BUG-15: loga erro
+    except Exception as e:
         current_app.logger.error(
             f"[notas_aluno] Erro ao carregar provas do aluno_id={aluno.id}: {e}",
             exc_info=True
@@ -504,7 +505,6 @@ def curso_detalhe(curso_id):
         .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1)
         .order_by(Materia.nome).all()
     )
-    # BUG-18: se não há registros de liberação, todas as matérias são visíveis
     if ids_mat_lib:
         materias_liberadas = [m for m in materias_do_curso if m.id in ids_mat_lib]
     else:
@@ -576,7 +576,7 @@ def curso_detalhe(curso_id):
                 "tentativas_usadas": usadas,
                 "pode_fazer":        usadas < (p.tentativas or 1),
             })
-    except Exception as e:  # BUG-15: loga erro
+    except Exception as e:
         current_app.logger.error(
             f"[curso_detalhe] Erro ao carregar provas aluno_id={aluno.id} curso_id={curso_id}: {e}",
             exc_info=True
@@ -584,8 +584,6 @@ def curso_detalhe(curso_id):
 
     atividades   = []
     entregas_map = {}
-    # BUG-05: fallback que ignorava AtividadeLiberada foi removido.
-    # BUG-16: joinedload em questoes para evitar N+1 queries
     try:
         from models import Atividade, EntregaAtividade, AtividadeLiberada
         ids_atv_lib = {
@@ -595,7 +593,7 @@ def curso_detalhe(curso_id):
         atividades = [
             a for a in (
                 Atividade.query
-                .options(joinedload(Atividade.questoes))  # BUG-16
+                .options(joinedload(Atividade.questoes))
                 .filter_by(curso_id=curso_id, ativa=1)
                 .all()
             )
@@ -703,15 +701,23 @@ def responder_exercicio(ex_id):
             total_questoes = total_questoes,
             acertos        = 0,
             percentual     = 0.0,
+            nota_obtida    = None,
+            aprovado       = None,
         )
         db.session.add(resp)
         db.session.flush()
 
-        acertos = 0
+        acertos     = 0
+        total_pontos = 0.0
+        pontos_max   = 0.0
+
         for q in ex.questoes:
+            pts_questao   = max(0.0, float(q.pontos or 0.0))
+            pontos_max   += pts_questao
             alt_id_str    = request.form.get(f"questao_{q.id}")
             alt_escolhida = None
             acertou       = False
+            pontos_obtidos = 0.0
 
             if q.tipo in ("multipla_escolha", "verdadeiro_falso"):
                 correta_alt = next((a for a in q.alternativas if a.correta), None)
@@ -721,19 +727,49 @@ def responder_exercicio(ex_id):
                     except (ValueError, TypeError):
                         alt_escolhida = None
                 if alt_escolhida and correta_alt and alt_escolhida.id == correta_alt.id:
-                    acertou  = True
-                    acertos += 1
+                    acertou        = True
+                    acertos       += 1
+                    pontos_obtidos = pts_questao
+                total_pontos += pontos_obtidos
+
+            elif q.tipo == "dissertativa":
+                # Dissertativa: registra texto, aguarda correcao manual
+                texto_resp = request.form.get(f"questao_{q.id}_texto", "").strip()
+                db.session.add(RespostaExercicioQuestao(
+                    resposta_exercicio_id = resp.id,
+                    questao_id            = q.id,
+                    alternativa_id        = None,
+                    acertou               = 0,
+                    texto_resposta        = texto_resp,
+                    pontos_obtidos        = None,
+                    corrigida             = 0,
+                ))
+                continue
 
             db.session.add(RespostaExercicioQuestao(
                 resposta_exercicio_id = resp.id,
                 questao_id            = q.id,
                 alternativa_id        = alt_escolhida.id if alt_escolhida else None,
                 acertou               = 1 if acertou else 0,
+                pontos_obtidos        = pontos_obtidos,
+                corrigida             = 1,
             ))
+
+        # Questoes dissertativas pendentes: nota fica None ate correcao manual
+        tem_dissertativa = any(q.tipo == "dissertativa" for q in ex.questoes)
+        if tem_dissertativa:
+            nota_final = None
+            aprovado   = None
+        else:
+            nota_final = _calcular_nota(total_pontos, pontos_max)
+            nota_minima = float(ex.nota_minima or 6.0)
+            aprovado    = 1 if nota_final >= nota_minima else 0
 
         percentual      = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
         resp.acertos    = acertos
         resp.percentual = percentual
+        resp.nota_obtida = nota_final
+        resp.aprovado    = aprovado
         db.session.commit()
 
     except Exception:
@@ -763,8 +799,6 @@ def resultado_exercicio(ex_id, resp_id):
     if not resp.finalizado_em:
         abort(404)
 
-    # BUG-2 FIX: query explícita com join — evita acesso lazy (DetachedInstanceError)
-    # Mesmo padrão usado corretamente em resultado_prova_aluno()
     respostas = (
         db.session.query(RespostaExercicioQuestao, ExercicioQuestao)
         .join(ExercicioQuestao, ExercicioQuestao.id == RespostaExercicioQuestao.questao_id)
@@ -881,14 +915,11 @@ def abrir_arquivo_conteudo(conteudo_id):
 @portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>")
 @aluno_login_required
 def concluir_aula(conteudo_id):
-    # BUG-11: prioriza curso_id passado via query param para evitar ambiguidade
-    # quando a matéria pertence a mais de um curso.
     curso_id = request.args.get("curso_id", type=int)
 
     conteudo = db.get_or_404(Conteudo, conteudo_id)
 
     if not curso_id:
-        # Fallback: filtra CursoMateria pelas matrículas ativas do aluno
         aluno_id = session["aluno_id"]
         ids_cursos_ativos = {
             m.curso_id for m in _matriculas_ativas(aluno_id)
