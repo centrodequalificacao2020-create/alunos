@@ -17,6 +17,22 @@ document.addEventListener("DOMContentLoaded", function() {
     const sTipoMat  = document.getElementById("tipo_curso_mat");
     if (sCursoMat && sCursoMat.value) preencherTipo(sCursoMat, sTipoMat);
 
+    // Pré-matrícula: atualiza action do form quando o aluno é selecionado
+    const selectAlunoPre = document.getElementById("aluno_id_pre");
+    const formPre        = document.getElementById("form-pre-matricula");
+    function atualizarActionPre() {
+        const aid = selectAlunoPre.value;
+        if (aid) {
+            formPre.action = "/pre_matricula_pdf/" + aid;
+        } else {
+            formPre.action = "#";
+        }
+    }
+    if (selectAlunoPre) {
+        selectAlunoPre.addEventListener("change", atualizarActionPre);
+        atualizarActionPre();
+    }
+
     const sCursoPre = document.getElementById("curso_id_pre");
     const sTipoPre  = document.getElementById("tipo_curso_pre");
     if (sCursoPre && sCursoPre.value) preencherTipo(sCursoPre, sTipoPre);
@@ -79,8 +95,6 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
 
             <h3 class="secao">📅 Mensalidade</h3>
-            {# BUG 2 FIX: removido value="1" dos campos parcelas para não forçar
-               lançamento de mensalidade quando o usuário quer só a matrícula. #}
             <div class="grid-2">
                 <div class="campo">
                     <label for="valor_mensal">Valor da Mensalidade (R$)</label>
@@ -144,19 +158,23 @@ document.addEventListener("DOMContentLoaded", function() {
         </form>
     </div>
 
-    <!-- Pré-matrícula -->
+    <!-- Pré-matrícula: gera apenas PDF, sem salvar no banco -->
     <div class="card">
         <div class="card-header">
             <span>📄</span>
             <h2>Confirmação de Pré-Matrícula</h2>
         </div>
 
-        <form method="POST" action="/salvar_matricula">
-            <input type="hidden" name="is_pre_matricula" value="1">
+        <form id="form-pre-matricula"
+              method="POST"
+              action="#"
+              target="_blank"
+              onsubmit="if(!document.getElementById('aluno_id_pre').value){alert('Selecione o aluno.');return false;}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="campo">
                 <label for="aluno_id_pre">Aluno</label>
-                <select id="aluno_id_pre" name="aluno_id" required>
+                <select id="aluno_id_pre" name="aluno_id_display" required>
                     <option value="">Selecione o aluno</option>
                     {% for a in alunos %}
                     <option value="{{ a.id }}">{{ a.nome }}</option>
@@ -166,7 +184,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             <div class="campo">
                 <label for="curso_id_pre">Curso</label>
-                <select id="curso_id_pre" name="curso_id" required
+                <select id="curso_id_pre" name="curso_id_display"
                         onchange="preencherTipo(this, document.getElementById('tipo_curso_pre'))">
                     <option value="">Selecione o curso</option>
                     {% for c in cursos %}
@@ -177,7 +195,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             <div class="campo">
                 <label for="tipo_curso_pre">Tipo do Curso</label>
-                <select id="tipo_curso_pre" name="tipo_curso">
+                <select id="tipo_curso_pre" name="tipo_curso_display">
                     <option value="">Selecione</option>
                     {% for t in tipos %}
                     <option value="{{ t }}">{{ t }}</option>
@@ -187,56 +205,54 @@ document.addEventListener("DOMContentLoaded", function() {
 
             <div class="grid-2">
                 <div class="campo">
-                    <label for="vm_pre">Valor da Matrícula (R$)</label>
-                    <input type="number" id="vm_pre" name="valor_matricula" step="0.01" min="0"
+                    <label for="vm_pre">Taxa de Matrícula (R$)</label>
+                    <input type="number" id="vm_pre" name="taxa_matricula" step="0.01" min="0"
                            placeholder="0,00">
                 </div>
                 <div class="campo">
                     <label for="vms_pre">Valor da Mensalidade (R$)</label>
-                    <input type="number" id="vms_pre" name="valor_mensal" step="0.01" min="0"
-                           placeholder="Deixe em branco = sem mensalidades">
+                    <input type="number" id="vms_pre" name="valor_mensalidade" step="0.01" min="0"
+                           placeholder="0,00" required>
                 </div>
             </div>
 
             <div class="grid-2">
                 <div class="campo">
-                    {# BUG 2 FIX: removido value="1" #}
-                    <label for="parc_pre">Qtd. Parcelas</label>
-                    <input type="number" id="parc_pre" name="parcelas" min="1"
-                           placeholder="Deixe em branco = sem mensalidades">
+                    <label for="parc_pre">Qtd. Parcelas Curso</label>
+                    <input type="number" id="parc_pre" name="parcelas" min="1" value="1">
                 </div>
                 <div class="campo">
                     <label for="vmat_pre">Valor do Material (R$)</label>
                     <input type="number" id="vmat_pre" name="valor_material" step="0.01" min="0"
-                           placeholder="0,00">
+                           placeholder="0,00" value="0">
                 </div>
             </div>
 
             <div class="grid-2">
                 <div class="campo">
-                    {# BUG 2 FIX: removido value="1" #}
                     <label for="pmat_pre">Parcelas do Material</label>
-                    <input type="number" id="pmat_pre" name="parcelas_material" min="1"
-                           placeholder="Obrigatório se houver material">
+                    <input type="number" id="pmat_pre" name="parcelas_material" min="1" value="1">
                 </div>
                 <div class="campo">
-                    <label for="dm_pre">Data pagamento matrícula</label>
-                    <input type="date" id="dm_pre" name="data_matricula">
+                    <label for="mat_tipo_pre">Material Didático</label>
+                    <input type="text" id="mat_tipo_pre" name="material_didatico"
+                           placeholder="Ex: Digital, Impresso">
                 </div>
             </div>
 
-            <div class="campo">
-                <label for="dpm_pre">Primeiro pagamento mensalidade</label>
-                <input type="date" id="dpm_pre" name="data_primeira_mensalidade">
-            </div>
-
-            <div class="campo">
-                <label for="obs_pre">Observações</label>
-                <textarea id="obs_pre" name="observacao" class="observacao-grande"></textarea>
+            <div class="grid-2">
+                <div class="campo">
+                    <label for="dm_pre">Data pagamento matrícula</label>
+                    <input type="date" id="dm_pre" name="data_pagamento_matricula">
+                </div>
+                <div class="campo">
+                    <label for="dpm_pre">Primeira mensalidade</label>
+                    <input type="date" id="dpm_pre" name="data_primeira_mensalidade">
+                </div>
             </div>
 
             <div class="botoes-matricula">
-                <button type="submit" class="btn btn-azul">📄 Gerar Pré-Matrícula</button>
+                <button type="submit" class="btn btn-warning">📄 Gerar PDF Pré-Matrícula</button>
             </div>
         </form>
     </div>
