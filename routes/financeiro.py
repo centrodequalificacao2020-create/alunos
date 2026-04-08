@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, flash, session,
 from db import db
 from models import Aluno, Mensalidade, Matricula, Curso
 from security import login_required, verificar_senha
-from services.pdf_service import gerar_recibo, gerar_carne
+from services.pdf_service import gerar_recibo, gerar_carne, gerar_pre_matricula
 from services.matricula_service import criar_matricula
 from datetime import date, datetime
 from flask import send_file, make_response
@@ -62,7 +62,7 @@ def alterar_status_matricula(matricula_id):
     novo_status = (request.form.get("status") or "").upper().strip()
 
     if novo_status not in StatusMatricula.valores():
-        flash("Status de matr\u00edcula inv\u00e1lido.", "erro")
+        flash("Status de matrícula inválido.", "erro")
         return redirect(f"/aluno/{matricula.aluno_id}")
 
     status_anterior = matricula.status
@@ -78,12 +78,12 @@ def alterar_status_matricula(matricula_id):
         StatusMatricula.ATIVA.value:     "Ativa",
         StatusMatricula.INATIVA.value:   "Inativa",
         StatusMatricula.TRANCADA.value:  "Trancada",
-        StatusMatricula.CONCLUIDA.value: "Conclu\u00edda",
+        StatusMatricula.CONCLUIDA.value: "Concluída",
     }.get(novo_status, novo_status)
 
     flash(
-        f"Status da matr\u00edcula alterado para \u2018{label}\u2019."
-        + (f" Status do aluno atualizado para \u2018{aluno.status}\u2019." if aluno else ""),
+        f"Status da matrícula alterado para '{label}'."
+        + (f" Status do aluno atualizado para '{aluno.status}'." if aluno else ""),
         "sucesso"
     )
     return redirect(f"/aluno/{matricula.aluno_id}")
@@ -143,7 +143,7 @@ def pagar(id):
 
     if parcela.status == "Pago":
         flash(
-            f"Esta parcela j\u00e1 foi registrada como paga "
+            f"Esta parcela já foi registrada como paga "
             f"em {parcela.data_pagamento or 'data desconhecida'}. "
             f"Para corrigir, use Editar Parcela.",
             "erro"
@@ -191,12 +191,12 @@ def excluir_parcela(id, aluno_id):
     senha = request.form.get("senha", "")
     user  = Usuario.query.get(session["usuario_id"])
     if not user or not verificar_senha(senha, user.senha):
-        flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
+        flash("Senha incorreta. Exclusão cancelada.", "erro")
         return redirect(f"/financeiro?aluno_id={aluno_id}")
     parcela = Mensalidade.query.get_or_404(id)
     db.session.delete(parcela)
     db.session.commit()
-    flash("Parcela exclu\u00edda.", "sucesso")
+    flash("Parcela excluída.", "sucesso")
     return redirect(f"/financeiro?aluno_id={aluno_id}")
 
 
@@ -222,7 +222,7 @@ def carne(aluno_id):
 @financeiro_bp.route("/movimentacao")
 @login_required
 def movimentacao():
-    alunos = Aluno.query.filter(Aluno.status.in_(["Ativo", "Pr\u00e9-Matr\u00edcula"])).order_by(Aluno.nome).all()
+    alunos = Aluno.query.filter(Aluno.status.in_(["Ativo", "Pré-Matrícula"])).order_by(Aluno.nome).all()
     cursos = Curso.query.order_by(Curso.nome).all()
     tipos  = _tipos_curso()
     aluno_id     = request.args.get("aluno_id")
@@ -239,7 +239,7 @@ def movimentacao():
 def salvar_matricula():
     try:
         matricula_id = criar_matricula(request.form)
-        flash("Matr\u00edcula realizada com sucesso.", "sucesso")
+        flash("Matrícula realizada com sucesso.", "sucesso")
         return redirect(f"/movimentacao?matricula_id={matricula_id}")
     except ValueError as e:
         flash(str(e), "erro")
@@ -249,8 +249,8 @@ def salvar_matricula():
 @financeiro_bp.route("/lancar_mensalidade", methods=["GET", "POST"])
 @login_required
 def lancar_mensalidade():
-    """Lan\u00e7a parcelas avulsas sem criar nova matr\u00edcula."""
-    alunos = Aluno.query.filter(Aluno.status.in_(["Ativo", "Pr\u00e9-Matr\u00edcula"])).order_by(Aluno.nome).all()
+    """Lança parcelas avulsas sem criar nova matrícula."""
+    alunos = Aluno.query.filter(Aluno.status.in_(["Ativo", "Pré-Matrícula"])).order_by(Aluno.nome).all()
     cursos = Curso.query.order_by(Curso.nome).all()
     tipos  = _tipos_curso()
     curso_tipo = {c.id: (c.tipo or "") for c in cursos}
@@ -262,7 +262,7 @@ def lancar_mensalidade():
         form_data["apenas_mensalidade"] = "1"
         try:
             criar_matricula(form_data)
-            flash("Parcelas lan\u00e7adas com sucesso.", "sucesso")
+            flash("Parcelas lançadas com sucesso.", "sucesso")
         except ValueError as e:
             flash(str(e), "erro")
         return redirect(f"/financeiro?aluno_id={aluno_id}")
@@ -316,3 +316,62 @@ def api_cursos_ativos_aluno():
                 resultado.append({"id": curso.id, "nome": curso.nome})
 
     return jsonify(resultado)
+
+
+@financeiro_bp.route("/pre_matricula_pdf/<int:aluno_id>", methods=["POST"])
+@login_required
+def pre_matricula_pdf(aluno_id):
+    from flask import current_app
+    aluno = db.get_or_404(Aluno, aluno_id)
+    f = request.form
+
+    idade = ""
+    if aluno.data_nascimento:
+        try:
+            dn   = date.fromisoformat(str(aluno.data_nascimento))
+            hoje = date.today()
+            idade = hoje.year - dn.year - ((hoje.month, hoje.day) < (dn.month, dn.day))
+        except Exception:
+            pass
+
+    def _fmt(s):
+        try:
+            return date.fromisoformat(s).strftime("%d/%m/%Y")
+        except Exception:
+            return s or ""
+
+    try:
+        taxa        = float(f.get("taxa_matricula") or 0)
+        mensalidade = float(f.get("valor_mensalidade") or 0)
+        parcelas    = int(f.get("parcelas") or 1)
+        val_mat     = float(f.get("valor_material") or 0)
+        parc_mat    = int(f.get("parcelas_material") or 1)
+    except (ValueError, TypeError):
+        flash("Valores financeiros inválidos.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+
+    numero = str(Matricula.query.count() + 1).zfill(4)
+
+    dados = {
+        "aluno_nome":                aluno.nome or "",
+        "aluno_idade":               idade,
+        "aluno_endereco":            aluno.endereco or "",
+        "aluno_responsavel":         aluno.responsavel_nome or "",
+        "aluno_cpf":                 aluno.cpf or "",
+        "aluno_whatsapp":            aluno.whatsapp or "",
+        "taxa_matricula":            taxa,
+        "valor_mensalidade":         mensalidade,
+        "parcelas":                  parcelas,
+        "material_didatico":         f.get("material_didatico") or "",
+        "valor_material":            val_mat,
+        "parcelas_material":         parc_mat,
+        "data_pagamento_matricula":  _fmt(f.get("data_pagamento_matricula", "")),
+        "data_primeira_mensalidade": _fmt(f.get("data_primeira_mensalidade", "")),
+        "numero_pre_matricula":      numero,
+    }
+
+    buf  = gerar_pre_matricula(dados, root_path=current_app.root_path)
+    resp = make_response(buf.read())
+    resp.headers["Content-Type"]        = "application/pdf"
+    resp.headers["Content-Disposition"] = f"inline; filename=pre_matricula_{aluno_id}.pdf"
+    return resp
