@@ -358,7 +358,7 @@ def pre_matricula_pdf(aluno_id):
         "aluno_endereco":            aluno.endereco or "",
         "aluno_responsavel":         aluno.responsavel_nome or "",
         "aluno_cpf":                 aluno.cpf or "",
-        "aluno_whatsapp":            aluno.whatsapp or "",
+        "aluno_whatsapp":            aluno.telefone or "",   # fix: campo correto é telefone
         "taxa_matricula":            taxa,
         "valor_mensalidade":         mensalidade,
         "parcelas":                  parcelas,
