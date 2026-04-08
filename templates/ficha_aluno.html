@@ -84,6 +84,70 @@
     </p>
     {% endif %}
 
+    {# ===== GERAR PRÉ-MATRÍCULA ===== #}
+    <details class="pre-matricula-details">
+        <summary class="btn btn-warning">&#128196; Gerar Pré-Matrícula</summary>
+        <form method="POST"
+              action="/pre_matricula_pdf/{{ aluno.id }}"
+              target="_blank"
+              class="toolbar-pre-matricula">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="pre-mat-row">
+                <div class="pre-mat-campo">
+                    <label>Taxa de matrícula (R$)</label>
+                    <input type="number" step="0.01" min="0" name="taxa_matricula"
+                           class="input-pre-mat" placeholder="0.00" required>
+                </div>
+                <div class="pre-mat-campo">
+                    <label>Mensalidade (R$)</label>
+                    <input type="number" step="0.01" min="0" name="valor_mensalidade"
+                           class="input-pre-mat" placeholder="0.00" required>
+                </div>
+                <div class="pre-mat-campo pre-mat-campo--sm">
+                    <label>Parcelas curso</label>
+                    <input type="number" min="1" name="parcelas"
+                           class="input-pre-mat" value="1" required>
+                </div>
+            </div>
+
+            <div class="pre-mat-row">
+                <div class="pre-mat-campo">
+                    <label>Material didático</label>
+                    <input type="text" name="material_didatico"
+                           class="input-pre-mat" placeholder="Ex: Digital, Impresso">
+                </div>
+                <div class="pre-mat-campo">
+                    <label>Valor do material (R$)</label>
+                    <input type="number" step="0.01" min="0" name="valor_material"
+                           class="input-pre-mat" value="0">
+                </div>
+                <div class="pre-mat-campo pre-mat-campo--sm">
+                    <label>Parcelas material</label>
+                    <input type="number" min="1" name="parcelas_material"
+                           class="input-pre-mat" value="1">
+                </div>
+            </div>
+
+            <div class="pre-mat-row">
+                <div class="pre-mat-campo">
+                    <label>Data pgto. matrícula</label>
+                    <input type="date" name="data_pagamento_matricula"
+                           class="input-pre-mat">
+                </div>
+                <div class="pre-mat-campo">
+                    <label>1ª mensalidade</label>
+                    <input type="date" name="data_primeira_mensalidade"
+                           class="input-pre-mat">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-warning">
+                &#128196; Gerar PDF
+            </button>
+        </form>
+    </details>
+
     {% if matriculas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
