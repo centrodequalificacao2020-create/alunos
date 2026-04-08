@@ -275,93 +275,204 @@ def gerar_historico_frequencia(aluno, curso, historico,
 
 # ─────────────────────────── DECLARAÇÃO DE CONCLUSÃO ───────────────────────────
 
+def _draw_rich_paragraph(pdf, partes, x: float, y: float,
+                         max_largura_px: float, line_height: float,
+                         font_size: int = 11) -> float:
+    """Renderiza parágrafo com trechos de fonte normal e negrito misturados.
+
+    partes: lista de tuplas (texto, negrito:bool)
+    Quebra automaticamente as linhas respeitando max_largura_px.
+    Retorna o novo y após o parágrafo.
+    """
+    # Monta lista de tokens com fonte e largura
+    tokens = []
+    for texto, negrito in partes:
+        fonte = "Helvetica-Bold" if negrito else "Helvetica"
+        for palavra in texto.split(" "):
+            if palavra:
+                tokens.append((palavra, fonte))
+
+    # Agrupa tokens em linhas que cabem em max_largura_px
+    espaco = stringWidth(" ", "Helvetica", font_size)
+    linhas = []
+    linha_atual = []
+    largura_atual = 0.0
+
+    for palavra, fonte in tokens:
+        w = stringWidth(palavra, fonte, font_size)
+        extra = espaco if linha_atual else 0.0
+        if largura_atual + extra + w > max_largura_px and linha_atual:
+            linhas.append(linha_atual)
+            linha_atual = [(palavra, fonte)]
+            largura_atual = w
+        else:
+            linha_atual.append((palavra, fonte))
+            largura_atual += extra + w
+
+    if linha_atual:
+        linhas.append(linha_atual)
+
+    # Desenha cada linha
+    for linha in linhas:
+        cursor = x
+        for i, (palavra, fonte) in enumerate(linha):
+            if i > 0:
+                cursor += espaco
+            pdf.setFont(fonte, font_size)
+            pdf.drawString(cursor, y, palavra)
+            cursor += stringWidth(palavra, fonte, font_size)
+        y -= line_height
+
+    return y
+
+
 def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
                                parceiro_nome: str = "",
                                parceiro_cnpj: str = "",
                                root_path: str = "") -> io.BytesIO:
     """Gera declaração de conclusão conforme modelo institucional real.
 
-    Args:
-        aluno: objeto Aluno (nome, cpf).
-        curso: objeto Curso (nome, tipo).
-        modalidade: ex. 'EAD', 'Presencial'.
-        parceiro_nome: nome da instituição parceira (opcional).
-        parceiro_cnpj: CNPJ da instituição parceira (opcional).
+    Mudanças em relação à versão anterior:
+    - Cabeçalho com logo + dados institucionais no TOPO (não no rodapé).
+    - Título centralizado com sublinhado.
+    - "A quem posso interessar" (corrigido de 'possa').
+    - Nome, CPF, curso e dados da escola em negrito no parágrafo.
+    - Duas assinaturas lado a lado: Diretor Geral à esquerda, CQP/Alex à direita.
+    - Sem rodapé de texto institucional (informação já está no cabeçalho).
     """
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=A4)
     larg, alt = A4
     margem = 65
-    max_chars = 78
+    max_largura_px = larg - margem * 2
+    line_height = 18
+    font_size = 11
 
     tipo_curso = curso.tipo.upper() if curso.tipo else "PROFISSIONAL"
     titulo = f"DECLARAÇÃO DE CONCLUSÃO - {tipo_curso}"
 
-    # --- Cabeçalho com logo + dados institucionais ---
-    y = _cabecalho(pdf, larg, alt, titulo, root_path)
-    y -= 40
+    # ── Cabeçalho com logo + dados (info institucional fica AQUI, não no rodapé) ──
+    logo = _logo_path(root_path)
+    if os.path.exists(logo):
+        pdf.drawImage(logo, 50, alt - 120, width=80, height=60,
+                      preserveAspectRatio=True, mask="auto")
 
-    # --- Parágrafo 1: identificação ---
-    cpf_fmt    = aluno.cpf if aluno.cpf else "não informado"
-    nome_fmt   = _capitalizar_nome(aluno.nome)
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(140, alt - 60, f"{ESCOLA['nome']} {ESCOLA['sigla']}")
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(140, alt - 75,  f"CNPJ: {ESCOLA['cnpj']}")
+    pdf.drawString(140, alt - 90,
+                   "Rua: Prata Mancebo nº 148. Centro – Carapebus – RJ CEP 27998-000")
+    pdf.drawString(140, alt - 105, f"E-mail: {ESCOLA['email']}")
+    pdf.drawString(140, alt - 120, f"Tel.: {ESCOLA['telefone']}")
+    pdf.line(50, alt - 135, larg - 50, alt - 135)
+
+    # ── Título centralizado com sublinhado ──
+    y = alt - 165
+    pdf.setFont("Helvetica-Bold", 14)
+    titulo_w = stringWidth(titulo, "Helvetica-Bold", 14)
+    titulo_x = (larg - titulo_w) / 2
+    pdf.drawString(titulo_x, y, titulo)
+    pdf.line(titulo_x, y - 3, titulo_x + titulo_w, y - 3)
+
+    y -= 38
+
+    # ── "A quem posso interessar," ──
+    pdf.setFont("Helvetica", font_size)
+    pdf.drawString(margem, y, "A quem posso interessar,")
+    y -= line_height * 1.8
+
+    # ── Parágrafo 1 com negritos ──
+    nome_fmt = _capitalizar_nome(aluno.nome)
+    cpf_fmt  = aluno.cpf if aluno.cpf else "não informado"
 
     if parceiro_nome and parceiro_cnpj:
-        p1 = (
-            f"Certificamos, para os devidos fins, que {nome_fmt}, portador "
-            f"do CPF nº {cpf_fmt}, concluiu com êxito o curso {curso.nome}, "
-            f"oferecido pelo {ESCOLA['nome']} – {ESCOLA['sigla']}, inscrito no CNPJ nº "
-            f"{ESCOLA['cnpj']}, em parceria com a {parceiro_nome}, inscrito no "
-            f"CNPJ nº {parceiro_cnpj}."
-        )
+        partes_p1 = [
+            ("Certificamos, para os devidos fins, que ", False),
+            (nome_fmt, True),
+            (", portador do CPF nº ", False),
+            (cpf_fmt, True),
+            (", concluiu com êxito o curso ", False),
+            (curso.nome, True),
+            (", oferecido pelo ", False),
+            (f"{ESCOLA['nome']} – {ESCOLA['sigla']}", True),
+            (", inscrito no ", False),
+            (f"CNPJ nº {ESCOLA['cnpj']}", True),
+            (", em parceria com a ", False),
+            (parceiro_nome, True),
+            (", inscrito no ", False),
+            (f"CNPJ nº {parceiro_cnpj}", True),
+            (".", False),
+        ]
     else:
-        p1 = (
-            f"Certificamos, para os devidos fins, que {nome_fmt}, portador "
-            f"do CPF nº {cpf_fmt}, concluiu com êxito o curso {curso.nome}, "
-            f"oferecido pelo {ESCOLA['nome']} – {ESCOLA['sigla']}, inscrito no CNPJ nº "
-            f"{ESCOLA['cnpj']}."
-        )
+        partes_p1 = [
+            ("Certificamos, para os devidos fins, que ", False),
+            (nome_fmt, True),
+            (", portador do CPF nº ", False),
+            (cpf_fmt, True),
+            (", concluiu com êxito o curso ", False),
+            (curso.nome, True),
+            (", oferecido pelo ", False),
+            (f"{ESCOLA['nome']} – {ESCOLA['sigla']}", True),
+            (", inscrito no ", False),
+            (f"CNPJ nº {ESCOLA['cnpj']}", True),
+            (".", False),
+        ]
 
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(margem, y, "A quem possa interessar,")
-    y -= 28
+    y = _draw_rich_paragraph(pdf, partes_p1, margem, y,
+                             max_largura_px, line_height, font_size)
+    y -= line_height
 
-    for line in wrap(p1, max_chars):
-        pdf.drawString(margem, y, line)
-        y -= 18
-    y -= 18
-
-    # --- Parágrafo 2: cumprimento das atividades ---
+    # ── Parágrafo 2 ──
     p2 = (
         "O aluno cumpriu integralmente todas as atividades acadêmicas previstas, "
         "atendendo às exigências e etapas estabelecidas no processo de formação."
     )
-    for line in wrap(p2, max_chars):
+    pdf.setFont("Helvetica", font_size)
+    for line in wrap(p2, 85):
         pdf.drawString(margem, y, line)
-        y -= 18
-    y -= 18
+        y -= line_height
+    y -= line_height
 
-    # --- Parágrafo 3: finalidade ---
+    # ── Parágrafo 3 ──
     p3 = (
         f"Este documento é emitido para atestar a conclusão e certificação da referida "
-        f"formação {tipo_curso.lower()}, na modalidade {modalidade}."
+        f"formação {tipo_curso.lower()}, na modalidade {modalidade}"
     )
-    for line in wrap(p3, max_chars):
+    pdf.setFont("Helvetica", font_size)
+    for line in wrap(p3, 85):
         pdf.drawString(margem, y, line)
-        y -= 18
+        y -= line_height
 
-    # --- Assinatura ---
-    y -= 50
-    assin = _assinatura_path(root_path)
-    if os.path.exists(assin):
-        pdf.drawImage(assin, larg / 2 - 80, y - 10, width=160, height=40,
+    # ── Duas assinaturas lado a lado ──
+    # Posição fixa no rodapé para não depender do y do texto
+    assin_y_base = 150  # linha base das assinaturas
+
+    assin_path = _assinatura_path(root_path)
+
+    # Coluna esquerda: Diretor Geral / Randermei
+    col_esq_centro = margem + 95
+    if os.path.exists(assin_path):
+        pdf.drawImage(assin_path,
+                      col_esq_centro - 60, assin_y_base + 5,
+                      width=120, height=35,
                       preserveAspectRatio=True, mask="auto")
-        y -= 50
-    else:
-        pdf.line(larg / 2 - 100, y, larg / 2 + 100, y)
-        y -= 20
+    pdf.line(margem, assin_y_base, margem + 190, assin_y_base)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawCentredString(col_esq_centro, assin_y_base - 14, "Diretor Geral")
+    pdf.drawCentredString(col_esq_centro, assin_y_base - 26,
+                          "Randermei Marinho de Almeida Oliveira")
 
-    # --- Rodapé institucional ---
-    _rodape_institucional_texto(pdf, larg)
+    # Coluna direita: CQP / Alex de Assis Pessanha
+    col_dir_centro = larg - margem - 95
+    pdf.line(larg - margem - 190, assin_y_base, larg - margem, assin_y_base)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 14,
+                          f"{ESCOLA['nome']} {ESCOLA['sigla']}")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 26,
+                          "Alex de Assis Pessanha")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 38,
+                          f"CNPJ: {ESCOLA['cnpj']}")
 
     pdf.showPage()
     pdf.save()
