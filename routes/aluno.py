@@ -252,7 +252,7 @@ def editar_aluno(id):
 @aluno_bp.route("/aluno/<int:aluno_id>")
 @login_required
 def ficha_aluno(aluno_id):
-    from models import RespostaProva, RespostaExercicio, Prova, Exercicio
+    from models import RespostaProva, RespostaExercicio, Prova, Exercicio, LoginHistoricoAluno
     aluno      = db.get_or_404(Aluno, aluno_id)
     matriculas = (
         Matricula.query
@@ -315,9 +315,20 @@ def ficha_aluno(aluno_id):
     except Exception:
         entregas_atividades = []
 
+    try:
+        ultimo_login = (
+            LoginHistoricoAluno.query
+            .filter_by(aluno_id=aluno_id)
+            .order_by(LoginHistoricoAluno.login_em.desc())
+            .first()
+        )
+    except Exception:
+        ultimo_login = None
+
     return render_template(
         "ficha_aluno.html",
         aluno=aluno,
+        ultimo_login=ultimo_login,
         matriculas=matriculas,
         cursos_disponiveis=cursos_disponiveis,
         tentativas_provas=tentativas_provas,
