@@ -10,6 +10,7 @@ from datetime import date
 from textwrap import wrap
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.pdfmetrics import stringWidth
 
 ESCOLA = {
     "nome":     "CENTRO DE QUALIFICAÇÃO PROFISSIONAL",
@@ -105,6 +106,15 @@ def _draw_wrapped_text(pdf, text: str, x: float, y: float,
         pdf.drawString(x, y, line)
         y -= line_height
     return y
+
+
+def _truncar(texto: str, font_name: str, font_size: int, max_px: float) -> str:
+    """Trunca texto com reticências se ultrapassar max_px pontos."""
+    if stringWidth(texto, font_name, font_size) <= max_px:
+        return texto
+    while texto and stringWidth(texto + "…", font_name, font_size) > max_px:
+        texto = texto[:-1]
+    return texto + "…"
 
 
 # ─────────────────────────── RECIBO ───────────────────────────
@@ -388,10 +398,8 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     pdf.drawString(margem_esq, y, "DADOS DO CANDIDATO:")
     y -= 14
 
-    # col_valor_cand: divisor para tabela de candidato (labels curtos)
     col_label      = margem_esq
     col_valor_cand = 185
-    # col_valor_fin: divisor para tabela financeira (labels mais longos)
     col_valor_fin  = 215
     linha_h        = 18
     largura_tabela = margem_dir - margem_esq
@@ -407,15 +415,30 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
 
     def _draw_tabela(pdf, y, linhas, col_label, col_valor,
                      larg_tabela, linha_h, margem_esq, negrito_ultima=False):
+        # Largura disponível para o label: do início até o divisor, com padding de 4px
+        max_label_px = col_valor - col_label - 8
+        # Largura disponível para o valor: do divisor até o fim da tabela, com padding de 4px
+        max_valor_px = (margem_esq + larg_tabela) - col_valor - 8
+
         for i, (label, valor) in enumerate(linhas):
             negrito = negrito_ultima and i == len(linhas) - 1
+
+            # Borda da linha e divisor vertical
             pdf.rect(col_label, y - linha_h + 3, larg_tabela, linha_h, stroke=1, fill=0)
             pdf.line(col_valor, y - linha_h + 3, col_valor, y + 3)
-            pdf.setFont("Helvetica-Bold", 9)
-            pdf.drawString(col_label + 4, y - 9, label)
+
+            # Label — trunca se necessário
+            fonte_label = "Helvetica-Bold"
+            pdf.setFont(fonte_label, 9)
+            label_safe = _truncar(label, fonte_label, 9, max_label_px)
+            pdf.drawString(col_label + 4, y - 9, label_safe)
+
+            # Valor — alinhado à esquerda do divisor, truncado se necessário
             fonte_val = "Helvetica-Bold" if negrito else "Helvetica"
             pdf.setFont(fonte_val, 9)
-            pdf.drawRightString(margem_esq + larg_tabela - 6, y - 9, str(valor))
+            valor_safe = _truncar(str(valor), fonte_val, 9, max_valor_px)
+            pdf.drawString(col_valor + 4, y - 9, valor_safe)
+
             y -= linha_h
         return y
 
