@@ -284,7 +284,6 @@ def _draw_rich_paragraph(pdf, partes, x: float, y: float,
     Quebra automaticamente as linhas respeitando max_largura_px.
     Retorna o novo y após o parágrafo.
     """
-    # Monta lista de tokens com fonte e largura
     tokens = []
     for texto, negrito in partes:
         fonte = "Helvetica-Bold" if negrito else "Helvetica"
@@ -292,7 +291,6 @@ def _draw_rich_paragraph(pdf, partes, x: float, y: float,
             if palavra:
                 tokens.append((palavra, fonte))
 
-    # Agrupa tokens em linhas que cabem em max_largura_px
     espaco = stringWidth(" ", "Helvetica", font_size)
     linhas = []
     linha_atual = []
@@ -312,7 +310,6 @@ def _draw_rich_paragraph(pdf, partes, x: float, y: float,
     if linha_atual:
         linhas.append(linha_atual)
 
-    # Desenha cada linha
     for linha in linhas:
         cursor = x
         for i, (palavra, fonte) in enumerate(linha):
@@ -330,16 +327,6 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
                                parceiro_nome: str = "",
                                parceiro_cnpj: str = "",
                                root_path: str = "") -> io.BytesIO:
-    """Gera declaração de conclusão conforme modelo institucional real.
-
-    Mudanças em relação à versão anterior:
-    - Cabeçalho com logo + dados institucionais no TOPO (não no rodapé).
-    - Título centralizado com sublinhado.
-    - "A quem posso interessar" (corrigido de 'possa').
-    - Nome, CPF, curso e dados da escola em negrito no parágrafo.
-    - Duas assinaturas lado a lado: Diretor Geral à esquerda, CQP/Alex à direita.
-    - Sem rodapé de texto institucional (informação já está no cabeçalho).
-    """
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=A4)
     larg, alt = A4
@@ -351,7 +338,7 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     tipo_curso = curso.tipo.upper() if curso.tipo else "PROFISSIONAL"
     titulo = f"DECLARAÇÃO DE CONCLUSÃO - {tipo_curso}"
 
-    # ── Cabeçalho com logo + dados (info institucional fica AQUI, não no rodapé) ──
+    # ── Cabeçalho com logo + dados institucionais ──
     logo = _logo_path(root_path)
     if os.path.exists(logo):
         pdf.drawImage(logo, 50, alt - 120, width=80, height=60,
@@ -377,7 +364,7 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
 
     y -= 38
 
-    # ── "A quem posso interessar," ──
+    # ── Saudàção ──
     pdf.setFont("Helvetica", font_size)
     pdf.drawString(margem, y, "A quem posso interessar,")
     y -= line_height * 1.8
@@ -445,26 +432,24 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
         y -= line_height
 
     # ── Duas assinaturas lado a lado ──
-    # Posição fixa no rodapé para não depender do y do texto
-    assin_y_base = 150  # linha base das assinaturas
+    assin_y_base = 150
+    assin_path   = _assinatura_path(root_path)
 
-    assin_path = _assinatura_path(root_path)
-
-    # Coluna esquerda: Diretor Geral / Randermei
+    # Coluna esquerda: Diretor Geral / Randermei  (sem imagem — linha em branco)
     col_esq_centro = margem + 95
-    if os.path.exists(assin_path):
-        pdf.drawImage(assin_path,
-                      col_esq_centro - 60, assin_y_base + 5,
-                      width=120, height=35,
-                      preserveAspectRatio=True, mask="auto")
     pdf.line(margem, assin_y_base, margem + 190, assin_y_base)
     pdf.setFont("Helvetica", 9)
     pdf.drawCentredString(col_esq_centro, assin_y_base - 14, "Diretor Geral")
     pdf.drawCentredString(col_esq_centro, assin_y_base - 26,
                           "Randermei Marinho de Almeida Oliveira")
 
-    # Coluna direita: CQP / Alex de Assis Pessanha
+    # Coluna direita: CQP / Alex de Assis Pessanha  (com imagem de assinatura)
     col_dir_centro = larg - margem - 95
+    if os.path.exists(assin_path):
+        pdf.drawImage(assin_path,
+                      col_dir_centro - 60, assin_y_base + 5,
+                      width=120, height=35,
+                      preserveAspectRatio=True, mask="auto")
     pdf.line(larg - margem - 190, assin_y_base, larg - margem, assin_y_base)
     pdf.setFont("Helvetica", 9)
     pdf.drawCentredString(col_dir_centro, assin_y_base - 14,
