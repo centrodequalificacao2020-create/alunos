@@ -207,7 +207,7 @@ def recibo(mensalidade_id):
     buf  = gerar_recibo(m)
     resp = make_response(buf.read())
     resp.headers["Content-Type"]        = "application/pdf"
-    resp.headers["Content-Disposition"] = "inline; filename=recibo.pdf"
+    resp.headers["Content-Disposition"] = "attachment; filename=recibo.pdf"
     return resp
 
 
@@ -358,7 +358,7 @@ def pre_matricula_pdf(aluno_id):
         "aluno_endereco":            aluno.endereco or "",
         "aluno_responsavel":         aluno.responsavel_nome or "",
         "aluno_cpf":                 aluno.cpf or "",
-        "aluno_whatsapp":            aluno.telefone or "",   # fix: campo correto é telefone
+        "aluno_whatsapp":            aluno.telefone or "",
         "taxa_matricula":            taxa,
         "valor_mensalidade":         mensalidade,
         "parcelas":                  parcelas,
@@ -373,5 +373,5 @@ def pre_matricula_pdf(aluno_id):
     buf  = gerar_pre_matricula(dados, root_path=current_app.root_path)
     resp = make_response(buf.read())
     resp.headers["Content-Type"]        = "application/pdf"
-    resp.headers["Content-Disposition"] = f"inline; filename=pre_matricula_{aluno_id}.pdf"
+    resp.headers["Content-Disposition"] = f"attachment; filename=pre_matricula_{aluno_id}.pdf"
     return resp
