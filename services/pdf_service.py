@@ -388,9 +388,12 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     pdf.drawString(margem_esq, y, "DADOS DO CANDIDATO:")
     y -= 14
 
-    col_label = margem_esq
-    col_valor = 185
-    linha_h = 18
+    # col_valor_cand: divisor para tabela de candidato (labels curtos)
+    col_label      = margem_esq
+    col_valor_cand = 185
+    # col_valor_fin: divisor para tabela financeira (labels mais longos)
+    col_valor_fin  = 215
+    linha_h        = 18
     largura_tabela = margem_dir - margem_esq
 
     linhas_candidato = [
@@ -406,12 +409,9 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
                      larg_tabela, linha_h, margem_esq, negrito_ultima=False):
         for i, (label, valor) in enumerate(linhas):
             negrito = negrito_ultima and i == len(linhas) - 1
-            # borda linha
             pdf.rect(col_label, y - linha_h + 3, larg_tabela, linha_h, stroke=1, fill=0)
-            # divisor label|valor
             pdf.line(col_valor, y - linha_h + 3, col_valor, y + 3)
-            fonte = "Helvetica-Bold" if negrito else "Helvetica-Bold"
-            pdf.setFont(fonte, 9)
+            pdf.setFont("Helvetica-Bold", 9)
             pdf.drawString(col_label + 4, y - 9, label)
             fonte_val = "Helvetica-Bold" if negrito else "Helvetica"
             pdf.setFont(fonte_val, 9)
@@ -419,7 +419,7 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
             y -= linha_h
         return y
 
-    y = _draw_tabela(pdf, y, linhas_candidato, col_label, col_valor,
+    y = _draw_tabela(pdf, y, linhas_candidato, col_label, col_valor_cand,
                      largura_tabela, linha_h, margem_esq)
 
     # ── SEÇÃO: DADOS FINANCEIROS ──
@@ -435,16 +435,16 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     total = vm * parc + vmat
 
     linhas_financeiro = [
-        ("Taxa de matrícula",       f"R$ {dados.get('taxa_matricula', 0.0):.2f}"),
-        ("Valor da mensalidade",    f"R$ {vm:.2f}"),
-        ("Parcelas do curso",       f"{parc}x"),
-        ("Material didático",       dados.get("material_didatico", "")),
-        ("Valor do material didático", f"R$ {vmat:.2f}"),
-        ("Parcelas do material",    f"{pmat}x de R$ {vmat:.2f}"),
-        ("TOTAL DO CURSO + MATERIAL", f"R$ {total:.2f}"),
+        ("Taxa de matrícula",    f"R$ {dados.get('taxa_matricula', 0.0):.2f}"),
+        ("Valor da mensalidade", f"R$ {vm:.2f}"),
+        ("Parcelas do curso",    f"{parc}x"),
+        ("Material didático",    dados.get("material_didatico", "")),
+        ("Valor do material",    f"R$ {vmat:.2f}"),
+        ("Parcelas do material", f"{pmat}x de R$ {vmat:.2f}"),
+        ("TOTAL CURSO + MATERIAL", f"R$ {total:.2f}"),
     ]
 
-    y = _draw_tabela(pdf, y, linhas_financeiro, col_label, col_valor,
+    y = _draw_tabela(pdf, y, linhas_financeiro, col_label, col_valor_fin,
                      largura_tabela, linha_h, margem_esq, negrito_ultima=True)
 
     # ── SEÇÃO: DATAS DE PAGAMENTOS ──
