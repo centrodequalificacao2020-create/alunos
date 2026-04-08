@@ -24,7 +24,15 @@ ESCOLA = {
 
 
 def _logo_path(root_path: str) -> str:
-    return os.path.join(root_path, "static", "logo_escola.png")
+    p1 = os.path.join(root_path, "static", "logo_escola.png")
+    p2 = os.path.join(root_path, "static", "uploads", "logo_escola.png")
+    return p1 if os.path.exists(p1) else p2
+
+
+def _assinatura_path(root_path: str) -> str:
+    p1 = os.path.join(root_path, "static", "assinatura.png")
+    p2 = os.path.join(root_path, "static", "uploads", "assinatura.png")
+    return p1 if os.path.exists(p1) else p2
 
 
 def _cabecalho(pdf, largura: float, altura: float, titulo: str,
@@ -73,7 +81,7 @@ def _cabecalho_texto(pdf, largura: float, altura: float, titulo: str) -> float:
 def _rodape_assinatura(pdf, largura: float, root_path: str = ""):
     """Rodapé com imagem de assinatura (ou linha) + nome e CNPJ da escola."""
     centro = largura / 2
-    assin  = os.path.join(root_path, "static", "assinatura.png")
+    assin  = _assinatura_path(root_path)
     if os.path.exists(assin):
         pdf.drawImage(assin, centro - 80, 90, width=160, height=40,
                       preserveAspectRatio=True, mask="auto")
@@ -115,6 +123,16 @@ def _truncar(texto: str, font_name: str, font_size: int, max_px: float) -> str:
     while texto and stringWidth(texto + "…", font_name, font_size) > max_px:
         texto = texto[:-1]
     return texto + "…"
+
+
+def _capitalizar_nome(nome: str) -> str:
+    """Capitaliza nome respeitando preposições comuns em português."""
+    preposicoes = {"de", "da", "do", "das", "dos", "e", "em", "com"}
+    partes = nome.strip().split()
+    return " ".join(
+        p if p.lower() in preposicoes else p.capitalize()
+        for p in partes
+    )
 
 
 # ─────────────────────────── RECIBO ───────────────────────────
@@ -276,18 +294,20 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     margem = 65
     max_chars = 78
 
-    # --- Título centralizado ---
     tipo_curso = curso.tipo.upper() if curso.tipo else "PROFISSIONAL"
-    y = alt - 80
-    pdf.setFont("Helvetica-Bold", 14)
-    pdf.drawCentredString(larg / 2, y, f"DECLARAÇÃO DE CONCLUSÃO - {tipo_curso}")
-    y -= 50
+    titulo = f"DECLARAÇÃO DE CONCLUSÃO - {tipo_curso}"
+
+    # --- Cabeçalho com logo + dados institucionais ---
+    y = _cabecalho(pdf, larg, alt, titulo, root_path)
+    y -= 40
 
     # --- Parágrafo 1: identificação ---
-    cpf_fmt = aluno.cpf if aluno.cpf else "não informado"
+    cpf_fmt    = aluno.cpf if aluno.cpf else "não informado"
+    nome_fmt   = _capitalizar_nome(aluno.nome)
+
     if parceiro_nome and parceiro_cnpj:
         p1 = (
-            f"Certificamos, para os devidos fins, que {aluno.nome}, portador "
+            f"Certificamos, para os devidos fins, que {nome_fmt}, portador "
             f"do CPF nº {cpf_fmt}, concluiu com êxito o curso {curso.nome}, "
             f"oferecido pelo {ESCOLA['nome']} – {ESCOLA['sigla']}, inscrito no CNPJ nº "
             f"{ESCOLA['cnpj']}, em parceria com a {parceiro_nome}, inscrito no "
@@ -295,7 +315,7 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
         )
     else:
         p1 = (
-            f"Certificamos, para os devidos fins, que {aluno.nome}, portador "
+            f"Certificamos, para os devidos fins, que {nome_fmt}, portador "
             f"do CPF nº {cpf_fmt}, concluiu com êxito o curso {curso.nome}, "
             f"oferecido pelo {ESCOLA['nome']} – {ESCOLA['sigla']}, inscrito no CNPJ nº "
             f"{ESCOLA['cnpj']}."
@@ -331,7 +351,7 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
 
     # --- Assinatura ---
     y -= 50
-    assin = os.path.join(root_path, "static", "assinatura.png")
+    assin = _assinatura_path(root_path)
     if os.path.exists(assin):
         pdf.drawImage(assin, larg / 2 - 80, y - 10, width=160, height=40,
                       preserveAspectRatio=True, mask="auto")
@@ -415,25 +435,20 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
 
     def _draw_tabela(pdf, y, linhas, col_label, col_valor,
                      larg_tabela, linha_h, margem_esq, negrito_ultima=False):
-        # Largura disponível para o label: do início até o divisor, com padding de 4px
         max_label_px = col_valor - col_label - 8
-        # Largura disponível para o valor: do divisor até o fim da tabela, com padding de 4px
         max_valor_px = (margem_esq + larg_tabela) - col_valor - 8
 
         for i, (label, valor) in enumerate(linhas):
             negrito = negrito_ultima and i == len(linhas) - 1
 
-            # Borda da linha e divisor vertical
             pdf.rect(col_label, y - linha_h + 3, larg_tabela, linha_h, stroke=1, fill=0)
             pdf.line(col_valor, y - linha_h + 3, col_valor, y + 3)
 
-            # Label — trunca se necessário
             fonte_label = "Helvetica-Bold"
             pdf.setFont(fonte_label, 9)
             label_safe = _truncar(label, fonte_label, 9, max_label_px)
             pdf.drawString(col_label + 4, y - 9, label_safe)
 
-            # Valor — alinhado à esquerda do divisor, truncado se necessário
             fonte_val = "Helvetica-Bold" if negrito else "Helvetica"
             pdf.setFont(fonte_val, 9)
             valor_safe = _truncar(str(valor), fonte_val, 9, max_valor_px)
@@ -495,14 +510,12 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     pdf.drawString(margem_esq, y_rodape - 14,
                    f"Pré-matrícula nº: {dados.get('numero_pre_matricula', '')}")
 
-    # Linha responsável (esquerda)
     assin_y = 95
     pdf.line(margem_esq, assin_y, margem_esq + 190, assin_y)
     pdf.setFont("Helvetica", 9)
     pdf.drawCentredString(margem_esq + 95, assin_y - 14, "Assinatura do responsável")
 
-    # Assinatura escola (direita) — imagem ou linha
-    assin_path = os.path.join(root_path, "static", "assinatura.png")
+    assin_path = _assinatura_path(root_path)
     centro_dir = margem_dir - 95
     if os.path.exists(assin_path):
         pdf.drawImage(assin_path, centro_dir - 80, assin_y + 5,
