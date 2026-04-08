@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v25)
+   SISTEMA ESCOLAR — style.css  (v26)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ─────────────────────────────────────────────── */
@@ -806,14 +806,17 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 /* Card de seção com margem superior padrão */
 .ficha-card-secao { margin-top:20px; }
 
-/* Banner de acesso ao portal */
+/* Banner de acesso ao portal
+   Estado neutro: fundo cinza-azulado claro (visível, nunca branco puro)
+   Estado ok  (:has --ok):  fundo verde-claro + borda-left verde
+   Estado erro (:has --erro): fundo vermelho-claro + borda-left vermelha  */
 .ficha-portal-banner {
     margin-top:16px;
     padding:16px 20px;
-    background:#ffffff;
+    background:#f0f4f8;
     border-radius:var(--radius-md);
-    border:1px solid #c8c8c8;
-    border-left:4px solid #c8c8c8;
+    border:1px solid #bcc8d8;
+    border-left:4px solid #7a99bb;
     display:flex;align-items:center;gap:32px;flex-wrap:wrap;
     box-shadow:var(--shadow-sm);
 }
@@ -832,7 +835,7 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 .ficha-portal-label {
     margin:0;
     font-size:11px;font-weight:700;
-    color:#444444;
+    color:#333333;
     text-transform:uppercase;letter-spacing:.6px;
 }
 .ficha-portal-status {
@@ -844,26 +847,26 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 
 .ficha-portal-divider {
     width:1px;height:40px;
-    background:#c8c8c8;
+    background:#bcc8d8;
     flex-shrink:0;
 }
 /* Data e hora do último login — texto escuro legível */
 .ficha-portal-data {
     margin:6px 0 0;
     font-size:14px;font-weight:700;
-    color:#1a1a1a;
+    color:#111111;
 }
 .ficha-portal-hora {
     font-size:12px;
     font-weight:500;
-    color:#555555;
+    color:#444444;
     margin-left:4px;
 }
 /* "Nunca acessou" — visível mesmo sem acesso ao portal */
 .ficha-portal-nunca {
     margin:6px 0 0;
     font-size:13px;font-weight:600;
-    color:#555555;
+    color:#444444;
 }
 
 /* Aviso de cursos esgotados */
