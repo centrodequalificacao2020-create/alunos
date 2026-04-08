@@ -50,7 +50,8 @@
         <div>
             <p class="ficha-portal-label">Último Login</p>
             {% if ul %}
-                {% set d = ul.login_em %}
+                {# login_em pode ser datetime ou string ISO — normaliza para string #}
+                {% set d = ul.login_em | string %}
                 <p class="ficha-portal-data">
                     {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                     <span class="ficha-portal-hora">&#224;s {{ d[11:16] }}</span>
@@ -168,7 +169,7 @@
                     <td>{{ m.data_matricula or '-' }}</td>
                     <td class="ficha-td-cadastro">
                         {% if m.data_cadastro %}
-                            {% set dc = m.data_cadastro %}
+                            {% set dc = m.data_cadastro | string %}
                             {{ dc[8:10] }}/{{ dc[5:7] }}/{{ dc[0:4] }}
                             {% if dc|length >= 16 %}&#224;s {{ dc[11:16] }}{% endif %}
                         {% else %}-{% endif %}
@@ -182,10 +183,11 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <select name="status" class="select-status-matricula status-{{ m.status|lower }}">
                                 {% for s, label in [
-                                    ('ATIVA',     'Ativa'),
-                                    ('TRANCADA',  'Trancada'),
-                                    ('INATIVA',   'Inativa'),
-                                    ('CONCLUIDA', 'Concluída')
+                                    ('PRE_MATRICULA', 'Pré-Matrícula'),
+                                    ('ATIVA',         'Ativa'),
+                                    ('TRANCADA',      'Trancada'),
+                                    ('INATIVA',       'Inativa'),
+                                    ('CONCLUIDA',     'Concluída')
                                 ] %}
                                 <option value="{{ s }}"
                                     {% if m.status and m.status.upper() == s %}selected{% endif %}>
@@ -252,7 +254,7 @@
                     <td class="ficha-td-centro">{{ tp.tentativa_num }}</td>
                     <td class="ficha-td-data">
                         {% if tp.finalizado_em %}
-                            {% set d = tp.finalizado_em %}
+                            {% set d = tp.finalizado_em | string %}
                             {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
                         {% else %}&mdash;{% endif %}
@@ -318,7 +320,7 @@
                     <td class="ficha-td-centro">{{ te.tentativa_num }}</td>
                     <td class="ficha-td-data">
                         {% if te.finalizado_em %}
-                            {% set d = te.finalizado_em %}
+                            {% set d = te.finalizado_em | string %}
                             {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
                         {% else %}&mdash;{% endif %}
@@ -381,7 +383,7 @@
                     <td><strong>{{ ea.atividade_titulo }}</strong></td>
                     <td class="ficha-td-data">
                         {% if ea.entregue_em %}
-                            {% set d = ea.entregue_em %}
+                            {% set d = ea.entregue_em | string %}
                             {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
                         {% else %}&mdash;{% endif %}
