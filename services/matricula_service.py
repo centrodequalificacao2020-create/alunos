@@ -107,11 +107,8 @@ def criar_matricula(form_data) -> int:
     REGRAS:
     - Matrícula pode ser criada SEM mensalidades e SEM material (ambos opcionais).
     - Mensalidade só é lançada se AMBOS valor_mensalidade > 0 E parcelas >= 1.
-    - Se valor_mensalidade ou parcelas for omitido (campo em branco), usa padrão
-      do curso — MAS apenas se o OUTRO também estiver em branco.
-      Ou seja: digitar qualquer um dos dois desativa o fallback do curso para ambos.
+    - Campos em branco = sem mensalidades. Nunca usa valores do curso como fallback.
     - Se valor_material > 0, parcelas_material deve ser >= 1.
-    - Nunca usa padrão do curso silenciosamente quando o usuário digitou um valor.
     """
     try:
         return _criar_matricula_interno(form_data)
@@ -164,19 +161,10 @@ def _criar_matricula_interno(form_data) -> int:
     # ── Valor da matrícula ───────────────────────────────────────────────────
     valor_matricula = 0.0 if apenas_mensalidade else _get_float(form_data, "valor_matricula")
 
-    # ── BUG 1 FIX: valor e parcelas de mensalidade ───────────────────────────
-    mensalidade_enviada = (
-        _campo_enviado(form_data, "valor_mensalidade") or
-        _campo_enviado(form_data, "valor_mensal")
-    )
-    parcelas_enviadas = _campo_enviado(form_data, "parcelas")
-
-    if mensalidade_enviada or parcelas_enviadas:
-        valor_mensalidade = _get_float(form_data, "valor_mensalidade", "valor_mensal")
-        parcelas = _get_int(form_data, "parcelas")
-    else:
-        valor_mensalidade = float(curso.valor_mensal or 0)
-        parcelas = int(curso.parcelas or 0)
+    # ── Valor e parcelas de mensalidade ──────────────────────────────────────
+    # Campo em branco = sem mensalidades. NUNCA usa fallback do curso.
+    valor_mensalidade = _get_float(form_data, "valor_mensalidade", "valor_mensal")
+    parcelas = _get_int(form_data, "parcelas")
 
     if parcelas < 0:
         parcelas = 0
