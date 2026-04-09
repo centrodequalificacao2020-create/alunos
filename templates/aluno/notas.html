@@ -14,7 +14,6 @@ body {
 .voltar { color:rgba(255,255,255,.5); font-size:13px; text-decoration:none; display:inline-flex; align-items:center; gap:5px; transition:.2s; }
 .voltar:hover { color:#fff; }
 
-/* Selecao de curso */
 .curso-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-top:16px; }
 .curso-card {
     background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13);
@@ -27,7 +26,6 @@ body {
 .curso-card .sub  { font-size:12px; opacity:.45; }
 .curso-card .seta { margin-top:10px; opacity:.35; font-size:13px; }
 
-/* Secao */
 .secao-titulo {
     font-size:13px; font-weight:700; text-transform:uppercase;
     letter-spacing:1.5px; opacity:.45; margin:28px 0 12px;
@@ -35,7 +33,6 @@ body {
 }
 .secao-titulo::after { content:''; flex:1; height:1px; background:rgba(255,255,255,.1); }
 
-/* Cabecalho do curso selecionado */
 .curso-header {
     background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
     border-radius:14px; padding:16px 20px; margin-bottom:8px;
@@ -45,7 +42,6 @@ body {
 .curso-header .trocar { font-size:12px; color:rgba(255,255,255,.45); text-decoration:none; transition:.2s; }
 .curso-header .trocar:hover { color:#fff; }
 
-/* Media badges */
 .media-wrap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .media-badge {
     background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.15);
@@ -57,7 +53,6 @@ body {
 .media-badge.reprovado .val { color:#ff4d4d; }
 .media-badge.neutro .val { color:#ffd700; }
 
-/* card materia */
 .materia-card {
     background:rgba(255,255,255,.06);
     border:1px solid rgba(255,255,255,.1);
@@ -84,14 +79,30 @@ body {
     display:flex; align-items:center; gap:8px;
 }
 
-/* card prova */
 .prova-card-bol {
     background:rgba(199,125,255,.08); border:1px solid rgba(199,125,255,.2);
     border-radius:12px; padding:14px 18px; margin-bottom:10px;
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
 }
-.prova-card-bol .titulo { font-size:14px; font-weight:600; }
-.prova-card-bol .tentativas { font-size:11px; opacity:.45; margin-top:3px; }
+.exercicio-card-bol {
+    background:rgba(56,189,248,.08); border:1px solid rgba(56,189,248,.2);
+    border-radius:12px; padding:14px 18px; margin-bottom:10px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+}
+.atividade-card-bol {
+    background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.2);
+    border-radius:12px; padding:14px 18px; margin-bottom:10px;
+}
+.card-bol-titulo { font-size:14px; font-weight:600; }
+.card-bol-sub    { font-size:11px; opacity:.45; margin-top:3px; }
+.feedback-box {
+    margin-top:10px; padding:10px 14px;
+    background:rgba(255,255,255,.05); border-left:3px solid rgba(251,191,36,.6);
+    border-radius:0 8px 8px 0; font-size:13px; color:rgba(255,255,255,.75);
+    line-height:1.5;
+}
+.feedback-box strong { display:block; font-size:11px; text-transform:uppercase; opacity:.5; margin-bottom:4px; }
+
 .pill {
     display:inline-flex; align-items:center; gap:5px;
     padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700;
@@ -99,6 +110,7 @@ body {
 .pill-ok   { background:rgba(0,255,157,.12); color:#00ff9d; border:1px solid #00ff9d; }
 .pill-err  { background:rgba(255,77,77,.12);  color:#ff4d4d; border:1px solid #ff4d4d; }
 .pill-pend { background:rgba(199,125,255,.12); color:#c77dff; border:1px solid #c77dff; }
+.pill-corr { background:rgba(56,189,248,.12); color:#38bdf8; border:1px solid #38bdf8; }
 </style>
 {% endblock %}
 
@@ -138,7 +150,6 @@ body {
         <h1 style="margin-top:6px">Minhas Notas</h1>
     </div>
 
-    {# Cabecalho do curso com opcao de trocar #}
     <div class="curso-header">
         <span class="nome">{{ curso.nome }}</span>
         {% if cursos_disponiveis | length > 1 %}
@@ -146,7 +157,6 @@ body {
         {% endif %}
     </div>
 
-    {# Media geral #}
     {% if media is not none %}
     <div class="media-wrap" style="margin:14px 0 4px">
         {% set cls = 'aprovado' if media >= 6 else 'reprovado' %}
@@ -157,7 +167,7 @@ body {
     </div>
     {% endif %}
 
-    {# Notas por materia #}
+    {# ── Notas por materia ── #}
     <div class="secao-titulo"><i class="fas fa-book"></i> Notas por Materia</div>
 
     {% if notas %}
@@ -182,7 +192,7 @@ body {
     <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhuma materia cadastrada neste curso.</div>
     {% endif %}
 
-    {# Provas realizadas #}
+    {# ── Provas realizadas ── #}
     <div class="secao-titulo" style="margin-top:36px"><i class="fas fa-file-alt"></i> Provas Realizadas</div>
 
     {% if provas_realizadas %}
@@ -193,8 +203,8 @@ body {
         {% set melhor = melhor_por_prova.get(rp.prova_id) %}
         <div class="prova-card-bol">
             <div>
-                <div class="titulo">{{ rp.prova.titulo }}</div>
-                <div class="tentativas">{{ rp.tentativa_num }} tentativa(s) realizada(s)</div>
+                <div class="card-bol-titulo">{{ rp.prova.titulo }}</div>
+                <div class="card-bol-sub">{{ rp.tentativa_num }} tentativa(s) realizada(s)</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
                 {% if melhor %}
@@ -213,6 +223,78 @@ body {
     {% endfor %}
     {% else %}
     <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhuma prova realizada neste curso.</div>
+    {% endif %}
+
+    {# ── Exercicios realizados ── #}
+    <div class="secao-titulo" style="margin-top:36px"><i class="fas fa-pencil-alt"></i> Exerc&iacute;cios Realizados</div>
+
+    {% if exercicios_realizados %}
+    {% set vistos_ex = [] %}
+    {% for re in exercicios_realizados %}
+        {% if re.exercicio_id not in vistos_ex %}
+        {% set _ = vistos_ex.append(re.exercicio_id) %}
+        {% set melhor_ex = melhor_por_exercicio.get(re.exercicio_id) %}
+        <div class="exercicio-card-bol">
+            <div>
+                <div class="card-bol-titulo">{{ re.exercicio.titulo }}</div>
+                <div class="card-bol-sub">{{ re.tentativa_num }} tentativa(s) realizada(s)</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                {% if melhor_ex %}
+                    {% if melhor_ex.nota_obtida is not none %}
+                        {% if melhor_ex.aprovado %}
+                        <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ '%.1f'|format(melhor_ex.nota_obtida) }}</span>
+                        {% else %}
+                        <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ '%.1f'|format(melhor_ex.nota_obtida) }}</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="pill pill-corr"><i class="fas fa-clock"></i> Aguardando corre&ccedil;&atilde;o</span>
+                    {% endif %}
+                {% else %}
+                <span class="pill pill-pend"><i class="fas fa-hourglass-half"></i> Aguardando</span>
+                {% endif %}
+                <a href="/aluno/exercicio/{{ re.exercicio_id }}/resultado/{{ re.id }}" style="color:rgba(255,255,255,.5);font-size:12px;text-decoration:none">&rarr; ver</a>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+    {% else %}
+    <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhum exerc&iacute;cio realizado neste curso.</div>
+    {% endif %}
+
+    {# ── Atividades entregues ── #}
+    <div class="secao-titulo" style="margin-top:36px"><i class="fas fa-tasks"></i> Atividades</div>
+
+    {% if atividades_entregues %}
+    {% for ea in atividades_entregues %}
+    <div class="atividade-card-bol">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+                <div class="card-bol-titulo">{{ ea.atividade_titulo }}</div>
+                <div class="card-bol-sub">Entregue em: {{ ea.entregue_em or '—' }} &bull; Status: {{ ea.status | capitalize }}</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                {% if ea.nota is not none %}
+                    {% if ea.nota | float >= 6 %}
+                    <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ '%.1f'|format(ea.nota | float) }}</span>
+                    {% else %}
+                    <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ '%.1f'|format(ea.nota | float) }}</span>
+                    {% endif %}
+                {% else %}
+                <span class="pill pill-corr"><i class="fas fa-clock"></i> Aguardando corre&ccedil;&atilde;o</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if ea.feedback %}
+        <div class="feedback-box">
+            <strong>Feedback do instrutor</strong>
+            {{ ea.feedback }}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-mat"><i class="fas fa-info-circle"></i> Nenhuma atividade entregue neste curso.</div>
     {% endif %}
 
     {% endif %}

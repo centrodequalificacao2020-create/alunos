@@ -425,6 +425,7 @@ def notas_aluno():
     valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
     media   = round(sum(valores) / len(valores), 1) if valores else None
 
+    # --- Provas realizadas ---
     provas_realizadas  = []
     melhor_por_prova   = {}
     try:
@@ -448,6 +449,53 @@ def notas_aluno():
             exc_info=True
         )
 
+    # --- Exercicios realizados ---
+    exercicios_realizados = []
+    melhor_por_exercicio  = {}
+    try:
+        from models import RespostaExercicio, Exercicio
+        exercicios_realizados = (
+            RespostaExercicio.query
+            .join(RespostaExercicio.exercicio)
+            .filter(
+                RespostaExercicio.aluno_id == aluno.id,
+                RespostaExercicio.exercicio.has(curso_id=curso_id_param),
+            )
+            .order_by(RespostaExercicio.exercicio_id, RespostaExercicio.id.desc())
+            .all()
+        )
+        for re in exercicios_realizados:
+            if re.exercicio_id not in melhor_por_exercicio:
+                melhor_por_exercicio[re.exercicio_id] = re
+    except Exception as e:
+        current_app.logger.error(
+            f"[notas_aluno] Erro ao carregar exercícios do aluno_id={aluno.id}: {e}",
+            exc_info=True
+        )
+
+    # --- Atividades entregues ---
+    atividades_entregues = []
+    try:
+        from models import EntregaAtividade, Atividade
+        atividades_entregues = (
+            EntregaAtividade.query
+            .join(EntregaAtividade.atividade)
+            .filter(
+                EntregaAtividade.aluno_id == aluno.id,
+                EntregaAtividade.atividade.has(curso_id=curso_id_param),
+            )
+            .order_by(EntregaAtividade.entregue_em.desc())
+            .all()
+        )
+        for ea in atividades_entregues:
+            atv = db.session.get(Atividade, ea.atividade_id)
+            ea.atividade_titulo = atv.titulo if atv else f"Atividade #{ea.atividade_id}"
+    except Exception as e:
+        current_app.logger.error(
+            f"[notas_aluno] Erro ao carregar atividades do aluno_id={aluno.id}: {e}",
+            exc_info=True
+        )
+
     return render_template(
         "aluno/notas.html",
         aluno=aluno,
@@ -457,6 +505,9 @@ def notas_aluno():
         media=media,
         provas_realizadas=provas_realizadas,
         melhor_por_prova=melhor_por_prova,
+        exercicios_realizados=exercicios_realizados,
+        melhor_por_exercicio=melhor_por_exercicio,
+        atividades_entregues=atividades_entregues,
         cursos_disponiveis=cursos_disponiveis,
         modo="notas",
     )
@@ -742,7 +793,6 @@ def responder_exercicio(ex_id):
                 total_pontos += pontos_obtidos
 
             elif q.tipo == "dissertativa":
-                # Dissertativa: registra texto, aguarda correcao manual
                 texto_resp = request.form.get(f"questao_{q.id}_texto", "").strip()
                 db.session.add(RespostaExercicioQuestao(
                     resposta_exercicio_id = resp.id,
@@ -764,7 +814,6 @@ def responder_exercicio(ex_id):
                 corrigida             = 1,
             ))
 
-        # Questoes dissertativas pendentes: nota fica None ate correcao manual
         tem_dissertativa = any(q.tipo == "dissertativa" for q in ex.questoes)
         if tem_dissertativa:
             nota_final = None
