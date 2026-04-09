@@ -17,7 +17,7 @@
             </div>
             <div class="campo">
                 <label>&nbsp;</label>
-                <button type="submit" class="btn btn-azul">🔍 Buscar</button>
+                <button type="submit" class="btn btn-azul">Buscar</button>
             </div>
         </div>
     </form>
@@ -43,7 +43,7 @@
 
 {% if aluno_id and aluno_nome %}
 <div class="card">
-    <h3>📌 {{ aluno_nome }}</h3>
+    <h3>{{ aluno_nome }}</h3>
 
     {% if cursos_matriculados %}
     <form method="GET" action="/notas">
@@ -69,7 +69,15 @@
     <form method="POST" action="/notas">
         <input type="hidden" name="aluno_id" value="{{ aluno_id }}">
         <input type="hidden" name="curso_id" value="{{ curso_id }}">
-        <h3>Lançar Notas</h3>
+
+        <div class="card-header--between" style="margin-bottom:12px;">
+            <h3 style="margin:0;">Lançar Notas</h3>
+            <a href="/notas_pdf/{{ aluno_id }}/{{ curso_id }}"
+               class="btn btn-verde" target="_blank">
+                Gerar PDF
+            </a>
+        </div>
+
         <div class="tabela-planilha">
             <table class="tabela-excel">
                 <thead>
@@ -104,8 +112,8 @@
             </table>
         </div>
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">💾 Salvar Notas</button>
-            <a href="/notas_visualizar/{{ aluno_id }}?curso_id={{ curso_id }}" class="btn btn-editar">👁 Visualizar Boletim</a>
+            <button type="submit" class="btn btn-azul">Salvar Notas</button>
+            <a href="/notas_visualizar/{{ aluno_id }}?curso_id={{ curso_id }}" class="btn btn-editar">Visualizar Boletim</a>
         </div>
     </form>
 </div>
