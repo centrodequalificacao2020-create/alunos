@@ -117,7 +117,7 @@ def _draw_wrapped_text(pdf, text: str, x: float, y: float,
 
 
 def _truncar(texto: str, font_name: str, font_size: int, max_px: float) -> str:
-    """Trunca texto com reticências se ultrapassar max_px pontos."""
+    """Trunca texto com retiências se ultrapassar max_px pontos."""
     if stringWidth(texto, font_name, font_size) <= max_px:
         return texto
     while texto and stringWidth(texto + "…", font_name, font_size) > max_px:
@@ -135,7 +135,7 @@ def _capitalizar_nome(nome: str) -> str:
     )
 
 
-# ─────────────────────────── RECIBO ───────────────────────────
+# ───────────────────────────────────────── RECIBO ─────────────────────────────────────────
 
 def gerar_recibo(mensalidade, root_path: str = "") -> io.BytesIO:
     buf = io.BytesIO()
@@ -168,7 +168,7 @@ def gerar_recibo(mensalidade, root_path: str = "") -> io.BytesIO:
     return buf
 
 
-# ─────────────────────────── CARNÊ ───────────────────────────
+# ───────────────────────────────────────── CARNÊ ─────────────────────────────────────────
 
 def gerar_carne(aluno, parcelas, root_path: str = "") -> io.BytesIO:
     buf = io.BytesIO()
@@ -197,7 +197,7 @@ def gerar_carne(aluno, parcelas, root_path: str = "") -> io.BytesIO:
     return buf
 
 
-# ─────────────────────────── BOLETIM ───────────────────────────
+# ───────────────────────────────────────── BOLETIM ─────────────────────────────────────────
 
 def gerar_boletim_notas(aluno, curso, materias, notas_map,
                         root_path: str = "") -> io.BytesIO:
@@ -236,16 +236,16 @@ def gerar_boletim_notas(aluno, curso, materias, notas_map,
     return buf
 
 
-# ─────────────────────────── FREQUÊNCIA ───────────────────────────
+# ───────────────────────────────────────── FREQUÊNCIA ─────────────────────────────────────────
 
 def gerar_historico_frequencia(aluno, curso, historico,
                                root_path: str = "") -> io.BytesIO:
-    """Gera PDF do histórico de frequência conforme modelo real (cabeçalho textual)."""
+    """Gera PDF do histórico de frequência com logo e dados institucionais."""
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=A4)
     larg, alt = A4
 
-    y = _cabecalho_texto(pdf, larg, alt, "HISTÓRICO DE FREQUÊNCIA")
+    y = _cabecalho(pdf, larg, alt, "HISTÓRICO DE FREQUÊNCIA", root_path)
     y -= 20
     pdf.setFont("Helvetica-Bold", 11)
     pdf.drawString(50, y, f"Aluno: {aluno.nome.upper()}")
@@ -273,7 +273,7 @@ def gerar_historico_frequencia(aluno, curso, historico,
     return buf
 
 
-# ─────────────────────────── DECLARAÇÃO DE CONCLUSÃO ───────────────────────────
+# ───────────────────────────────────────── DECLARAÇÃO DE CONCLUSÃO ─────────────────────────────────────────
 
 def _draw_rich_paragraph(pdf, partes, x: float, y: float,
                          max_largura_px: float, line_height: float,
@@ -364,7 +364,7 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
 
     y -= 38
 
-    # ── Saudàção ──
+    # ── Saudação ──
     pdf.setFont("Helvetica", font_size)
     pdf.drawString(margem, y, "A quem posso interessar,")
     y -= line_height * 1.8
@@ -435,7 +435,6 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     assin_y_base = 150
     assin_path   = _assinatura_path(root_path)
 
-    # Coluna esquerda: Diretor Geral / Randermei  (sem imagem — linha em branco)
     col_esq_centro = margem + 95
     pdf.line(margem, assin_y_base, margem + 190, assin_y_base)
     pdf.setFont("Helvetica", 9)
@@ -443,7 +442,6 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     pdf.drawCentredString(col_esq_centro, assin_y_base - 26,
                           "Randermei Marinho de Almeida Oliveira")
 
-    # Coluna direita: CQP / Alex de Assis Pessanha  (com imagem de assinatura)
     col_dir_centro = larg - margem - 95
     if os.path.exists(assin_path):
         pdf.drawImage(assin_path,
@@ -465,7 +463,7 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     return buf
 
 
-# ─────────────────────────── CONFIRMAÇÃO DE PRÉ-MATRÍCULA ───────────────────────────
+# ───────────────────────────────────────── CONFIRMAÇÃO DE PRÉ-MATRÍCULA ─────────────────────────────────────────
 
 def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     """Gera PDF de Confirmação de Pré-Matrícula conforme modelo institucional.

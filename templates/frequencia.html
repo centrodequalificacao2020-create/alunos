@@ -17,7 +17,7 @@
             </div>
             <div class="campo">
                 <label>&nbsp;</label>
-                <button type="submit" class="btn btn-azul">🔍 Buscar</button>
+                <button type="submit" class="btn btn-azul">Buscar</button>
             </div>
         </div>
     </form>
@@ -39,7 +39,7 @@
 
 {% if aluno_id and aluno_nome %}
 <div class="card">
-    <h3>📌 {{ aluno_nome }}</h3>
+    <h3>{{ aluno_nome }}</h3>
 
     {% if cursos_matriculados %}
     <form method="POST">
@@ -67,7 +67,7 @@
             </div>
         </div>
         <div class="acoes-form">
-            <button type="submit" class="btn btn-azul">💾 Salvar Frequência</button>
+            <button type="submit" class="btn btn-azul">Salvar Frequência</button>
         </div>
     </form>
 
@@ -80,16 +80,16 @@
     {% endfor %}
 
     <div class="card-header--between" style="margin-bottom:12px;">
-        <h4 style="margin:0;">📊 Histórico de Frequência</h4>
+        <h4 style="margin:0;">Histórico de Frequência</h4>
         <div style="display:flex;gap:8px;align-items:center;">
             {% if freqs %}
             <a href="/frequencia_historico_pdf/{{ aluno_id }}/{{ curso_id }}"
                class="btn btn-verde" target="_blank">
-                🗂️ Gerar PDF
+                Gerar PDF
             </a>
             <button type="button" class="btn btn-vermelho"
                     onclick="abrirModalExcluirTudo({{ aluno_id }}, {{ curso_id }}, {{ freqs|length }})">
-                🗑️ Remover todas ({{ freqs|length }})
+                Remover todas ({{ freqs|length }})
             </button>
             {% endif %}
         </div>
@@ -111,15 +111,15 @@
                 <td>{{ f.data }}</td>
                 <td>
                     {% if f.status == 'P' %}
-                    <span class="status-ativo">✅ Presente</span>
+                    <span class="status-ativo">Presente</span>
                     {% else %}
-                    <span class="status-inativo">❌ Falta</span>
+                    <span class="status-inativo">Falta</span>
                     {% endif %}
                 </td>
                 <td class="acoes">
                     <form method="POST" action="/frequencia/{{ f.id }}/excluir"
                           onsubmit="return confirm('Remover o registro de {{ f.data }}?')">
-                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Remover">🗑️</button>
+                        <button type="submit" class="btn btn-lixeira tooltip" data-tooltip="Remover">Remover</button>
                     </form>
                 </td>
             </tr>
@@ -141,7 +141,7 @@
 {# Modal: remover todas as frequências do curso #}
 <div id="modalExcluirTudo" class="modal-overlay">
     <div class="modal">
-        <h3>⚠️ Remover todas as frequências</h3>
+        <h3>Remover todas as frequências</h3>
         <p id="modalExcluirTudoTexto"></p>
         <form method="POST" action="/frequencia/excluir_tudo" id="formExcluirTudo">
             <input type="hidden" name="aluno_id" id="etAluno">
