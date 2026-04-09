@@ -231,6 +231,7 @@ def _criar_matricula_interno(form_data) -> int:
             curso_id            = curso_id,
             tipo_curso          = tipo_curso,
             data_matricula      = data_matricula,
+            data_cadastro       = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             status              = StatusMatricula.ATIVA.value,
             valor_matricula     = valor_matricula,
             valor_mensalidade   = valor_mensalidade,
