@@ -450,20 +450,37 @@ def notas_aluno():
         )
 
     # --- Exercicios realizados ---
+    # Exercicio nao tem curso_id: filtrar pelos exercicio_id das materias do curso
     exercicios_realizados = []
     melhor_por_exercicio  = {}
     try:
         from models import RespostaExercicio, Exercicio
-        exercicios_realizados = (
-            RespostaExercicio.query
-            .join(RespostaExercicio.exercicio)
-            .filter(
-                RespostaExercicio.aluno_id == aluno.id,
-                RespostaExercicio.exercicio.has(curso_id=curso_id_param),
+
+        ids_materias_do_curso = {
+            cm.materia_id
+            for cm in CursoMateria.query.filter_by(curso_id=curso_id_param).all()
+        }
+
+        ids_exercicios_do_curso = set()
+        if ids_materias_do_curso:
+            ids_exercicios_do_curso = {
+                ex.id
+                for ex in Exercicio.query.filter(
+                    Exercicio.materia_id.in_(ids_materias_do_curso)
+                ).all()
+            }
+
+        if ids_exercicios_do_curso:
+            exercicios_realizados = (
+                RespostaExercicio.query
+                .filter(
+                    RespostaExercicio.aluno_id == aluno.id,
+                    RespostaExercicio.exercicio_id.in_(ids_exercicios_do_curso),
+                )
+                .order_by(RespostaExercicio.exercicio_id, RespostaExercicio.id.desc())
+                .all()
             )
-            .order_by(RespostaExercicio.exercicio_id, RespostaExercicio.id.desc())
-            .all()
-        )
+
         for re in exercicios_realizados:
             if re.exercicio_id not in melhor_por_exercicio:
                 melhor_por_exercicio[re.exercicio_id] = re
