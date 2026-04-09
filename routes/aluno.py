@@ -169,20 +169,39 @@ def pendencias_aluno(id):
 @aluno_bp.route("/excluir_aluno/<int:id>", methods=["POST"])
 @login_required
 def excluir_aluno(id):
-    from models import Usuario, TurmaAluno, Nota, Frequencia, ProgressoAula
+    from models import (
+        Usuario, TurmaAluno, Nota, Frequencia, ProgressoAula,
+        RespostaProva, RespostaExercicio, EntregaAtividade,
+        MateriaLiberada, ProvaLiberada, ExercicioLiberado, AtividadeLiberada,
+    )
     senha = request.form.get("senha", "")
     user  = db.session.get(Usuario, session.get("usuario_id"))
     if not user or not verificar_senha(senha, user.senha):
         flash("Senha incorreta. Exclus\u00e3o cancelada.", "erro")
         return redirect("/cadastro")
+
     a    = db.get_or_404(Aluno, id)
     nome = a.nome
+
+    # --- tabelas filhas sem cascade no modelo ---
+    AtividadeLiberada.query.filter_by(aluno_id=id).delete()
+    ExercicioLiberado.query.filter_by(aluno_id=id).delete()
+    ProvaLiberada.query.filter_by(aluno_id=id).delete()
+    MateriaLiberada.query.filter_by(aluno_id=id).delete()
+    EntregaAtividade.query.filter_by(aluno_id=id).delete()
+
+    # respostas_questao e respostas_exercicio_questao são limpas
+    # em cascata pelo ORM ao deletar RespostaProva / RespostaExercicio
+    RespostaProva.query.filter_by(aluno_id=id).delete()
+    RespostaExercicio.query.filter_by(aluno_id=id).delete()
+
     TurmaAluno.query.filter_by(aluno_id=id).delete()
     Nota.query.filter_by(aluno_id=id).delete()
     Frequencia.query.filter_by(aluno_id=id).delete()
     ProgressoAula.query.filter_by(aluno_id=id).delete()
     Mensalidade.query.filter_by(aluno_id=id).delete()
     Matricula.query.filter_by(aluno_id=id).delete()
+
     try:
         db.session.execute(
             text("DELETE FROM acesso_conteudo_curso WHERE aluno_id = :aid"),
@@ -190,6 +209,9 @@ def excluir_aluno(id):
         )
     except OperationalError:
         db.session.rollback()
+
+    # login_historico_aluno tem cascade="all, delete-orphan" no modelo,
+    # será removido automaticamente junto com o aluno.
     db.session.delete(a)
     db.session.commit()
     flash(f"Aluno \u201c{nome}\u201d exclu\u00eddo com sucesso.", "sucesso")
