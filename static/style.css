@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v26)
+   SISTEMA ESCOLAR — style.css  (v27)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ─────────────────────────────────────────────── */
@@ -806,17 +806,17 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 /* Card de seção com margem superior padrão */
 .ficha-card-secao { margin-top:20px; }
 
-/* Banner de acesso ao portal
-   Estado neutro: fundo cinza-azulado claro (visível, nunca branco puro)
-   Estado ok  (:has --ok):  fundo verde-claro + borda-left verde
-   Estado erro (:has --erro): fundo vermelho-claro + borda-left vermelha  */
+/* ── Banner de acesso ao portal ─────────────────────────────────
+   Estado neutro : fundo azul-claro primário (--color-primary-light)
+   Estado ok     : fundo verde-claro + borda verde
+   Estado erro   : fundo vermelho-claro + borda vermelha            */
 .ficha-portal-banner {
     margin-top:16px;
     padding:16px 20px;
-    background:#f0f4f8;
+    background:var(--color-primary-light);
     border-radius:var(--radius-md);
-    border:1px solid #bcc8d8;
-    border-left:4px solid #7a99bb;
+    border:1px solid #90c4f0;
+    border-left:4px solid var(--color-primary);
     display:flex;align-items:center;gap:32px;flex-wrap:wrap;
     box-shadow:var(--shadow-sm);
 }
@@ -831,11 +831,11 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
     border-color:#e8b8b8;
 }
 
-/* Labels do banner — escuros para garantir contraste */
+/* Labels do banner */
 .ficha-portal-label {
     margin:0;
     font-size:11px;font-weight:700;
-    color:#333333;
+    color:#0d3b6e;
     text-transform:uppercase;letter-spacing:.6px;
 }
 .ficha-portal-status {
@@ -847,26 +847,26 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 
 .ficha-portal-divider {
     width:1px;height:40px;
-    background:#bcc8d8;
+    background:#90c4f0;
     flex-shrink:0;
 }
-/* Data e hora do último login — texto escuro legível */
+/* Data e hora do último login */
 .ficha-portal-data {
     margin:6px 0 0;
     font-size:14px;font-weight:700;
-    color:#111111;
+    color:#0d3b6e;
 }
 .ficha-portal-hora {
     font-size:12px;
     font-weight:500;
-    color:#444444;
+    color:#1565c0;
     margin-left:4px;
 }
-/* "Nunca acessou" — visível mesmo sem acesso ao portal */
+/* "Nunca acessou" */
 .ficha-portal-nunca {
     margin:6px 0 0;
     font-size:13px;font-weight:600;
-    color:#444444;
+    color:#1a4a7a;
 }
 
 /* Aviso de cursos esgotados */
@@ -905,10 +905,11 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 .pre-matricula-details summary { display:inline-flex;cursor:pointer;user-select:none; }
 .pre-matricula-details summary::-webkit-details-marker { display:none; }
 
+/* FIX v27: fundo âmbar mais saturado para separar do card branco */
 .toolbar-pre-matricula {
     margin-top:14px;padding:18px 20px;
-    background:var(--color-warning-light);
-    border:1px solid #ffe08a;
+    background:#ffefc0;
+    border:1px solid #e6c200;
     border-radius:var(--radius-md);
     display:flex;flex-direction:column;gap:10px;
 }
@@ -919,10 +920,10 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
     display:flex;flex-direction:column;flex:1 1 160px;
 }
 .pre-mat-campo--sm { flex:0 0 100px; }
-/* Labels dentro do formulário laranja — escuros para máximo contraste */
+/* FIX v27: labels quase-preto para máximo contraste sobre âmbar */
 .pre-mat-campo label {
     font-size:11px;font-weight:700;
-    color:#4a2e00;
+    color:#1a0a00;
     text-transform:uppercase;letter-spacing:.4px;
     margin-bottom:4px;
 }
@@ -930,7 +931,7 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
     height:34px!important;
     padding:5px 9px!important;
     font-size:13px!important;
-    border:1px solid #d4a000!important;
+    border:1px solid #c49000!important;
     border-radius:var(--radius-sm)!important;
     background:#fffdf0!important;
     color:var(--color-text)!important;
@@ -943,14 +944,30 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
     box-shadow:0 0 0 3px rgba(244,166,42,.20)!important;
 }
 
-/* Select de status da matrícula */
+/* ════════════════════════════════════════════════════════════════
+   35. SELECT DE STATUS DA MATRÍCULA (ficha_aluno.html)
+   FIX v27: color explícito em todos os estados para evitar herança
+   do browser que resulta em texto invisível (ex: status-pre_matricula
+   não tinha classe CSS → herdava cinza #767676 sobre fundo branco)
+   ════════════════════════════════════════════════════════════════ */
 .select-status-matricula {
     height:30px!important;padding:0 8px!important;
     font-size:12px!important;font-weight:600!important;
     border-radius:var(--radius-sm)!important;
     border:1px solid var(--color-border)!important;
     background:#fff!important;
+    color:var(--color-text)!important;
     margin-bottom:0!important;
     width:auto!important;cursor:pointer;
 }
+/* Estados coloridos do select — sobrescrevem color:var(--color-text) acima */
+.select-status-matricula.status-ativa      { color:var(--color-success)!important; }
+.select-status-matricula.status-trancada   { color:var(--color-warning-dark)!important; }
+.select-status-matricula.status-inativa    { color:var(--color-danger)!important; }
+.select-status-matricula.status-cancelada  { color:var(--color-danger)!important; }
+.select-status-matricula.status-finalizado { color:var(--color-text-muted)!important; }
+/* FIX v27: status ausentes na seção 10 — adicionados aqui */
+.select-status-matricula.status-pre_matricula { color:var(--color-primary)!important; }
+.select-status-matricula.status-concluida     { color:var(--color-success)!important; }
+
 .form-status-matricula { display:inline-flex;align-items:center; }
