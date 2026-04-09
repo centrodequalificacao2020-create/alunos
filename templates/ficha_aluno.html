@@ -236,13 +236,13 @@
         <table class="tabela-excel">
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th style="width:40px">#</th>
                     <th>Prova</th>
-                    <th>Tentativa</th>
-                    <th>Realizada em</th>
-                    <th>Nota</th>
-                    <th>Situa&ccedil;&atilde;o</th>
-                    <th class="ficha-th-centro">A&ccedil;&otilde;es</th>
+                    <th class="ficha-th-centro" style="width:80px">Tentativa</th>
+                    <th style="width:140px">Realizada em</th>
+                    <th class="ficha-th-centro" style="width:60px">Nota</th>
+                    <th style="width:130px">Situa&ccedil;&atilde;o</th>
+                    <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -266,7 +266,7 @@
                             <span class="ficha-pendente">Pendente</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td style="white-space:nowrap">
                         {% if tp.aprovado == 1 %}
                             <span class="status-ativo">Aprovado</span>
                         {% elif tp.aprovado == 0 %}
@@ -275,7 +275,7 @@
                             <span class="ficha-aguardando">Aguard. corre&ccedil;&atilde;o</span>
                         {% endif %}
                     </td>
-                    <td class="ficha-td-centro">
+                    <td class="acoes-texto">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_prova/{{ tp.id }}/excluir"
                               onsubmit="return confirm('Excluir esta tentativa da prova {{ titulo_prova }}? Esta acao libera uma tentativa para o aluno.')">
@@ -302,13 +302,13 @@
         <table class="tabela-excel">
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th style="width:40px">#</th>
                     <th>Exerc&iacute;cio</th>
-                    <th>Tentativa</th>
-                    <th>Realizado em</th>
-                    <th>Nota</th>
-                    <th>Situa&ccedil;&atilde;o</th>
-                    <th class="ficha-th-centro">A&ccedil;&otilde;es</th>
+                    <th class="ficha-th-centro" style="width:80px">Tentativa</th>
+                    <th style="width:140px">Realizado em</th>
+                    <th class="ficha-th-centro" style="width:60px">Nota</th>
+                    <th style="width:130px">Situa&ccedil;&atilde;o</th>
+                    <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -332,7 +332,7 @@
                             <span class="ficha-pendente">Pendente</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td style="white-space:nowrap">
                         {% if te.aprovado == 1 %}
                             <span class="status-ativo">Aprovado</span>
                         {% elif te.aprovado == 0 %}
@@ -341,7 +341,7 @@
                             <span class="ficha-aguardando">Aguard. corre&ccedil;&atilde;o</span>
                         {% endif %}
                     </td>
-                    <td class="ficha-td-centro">
+                    <td class="acoes-texto">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/tentativa_exercicio/{{ te.id }}/excluir"
                               onsubmit="return confirm('Excluir esta tentativa do exercicio {{ titulo_exercicio }}? Esta acao libera uma tentativa para o aluno.')">
@@ -368,11 +368,11 @@
         <table class="tabela-excel">
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th style="width:40px">#</th>
                     <th>Atividade</th>
-                    <th>Entregue em</th>
-                    <th>Status</th>
-                    <th class="ficha-th-centro">A&ccedil;&otilde;es</th>
+                    <th style="width:140px">Entregue em</th>
+                    <th style="width:110px">Status</th>
+                    <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -388,7 +388,7 @@
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
                         {% else %}&mdash;{% endif %}
                     </td>
-                    <td>
+                    <td style="white-space:nowrap">
                         {% if ea.status == 'corrigida' %}
                             <span class="status-ativo">Corrigida</span>
                         {% elif ea.status == 'entregue' %}
@@ -397,7 +397,7 @@
                             <span class="ficha-pendente">{{ ea.status or 'Pendente' }}</span>
                         {% endif %}
                     </td>
-                    <td class="ficha-td-centro">
+                    <td class="acoes-texto">
                         <form method="POST"
                               action="/aluno/{{ aluno.id }}/entrega_atividade/{{ ea.id }}/excluir"
                               onsubmit="return confirm('Excluir a entrega da atividade {{ titulo_atividade }}? O aluno poderá entregar novamente.')">
