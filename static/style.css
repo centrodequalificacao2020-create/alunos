@@ -1,5 +1,5 @@
 /* ================================================================
-   SISTEMA ESCOLAR — style.css  (v27)
+   SISTEMA ESCOLAR — style.css  (v28)
    ================================================================ */
 
 /* ── 1. VARIÁVEIS ─────────────────────────────────────────────── */
@@ -971,3 +971,43 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 .select-status-matricula.status-concluida     { color:var(--color-success)!important; }
 
 .form-status-matricula { display:inline-flex;align-items:center; }
+
+/* ════════════════════════════════════════════════════════════════
+   36. FIX v28 — OVERRIDES TEMA-ALUNO PARA FICHA DO GESTOR
+   Problema: body.tema-aluno .card label tem especificidade maior
+   que .ficha-portal-label e .pre-mat-campo label, tornando os
+   textos invisíveis (cor clara sobre fundo claro).
+   Solução: repetir os seletores dentro do contexto body.tema-aluno
+   com !important para garantir precedência.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 36a. Banner portal do aluno ────────────────────────────── */
+/* O banner fica dentro de um .card no tema-aluno, mas tem fundo
+   próprio claro (#e3f2fd / #f0faf3 / #fff2f2). Os textos DEVEM
+   ser escuros independentemente do tema. */
+body.tema-aluno .card .ficha-portal-label {
+    color: #0d3b6e !important;
+}
+body.tema-aluno .card .ficha-portal-data {
+    color: #0d3b6e !important;
+}
+body.tema-aluno .card .ficha-portal-hora {
+    color: #1565c0 !important;
+}
+body.tema-aluno .card .ficha-portal-nunca {
+    color: #1a4a7a !important;
+}
+body.tema-aluno .card .ficha-portal-status--ok {
+    color: #146c38 !important;
+}
+body.tema-aluno .card .ficha-portal-status--erro {
+    color: #9b1c1c !important;
+}
+
+/* ── 36b. Labels da pré-matrícula ───────────────────────────── */
+/* O formulário tem fundo âmbar #ffefc0. As labels DEVEM ser
+   quase-pretas para contraste máximo, sem herdar o rgba claro
+   do tema-aluno. */
+body.tema-aluno .card .pre-mat-campo label {
+    color: #1a0a00 !important;
+}
