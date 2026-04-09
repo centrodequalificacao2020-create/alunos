@@ -81,12 +81,18 @@
 
     <div class="card-header--between" style="margin-bottom:12px;">
         <h4 style="margin:0;">📊 Histórico de Frequência</h4>
-        {% if freqs %}
-        <button type="button" class="btn btn-vermelho"
-                onclick="abrirModalExcluirTudo({{ aluno_id }}, {{ curso_id }}, {{ freqs|length }})">
-            🗑️ Remover todas ({{ freqs|length }})
-        </button>
-        {% endif %}
+        <div style="display:flex;gap:8px;align-items:center;">
+            {% if freqs %}
+            <a href="/frequencia_historico_pdf/{{ aluno_id }}/{{ curso_id }}"
+               class="btn btn-verde" target="_blank">
+                🗂️ Gerar PDF
+            </a>
+            <button type="button" class="btn btn-vermelho"
+                    onclick="abrirModalExcluirTudo({{ aluno_id }}, {{ curso_id }}, {{ freqs|length }})">
+                🗑️ Remover todas ({{ freqs|length }})
+            </button>
+            {% endif %}
+        </div>
     </div>
 
     {% if freqs %}
