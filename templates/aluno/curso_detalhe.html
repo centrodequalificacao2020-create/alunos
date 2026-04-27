@@ -326,13 +326,11 @@ body{
           <div class="ex-card">
             <div class="ex-info">
               <div class="ex-titulo">
-                <i class="fas fa-pencil-alt" style="opacity:.5;margin-right:6px"></i>
-                <span style="opacity:.5;font-size:11px;margin-right:4px">Exerc&iacute;cio</span>
+                <span style="opacity:.4;font-size:11px;margin-right:6px">#{{ ex.ordem }}</span>
                 {{ ex.titulo }}
               </div>
               {% if ex.descricao %}<div class="ex-desc">{{ ex.descricao }}</div>{% endif %}
               <div class="ex-meta">
-                <span><i class="fas fa-book"></i> {{ mat.nome }}</span>
                 <span><i class="fas fa-list-ol"></i> {{ ex.questoes|length }} quest&otilde;es</span>
                 {% if ex.tempo_limite %}
                   <span><i class="fas fa-clock"></i> {{ ex.tempo_limite }} min</span>
