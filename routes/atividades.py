@@ -136,8 +136,11 @@ def excluir_atividade(atv_id):
     from models import AtividadeLiberada
     atv = db.get_or_404(Atividade, atv_id)
 
+    # synchronize_session="fetch" garante que os objetos em memória
+    # na sessão sejam atualizados antes do flush, evitando que o ORM
+    # tente fazer UPDATE SET atividade_id=NULL ao deletar a Atividade.
     AtividadeLiberada.query.filter_by(atividade_id=atv_id).delete(
-        synchronize_session=False
+        synchronize_session="fetch"
     )
 
     db.session.delete(atv)
