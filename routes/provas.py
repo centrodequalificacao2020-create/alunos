@@ -13,9 +13,7 @@ def _calcular_nota(total_pontos, pontos_max):
     return round((total_pontos / pontos_max) * 10, 2)
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# LISTAGEM
-# ─────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────── LISTAGEM ────────────────────────────
 
 @provas_bp.route("/provas")
 @login_required
@@ -35,9 +33,7 @@ def listar_provas():
                            curso_id_sel=curso_id, view="lista")
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# CRIAR PROVA
-# ─────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────── CRIAR PROVA ────────────────────────────
 
 @provas_bp.route("/provas/nova", methods=["GET", "POST"])
 @login_required
@@ -50,7 +46,7 @@ def nova_prova():
         f      = request.form
         titulo = f.get("titulo", "").strip()
         if not titulo:
-            flash("Título é obrigatório.", "erro")
+            flash("T\u00edtulo \u00e9 obrigat\u00f3rio.", "erro")
             return redirect("/provas/nova")
 
         prova = Prova(
@@ -73,9 +69,7 @@ def nova_prova():
     return render_template("provas.html", cursos=cursos, materias=materias, view="nova")
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# EDITAR PROVA
-# ─────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────── EDITAR PROVA ────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/editar", methods=["GET", "POST"])
 @login_required
@@ -103,26 +97,61 @@ def editar_prova(id):
                            cursos=cursos, materias=materias, view="editar")
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# EXCLUIR PROVA
-# ─────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────── EXCLUIR PROVA ────────────────────────────
 
 @provas_bp.route("/provas/<int:id>/excluir", methods=["POST"])
 @login_required
 def excluir_prova(id):
-    from models import Prova
+    from models import (
+        Prova, Questao, Alternativa,
+        RespostaProva, RespostaQuestao, ProvaLiberada,
+    )
     prova = db.get_or_404(Prova, id)
-    # O cascade "all, delete-orphan" nos relacionamentos de Prova cuida
-    # de questoes, alternativas, respostas e liberacoes automaticamente.
+
+    # 1. IDs das questoes desta prova
+    questao_ids = [q.id for q in prova.questoes]
+
+    # 2. IDs das RespostaProva desta prova
+    resp_prova_ids = [
+        r.id for r in RespostaProva.query.filter_by(prova_id=id).all()
+    ]
+
+    # 3. RespostaQuestao aponta para alternativas.id (FK sem cascade);
+    #    deve ser deletada ANTES das Alternativas.
+    if resp_prova_ids:
+        RespostaQuestao.query.filter(
+            RespostaQuestao.resposta_prova_id.in_(resp_prova_ids)
+        ).delete(synchronize_session=False)
+
+    # 4. RespostaProva (cascade ORM cuidaria, mas ja limpamos acima)
+    if resp_prova_ids:
+        RespostaProva.query.filter(
+            RespostaProva.id.in_(resp_prova_ids)
+        ).delete(synchronize_session=False)
+
+    # 5. ProvaLiberada (cascade no modelo, mas garantimos explicitamente)
+    ProvaLiberada.query.filter_by(prova_id=id).delete(synchronize_session=False)
+
+    # 6. Alternativas de todas as questoes
+    if questao_ids:
+        Alternativa.query.filter(
+            Alternativa.questao_id.in_(questao_ids)
+        ).delete(synchronize_session=False)
+
+    # 7. Questoes
+    if questao_ids:
+        Questao.query.filter(
+            Questao.id.in_(questao_ids)
+        ).delete(synchronize_session=False)
+
+    # 8. Finalmente a prova
     db.session.delete(prova)
     db.session.commit()
-    flash("Prova excluída.", "sucesso")
+    flash("Prova exclu\u00edda.", "sucesso")
     return redirect("/provas")
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# GERENCIAR QUESTÕES
-# ─────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────── GERENCIAR QUESTÕES ──────────────────────────
 
 @provas_bp.route("/provas/<int:id>/questoes", methods=["GET", "POST"])
 @login_required
@@ -143,7 +172,7 @@ def gerenciar_questoes(id):
             pontos = max(0.1, pontos)
 
             if not enunciado:
-                flash("Enunciado não pode ser vazio.", "erro")
+                flash("Enunciado n\u00e3o pode ser vazio.", "erro")
                 return redirect(f"/provas/{id}/questoes")
 
             ordem = (db.session.query(db.func.max(Questao.ordem))
@@ -167,18 +196,18 @@ def gerenciar_questoes(id):
                     ))
 
             db.session.commit()
-            flash("Questão adicionada.", "sucesso")
+            flash("Quest\u00e3o adicionada.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
         elif acao == "del_questao":
             q_id = int(request.form.get("questao_id"))
             q    = db.get_or_404(Questao, q_id)
             if q.prova_id != id:
-                flash("Operação inválida.", "erro")
+                flash("Opera\u00e7\u00e3o inv\u00e1lida.", "erro")
                 return redirect(f"/provas/{id}/questoes")
             db.session.delete(q)
             db.session.commit()
-            flash("Questão removida.", "sucesso")
+            flash("Quest\u00e3o removida.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
         elif acao == "edit_questao":
@@ -205,15 +234,13 @@ def gerenciar_questoes(id):
                     alt.texto   = texto
                     alt.correta = 1 if str(idx) in corretas else 0
             db.session.commit()
-            flash("Questão atualizada.", "sucesso")
+            flash("Quest\u00e3o atualizada.", "sucesso")
             return redirect(f"/provas/{id}/questoes")
 
     return render_template("provas.html", prova=prova, view="questoes")
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# RESULTADOS DE UMA PROVA (admin)
-# ─────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────── RESULTADOS DE UMA PROVA (admin) ──────────────────────────
 
 @provas_bp.route("/provas/<int:id>/resultados")
 @login_required
@@ -235,9 +262,7 @@ def resultados_prova(id):
                            pendentes=pendentes, view="resultados")
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# CORRIGIR TENTATIVA DISSERTATIVA
-# ─────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────── CORRIGIR TENTATIVA DISSERTATIVA ──────────────────────────
 
 @provas_bp.route("/provas/corrigir/<int:resp_id>", methods=["GET", "POST"])
 @login_required
@@ -281,7 +306,7 @@ def corrigir_tentativa(resp_id):
         db.session.commit()
 
         flash(
-            f"Correção salva! Aluno {aluno.nome} — "
+            f"Corre\u00e7\u00e3o salva! Aluno {aluno.nome} \u2014 "
             f"Nota: {nota_final} ({'Aprovado' if resp_prova.aprovado else 'Reprovado'}).",
             "sucesso"
         )
@@ -303,9 +328,7 @@ def corrigir_tentativa(resp_id):
                            aluno=aluno, gabarito=gabarito)
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# TOGGLE ATIVA/RASCUNHO
-# ─────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────── TOGGLE ATIVA/RASCUNHO ──────────────────────────
 
 @provas_bp.route("/provas/<int:id>/toggle", methods=["POST"])
 @login_required
@@ -313,7 +336,7 @@ def toggle_prova(id):
     from models import Prova
     prova = db.get_or_404(Prova, id)
     if prova.total_questoes == 0 and prova.ativa == 0:
-        flash("Adicione ao menos uma questão antes de ativar a prova.", "erro")
+        flash("Adicione ao menos uma quest\u00e3o antes de ativar a prova.", "erro")
         return redirect("/provas")
     prova.ativa = 0 if prova.ativa else 1
     db.session.commit()
@@ -322,9 +345,7 @@ def toggle_prova(id):
     return redirect("/provas")
 
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# API JSON — estatísticas
-# ─────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────── API JSON — estatísticas ──────────────────────────
 
 @provas_bp.route("/provas/<int:id>/stats.json")
 @login_required
