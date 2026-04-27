@@ -156,20 +156,6 @@ body{
 }
 .ex-info{ flex:1; min-width:0; }
 .ex-titulo{ font-size:14px; font-weight:700; margin-bottom:4px; }
-.ex-badge{
-  display:inline-block;
-  background:rgba(255,180,0,.15);
-  color:#ffb400;
-  border:1px solid rgba(255,180,0,.4);
-  border-radius:6px;
-  font-size:10px;
-  font-weight:800;
-  padding:2px 7px;
-  margin-right:8px;
-  text-transform:uppercase;
-  letter-spacing:.5px;
-  vertical-align:middle;
-}
 .ex-desc{ font-size:13px; opacity:.5; margin-bottom:8px; }
 .ex-meta{ font-size:12px; opacity:.4; display:flex; gap:14px; flex-wrap:wrap; }
 .btn-ex-realizar{
@@ -340,7 +326,9 @@ body{
           <div class="ex-card">
             <div class="ex-info">
               <div class="ex-titulo">
-                <span class="ex-badge">Exerc&iacute;cio</span>{{ ex.titulo }}
+                <i class="fas fa-pencil-alt" style="opacity:.5;margin-right:6px"></i>
+                <span style="opacity:.5;font-size:11px;margin-right:4px">Exerc&iacute;cio</span>
+                {{ ex.titulo }}
               </div>
               {% if ex.descricao %}<div class="ex-desc">{{ ex.descricao }}</div>{% endif %}
               <div class="ex-meta">
