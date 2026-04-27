@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Editar Atividade — {{ atv.titulo }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+.form-atividade{ background:var(--color-surface,#f9f9f9); border:1px solid var(--color-border,#ddd);
+  border-radius:10px; padding:24px; margin-bottom:32px; }
+.form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-grid-full{ grid-column:1/-1; }
+.form-label{ display:block; font-size:13px; font-weight:600; margin-bottom:5px; }
+select,input[type=text],textarea{ width:100%; padding:9px 12px; border-radius:7px;
+  border:1px solid var(--color-border,#ccc); font-size:14px; box-sizing:border-box; }
+textarea{ resize:vertical; }
+.enunciado-item{ display:flex; gap:8px; align-items:flex-start; margin-bottom:10px; }
+.enunciado-item textarea{ flex:1; min-height:70px; }
+.btn-rem-enunc{ background:#ff4d4d; color:#fff; border:none; border-radius:7px;
+  padding:4px 10px; cursor:pointer; font-size:13px; }
+.btn-add-enunc{ background:var(--color-accent,#3498db); color:#fff; border:none;
+  border-radius:7px; padding:7px 14px; cursor:pointer; font-size:13px; font-weight:600; margin-top:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header--between">
+    <div class="card-header">
+      <span>&#128203;</span>
+      <h2 style="margin:0">Editar Atividade</h2>
+    </div>
+    <a href="/atividades" class="btn btn-azul">
+      <i class="fas fa-arrow-left"></i> Voltar
+    </a>
+  </div>
+</div>
+
+<div class="form-atividade">
+  <h3 style="margin:0 0 18px">{{ atv.titulo }}</h3>
+  <form method="POST" action="/atividades/{{ atv.id }}/editar">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+
+      <div>
+        <label class="form-label">Título *</label>
+        <input type="text" name="titulo" value="{{ atv.titulo }}" required>
+      </div>
+
+      <div>
+        <label class="form-label">Curso *</label>
+        <select name="curso_id" id="sel-curso" required>
+          <option value="">Selecione o curso</option>
+          {% for c in cursos %}
+          <option value="{{ c.id }}" {{ 'selected' if c.id == atv.curso_id }}>{{ c.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Matéria (opcional)</label>
+        <select name="materia_id" id="sel-materia">
+          <option value="">Todas as matérias</option>
+          {% for m in materias %}
+          <option value="{{ m.id }}" data-curso="{{ m.curso_id }}"
+            {{ 'selected' if m.id == atv.materia_id }}>{{ m.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-grid-full">
+        <label class="form-label">Descrição / instruções</label>
+        <textarea name="descricao" rows="2">{{ atv.descricao or '' }}</textarea>
+      </div>
+
+      <div class="form-grid-full">
+        <label class="form-label">Enunciados / Questões *</label>
+        <div id="enunciados-container">
+          {% for q in atv.questoes|sort(attribute='ordem') %}
+          <div class="enunciado-item">
+            <textarea name="enunciado[]" rows="3">{{ q.enunciado }}</textarea>
+            <button type="button" class="btn-rem-enunc" onclick="removerEnunciado(this)" title="Remover">&#10005;</button>
+          </div>
+          {% endfor %}
+        </div>
+        <button type="button" class="btn-add-enunc" onclick="adicionarEnunciado()">
+          <i class="fas fa-plus"></i> Adicionar enunciado
+        </button>
+      </div>
+
+    </div>
+    <div style="margin-top:18px;display:flex;gap:10px">
+      <button type="submit" class="btn btn-azul"><i class="fas fa-save"></i> Salvar alterações</button>
+      <a href="/atividades" class="btn" style="background:#eee;color:#333">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const materiasJson = {{ materias_json | tojson }};
+
+document.getElementById('sel-curso').addEventListener('change', function(){
+  const cursoId = parseInt(this.value);
+  const sel = document.getElementById('sel-materia');
+  Array.from(sel.options).forEach(opt => {
+    if(!opt.value){ opt.style.display=''; return; }
+    opt.style.display = (!cursoId || parseInt(opt.dataset.curso)===cursoId) ? '' : 'none';
+  });
+  sel.value = '';
+});
+
+function adicionarEnunciado(){
+  const cont = document.getElementById('enunciados-container');
+  const num  = cont.children.length + 1;
+  const div  = document.createElement('div');
+  div.className = 'enunciado-item';
+  div.innerHTML = `
+    <textarea name="enunciado[]" placeholder="Enunciado da questão ${num}..." rows="3"></textarea>
+    <button type="button" class="btn-rem-enunc" onclick="removerEnunciado(this)" title="Remover">&#10005;</button>`;
+  cont.appendChild(div);
+}
+
+function removerEnunciado(btn){
+  const cont = document.getElementById('enunciados-container');
+  if(cont.children.length <= 1){ alert('Deve haver pelo menos um enunciado.'); return; }
+  btn.parentElement.remove();
+}
+</script>
+{% endblock %}

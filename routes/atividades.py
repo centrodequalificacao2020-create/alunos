@@ -30,7 +30,7 @@ def atividades():
         materia_id = request.form.get("materia_id", type=int) or None
 
         if not titulo or not curso_id:
-            flash("T\u00edtulo e curso s\u00e3o obrigat\u00f3rios.", "erro")
+            flash("Título e curso são obrigatórios.", "erro")
             return redirect("/atividades")
 
         enunciados = request.form.getlist("enunciado[]")
@@ -72,6 +72,62 @@ def atividades():
     )
 
 
+# ─── EDITAR ATIVIDADE ────────────────────────────────────────────────────────
+
+@atividades_bp.route("/atividades/<int:atv_id>/editar", methods=["GET", "POST"])
+@login_required
+def editar_atividade(atv_id):
+    atv      = db.get_or_404(Atividade, atv_id)
+    cursos   = Curso.query.order_by(Curso.nome).all()
+    materias = Materia.query.order_by(Materia.nome).all()
+
+    if request.method == "POST":
+        titulo     = request.form.get("titulo", "").strip()
+        descricao  = request.form.get("descricao", "").strip() or None
+        curso_id   = request.form.get("curso_id", type=int)
+        materia_id = request.form.get("materia_id", type=int) or None
+
+        if not titulo or not curso_id:
+            flash("Título e curso são obrigatórios.", "erro")
+            return redirect(f"/atividades/{atv_id}/editar")
+
+        enunciados = request.form.getlist("enunciado[]")
+        enunciados = [e.strip() for e in enunciados if e.strip()]
+        if not enunciados:
+            flash("Adicione pelo menos um enunciado.", "erro")
+            return redirect(f"/atividades/{atv_id}/editar")
+
+        # Atualiza campos principais
+        atv.titulo     = titulo
+        atv.descricao  = descricao
+        atv.curso_id   = curso_id
+        atv.materia_id = materia_id
+
+        # Substitui questões: remove as antigas e cria as novas
+        AtividadeQuestao.query.filter_by(atividade_id=atv_id).delete(
+            synchronize_session=False
+        )
+        for i, texto in enumerate(enunciados, 1):
+            db.session.add(AtividadeQuestao(
+                atividade_id = atv_id,
+                enunciado    = texto,
+                ordem        = i,
+            ))
+
+        db.session.commit()
+        flash(f"Atividade '{titulo}' atualizada.", "sucesso")
+        return redirect("/atividades")
+
+    materias_json = [{"id": m.id, "nome": m.nome, "curso_id": m.curso_id} for m in materias]
+    return render_template(
+        "editar_atividade.html",
+        atv           = atv,
+        cursos        = cursos,
+        materias      = materias,
+        materias_json = materias_json,
+    )
+
+
 # ─── EXCLUIR ATIVIDADE ───────────────────────────────────────────────────
 
 @atividades_bp.route("/atividades/excluir/<int:atv_id>", methods=["POST"])
@@ -80,18 +136,13 @@ def excluir_atividade(atv_id):
     from models import AtividadeLiberada
     atv = db.get_or_404(Atividade, atv_id)
 
-    # AtividadeLiberada.atividade_id é NOT NULL e o relationship não tem
-    # cascade="delete-orphan", então o ORM tentaria setar NULL antes de
-    # deletar a atividade — o banco rejeita. Deletamos explicitamente primeiro.
     AtividadeLiberada.query.filter_by(atividade_id=atv_id).delete(
         synchronize_session=False
     )
 
-    # questoes e entregas têm cascade correto no modelo e serão removidas
-    # automaticamente pelo db.session.delete(atv).
     db.session.delete(atv)
     db.session.commit()
-    flash(f"Atividade '{atv.titulo}' exclu\u00edda.", "sucesso")
+    flash(f"Atividade '{atv.titulo}' excluída.", "sucesso")
     return redirect("/atividades")
 
 
@@ -123,7 +174,7 @@ def avaliar_entrega(atv_id, entrega_id):
         entrega.feedback = feedback
         entrega.status   = "corrigida"
         db.session.commit()
-        flash("Avalia\u00e7\u00e3o salva.", "sucesso")
+        flash("Avaliação salva.", "sucesso")
     return redirect(f"/atividades/{atv_id}/entregas")
 
 
