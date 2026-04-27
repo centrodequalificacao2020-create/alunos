@@ -446,3 +446,57 @@ def excluir_matricula(matricula_id):
     db.session.commit()
     flash("Matr\u00edcula exclu\u00edda.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
+
+
+# ─── MATRICULAR ALUNO ─────────────────────────────────────────────────────────
+
+@aluno_bp.route("/matricular_aluno", methods=["POST"])
+@login_required
+def matricular_aluno():
+    aluno_id = request.form.get("aluno_id", type=int)
+    curso_id = request.form.get("curso_id", type=int)
+
+    if not aluno_id or not curso_id:
+        flash("Dados inv\u00e1lidos.", "erro")
+        return redirect("/cadastro")
+
+    existente = Matricula.query.filter_by(
+        aluno_id=aluno_id, curso_id=curso_id
+    ).first()
+    if existente:
+        flash("Aluno j\u00e1 possui matr\u00edcula neste curso.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+
+    curso = db.session.get(Curso, curso_id)
+    if not curso:
+        flash("Curso n\u00e3o encontrado.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+
+    m = Matricula(
+        aluno_id       = aluno_id,
+        curso_id       = curso_id,
+        status         = "ATIVA",
+        data_matricula = date.today().isoformat(),
+        data_cadastro  = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    db.session.add(m)
+    db.session.commit()
+    flash(f"Aluno matriculado em {curso.nome}.", "sucesso")
+    return redirect(f"/aluno/{aluno_id}")
+
+
+# ─── ALTERAR STATUS DA MATRÍCULA ─────────────────────────────────────────────────
+
+@aluno_bp.route("/matricula/<int:matricula_id>/status", methods=["POST"])
+@login_required
+def atualizar_status_matricula(matricula_id):
+    m = db.get_or_404(Matricula, matricula_id)
+    novo_status = request.form.get("status", "").upper().strip()
+    status_validos = {"PRE_MATRICULA", "ATIVA", "TRANCADA", "INATIVA", "CONCLUIDA"}
+    if novo_status not in status_validos:
+        flash("Status inv\u00e1lido.", "erro")
+        return redirect(f"/aluno/{m.aluno_id}")
+    m.status = novo_status
+    db.session.commit()
+    flash("Status da matr\u00edcula atualizado.", "sucesso")
+    return redirect(f"/aluno/{m.aluno_id}")
