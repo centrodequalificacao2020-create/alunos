@@ -32,7 +32,6 @@ def _despesas_do_mes(mes: str) -> float:
         Despesa.data.between(inicio, fim)
     ).scalar() or 0
 
-    # Inclui fixas com data_fim definida E fixas vitalícias (data_fim NULL ou '')
     fixas_ativas = Despesa.query.filter(
         Despesa.tipo == "fixa",
         Despesa.data_inicio <= mes,
@@ -143,8 +142,14 @@ def dashboard():
     margem_lucro       = (lucro_liquido / recebido_mes * 100) if recebido_mes > 0 else 0
     receita_projetada  = recebido_mes + a_receber_mes
     ticket_medio       = recebido_mes / alunos_ativos if alunos_ativos > 0 else 0
-    total_carteira     = a_receber_mes + total_atraso
-    taxa_inadimplencia = (total_atraso / total_carteira * 100) if total_carteira > 0 else 0
+
+    # ─── Taxa de inadimplência ────────────────────────────────────────────────
+    # Fórmula correta: Em atraso / (Recebido + A receber + Em atraso)
+    # O denominador representa a receita total do período (já paga + ainda a vencer + vencida).
+    # Isso evita a distorção de usar apenas a carteira pendente como base.
+    receita_total      = float(recebido_mes) + float(a_receber_mes) + float(total_atraso)
+    taxa_inadimplencia = (float(total_atraso) / receita_total * 100) if receita_total > 0 else 0
+    # ─────────────────────────────────────────────────────────────────────────
 
     cancelamentos = Aluno.query.filter(
         func.lower(Aluno.status) == "cancelado"
@@ -187,9 +192,9 @@ def dashboard():
         .all()
     )]
 
-    vendas_tipo = [[tipo or "Não definido", int(qtd)] for tipo, qtd in (
+    vendas_tipo = [[tipo or "N\u00e3o definido", int(qtd)] for tipo, qtd in (
         db.session.query(
-            func.coalesce(Matricula.tipo_curso, "Não definido"),
+            func.coalesce(Matricula.tipo_curso, "N\u00e3o definido"),
             func.count()
         )
         .filter(Matricula.status == "ATIVA")
@@ -200,7 +205,7 @@ def dashboard():
     matricula_ativa_sub = (
         db.session.query(
             Matricula.aluno_id,
-            func.coalesce(Matricula.tipo_curso, "Não definido").label("tipo")
+            func.coalesce(Matricula.tipo_curso, "N\u00e3o definido").label("tipo")
         )
         .filter(Matricula.status == "ATIVA")
         .order_by(Matricula.aluno_id, Matricula.id.desc())
@@ -208,7 +213,7 @@ def dashboard():
         .subquery()
     )
 
-    faturamento_tipo = [[tipo or "Não definido", float(total or 0)] for tipo, total in (
+    faturamento_tipo = [[tipo or "N\u00e3o definido", float(total or 0)] for tipo, total in (
         db.session.query(
             matricula_ativa_sub.c.tipo,
             func.sum(Mensalidade.valor)
@@ -348,9 +353,9 @@ def matriculas_novas_detalhe():
         {
             "aluno_id":   aluno.id,
             "aluno_nome": aluno.nome,
-            "curso":      curso.nome if curso else "—",
+            "curso":      curso.nome if curso else "\u2014",
             "data":       mat.data_matricula,
-            "status":     mat.status or "—",
+            "status":     mat.status or "\u2014",
         }
         for mat, aluno, curso in matriculas_periodo
     ]
@@ -419,8 +424,8 @@ def rematriculas_detalhe():
         resultado.append({
             "aluno_id":       aluno.id,
             "aluno_nome":     aluno.nome,
-            "curso_novo":     curso.nome if curso else "—",
-            "curso_anterior": curso_anterior.nome if curso_anterior else "—",
+            "curso_novo":     curso.nome if curso else "\u2014",
+            "curso_anterior": curso_anterior.nome if curso_anterior else "\u2014",
             "data":           mat.data_matricula,
         })
 
