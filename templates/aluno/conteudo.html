@@ -30,6 +30,8 @@
     box-shadow:0 2px 8px rgba(0,0,0,.5);
     -webkit-user-select:none; user-select:none;
     pointer-events:none;
+    /* max-width garante que o canvas CSS nunca ultrapasse o container */
+    max-width:100%;
 }
 .pdf-toolbar {
     display:none; align-items:center; gap:10px;
@@ -144,12 +146,25 @@ async function renderizarPagina(num) {
     try {
         const container = document.getElementById('pdf-container');
         container.innerHTML = '';
-        const pagina  = await pdfDoc.getPage(num);
-        const escala  = Math.min(container.clientWidth / pagina.getViewport({scale:1}).width, 1.8);
+        const pagina = await pdfDoc.getPage(num);
+
+        // ── FIX: respeita o devicePixelRatio para nitidez em telas HiDPI/Retina ──
+        // Em celulares modernos o DPR costuma ser 2 ou 3 (ex: iPhone = 3).
+        // Sem isso o canvas é criado no tamanho CSS e o browser estica os pixels,
+        // produzindo o efeito de blur/embaçado relatado pelos alunos.
+        const dpr      = window.devicePixelRatio || 1;
+        const escala   = Math.min(container.clientWidth / pagina.getViewport({scale: 1}).width, 1.8) * dpr;
         const viewport = pagina.getViewport({scale: escala});
+
         const canvas  = document.createElement('canvas');
-        canvas.height = viewport.height;
+        // Tamanho físico real (pixels do dispositivo)
         canvas.width  = viewport.width;
+        canvas.height = viewport.height;
+        // Tamanho de exibição CSS (pixels lógicos) — desfaz o zoom do DPR
+        canvas.style.width  = (viewport.width  / dpr) + 'px';
+        canvas.style.height = (viewport.height / dpr) + 'px';
+        // ── fim do fix ──────────────────────────────────────────────────────────
+
         container.appendChild(canvas);
         await pagina.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
         document.getElementById('pdfPagInfo').textContent = `Pág ${num} / ${totalPaginas}`;
