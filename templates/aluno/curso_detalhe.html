@@ -83,25 +83,45 @@ body{
 }
 
 .video-frame{ width:100%; height:480px; border-radius:10px; border:none; }
+
 #pdf-container{
   width:100%; background:#525659; border-radius:10px;
   overflow-y:auto; max-height:72vh; padding:16px;
   box-sizing:border-box; display:none;
 }
-#pdf-container canvas{ display:block; margin:0 auto 10px;
-  box-shadow:0 2px 8px rgba(0,0,0,.5); pointer-events:none; }
+/* FIX: canvas nunca ultrapassa o container em telas estreitas */
+#pdf-container canvas{
+  display:block; margin:0 auto 10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.5);
+  pointer-events:none;
+  max-width:100%;
+}
+
+/* ── FIX toolbar mobile ──
+   Usa flex-wrap para que os controles de navegação fiquem na linha 1
+   e o botão Expandir ocupe a linha 2 sozinho em telas pequenas.        */
 .pdf-toolbar{
   display:none; align-items:center; gap:10px;
   background:rgba(0,0,0,.4); padding:8px 12px;
   border-radius:10px 10px 0 0; font-size:13px;
+  flex-wrap:wrap;
 }
 .pdf-toolbar button{
   background:rgba(255,255,255,.1); border:none; color:#fff;
   padding:4px 12px; border-radius:6px; cursor:pointer;
+  white-space:nowrap;
 }
 .pdf-toolbar button:hover{ background:rgba(255,255,255,.2); }
-/* botão expandir fica à direita */
+/* Em desktop o botão Expandir continua à direita da mesma linha */
 #btnExpandir{ margin-left:auto; }
+/* Em mobile (<500px): botão Expandir ocupa linha própria, largura total */
+@media(max-width:500px){
+  #btnExpandir{
+    margin-left:0;
+    width:100%;
+    justify-content:center;
+  }
+}
 
 .btn-concluir{
   display:inline-flex; align-items:center; gap:6px;
@@ -419,7 +439,6 @@ body{
             <div class="upload-area">
               <span class="upload-label"><i class="fas fa-paperclip"></i> Anexar arquivos (m&aacute;x. 3)</span>
               <div class="upload-grid">
-                {# BUG-06: accept= adicionado para restringir tipos de arquivo no cliente #}
                 <div class="file-input-wrap">
                   <label for="arq1_{{ atv.id }}">Arquivo 1</label>
                   <input type="file" id="arq1_{{ atv.id }}" name="arquivo1"
@@ -466,13 +485,24 @@ async function renderPag(n){
     const cont=document.getElementById('pdf-container');
     cont.innerHTML='';
     const pag=await pdfDoc.getPage(n);
-    const esc=Math.min(cont.clientWidth/pag.getViewport({scale:1}).width,1.8);
+
+    // ── FIX: respeita o devicePixelRatio para nitidez em telas HiDPI/Retina ──
+    // Sem isso o canvas é criado no tamanho CSS e o browser estica os pixels,
+    // produzindo blur em celulares com DPR >= 2 (praticamente todos os smartphones modernos).
+    const dpr=window.devicePixelRatio||1;
+    const esc=Math.min(cont.clientWidth/pag.getViewport({scale:1}).width,1.8)*dpr;
     const vp=pag.getViewport({scale:esc});
     const cv=document.createElement('canvas');
-    cv.height=vp.height; cv.width=vp.width;
+    // Tamanho físico real (pixels do dispositivo)
+    cv.width=vp.width; cv.height=vp.height;
+    // Tamanho de exibição CSS (pixels lógicos) — desfaz o zoom do DPR
+    cv.style.width =(vp.width /dpr)+'px';
+    cv.style.height=(vp.height/dpr)+'px';
+    // ── fim do fix ────────────────────────────────────────────────────────────
+
     cont.appendChild(cv);
     await pag.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
-    document.getElementById('pdfPagInfo').textContent=`P\u00e1g ${n}/${totalPags}`;
+    document.getElementById('pdfPagInfo').textContent=`Pág ${n}/${totalPags}`;
   }finally{renderizando=false;}
 }
 function pdfAnterior(){if(pagAtual>1){pagAtual--;renderPag(pagAtual);}}
@@ -506,7 +536,6 @@ function toggleExpandir(){
   btn.innerHTML = expandido
     ? '<i class="fas fa-compress"></i> Fechar'
     : '<i class="fas fa-expand"></i> Expandir';
-  /* scroll topo e rerenderiza na nova largura */
   if(expandido) player.scrollTop=0;
   if(pdfDoc) renderPag(pagAtual);
 }
@@ -536,7 +565,6 @@ function ocultarPDF(){
   const c=document.getElementById('pdf-container');
   const t=document.getElementById('pdfToolbar');
   c.style.display='none'; t.style.display='none'; c.innerHTML=''; pdfDoc=null;
-  /* fecha tela cheia ao trocar de aula */
   if(expandido) toggleExpandir();
 }
 
@@ -555,7 +583,7 @@ function abrirAula(el){
   }else if(tipo==='video'||(tipo!=='pdf'&&video)){
     if(/\.(mp4|webm|ogg)$/i.test(video)){
       area.innerHTML=`<video class="video-frame" controls style="background:#000" oncontextmenu="return false">
-        <source src="${video}">Seu navegador n\u00e3o suporta v\u00eddeo.</video>`;
+        <source src="${video}">Seu navegador não suporta vídeo.</video>`;
     }else{
       area.innerHTML=`<iframe class="video-frame" src="${embedUrl(video)}"
         allowfullscreen allow="autoplay;encrypted-media"></iframe>`;
@@ -564,13 +592,13 @@ function abrirAula(el){
     area.innerHTML=`<p><a href="/aluno/arquivo/${id}" target="_blank" class="btn-concluir">
       <i class="fas fa-file-download"></i> Baixar arquivo</a></p>`;
   }else{
-    area.innerHTML='<p style="opacity:.4">Nenhum conte\u00fado para esta aula.</p>';
+    area.innerHTML='<p style="opacity:.4">Nenhum conteúdo para esta aula.</p>';
   }
   botao.innerHTML = conc==='1'
-    ? '<div class="concluida-txt"><i class="fas fa-check-circle"></i> Aula conclu\u00edda</div>'
+    ? '<div class="concluida-txt"><i class="fas fa-check-circle"></i> Aula concluída</div>'
     : `<a href="/aluno/conteudo/concluir/${id}" class="btn-concluir"
          onclick="this.style.opacity=.5">
-         <i class="fas fa-check"></i> Marcar como conclu\u00edda</a>`;
+         <i class="fas fa-check"></i> Marcar como concluída</a>`;
   sessionStorage.setItem('aula_{{ curso.id }}', id);
 }
 
