@@ -50,7 +50,6 @@
         <div>
             <p class="ficha-portal-label">Último Login</p>
             {% if ul %}
-                {# login_em pode ser datetime ou string ISO — normaliza para string #}
                 {% set d = ul.login_em | string %}
                 <p class="ficha-portal-data">
                     {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
@@ -85,7 +84,6 @@
     </p>
     {% endif %}
 
-    {# ===== GERAR PRÉ-MATRÍCULA ===== #}
     <details class="pre-matricula-details">
         <summary class="btn btn-warning">Gerar Pré-Matrícula</summary>
         <form method="POST"
@@ -143,9 +141,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-warning">
-                Gerar PDF
-            </button>
+            <button type="submit" class="btn btn-warning">Gerar PDF</button>
         </form>
     </details>
 
@@ -175,7 +171,6 @@
                         {% else %}-{% endif %}
                     </td>
                     <td>
-                        {# Select inline para alterar status da matrícula #}
                         <form method="POST"
                               action="/matricula/{{ m.id }}/status"
                               class="form-status-matricula"
@@ -197,14 +192,10 @@
                             </select>
                         </form>
                     </td>
-
                     <td class="ficha-td-conteudo">
                         <a href="/liberacoes/aluno/{{ aluno.id }}?curso_id={{ m.curso_id }}"
-                           class="btn btn-sm btn-lib-conteudo">
-                           Liberar conteúdos
-                        </a>
+                           class="btn btn-sm btn-lib-conteudo">Liberar conteúdos</a>
                     </td>
-
                     <td class="acoes-texto">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
                            class="btn btn-sm btn-azul" target="_blank">Declaração</a>
@@ -372,6 +363,8 @@
                     <th>Atividade</th>
                     <th style="width:140px">Entregue em</th>
                     <th style="width:110px">Status</th>
+                    <th class="ficha-th-centro" style="width:60px">Nota</th>
+                    <th>Feedback</th>
                     <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
@@ -396,6 +389,16 @@
                         {% else %}
                             <span class="ficha-pendente">{{ ea.status or 'Pendente' }}</span>
                         {% endif %}
+                    </td>
+                    <td class="ficha-td-nota">
+                        {% if ea.nota is not none %}
+                            {{ '%.1f'|format(ea.nota) }}
+                        {% else %}
+                            <span class="ficha-pendente">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:13px;opacity:.8">
+                        {{ ea.feedback or '—' }}
                     </td>
                     <td class="acoes-texto">
                         <form method="POST"
