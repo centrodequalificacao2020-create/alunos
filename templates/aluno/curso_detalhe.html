@@ -443,17 +443,11 @@ body{
       {% set entrega = entregas_map.get(atv.id) %}
       <div class="atv-card">
         <div class="atv-titulo"><i class="fas fa-tasks" style="opacity:.6"></i> {{ atv.titulo }}</div>
-        {#
-          FIX: quebras de linha no texto da atividade
-          | e  → escapa caracteres HTML (segurança)
-          | replace('\n','<br>') → converte \n em <br> para exibição correta
-          | safe → permite o <br> ser renderizado pelo browser
-        #}
-        {% if atv.descricao %}<div class="atv-desc">{{ atv.descricao | e | replace('\n', '<br>') | safe }}</div>{% endif %}
+        {% if atv.descricao %}<div class="atv-desc">{{ atv.descricao | nl2br }}</div>{% endif %}
         {% for q in atv.questoes %}
         <div class="questao-bloco">
           <div class="questao-num">Quest&atilde;o {{ loop.index }}</div>
-          <div class="questao-enunc">{{ q.enunciado | e | replace('\n', '<br>') | safe }}</div>
+          <div class="questao-enunc">{{ q.enunciado | nl2br }}</div>
         </div>
         {% endfor %}
         {% if entrega and entrega.status == 'entregue' %}
@@ -465,12 +459,6 @@ body{
             </div>
           {% endif %}
         {% else %}
-          {#
-            FIX entrega de atividade:
-            - arquivo1 tem required para bloquear o envio sem nenhum arquivo
-            - onsubmit valida novamente via JS (garante feedback visual imediato
-              antes mesmo do browser nativo processar o required)
-          #}
           <form
             method="POST"
             action="/aluno/atividade/{{ atv.id }}/entregar"
@@ -522,7 +510,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 let pdfDoc=null, pagAtual=1, totalPags=1, renderizando=false;
 
-// Atualiza o input e o total de páginas na toolbar
 function atualizarToolbarPag(n){
   const inp = document.getElementById('pdfPagInput');
   if(inp) inp.value = n;
@@ -536,44 +523,20 @@ async function renderPag(n){
     const cont = document.getElementById('pdf-container');
     cont.innerHTML = '';
     const pag = await pdfDoc.getPage(n);
-
-    /*
-     * FIX "PDF embaçado no mobile" — renderização em alta resolução (DPR)
-     * ─────────────────────────────────────────────────────────────────────
-     * Problema: canvas renderizado em pixels CSS ignora o devicePixelRatio.
-     * Em telas Retina / HiDPI (DPR ≥ 2), o browser estica o canvas e o
-     * resultado é uma imagem borrada/embaçada.
-     *
-     * Solução:
-     * 1. Ler a largura CSS real do container (clientWidth).
-     *    Se ainda for 0 (container oculto), usar innerWidth como fallback.
-     * 2. Calcular escala base: encaixa a página PDF na largura CSS.
-     * 3. Multiplicar pelo DPR → escala física (pixels reais do dispositivo).
-     * 4. Renderizar o canvas nessa resolução física.
-     * 5. Fixar via style o tamanho CSS correspondente (largura CSS × altura
-     *    proporcional) → browser exibe nítido sem distorção.
-     * ─────────────────────────────────────────────────────────────────────
-     */
     const dpr        = window.devicePixelRatio || 1;
     const larguraCSS = cont.clientWidth > 0 ? cont.clientWidth : window.innerWidth;
-
     const vpNativo    = pag.getViewport({ scale: 1 });
     const escalaBase  = larguraCSS / vpNativo.width;
     const escalaFisica = escalaBase * dpr;
     const vp = pag.getViewport({ scale: escalaFisica });
-
     const cv = document.createElement('canvas');
-    cv.width  = Math.floor(vp.width);   // pixels físicos
-    cv.height = Math.floor(vp.height);  // pixels físicos
-
-    // Dimensões CSS: o que realmente ocupa na tela
+    cv.width  = Math.floor(vp.width);
+    cv.height = Math.floor(vp.height);
     cv.style.width  = larguraCSS + 'px';
     cv.style.height = Math.floor(vp.height / dpr) + 'px';
-
     cont.appendChild(cv);
     const ctx = cv.getContext('2d');
     await pag.render({ canvasContext: ctx, viewport: vp }).promise;
-
     atualizarToolbarPag(n);
   } finally { renderizando = false; }
 }
@@ -581,7 +544,6 @@ async function renderPag(n){
 function pdfAnterior(){ if(pagAtual > 1){ pagAtual--; renderPag(pagAtual); } }
 function pdfProximo(){ if(pagAtual < totalPags){ pagAtual++; renderPag(pagAtual); } }
 
-// Navegação direta: valida e vai para a página digitada
 function irParaPagina(){
   const inp = document.getElementById('pdfPagInput');
   if(!inp || !pdfDoc) return;
@@ -623,7 +585,6 @@ async function carregarPDF(cid){
   }
 }
 
-/* tela cheia */
 let expandido = false;
 function toggleExpandir(){
   const player = document.getElementById('playerBox');
@@ -710,7 +671,6 @@ function trocarTab(id, btn){
   btn.classList.add('ativo');
 }
 
-/* Validação de entrega de atividade — garante ao menos 1 arquivo */
 function validarEntrega(form){
   const arq1 = form.querySelector('[name="arquivo1"]');
   if(!arq1 || !arq1.files || !arq1.files.length){
