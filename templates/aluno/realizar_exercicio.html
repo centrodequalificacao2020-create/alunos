@@ -124,7 +124,7 @@ input[type=radio]:checked + span{ color:#ffb400; font-weight:600; }
       {% for q in exercicio.questoes %}
       <div class="questao-card">
         <div class="q-num">Quest&atilde;o {{ loop.index }}</div>
-        <div class="q-enunc">{{ q.enunciado }}</div>
+        <div class="q-enunc">{{ q.enunciado | nl2br }}</div>
 
         {% if q.tipo in ('multipla_escolha', 'verdadeiro_falso') %}
           {% if q.alternativas %}

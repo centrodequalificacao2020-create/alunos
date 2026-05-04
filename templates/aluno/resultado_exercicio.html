@@ -104,7 +104,7 @@ body{
         <span class="gab-badge nok"><i class="fas fa-times"></i> Errada</span>
       {% endif %}
     </div>
-    <div class="gab-enunc">{{ item.questao.enunciado }}</div>
+    <div class="gab-enunc">{{ item.questao.enunciado | nl2br }}</div>
 
     {% if item.questao.tipo in ('multipla_escolha', 'verdadeiro_falso') %}
       {% if item.escolhida and not item.acertou %}

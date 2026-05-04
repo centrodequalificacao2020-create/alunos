@@ -155,7 +155,7 @@ html,body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff;
                 &nbsp;&bull;&nbsp;<span style="color:var(--purple)">Dissertativa</span>
                 {% endif %}
             </div>
-            <div class="q-enunc">{{ q.enunciado }}</div>
+            <div class="q-enunc">{{ q.enunciado | nl2br }}</div>
 
             {% if q.tipo == 'dissertativa' %}
             <textarea

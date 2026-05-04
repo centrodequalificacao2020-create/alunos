@@ -1,5 +1,6 @@
 import os
 import re
+import markupsafe
 from flask import Flask, jsonify, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -81,6 +82,26 @@ def create_app(config_class=Config):
         formatado = formatado.replace(".", ",")
         formatado = formatado.replace("X", ".")
         return f"R$ {formatado}"
+
+    # FIX: filtro nl2br — converte quebras de linha em <br> HTML seguro.
+    # Também normaliza <br> literais que possam ter sido gravados no banco
+    # como texto puro (ex.: registros antigos ou imports manuais).
+    @app.template_filter("nl2br")
+    def nl2br_filter(value):
+        """Converte \\n em <br> e normaliza <br> literais já presentes no banco."""
+        if not value:
+            return ""
+        # Normaliza variações de <br> literal para \n
+        clean = str(value)
+        clean = clean.replace("<br />", "\n")
+        clean = clean.replace("<br/>", "\n")
+        clean = clean.replace("<BR />", "\n")
+        clean = clean.replace("<BR/>", "\n")
+        clean = clean.replace("<BR>", "\n")
+        clean = clean.replace("<br>", "\n")
+        # Escapa todo o conteúdo restante e converte \n em <br> seguro
+        escaped = markupsafe.escape(clean)
+        return markupsafe.Markup(escaped.replace("\n", markupsafe.Markup("<br>\n")))
 
     # ── Erro 413: arquivo maior que MAX_CONTENT_LENGTH ───────────────────────
     @app.errorhandler(413)
