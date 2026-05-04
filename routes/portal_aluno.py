@@ -1031,6 +1031,13 @@ def entregar_atividade(atividade_id):
     try:
         from models import Atividade, EntregaAtividade
         atividade = db.get_or_404(Atividade, atividade_id)
+
+        # Validação: exige ao menos um arquivo enviado
+        arquivo1 = request.files.get("arquivo1")
+        if not arquivo1 or not arquivo1.filename:
+            flash("É obrigatório anexar pelo menos um arquivo para entregar a atividade.", "erro")
+            return redirect(f"/aluno/cursos/{atividade.curso_id}")
+
         entrega = EntregaAtividade.query.filter_by(aluno_id=aluno.id, atividade_id=atividade_id).first()
         if not entrega:
             entrega = EntregaAtividade(
@@ -1038,14 +1045,17 @@ def entregar_atividade(atividade_id):
                 entregue_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             )
             db.session.add(entrega)
+
         upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
         os.makedirs(upload_folder, exist_ok=True)
+
         for idx, campo in enumerate(["arquivo1", "arquivo2", "arquivo3"], 1):
             f = request.files.get(campo)
             if f and f.filename:
                 fname = secure_filename(f"{aluno.id}_atv{atividade_id}_{idx}_{f.filename}")
                 f.save(os.path.join(upload_folder, fname))
                 setattr(entrega, campo, fname)
+
         entrega.status = "entregue"
         db.session.commit()
         flash("Atividade entregue com sucesso!", "sucesso")
