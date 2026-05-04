@@ -450,7 +450,7 @@ body{
           <div class="questao-enunc">{{ q.enunciado | nl2br }}</div>
         </div>
         {% endfor %}
-        {% if entrega and entrega.status == 'entregue' %}
+        {% if entrega and entrega.status in ('entregue', 'corrigida') %}
           <div class="entregue-badge"><i class="fas fa-check"></i> Atividade entregue em {{ entrega.entregue_em or '' }}</div>
           {% if entrega.nota is not none %}
             <div style="margin-top:8px;font-size:13px;opacity:.65">
