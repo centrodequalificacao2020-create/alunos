@@ -79,14 +79,18 @@ body{
   overflow-y:auto; max-height:72vh; padding:16px;
   box-sizing:border-box; display:none;
 }
-/* Canvas ocupa toda a largura disponível — o JS calcula a altura proporcional */
+/*
+ * FIX: canvas ocupa 100% da largura CSS.
+ * A altura é definida via JS (cv.style.height) com base no DPR,
+ * garantindo proporção correta sem esticar pixels.
+ */
 #pdf-container canvas{
   display:block; margin:0 auto 10px;
   box-shadow:0 2px 8px rgba(0,0,0,.5);
   pointer-events:none;
-  width:100% !important;   /* garante que a largura CSS seja 100% do container */
-  height:auto !important;  /* altura proporcional calculada pelo browser */
-  image-rendering:auto;    /* suavização padrão — evita pixelado */
+  width:100% !important;
+  height:auto;           /* altura controlada pelo JS via style.height inline */
+  image-rendering:auto;  /* suavização padrão — evita pixelado */
 }
 
 /* ── toolbar do PDF ── */
@@ -455,14 +459,31 @@ body{
             </div>
           {% endif %}
         {% else %}
-          <form method="POST" action="/aluno/atividade/{{ atv.id }}/entregar" enctype="multipart/form-data">
+          {#
+            FIX entrega de atividade:
+            - arquivo1 tem required para bloquear o envio sem nenhum arquivo
+            - onsubmit valida novamente via JS (garante feedback visual imediato
+              antes mesmo do browser nativo processar o required)
+          #}
+          <form
+            method="POST"
+            action="/aluno/atividade/{{ atv.id }}/entregar"
+            enctype="multipart/form-data"
+            onsubmit="return validarEntrega(this)"
+          >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="upload-area">
               <span class="upload-label"><i class="fas fa-paperclip"></i> Anexar arquivos (m&aacute;x. 3)</span>
               <div class="upload-grid">
                 <div class="file-input-wrap">
-                  <label for="arq1_{{ atv.id }}">Arquivo 1</label>
-                  <input type="file" id="arq1_{{ atv.id }}" name="arquivo1" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip">
+                  <label for="arq1_{{ atv.id }}">Arquivo 1 <span style="color:#ffc107">*</span></label>
+                  <input
+                    type="file"
+                    id="arq1_{{ atv.id }}"
+                    name="arquivo1"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                    required
+                  >
                 </div>
                 <div class="file-input-wrap">
                   <label for="arq2_{{ atv.id }}">Arquivo 2 (opcional)</label>
@@ -511,50 +532,39 @@ async function renderPag(n){
     const pag = await pdfDoc.getPage(n);
 
     /*
-     * FIX "PDF embaçado no mobile"
-     * ─────────────────────────────────────────────────────────────────
-     * Problema: o canvas era renderizado em pixels CSS, ignorando o
-     * devicePixelRatio (DPR). Em telas Retina / HiDPI (DPR 2x ou 3x),
-     * como a maioria dos celulares, o browser estica o canvas para o
-     * dobro/triplo — resultando em imagem borrada/embaçada.
+     * FIX "PDF embaçado no mobile" — renderização em alta resolução (DPR)
+     * ─────────────────────────────────────────────────────────────────────
+     * Problema: canvas renderizado em pixels CSS ignora o devicePixelRatio.
+     * Em telas Retina / HiDPI (DPR ≥ 2), o browser estica o canvas e o
+     * resultado é uma imagem borrada/embaçada.
      *
      * Solução:
-     * 1. Ler a largura REAL do container em pixels CSS (clientWidth).
+     * 1. Ler a largura CSS real do container (clientWidth).
      *    Se ainda for 0 (container oculto), usar innerWidth como fallback.
-     * 2. Multiplicar pelo DPR para obter pixels físicos do dispositivo.
-     * 3. Renderizar o canvas nesse tamanho físico (alta resolução).
-     * 4. Forçar via CSS que o canvas ocupe apenas a largura CSS original
-     *    (width:100%, height:auto) — o browser "comprime" os pixels extras,
-     *    resultando em imagem nítida.
-     * ─────────────────────────────────────────────────────────────────
+     * 2. Calcular escala base: encaixa a página PDF na largura CSS.
+     * 3. Multiplicar pelo DPR → escala física (pixels reais do dispositivo).
+     * 4. Renderizar o canvas nessa resolução física.
+     * 5. Fixar via style o tamanho CSS correspondente (largura CSS × altura
+     *    proporcional) → browser exibe nítido sem distorção.
+     * ─────────────────────────────────────────────────────────────────────
      */
-    const dpr         = window.devicePixelRatio || 1;
+    const dpr        = window.devicePixelRatio || 1;
+    const larguraCSS = cont.clientWidth > 0 ? cont.clientWidth : window.innerWidth;
 
-    // largura CSS disponível — usa clientWidth do container ou fallback para viewport
-    const larguraCSS  = cont.clientWidth > 0 ? cont.clientWidth : window.innerWidth;
-
-    // escala base: encaixa o PDF na largura disponível em CSS pixels
     const vpNativo    = pag.getViewport({ scale: 1 });
     const escalaBase  = larguraCSS / vpNativo.width;
-
-    // escala física: multiplica pelo DPR para renderizar em alta resolução
     const escalaFisica = escalaBase * dpr;
     const vp = pag.getViewport({ scale: escalaFisica });
 
     const cv = document.createElement('canvas');
+    cv.width  = Math.floor(vp.width);   // pixels físicos
+    cv.height = Math.floor(vp.height);  // pixels físicos
 
-    // Dimensões físicas do canvas (pixels do dispositivo)
-    cv.width  = Math.floor(vp.width);
-    cv.height = Math.floor(vp.height);
-
-    // Dimensões CSS do canvas (pixels lógicos — o que ocupa na tela)
-    // width:100%/height:auto no CSS cuidam do resto, mas definimos inline
-    // como fallback para browsers mais antigos.
+    // Dimensões CSS: o que realmente ocupa na tela
     cv.style.width  = larguraCSS + 'px';
     cv.style.height = Math.floor(vp.height / dpr) + 'px';
 
     cont.appendChild(cv);
-
     const ctx = cv.getContext('2d');
     await pag.render({ canvasContext: ctx, viewport: vp }).promise;
 
@@ -571,20 +581,17 @@ function irParaPagina(){
   if(!inp || !pdfDoc) return;
   let n = parseInt(inp.value, 10);
   if(isNaN(n)) n = pagAtual;
-  n = Math.max(1, Math.min(n, totalPags)); // clamp entre 1 e totalPags
+  n = Math.max(1, Math.min(n, totalPags));
   inp.value = n;
   if(n !== pagAtual){ pagAtual = n; renderPag(pagAtual); }
 }
 
-// Configura os eventos do input após o DOM carregar
 document.addEventListener('DOMContentLoaded', function(){
   const inp = document.getElementById('pdfPagInput');
   if(!inp) return;
-  // Enter: confirma navegação e fecha teclado mobile
   inp.addEventListener('keydown', function(e){
     if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); irParaPagina(); }
   });
-  // Blur: navega ao sair do campo (toque fora no mobile)
   inp.addEventListener('blur', irParaPagina);
 });
 
@@ -598,10 +605,9 @@ async function carregarPDF(cid){
   try{
     const r = await fetch(`/aluno/arquivo/${cid}`, {credentials:'same-origin'});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    pdfDoc     = await pdfjsLib.getDocument({data: await r.arrayBuffer()}).promise;
-    totalPags  = pdfDoc.numPages;
-    pagAtual   = 1;
-    // Atualiza o max do input com o total de páginas real
+    pdfDoc    = await pdfjsLib.getDocument({data: await r.arrayBuffer()}).promise;
+    totalPags = pdfDoc.numPages;
+    pagAtual  = 1;
     const inp = document.getElementById('pdfPagInput');
     if(inp) inp.max = totalPags;
     await renderPag(pagAtual);
@@ -696,6 +702,17 @@ function trocarTab(id, btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('ativo'));
   document.getElementById('tab-'+id).classList.add('ativo');
   btn.classList.add('ativo');
+}
+
+/* Validação de entrega de atividade — garante ao menos 1 arquivo */
+function validarEntrega(form){
+  const arq1 = form.querySelector('[name="arquivo1"]');
+  if(!arq1 || !arq1.files || !arq1.files.length){
+    alert('É obrigatório anexar pelo menos um arquivo para enviar a atividade.');
+    arq1 && arq1.focus();
+    return false;
+  }
+  return true;
 }
 </script>
 {% endblock %}
