@@ -364,7 +364,6 @@
                     <th style="width:140px">Entregue em</th>
                     <th style="width:110px">Status</th>
                     <th class="ficha-th-centro" style="width:60px">Nota</th>
-                    <th>Feedback</th>
                     <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
@@ -396,9 +395,6 @@
                         {% else %}
                             <span class="ficha-pendente">&mdash;</span>
                         {% endif %}
-                    </td>
-                    <td style="font-size:13px;opacity:.8">
-                        {{ ea.feedback or '—' }}
                     </td>
                     <td class="acoes-texto">
                         <form method="POST"
