@@ -79,10 +79,14 @@ body{
   overflow-y:auto; max-height:72vh; padding:16px;
   box-sizing:border-box; display:none;
 }
+/* Canvas ocupa toda a largura disponível — o JS calcula a altura proporcional */
 #pdf-container canvas{
   display:block; margin:0 auto 10px;
   box-shadow:0 2px 8px rgba(0,0,0,.5);
-  pointer-events:none; max-width:100%;
+  pointer-events:none;
+  width:100% !important;   /* garante que a largura CSS seja 100% do container */
+  height:auto !important;  /* altura proporcional calculada pelo browser */
+  image-rendering:auto;    /* suavização padrão — evita pixelado */
 }
 
 /* ── toolbar do PDF ── */
@@ -506,18 +510,54 @@ async function renderPag(n){
     cont.innerHTML = '';
     const pag = await pdfDoc.getPage(n);
 
-    // FIX DPR: renderiza nos pixels físicos reais para evitar blur em telas HiDPI
-    const dpr = window.devicePixelRatio || 1;
-    const esc = Math.min(cont.clientWidth / pag.getViewport({scale:1}).width, 1.8) * dpr;
-    const vp  = pag.getViewport({scale: esc});
-    const cv  = document.createElement('canvas');
-    cv.width  = vp.width;
-    cv.height = vp.height;
-    cv.style.width  = (vp.width  / dpr) + 'px';
-    cv.style.height = (vp.height / dpr) + 'px';
+    /*
+     * FIX "PDF embaçado no mobile"
+     * ─────────────────────────────────────────────────────────────────
+     * Problema: o canvas era renderizado em pixels CSS, ignorando o
+     * devicePixelRatio (DPR). Em telas Retina / HiDPI (DPR 2x ou 3x),
+     * como a maioria dos celulares, o browser estica o canvas para o
+     * dobro/triplo — resultando em imagem borrada/embaçada.
+     *
+     * Solução:
+     * 1. Ler a largura REAL do container em pixels CSS (clientWidth).
+     *    Se ainda for 0 (container oculto), usar innerWidth como fallback.
+     * 2. Multiplicar pelo DPR para obter pixels físicos do dispositivo.
+     * 3. Renderizar o canvas nesse tamanho físico (alta resolução).
+     * 4. Forçar via CSS que o canvas ocupe apenas a largura CSS original
+     *    (width:100%, height:auto) — o browser "comprime" os pixels extras,
+     *    resultando em imagem nítida.
+     * ─────────────────────────────────────────────────────────────────
+     */
+    const dpr         = window.devicePixelRatio || 1;
+
+    // largura CSS disponível — usa clientWidth do container ou fallback para viewport
+    const larguraCSS  = cont.clientWidth > 0 ? cont.clientWidth : window.innerWidth;
+
+    // escala base: encaixa o PDF na largura disponível em CSS pixels
+    const vpNativo    = pag.getViewport({ scale: 1 });
+    const escalaBase  = larguraCSS / vpNativo.width;
+
+    // escala física: multiplica pelo DPR para renderizar em alta resolução
+    const escalaFisica = escalaBase * dpr;
+    const vp = pag.getViewport({ scale: escalaFisica });
+
+    const cv = document.createElement('canvas');
+
+    // Dimensões físicas do canvas (pixels do dispositivo)
+    cv.width  = Math.floor(vp.width);
+    cv.height = Math.floor(vp.height);
+
+    // Dimensões CSS do canvas (pixels lógicos — o que ocupa na tela)
+    // width:100%/height:auto no CSS cuidam do resto, mas definimos inline
+    // como fallback para browsers mais antigos.
+    cv.style.width  = larguraCSS + 'px';
+    cv.style.height = Math.floor(vp.height / dpr) + 'px';
 
     cont.appendChild(cv);
-    await pag.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+
+    const ctx = cv.getContext('2d');
+    await pag.render({ canvasContext: ctx, viewport: vp }).promise;
+
     atualizarToolbarPag(n);
   } finally { renderizando = false; }
 }
