@@ -810,7 +810,8 @@ def responder_exercicio(ex_id):
                 total_pontos += pontos_obtidos
 
             elif q.tipo == "dissertativa":
-                texto_resp = request.form.get(f"questao_{q.id}_texto", "").strip()
+                # Lê pelo mesmo padrão de nome usado no template e em provas_aluno.py
+                texto_resp = (request.form.get(f"questao_{q.id}") or "").strip()
                 db.session.add(RespostaExercicioQuestao(
                     resposta_exercicio_id = resp.id,
                     questao_id            = q.id,
