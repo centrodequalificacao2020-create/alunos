@@ -208,7 +208,9 @@ body {
             </div>
             <div style="display:flex;gap:8px;align-items:center">
                 {% if melhor %}
-                    {% if melhor.aprovado %}
+                    {% if melhor.nota_obtida is none %}
+                    <span class="pill pill-pend"><i class="fas fa-hourglass-half"></i> Aguardando corre&ccedil;&atilde;o</span>
+                    {% elif melhor.aprovado %}
                     <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ '%.1f'|format(melhor.nota_obtida) }}</span>
                     {% else %}
                     <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ '%.1f'|format(melhor.nota_obtida) }}</span>
@@ -241,14 +243,18 @@ body {
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 {% if melhor_ex %}
-                    {% if melhor_ex.nota_obtida is not none %}
-                        {% if melhor_ex.aprovado %}
-                        <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ '%.1f'|format(melhor_ex.nota_obtida) }}</span>
-                        {% else %}
-                        <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ '%.1f'|format(melhor_ex.nota_obtida) }}</span>
-                        {% endif %}
+                    {% if melhor_ex.nota_obtida is none %}
+                    <span class="pill pill-pend"><i class="fas fa-hourglass-half"></i> Aguardando corre&ccedil;&atilde;o</span>
+                    {% elif melhor_ex.aprovado %}
+                    <span class="pill pill-ok"><i class="fas fa-check"></i>
+                        Nota {{ melhor_ex.pontos_obtidos_total | default(0) | round(1) }}/{{ melhor_ex.exercicio.total_pontos | default(0) | round(1) }}
+                        ({{ melhor_ex.percentual }}%)
+                    </span>
                     {% else %}
-                    <span class="pill pill-corr"><i class="fas fa-clock"></i> Aguardando corre&ccedil;&atilde;o</span>
+                    <span class="pill pill-err"><i class="fas fa-times"></i>
+                        Nota {{ melhor_ex.pontos_obtidos_total | default(0) | round(1) }}/{{ melhor_ex.exercicio.total_pontos | default(0) | round(1) }}
+                        ({{ melhor_ex.percentual }}%)
+                    </span>
                     {% endif %}
                 {% else %}
                 <span class="pill pill-pend"><i class="fas fa-hourglass-half"></i> Aguardando</span>

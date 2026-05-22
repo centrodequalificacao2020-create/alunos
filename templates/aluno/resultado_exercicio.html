@@ -16,12 +16,14 @@ body{
 .resultado-card{
   border-radius:16px; padding:28px 30px; text-align:center; margin-bottom:28px;
 }
-.resultado-card.aprovado{ background:rgba(0,200,120,.1); border:1px solid rgba(0,200,120,.3); }
-.resultado-card.reprovado{ background:rgba(255,77,77,.08); border:1px solid rgba(255,77,77,.25); }
+.resultado-card.aprovado  { background:rgba(0,200,120,.1);  border:1px solid rgba(0,200,120,.3); }
+.resultado-card.reprovado { background:rgba(255,77,77,.08);  border:1px solid rgba(255,77,77,.25); }
+.resultado-card.pendente  { background:rgba(180,100,255,.08); border:1px solid rgba(180,100,255,.3); }
 .resultado-icone{ font-size:48px; margin-bottom:12px; }
-.resultado-pct{ font-size:48px; font-weight:900; line-height:1; }
+.resultado-nota{ font-size:48px; font-weight:900; line-height:1; }
 .resultado-aprovado{ color:#00c878; }
 .resultado-reprovado{ color:#ff6b6b; }
+.resultado-pendente { color:#b464ff; }
 .resultado-sub{ font-size:14px; opacity:.5; margin-top:8px; }
 .resultado-stats{ display:flex; justify-content:center; gap:32px; margin-top:16px; flex-wrap:wrap; }
 .stat-item{ text-align:center; }
@@ -34,19 +36,21 @@ body{
 }
 .gabarito-titulo::after{ content:''; flex:1; height:1px; background:rgba(255,255,255,.08); }
 .gab-card{ border-radius:12px; padding:16px 18px; margin-bottom:10px; border:1px solid; }
-.gab-card.certa{ background:rgba(0,200,120,.06); border-color:rgba(0,200,120,.25); }
-.gab-card.errada{ background:rgba(255,77,77,.06); border-color:rgba(255,77,77,.2); }
+.gab-card.certa   { background:rgba(0,200,120,.06);  border-color:rgba(0,200,120,.25); }
+.gab-card.errada  { background:rgba(255,77,77,.06);   border-color:rgba(255,77,77,.2); }
+.gab-card.diss    { background:rgba(180,100,255,.06); border-color:rgba(180,100,255,.2); }
 .gab-header{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .gab-num{ font-size:10px; opacity:.4; font-weight:700; text-transform:uppercase; letter-spacing:1px; }
 .gab-badge{ display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
   border-radius:999px; font-size:11px; font-weight:700; }
-.gab-badge.ok{ background:rgba(0,200,120,.15); color:#00c878; }
-.gab-badge.nok{ background:rgba(255,77,77,.15); color:#ff6b6b; }
+.gab-badge.ok   { background:rgba(0,200,120,.15);  color:#00c878; }
+.gab-badge.nok  { background:rgba(255,77,77,.15);   color:#ff6b6b; }
+.gab-badge.pend { background:rgba(180,100,255,.15); color:#b464ff; }
 .gab-enunc{ font-size:14px; line-height:1.6; margin-bottom:10px; }
 .gab-linha{ font-size:13px; display:flex; align-items:flex-start; gap:8px; padding:6px 0; }
 .gab-linha .ic{ width:18px; flex-shrink:0; margin-top:2px; }
 .gab-linha.correta-linha{ color:#00c878; }
-.gab-linha.errada-linha{ color:#ff6b6b; }
+.gab-linha.errada-linha { color:#ff6b6b; }
 /* Botões */
 .btns{ display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; }
 .btn-voltar{
@@ -64,49 +68,94 @@ body{
 <div class="wrap">
   <a href="/aluno/cursos" class="voltar"><i class="fas fa-arrow-left"></i> Meus Cursos</a>
 
-  {% set aprovado = resp.percentual >= 60 %}
-  <div class="resultado-card {{ 'aprovado' if aprovado else 'reprovado' }}">
-    <div class="resultado-icone">{{ '🎉' if aprovado else '📝' }}</div>
-    <div class="resultado-pct {{ 'resultado-aprovado' if aprovado else 'resultado-reprovado' }}">
-      {{ resp.percentual }}%
-    </div>
-    <div style="font-size:17px;font-weight:700;margin-top:8px">
-      {{ 'Muito bem!' if aprovado else 'Continue praticando!' }}
-    </div>
-    <div class="resultado-sub">{{ exercicio.titulo }} — Tentativa {{ resp.tentativa_num }}</div>
-    <div class="resultado-stats">
-      <div class="stat-item">
-        <div class="stat-val" style="color:#00c878">{{ resp.acertos }}</div>
-        <div class="stat-label">Acertos</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val" style="color:#ff6b6b">{{ resp.total_questoes - resp.acertos }}</div>
-        <div class="stat-label">Erros</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val">{{ resp.total_questoes }}</div>
-        <div class="stat-label">Total</div>
+  {# ── Card de resultado ── #}
+  {% if resp.nota_obtida is none %}
+    {# Dissertativa pendente de correção #}
+    <div class="resultado-card pendente">
+      <div class="resultado-icone">📝</div>
+      <div class="resultado-nota resultado-pendente">Aguardando correção</div>
+      <div class="resultado-sub">{{ exercicio.titulo }} — Tentativa {{ resp.tentativa_num }}</div>
+      <div class="resultado-stats">
+        <div class="stat-item">
+          <div class="stat-val">{{ resp.total_questoes }}</div>
+          <div class="stat-label">Questões</div>
+        </div>
       </div>
     </div>
-  </div>
+  {% elif resp.aprovado == 1 %}
+    <div class="resultado-card aprovado">
+      <div class="resultado-icone">🎉</div>
+      <div class="resultado-nota resultado-aprovado">
+        Nota {{ resp.pontos_obtidos_total | default(0) | round(1) }}/{{ exercicio.total_pontos | default(0) | round(1) }}
+        ({{ resp.percentual }}%)
+      </div>
+      <div style="font-size:17px;font-weight:700;margin-top:8px">Aprovado!</div>
+      <div class="resultado-sub">{{ exercicio.titulo }} — Tentativa {{ resp.tentativa_num }}</div>
+      <div class="resultado-stats">
+        <div class="stat-item">
+          <div class="stat-val" style="color:#00c878">{{ resp.acertos }}</div>
+          <div class="stat-label">Acertos</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" style="color:#ff6b6b">{{ resp.total_questoes - resp.acertos }}</div>
+          <div class="stat-label">Erros</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ resp.total_questoes }}</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="resultado-card reprovado">
+      <div class="resultado-icone">📖</div>
+      <div class="resultado-nota resultado-reprovado">
+        Nota {{ resp.pontos_obtidos_total | default(0) | round(1) }}/{{ exercicio.total_pontos | default(0) | round(1) }}
+        ({{ resp.percentual }}%)
+      </div>
+      <div style="font-size:17px;font-weight:700;margin-top:8px">Continue praticando!</div>
+      <div class="resultado-sub">{{ exercicio.titulo }} — Tentativa {{ resp.tentativa_num }}</div>
+      <div class="resultado-stats">
+        <div class="stat-item">
+          <div class="stat-val" style="color:#00c878">{{ resp.acertos }}</div>
+          <div class="stat-label">Acertos</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" style="color:#ff6b6b">{{ resp.total_questoes - resp.acertos }}</div>
+          <div class="stat-label">Erros</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ resp.total_questoes }}</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
 
   {# ── Gabarito detalhado lido do banco ── #}
   {% if gabarito %}
   <div class="gabarito-titulo"><i class="fas fa-clipboard-check"></i> Gabarito detalhado</div>
 
   {% for item in gabarito %}
-  <div class="gab-card {{ 'certa' if item.acertou else 'errada' }}">
-    <div class="gab-header">
-      <span class="gab-num">Quest&atilde;o {{ loop.index }}</span>
-      {% if item.acertou %}
-        <span class="gab-badge ok"><i class="fas fa-check"></i> Correta</span>
-      {% else %}
-        <span class="gab-badge nok"><i class="fas fa-times"></i> Errada</span>
-      {% endif %}
+    {% if item.questao.tipo == 'dissertativa' %}
+    <div class="gab-card diss">
+      <div class="gab-header">
+        <span class="gab-num">Questão {{ loop.index }}</span>
+        <span class="gab-badge pend"><i class="fas fa-pen"></i> Dissertativa</span>
+      </div>
+      <div class="gab-enunc">{{ item.questao.enunciado | nl2br }}</div>
     </div>
-    <div class="gab-enunc">{{ item.questao.enunciado | nl2br }}</div>
-
-    {% if item.questao.tipo in ('multipla_escolha', 'verdadeiro_falso') %}
+    {% else %}
+    <div class="gab-card {{ 'certa' if item.acertou else 'errada' }}">
+      <div class="gab-header">
+        <span class="gab-num">Questão {{ loop.index }}</span>
+        {% if item.acertou %}
+          <span class="gab-badge ok"><i class="fas fa-check"></i> Correta</span>
+        {% else %}
+          <span class="gab-badge nok"><i class="fas fa-times"></i> Errada</span>
+        {% endif %}
+      </div>
+      <div class="gab-enunc">{{ item.questao.enunciado | nl2br }}</div>
       {% if item.escolhida and not item.acertou %}
         <div class="gab-linha errada-linha">
           <span class="ic"><i class="fas fa-times-circle"></i></span>
@@ -115,7 +164,7 @@ body{
       {% elif not item.escolhida and not item.acertou %}
         <div class="gab-linha errada-linha">
           <span class="ic"><i class="fas fa-minus-circle"></i></span>
-          <span>N&atilde;o respondida</span>
+          <span>Não respondida</span>
         </div>
       {% endif %}
       {% if item.correta %}
@@ -124,8 +173,8 @@ body{
           <span>Resposta correta: {{ item.correta.texto }}</span>
         </div>
       {% endif %}
+    </div>
     {% endif %}
-  </div>
   {% endfor %}
   {% endif %}
 
