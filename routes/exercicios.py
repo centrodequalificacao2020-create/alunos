@@ -37,7 +37,7 @@ def _calcular_nota(total_pontos, pontos_max):
     return round((total_pontos / pontos_max) * 10, 2)
 
 
-# ── LISTAGEM GERAL ────────────────────────────────────────────────────────────
+# ── LISTAGEM GERAL ───────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios")
 @login_required
@@ -63,7 +63,7 @@ def exercicios_geral():
     )
 
 
-# ── CRIAR EXERCICIO ───────────────────────────────────────────────────────────
+# ── CRIAR EXERCICIO ──────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/novo", methods=["GET", "POST"])
 @login_required
@@ -115,7 +115,7 @@ def novo_exercicio():
     )
 
 
-# ── EDITAR EXERCICIO ──────────────────────────────────────────────────────────
+# ── EDITAR EXERCICIO ──────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/editar", methods=["GET", "POST"])
 @login_required
@@ -156,7 +156,7 @@ def editar_exercicio(ex_id):
     )
 
 
-# ── TOGGLE ATIVO ──────────────────────────────────────────────────────────────
+# ── TOGGLE ATIVO ─────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/toggle", methods=["POST"])
 @login_required
@@ -172,7 +172,7 @@ def toggle_exercicio(ex_id):
     return redirect("/exercicios")
 
 
-# ── EXCLUIR EXERCICIO ─────────────────────────────────────────────────────────
+# ── EXCLUIR EXERCICIO ────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/excluir", methods=["POST"])
 @login_required
@@ -184,7 +184,7 @@ def excluir_exercicio(ex_id):
     return redirect("/exercicios")
 
 
-# ── GERENCIAR QUESTÕES ────────────────────────────────────────────────────────
+# ── GERENCIAR QUESTÕES ─────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/questoes", methods=["GET", "POST"])
 @login_required
@@ -283,7 +283,7 @@ def gerenciar_questoes_exercicio(ex_id):
     return render_template("exercicios_geral.html", exercicio=ex, view="questoes")
 
 
-# ── RESULTADOS ────────────────────────────────────────────────────────────────
+# ── RESULTADOS ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/resultados")
 @login_required
@@ -303,7 +303,7 @@ def resultados_exercicio(ex_id):
     )
 
 
-# ── RECALCULAR NOTAS EM LOTE ──────────────────────────────────────────────────
+# ── RECALCULAR NOTAS EM LOTE ────────────────────────────────────────────────────────────
 # Corrige tentativas que ficaram com nota_obtida=NULL porque foram salvas por
 # versões antigas do código (só objetivas; dissertativas são ignoradas).
 # Acessível em: POST /exercicios/<ex_id>/recalcular-notas
@@ -311,8 +311,9 @@ def resultados_exercicio(ex_id):
 
 def _recalcular_tentativas_sem_nota(exercicio_id=None):
     """
-    Recalcula nota_obtida e aprovado para todas as RespostaExercicio com
-    nota_obtida IS NULL que NÃO possuem questão dissertativa pendente de correção.
+    Recalcula nota_obtida, aprovado e pontos_obtidos_total para todas as
+    RespostaExercicio com nota_obtida IS NULL que NÃO possuem questão
+    dissertativa pendente de correção.
     Retorna (corrigidas, ignoradas).
     """
     query = RespostaExercicio.query.filter(RespostaExercicio.nota_obtida.is_(None))
@@ -351,13 +352,39 @@ def _recalcular_tentativas_sem_nota(exercicio_id=None):
             pontos_max  += pts_questao
             total_pontos += (rq.pontos_obtidos or 0.0)
 
-        nota_final       = _calcular_nota(total_pontos, pontos_max)
-        resp.nota_obtida = nota_final
-        resp.aprovado    = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
-        corrigidas      += 1
+        nota_final                = _calcular_nota(total_pontos, pontos_max)
+        resp.nota_obtida          = nota_final
+        resp.aprovado             = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
+        resp.pontos_obtidos_total = total_pontos
+        corrigidas               += 1
 
     db.session.commit()
     return corrigidas, ignoradas
+
+
+def recalcular_pontos_todos():
+    """
+    Backfill: preenche pontos_obtidos_total em TODAS as RespostaExercicio
+    (inclusive as já corrigidas / aprovadas) que ainda não possuem o campo.
+    Deve ser chamado uma única vez após a migration que adiciona a coluna.
+    Retorna o número de registros atualizados.
+    """
+    query = RespostaExercicio.query.filter(
+        RespostaExercicio.pontos_obtidos_total.is_(None)
+    )
+    atualizados = 0
+    for resp in query.all():
+        respostas_q = (
+            db.session.query(RespostaExercicioQuestao, ExercicioQuestao)
+            .join(ExercicioQuestao, ExercicioQuestao.id == RespostaExercicioQuestao.questao_id)
+            .filter(RespostaExercicioQuestao.resposta_exercicio_id == resp.id)
+            .all()
+        )
+        total = sum(rq.pontos_obtidos or 0.0 for rq, q in respostas_q)
+        resp.pontos_obtidos_total = total
+        atualizados += 1
+    db.session.commit()
+    return atualizados
 
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/recalcular-notas", methods=["POST"])
@@ -384,7 +411,7 @@ def recalcular_notas_todos():
     return redirect("/exercicios")
 
 
-# ── CORRIGIR TENTATIVA ────────────────────────────────────────────────────────
+# ── CORRIGIR TENTATIVA ────────────────────────────────────────────────────────────────────
 # Espelho exato de routes/provas.py → corrigir_tentativa
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/tentativa/<int:resp_id>/corrigir",
@@ -424,13 +451,14 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
             else:
                 total_pontos += (rq.pontos_obtidos or 0.0)
 
-        nota_final       = _calcular_nota(total_pontos, pontos_max)
-        resp.nota_obtida = nota_final
-        resp.aprovado    = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
+        nota_final                = _calcular_nota(total_pontos, pontos_max)
+        resp.nota_obtida          = nota_final
+        resp.aprovado             = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
+        resp.pontos_obtidos_total = total_pontos
         db.session.commit()
 
         flash(
-            f"Correção salva! {aluno.nome} \u2014 "
+            f"Correção salva! {aluno.nome} — "
             f"Nota: {nota_final} ({'Aprovado' if resp.aprovado else 'Reprovado'}).",
             "sucesso"
         )
@@ -453,7 +481,7 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
     )
 
 
-# ── TENTATIVAS EXTRAS ─────────────────────────────────────────────────────────
+# ── TENTATIVAS EXTRAS ────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/extra-tentativas", methods=["POST"])
 @login_required
@@ -480,7 +508,7 @@ def extra_tentativas_exercicio(ex_id):
     return redirect(f"/exercicios/{ex_id}/resultados")
 
 
-# ── ROTAS LEGADAS ─────────────────────────────────────────────────────────────
+# ── ROTAS LEGADAS ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/materias/<int:materia_id>/exercicios")
 @login_required
@@ -538,7 +566,7 @@ def criar_exercicio(materia_id):
     return redirect(f"/exercicios/{ex.id}/questoes")
 
 
-# ── SERVIR ARQUIVO ────────────────────────────────────────────────────────────
+# ── SERVIR ARQUIVO ───────────────────────────────────────────────────────────────────────────
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/arquivo")
 @login_required
