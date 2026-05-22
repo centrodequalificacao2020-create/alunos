@@ -208,7 +208,10 @@ def realizar_prova(prova_id):
         return redirect("/aluno/provas")
 
     if request.method == "POST":
-        # ── BUG-07: validar tempo no servidor ────────────────────────────────
+        # ── Verificar tempo no servidor ──────────────────────────────────────
+        tempo_expirado = False
+        dt_inicio = None
+
         if prova.tempo_limite:
             token_inicio = request.form.get("token_inicio", "")
             dt_inicio = _verificar_token_inicio(token_inicio, aluno.id, prova_id)
@@ -222,34 +225,14 @@ def realizar_prova(prova_id):
                 minutes=prova.tempo_limite, seconds=_TOLERANCIA_SEGUNDOS
             )
             if tempo_decorrido > limite_com_tolerancia:
-                flash(
-                    f"Tempo esgotado! Você levou "
-                    f"{int(tempo_decorrido.total_seconds() // 60)} min para uma prova de "
-                    f"{prova.tempo_limite} min. A tentativa foi registrada sem pontuação.",
-                    "aviso"
-                )
-                # Registra tentativa consumida sem nota (para não burlar limite de tentativas)
-                resp_vazia = RespostaProva(
-                    prova_id=prova_id,
-                    aluno_id=aluno.id,
-                    tentativa_num=tentativas_feitas + 1,
-                    iniciado_em=dt_inicio.strftime("%Y-%m-%d %H:%M:%S"),
-                    finalizado_em=agora.strftime("%Y-%m-%d %H:%M:%S"),
-                    nota_obtida=0.0,
-                    aprovado=0,
-                )
-                db.session.add(resp_vazia)
-                db.session.commit()
-                return redirect("/aluno/provas")
+                tempo_expirado = True
 
         # ── BUG-08: recuperar e validar ordem de alternativas assinada ───────
         token_ordem = request.form.get("token_ordem", "")
         ordem_alts = _verificar_token_ordem(token_ordem, aluno.id, prova_id) if token_ordem else None
-        # ordem_alts: {str(questao_id): [alt_id_int, ...]} ou None (fallback: sem reordenação)
 
         agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Se passou pela validação de tempo, usa o dt_inicio já calculado
-        if prova.tempo_limite and 'dt_inicio' in dir():
+        if prova.tempo_limite and dt_inicio is not None:
             iniciado_str = dt_inicio.strftime("%Y-%m-%d %H:%M:%S")
         else:
             iniciado_str = request.form.get("iniciado_em_raw", agora_str)
@@ -301,6 +284,22 @@ def realizar_prova(prova_id):
                     pontos_obtidos    = pts_obtidos,
                     corrigida         = 1,
                 ))
+
+        # ── Calcular nota final ───────────────────────────────────────────────
+        # Se o tempo expirou: força nota 0 e aprovado=0, independente do desempenho.
+        # As respostas individuais já foram salvas acima para consulta posterior.
+        if tempo_expirado:
+            resp_prova.nota_obtida = 0.0
+            resp_prova.aprovado    = 0
+            db.session.commit()
+            mins_gastos = int((datetime.now() - dt_inicio).total_seconds() // 60)
+            flash(
+                f"Tempo esgotado! Você levou {mins_gastos} min para uma prova de "
+                f"{prova.tempo_limite} min. "
+                "As respostas foram registradas, mas a nota foi zerada.",
+                "aviso"
+            )
+            return redirect(f"/aluno/provas/{prova_id}/resultado/{resp_prova.id}")
 
         if tem_dissertativa:
             resp_prova.nota_obtida = None
