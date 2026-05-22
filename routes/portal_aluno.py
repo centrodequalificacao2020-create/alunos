@@ -841,11 +841,12 @@ def responder_exercicio(ex_id):
             nota_minima = float(ex.nota_minima or 6.0)
             aprovado    = 1 if nota_final >= nota_minima else 0
 
-        percentual      = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
-        resp.acertos    = acertos
-        resp.percentual = percentual
-        resp.nota_obtida = nota_final
-        resp.aprovado    = aprovado
+        percentual               = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
+        resp.acertos             = acertos
+        resp.percentual          = percentual
+        resp.nota_obtida         = nota_final
+        resp.aprovado            = aprovado
+        resp.pontos_obtidos_total = total_pontos
         db.session.commit()
 
     except Exception:
