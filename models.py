@@ -424,8 +424,10 @@ class RespostaExercicio(db.Model):
     acertos          = db.Column(db.Integer, default=0)
     percentual       = db.Column(db.Float,   default=0.0)
     # Campos espelhados de RespostaProva para uniformidade na ficha do aluno
-    nota_obtida   = db.Column(db.Float,   nullable=True)
-    aprovado      = db.Column(db.Integer, nullable=True)
+    nota_obtida          = db.Column(db.Float,   nullable=True)
+    aprovado             = db.Column(db.Integer, nullable=True)
+    # Soma bruta de pontos obtidos (antes da conversão para escala 0-10)
+    pontos_obtidos_total = db.Column(db.Float,   nullable=True)
     aluno = db.relationship("Aluno", backref="respostas_exercicio", lazy=True)
     respostas_questao = db.relationship(
         "RespostaExercicioQuestao",
