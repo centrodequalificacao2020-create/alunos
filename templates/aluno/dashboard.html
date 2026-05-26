@@ -131,6 +131,14 @@ body {
         <small>Hist&oacute;rico de presen&ccedil;a</small>
     </a>
 
+    {% if matricula %}
+    <a href="/aluno/minha-declaracao-matricula" class="home-card">
+        <i class="fas fa-file-alt c9"></i>
+        <span>Declara&ccedil;&atilde;o de Matr&iacute;cula</span>
+        <small>Baixar PDF comprovante</small>
+    </a>
+    {% endif %}
+
     <a href="https://wa.me/5522998684334" target="_blank" rel="noopener" class="home-card">
         <i class="fab fa-whatsapp c8"></i>
         <span>Suporte</span>
