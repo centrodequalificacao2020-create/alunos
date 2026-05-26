@@ -1,6 +1,6 @@
 import os
 from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response, current_app
+from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response, current_app, send_file
 from models import (
     Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula,
     ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno
@@ -10,6 +10,7 @@ from db import db
 from app import limiter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
+from services.pdf_service import gerar_declaracao_matricula
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
@@ -450,7 +451,6 @@ def notas_aluno():
         )
 
     # --- Exercicios realizados ---
-    # Exercicio nao tem curso_id: filtrar pelos exercicio_id das materias do curso
     exercicios_realizados = []
     melhor_por_exercicio  = {}
     try:
@@ -810,7 +810,6 @@ def responder_exercicio(ex_id):
                 total_pontos += pontos_obtidos
 
             elif q.tipo == "dissertativa":
-                # Lê pelo mesmo padrão de nome usado no template e em provas_aluno.py
                 texto_resp = (request.form.get(f"questao_{q.id}") or "").strip()
                 db.session.add(RespostaExercicioQuestao(
                     resposta_exercicio_id = resp.id,
@@ -1034,7 +1033,6 @@ def entregar_atividade(atividade_id):
         from models import Atividade, EntregaAtividade
         atividade = db.get_or_404(Atividade, atividade_id)
 
-        # Validação: exige ao menos um arquivo enviado
         arquivo1 = request.files.get("arquivo1")
         if not arquivo1 or not arquivo1.filename:
             flash("É obrigatório anexar pelo menos um arquivo para entregar a atividade.", "erro")
@@ -1092,3 +1090,27 @@ def trocar_senha():
         flash("Senha alterada com sucesso!", "sucesso")
         return redirect("/aluno/dashboard")
     return render_template("aluno/trocar_senha.html", aluno=aluno)
+
+
+# --- DECLARAÇÃO DE MATRÍCULA (portal do aluno) ---------------------------------
+
+@portal_aluno_bp.route("/minha-declaracao-matricula")
+@aluno_login_required
+def minha_declaracao_matricula():
+    """Gera declaração de matrícula para o aluno logado.
+    Usa a matrícula ativa mais recente. Redireciona ao dashboard
+    com mensagem de erro se não houver matrícula ativa.
+    """
+    aluno     = db.get_or_404(Aluno, session["aluno_id"])
+    matricula = _matricula_ativa(aluno.id)
+    if matricula is None:
+        flash("Você não possui matrícula ativa no momento.", "erro")
+        return redirect("/aluno/dashboard")
+    buf = gerar_declaracao_matricula(
+        aluno, matricula,
+        root_path=current_app.root_path
+    )
+    nome_arquivo = f"declaracao_matricula_{aluno.nome.split()[0].lower()}_{aluno.id}.pdf"
+    return send_file(buf, as_attachment=True,
+                     download_name=nome_arquivo,
+                     mimetype="application/pdf")
