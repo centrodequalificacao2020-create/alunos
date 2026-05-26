@@ -161,6 +161,18 @@ def _cursos_disponiveis(aluno_id):
     return resultado
 
 
+def verificar_contrato(aluno):
+    """Redireciona para a pagina do contrato se o aluno ainda nao assinou.
+
+    Deve ser chamada logo apos buscar o objeto aluno nas rotas protegidas
+    do portal. Nao altera o decorador @aluno_login_required.
+    Retorna um objeto Response de redirect ou None se o contrato ja foi assinado.
+    """
+    if not aluno.contrato_assinado:
+        return redirect("/aluno/contrato")
+    return None
+
+
 # --- LOGIN / LOGOUT -----------------------------------------------------------
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
@@ -201,12 +213,44 @@ def logout_aluno():
     return redirect("/aluno/login")
 
 
+# --- CONTRATO -----------------------------------------------------------------
+
+@portal_aluno_bp.route("/contrato", methods=["GET"])
+@aluno_login_required
+def contrato_aluno():
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    if aluno.contrato_assinado:
+        return redirect("/aluno/dashboard")
+    return render_template("aluno/contrato.html", aluno=aluno)
+
+
+@portal_aluno_bp.route("/contrato/assinar", methods=["POST"])
+@aluno_login_required
+def assinar_contrato():
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    if aluno.contrato_assinado:
+        return redirect("/aluno/dashboard")
+    aceite = request.form.get("aceite")
+    if aceite != "on":
+        flash("Você precisa marcar o checkbox para aceitar o contrato.", "erro")
+        return redirect("/aluno/contrato")
+    aluno.contrato_assinado    = True
+    aluno.contrato_assinado_em = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    db.session.commit()
+    flash("Contrato aceito com sucesso! Bem-vindo ao portal.", "sucesso")
+    return redirect("/aluno/dashboard")
+
+
 # --- DASHBOARD ----------------------------------------------------------------
 
 @portal_aluno_bp.route("/dashboard")
 @aluno_login_required
 def dashboard_aluno():
-    aluno        = db.get_or_404(Aluno, session["aluno_id"])
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     matricula    = _matricula_ativa(aluno.id)
     mensalidades = Mensalidade.query.filter_by(aluno_id=aluno.id).order_by(Mensalidade.vencimento).all()
     atrasadas    = _contar_atrasadas(mensalidades)
@@ -237,7 +281,11 @@ def dashboard_aluno():
 @portal_aluno_bp.route("/financeiro")
 @aluno_login_required
 def financeiro_aluno():
-    aluno              = db.get_or_404(Aluno, session["aluno_id"])
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     cursos_disponiveis = _cursos_disponiveis(aluno.id)
 
     curso_id_param = request.args.get("curso_id", type=int)
@@ -307,7 +355,11 @@ def financeiro_aluno():
 @portal_aluno_bp.route("/frequencia")
 @aluno_login_required
 def frequencia_aluno():
-    aluno              = db.get_or_404(Aluno, session["aluno_id"])
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     cursos_disponiveis = _cursos_disponiveis(aluno.id)
 
     curso_id_param = request.args.get("curso_id", type=int)
@@ -375,7 +427,11 @@ def frequencia_aluno():
 @portal_aluno_bp.route("/notas")
 @aluno_login_required
 def notas_aluno():
-    aluno      = db.get_or_404(Aluno, session["aluno_id"])
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     matriculas = _matriculas_ativas(aluno.id)
 
     cursos_disponiveis = []
@@ -425,7 +481,6 @@ def notas_aluno():
     valores = [n.nota for n, m in notas if n is not None and n.nota is not None]
     media   = round(sum(valores) / len(valores), 1) if valores else None
 
-    # --- Provas realizadas ---
     provas_realizadas  = []
     melhor_por_prova   = {}
     try:
@@ -449,8 +504,6 @@ def notas_aluno():
             exc_info=True
         )
 
-    # --- Exercicios realizados ---
-    # Exercicio nao tem curso_id: filtrar pelos exercicio_id das materias do curso
     exercicios_realizados = []
     melhor_por_exercicio  = {}
     try:
@@ -490,7 +543,6 @@ def notas_aluno():
             exc_info=True
         )
 
-    # --- Atividades entregues ---
     atividades_entregues = []
     try:
         from models import EntregaAtividade, Atividade
@@ -535,7 +587,11 @@ def notas_aluno():
 @portal_aluno_bp.route("/cursos")
 @aluno_login_required
 def cursos_aluno():
-    aluno      = db.get_or_404(Aluno, session["aluno_id"])
+    aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     matriculas = _matriculas_ativas(aluno.id)
 
     cursos_com_acesso = []
@@ -560,6 +616,10 @@ def cursos_aluno():
 @aluno_login_required
 def curso_detalhe(curso_id):
     aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     matricula = Matricula.query.filter(
         Matricula.aluno_id == aluno.id,
         Matricula.curso_id == curso_id,
@@ -712,6 +772,9 @@ def realizar_exercicio(ex_id):
     from models import Exercicio, ExercicioLiberado, RespostaExercicio
     aluno_id = session["aluno_id"]
     aluno    = db.get_or_404(Aluno, aluno_id)
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
 
     ex = db.get_or_404(Exercicio, ex_id)
     lib = ExercicioLiberado.query.filter_by(
@@ -750,6 +813,10 @@ def responder_exercicio(ex_id):
         ExercicioAlternativa, RespostaExercicioQuestao,
     )
     aluno_id = session["aluno_id"]
+    aluno    = db.get_or_404(Aluno, aluno_id)
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
 
     ex = db.get_or_404(Exercicio, ex_id)
     lib = ExercicioLiberado.query.filter_by(
@@ -810,7 +877,6 @@ def responder_exercicio(ex_id):
                 total_pontos += pontos_obtidos
 
             elif q.tipo == "dissertativa":
-                # Lê pelo mesmo padrão de nome usado no template e em provas_aluno.py
                 texto_resp = (request.form.get(f"questao_{q.id}") or "").strip()
                 db.session.add(RespostaExercicioQuestao(
                     resposta_exercicio_id = resp.id,
@@ -868,6 +934,10 @@ def resultado_exercicio(ex_id, resp_id):
     )
     aluno_id = session["aluno_id"]
     aluno    = db.get_or_404(Aluno, aluno_id)
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     ex       = db.get_or_404(Exercicio, ex_id)
     resp     = db.get_or_404(RespostaExercicio, resp_id)
 
@@ -911,6 +981,11 @@ def resultado_exercicio(ex_id, resp_id):
 def arquivo_exercicio_aluno(ex_id):
     import mimetypes
     aluno_id = session["aluno_id"]
+    aluno    = db.get_or_404(Aluno, aluno_id)
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     try:
         from models import Exercicio, ExercicioLiberado
         ex = db.get_or_404(Exercicio, ex_id)
@@ -992,12 +1067,17 @@ def abrir_arquivo_conteudo(conteudo_id):
 @portal_aluno_bp.route("/conteudo/concluir/<int:conteudo_id>")
 @aluno_login_required
 def concluir_aula(conteudo_id):
+    aluno_id = session["aluno_id"]
+    aluno    = db.get_or_404(Aluno, aluno_id)
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     curso_id = request.args.get("curso_id", type=int)
 
     conteudo = db.get_or_404(Conteudo, conteudo_id)
 
     if not curso_id:
-        aluno_id = session["aluno_id"]
         ids_cursos_ativos = {
             m.curso_id for m in _matriculas_ativas(aluno_id)
         }
@@ -1011,11 +1091,11 @@ def concluir_aula(conteudo_id):
                 curso_id = cm.curso_id
 
     p = ProgressoAula.query.filter_by(
-        aluno_id=session["aluno_id"], conteudo_id=conteudo_id
+        aluno_id=aluno_id, conteudo_id=conteudo_id
     ).first()
     if not p:
         db.session.add(ProgressoAula(
-            aluno_id=session["aluno_id"], conteudo_id=conteudo_id, concluido=1
+            aluno_id=aluno_id, conteudo_id=conteudo_id, concluido=1
         ))
     else:
         p.concluido = 1
@@ -1030,11 +1110,14 @@ def concluir_aula(conteudo_id):
 def entregar_atividade(atividade_id):
     from werkzeug.utils import secure_filename
     aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     try:
         from models import Atividade, EntregaAtividade
         atividade = db.get_or_404(Atividade, atividade_id)
 
-        # Validação: exige ao menos um arquivo enviado
         arquivo1 = request.files.get("arquivo1")
         if not arquivo1 or not arquivo1.filename:
             flash("É obrigatório anexar pelo menos um arquivo para entregar a atividade.", "erro")
@@ -1074,6 +1157,10 @@ def entregar_atividade(atividade_id):
 @aluno_login_required
 def trocar_senha():
     aluno = db.get_or_404(Aluno, session["aluno_id"])
+    redir = verificar_contrato(aluno)
+    if redir:
+        return redir
+
     if request.method == "POST":
         atual    = request.form.get("senha_atual", "")
         nova     = request.form.get("nova_senha", "").strip()
