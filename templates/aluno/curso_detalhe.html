@@ -467,7 +467,7 @@ body{
           >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="upload-area">
-              <span class="upload-label"><i class="fas fa-paperclip"></i> Anexar arquivos (m&aacute;x. 3)</span>
+              <span class="upload-label"><i class="fas fa-paperclip"></i> Anexar arquivos (m&aacute;x. 3) &mdash; somente PDF ou Excel</span>
               <div class="upload-grid">
                 <div class="file-input-wrap">
                   <label for="arq1_{{ atv.id }}">Arquivo 1 <span style="color:#ffc107">*</span></label>
@@ -475,17 +475,17 @@ body{
                     type="file"
                     id="arq1_{{ atv.id }}"
                     name="arquivo1"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                    accept=".pdf,.xlsx,.xls"
                     required
                   >
                 </div>
                 <div class="file-input-wrap">
                   <label for="arq2_{{ atv.id }}">Arquivo 2 (opcional)</label>
-                  <input type="file" id="arq2_{{ atv.id }}" name="arquivo2" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip">
+                  <input type="file" id="arq2_{{ atv.id }}" name="arquivo2" accept=".pdf,.xlsx,.xls">
                 </div>
                 <div class="file-input-wrap">
                   <label for="arq3_{{ atv.id }}">Arquivo 3 (opcional)</label>
-                  <input type="file" id="arq3_{{ atv.id }}" name="arquivo3" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip">
+                  <input type="file" id="arq3_{{ atv.id }}" name="arquivo3" accept=".pdf,.xlsx,.xls">
                 </div>
               </div>
             </div>
