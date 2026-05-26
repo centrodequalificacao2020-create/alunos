@@ -15,6 +15,13 @@ portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
 _STATUS_BLOQUEADOS = {"Trancado", "Cancelado", "Finalizado"}
 
+# MIME types permitidos para anexos de atividade
+_MIME_PERMITIDOS = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+}
+
 
 def _calcular_nota(total_pontos, pontos_max):
     """Nota na escala 0-10. Retorna 0.0 se pontos_max <= 0."""
@@ -1039,6 +1046,19 @@ def entregar_atividade(atividade_id):
         if not arquivo1 or not arquivo1.filename:
             flash("É obrigatório anexar pelo menos um arquivo para entregar a atividade.", "erro")
             return redirect(f"/aluno/cursos/{atividade.curso_id}")
+
+        # Validação de MIME type: aceitar apenas PDF e Excel
+        for campo in ["arquivo1", "arquivo2", "arquivo3"]:
+            f = request.files.get(campo)
+            if f and f.filename:
+                mime = f.mimetype or ""
+                if mime not in _MIME_PERMITIDOS:
+                    flash(
+                        f"Arquivo '{f.filename}' não é permitido. "
+                        "Envie somente arquivos PDF (.pdf) ou Excel (.xlsx, .xls).",
+                        "erro",
+                    )
+                    return redirect(f"/aluno/cursos/{atividade.curso_id}")
 
         entrega = EntregaAtividade.query.filter_by(aluno_id=aluno.id, atividade_id=atividade_id).first()
         if not entrega:
