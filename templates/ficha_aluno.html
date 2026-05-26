@@ -219,6 +219,52 @@
     {% endif %}
 </div>
 
+{# ===== DOCUMENTOS ===== #}
+<div class="card ficha-card-secao">
+    <h3>Documentos</h3>
+    {% if matriculas %}
+    <div class="tabela-planilha">
+        <table class="tabela-excel">
+            <thead>
+                <tr>
+                    <th>Curso</th>
+                    <th class="ficha-th-centro">Declaração de Matrícula</th>
+                    <th class="ficha-th-centro">Declaração de Presença</th>
+                    <th class="ficha-th-centro">Declaração de Conclusão</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in matriculas %}
+                <tr>
+                    <td><strong>{{ m.curso_nome }}</strong></td>
+                    <td class="ficha-th-centro">
+                        <a href="/aluno/{{ aluno.id }}/declaracao-matricula/{{ m.id }}"
+                           class="btn btn-sm btn-azul" target="_blank">
+                            &#11015; Baixar
+                        </a>
+                    </td>
+                    <td class="ficha-th-centro">
+                        <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
+                           class="btn btn-sm btn-azul" target="_blank">
+                            &#11015; Baixar
+                        </a>
+                    </td>
+                    <td class="ficha-th-centro">
+                        <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
+                           class="btn btn-sm btn-azul" target="_blank">
+                            &#11015; Baixar
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">Nenhuma matrícula encontrada.</p>
+    {% endif %}
+</div>
+
 {# ===== TENTATIVAS DE PROVAS ===== #}
 <div class="card ficha-card-secao">
     <h3>Tentativas de Provas</h3>

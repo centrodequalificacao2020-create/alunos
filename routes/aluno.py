@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, flash, jsonify, session, url_for
+from flask import Blueprint, render_template, request, redirect, flash, jsonify, session, url_for, send_file
 from db import db
 from models import Aluno, Curso, Mensalidade, Matricula
 from security import login_required, verificar_senha, hash_senha
@@ -15,7 +15,6 @@ def _cpf_limpo(cpf: str) -> str:
 
 
 def _get_acesso(aluno_id, curso_id):
-    """Busca registro de acesso ao conteudo. Retorna None se tabela nao existir."""
     try:
         from models import AcessoConteudoCurso
         return AcessoConteudoCurso.query.filter_by(
@@ -26,7 +25,6 @@ def _get_acesso(aluno_id, curso_id):
 
 
 def _toggle_acesso(aluno_id, curso_id, acao, admin_nome):
-    """Cria/atualiza registro de acesso. Retorna False se tabela nao existir."""
     try:
         from models import AcessoConteudoCurso
         acesso = AcessoConteudoCurso.query.filter_by(
@@ -46,21 +44,17 @@ def _toggle_acesso(aluno_id, curso_id, acao, admin_nome):
 
 
 def _contagens_globais():
-    """Retorna dict com totais reais do banco, independente de paginacao ou filtro."""
     hoje = date.today().isoformat()
-
     rows = (
         db.session.query(Aluno.status, func.count(Aluno.id))
         .group_by(Aluno.status)
         .all()
     )
     por_status = {r[0]: r[1] for r in rows}
-
     inadimplentes_ids = {
         r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
         .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje).all()
     }
-
     return {
         "cnt_ativos":         por_status.get("Ativo", 0),
         "cnt_trancados":      por_status.get("Trancado", 0),
@@ -183,18 +177,13 @@ def excluir_aluno(id):
     a    = db.get_or_404(Aluno, id)
     nome = a.nome
 
-    # --- tabelas filhas sem cascade no modelo ---
     AtividadeLiberada.query.filter_by(aluno_id=id).delete()
     ExercicioLiberado.query.filter_by(aluno_id=id).delete()
     ProvaLiberada.query.filter_by(aluno_id=id).delete()
     MateriaLiberada.query.filter_by(aluno_id=id).delete()
     EntregaAtividade.query.filter_by(aluno_id=id).delete()
-
-    # respostas_questao e respostas_exercicio_questao são limpas
-    # em cascata pelo ORM ao deletar RespostaProva / RespostaExercicio
     RespostaProva.query.filter_by(aluno_id=id).delete()
     RespostaExercicio.query.filter_by(aluno_id=id).delete()
-
     TurmaAluno.query.filter_by(aluno_id=id).delete()
     Nota.query.filter_by(aluno_id=id).delete()
     Frequencia.query.filter_by(aluno_id=id).delete()
@@ -210,8 +199,6 @@ def excluir_aluno(id):
     except OperationalError:
         db.session.rollback()
 
-    # login_historico_aluno tem cascade="all, delete-orphan" no modelo,
-    # será removido automaticamente junto com o aluno.
     db.session.delete(a)
     db.session.commit()
     flash(f"Aluno \u201c{nome}\u201d exclu\u00eddo com sucesso.", "sucesso")
@@ -359,6 +346,29 @@ def ficha_aluno(aluno_id):
     )
 
 
+# ─── DECLARAÇÃO DE MATRÍCULA (PDF) ─────────────────────────────────────────────
+
+@aluno_bp.route("/aluno/<int:aluno_id>/declaracao-matricula/<int:matricula_id>")
+@login_required
+def declaracao_matricula_pdf(aluno_id, matricula_id):
+    from flask import current_app
+    from services.pdf_service import gerar_declaracao_matricula
+
+    matricula = Matricula.query.filter_by(id=matricula_id, aluno_id=aluno_id).first_or_404()
+    aluno     = db.get_or_404(Aluno, aluno_id)
+    curso     = db.get_or_404(Curso, matricula.curso_id)
+
+    buf = gerar_declaracao_matricula(aluno, matricula, curso,
+                                     root_path=current_app.root_path)
+    nome_arquivo = f"declaracao_matricula_{aluno_id}_{matricula_id}.pdf"
+    return send_file(
+        buf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=nome_arquivo,
+    )
+
+
 @aluno_bp.route("/aluno/<int:aluno_id>/tentativa_prova/<int:resp_id>/excluir", methods=["POST"])
 @login_required
 def excluir_tentativa_prova(aluno_id, resp_id):
@@ -448,8 +458,6 @@ def excluir_matricula(matricula_id):
     return redirect(f"/aluno/{aluno_id}")
 
 
-# ─── MATRICULAR ALUNO ─────────────────────────────────────────────────────────
-
 @aluno_bp.route("/matricular_aluno", methods=["POST"])
 @login_required
 def matricular_aluno():
@@ -484,8 +492,6 @@ def matricular_aluno():
     flash(f"Aluno matriculado em {curso.nome}.", "sucesso")
     return redirect(f"/aluno/{aluno_id}")
 
-
-# ─── ALTERAR STATUS DA MATRÍCULA ─────────────────────────────────────────────────
 
 @aluno_bp.route("/matricula/<int:matricula_id>/status", methods=["POST"])
 @login_required
