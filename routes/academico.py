@@ -7,7 +7,7 @@ from models import (Aluno, Curso, Materia, CursoMateria,
 from security import login_required
 from services.pdf_service import (
     gerar_boletim_notas, gerar_historico_frequencia,
-    gerar_declaracao_conclusao
+    gerar_declaracao_conclusao, gerar_declaracao_matricula
 )
 from services.notas_service import (
     get_materias_do_curso, get_notas_map, get_boletim,
@@ -94,7 +94,7 @@ def excluir_turma(turma_id):
     turma = Turma.query.get_or_404(turma_id)
     db.session.delete(turma)
     db.session.commit()
-    flash("Turma exclu\u00edda.", "sucesso")
+    flash("Turma excluída.", "sucesso")
     return redirect("/turmas")
 
 
@@ -107,11 +107,11 @@ def adicionar_aluno_turma(turma_id):
         flash("Selecione um aluno.", "erro")
         return redirect(f"/turmas/{turma_id}/editar")
     if TurmaAluno.query.filter_by(turma_id=turma_id, aluno_id=aluno_id).first():
-        flash("Aluno j\u00e1 est\u00e1 nesta turma.", "erro")
+        flash("Aluno já está nesta turma.", "erro")
         return redirect(f"/turmas/{turma_id}/editar")
     db.session.add(TurmaAluno(turma_id=turma_id, aluno_id=aluno_id))
     db.session.commit()
-    flash("Aluno adicionado \u00e0 turma!", "sucesso")
+    flash("Aluno adicionado à turma!", "sucesso")
     return redirect(f"/turmas/{turma_id}/editar")
 
 
@@ -147,7 +147,7 @@ def materias():
                 if not existe:
                     db.session.add(CursoMateria(curso_id=curso_id, materia_id=m.id))
                 db.session.commit()
-                flash("Mat\u00e9ria cadastrada!", "sucesso")
+                flash("Matéria cadastrada!", "sucesso")
             else:
                 flash("Preencha nome e curso.", "erro")
         elif acao == "editar":
@@ -157,14 +157,14 @@ def materias():
             if nome:
                 m.nome = nome
                 db.session.commit()
-                flash("Mat\u00e9ria atualizada!", "sucesso")
+                flash("Matéria atualizada!", "sucesso")
         elif acao == "excluir":
             mid = request.form.get("materia_id", type=int)
             m   = Materia.query.get_or_404(mid)
             m.ativa = 0
             CursoMateria.query.filter_by(materia_id=mid).delete()
             db.session.commit()
-            flash("Mat\u00e9ria exclu\u00edda!", "sucesso")
+            flash("Matéria excluída!", "sucesso")
         return redirect("/materias")
     materias_por_curso = {
         (c.id, c.nome): Materia.query.filter_by(curso_id=c.id, ativa=1)
@@ -272,7 +272,7 @@ def frequencia():
         if aluno_id and curso_id and data_aula and status:
             try:
                 registrar_frequencia(aluno_id, curso_id, data_aula, status)
-                flash("Frequ\u00eancia salva!", "sucesso")
+                flash("Frequência salva!", "sucesso")
             except ValueError as e:
                 flash(str(e), "erro")
                 return redirect(
@@ -297,7 +297,7 @@ def excluir_frequencia(freq_id):
     curso_id = f.curso_id
     db.session.delete(f)
     db.session.commit()
-    flash("Registro de frequ\u00eancia removido.", "sucesso")
+    flash("Registro de frequência removido.", "sucesso")
     return redirect(f"/frequencia?aluno_id={aluno_id}&curso_id={curso_id}")
 
 
@@ -307,11 +307,11 @@ def excluir_frequencia_tudo():
     aluno_id = request.form.get("aluno_id", type=int)
     curso_id = request.form.get("curso_id", type=int)
     if not aluno_id or not curso_id:
-        flash("Dados inv\u00e1lidos.", "erro")
+        flash("Dados inválidos.", "erro")
         return redirect("/frequencia")
     total = Frequencia.query.filter_by(aluno_id=aluno_id, curso_id=curso_id).delete()
     db.session.commit()
-    flash(f"{total} registro(s) de frequ\u00eancia removido(s).", "sucesso")
+    flash(f"{total} registro(s) de frequência removido(s).", "sucesso")
     return redirect(f"/frequencia?aluno_id={aluno_id}")
 
 
@@ -366,11 +366,11 @@ def frequencia_historico_pdf(aluno_id, curso_id):
 @academico_bp.route("/declaracao_conclusao_pdf/<int:aluno_id>/<int:curso_id>")
 @login_required
 def declaracao_conclusao_pdf(aluno_id, curso_id):
-    """Gera declara\u00e7\u00e3o de conclus\u00e3o.
+    """Gera declaração de conclusão.
     Query params opcionais:
-      - modalidade: EAD (padr\u00e3o) ou Presencial
-      - parceiro_nome: nome da institui\u00e7\u00e3o parceira
-      - parceiro_cnpj: CNPJ da institui\u00e7\u00e3o parceira
+      - modalidade: EAD (padrão) ou Presencial
+      - parceiro_nome: nome da instituição parceira
+      - parceiro_cnpj: CNPJ da instituição parceira
     """
     aluno          = Aluno.query.get_or_404(aluno_id)
     curso          = Curso.query.get_or_404(curso_id)
@@ -390,6 +390,27 @@ def declaracao_conclusao_pdf(aluno_id, curso_id):
                      mimetype="application/pdf")
 
 
+@academico_bp.route("/aluno/<int:aluno_id>/declaracao-matricula")
+@login_required
+def declaracao_matricula_pdf(aluno_id):
+    """Gera declaração de matrícula do aluno (visão admin).
+    Usa a matrícula ativa do aluno. Retorna 404 se não houver matrícula.
+    """
+    aluno     = Aluno.query.get_or_404(aluno_id)
+    matricula = get_matricula_ativa(aluno_id)
+    if matricula is None:
+        flash("Nenhuma matrícula ativa encontrada para este aluno.", "erro")
+        return redirect(f"/aluno/{aluno_id}")
+    buf = gerar_declaracao_matricula(
+        aluno, matricula,
+        root_path=current_app.root_path
+    )
+    nome_arquivo = f"declaracao_matricula_{aluno.nome.split()[0].lower()}_{aluno_id}.pdf"
+    return send_file(buf, as_attachment=True,
+                     download_name=nome_arquivo,
+                     mimetype="application/pdf")
+
+
 # NOTA: a rota /backup foi removida deste blueprint.
-# O backup do banco de dados \u00e9 feito exclusivamente via routes/backup.py
-# com @admin_required, evitando acesso n\u00e3o autorizado.
+# O backup do banco de dados é feito exclusivamente via routes/backup.py
+# com @admin_required, evitando acesso não autorizado.
