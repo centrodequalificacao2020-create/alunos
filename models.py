@@ -96,6 +96,9 @@ class Aluno(db.Model):
     responsavel_telefone   = db.Column(db.String(20))
     responsavel_parentesco = db.Column(db.String(40))
     senha                  = db.Column(db.String(256))
+    contrato_assinado      = db.Column(db.Boolean, default=False, nullable=False,
+                                       server_default="0")
+    contrato_assinado_em   = db.Column(db.String(19), nullable=True)
 
     curso_rel    = db.relationship("Curso",      back_populates="alunos", lazy=True, foreign_keys=[curso_id])
     mensalidades = db.relationship("Mensalidade", backref="aluno", lazy=True)
@@ -423,10 +426,8 @@ class RespostaExercicio(db.Model):
     total_questoes   = db.Column(db.Integer, default=0)
     acertos          = db.Column(db.Integer, default=0)
     percentual       = db.Column(db.Float,   default=0.0)
-    # Campos espelhados de RespostaProva para uniformidade na ficha do aluno
     nota_obtida          = db.Column(db.Float,   nullable=True)
     aprovado             = db.Column(db.Integer, nullable=True)
-    # Soma bruta de pontos obtidos (antes da conversão para escala 0-10)
     pontos_obtidos_total = db.Column(db.Float,   nullable=True)
     aluno = db.relationship("Aluno", backref="respostas_exercicio", lazy=True)
     respostas_questao = db.relationship(
@@ -465,7 +466,6 @@ class RespostaExercicioQuestao(db.Model):
         nullable=True,
     )
     acertou               = db.Column(db.Integer, default=0)
-    # Campos espelhados de RespostaQuestao para suporte a questoes dissertativas
     texto_resposta = db.Column(db.Text,    nullable=True)
     pontos_obtidos = db.Column(db.Float,   nullable=True)
     corrigida      = db.Column(db.Integer, default=0)
