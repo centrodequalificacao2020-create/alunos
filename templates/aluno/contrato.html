@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block title %}Contrato de Uso &mdash; Portal do Aluno{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<style>
+body {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px 60px;
+}
+
+.contrato-card {
+    background: linear-gradient(145deg, rgba(0,198,255,.15), rgba(0,120,255,.08));
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 22px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.45);
+    width: 100%;
+    max-width: 760px;
+    padding: 38px 40px 36px;
+    color: #fff;
+}
+
+@media (max-width: 600px) {
+    .contrato-card { padding: 26px 18px 28px; }
+}
+
+.contrato-card .logo-topo {
+    text-align: center;
+    margin-bottom: 22px;
+}
+
+.contrato-card .logo-topo i {
+    font-size: 40px;
+    color: #00c6ff;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.contrato-card h2 {
+    font-size: 19px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 6px;
+    letter-spacing: .4px;
+}
+
+.contrato-card .subtitulo {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255,255,255,.55);
+    margin-bottom: 26px;
+}
+
+/* Caixa de scroll do texto do contrato */
+.contrato-texto {
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px;
+    padding: 22px 24px;
+    height: 340px;
+    overflow-y: auto;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: rgba(255,255,255,.85);
+    margin-bottom: 24px;
+    scroll-behavior: smooth;
+}
+
+.contrato-texto::-webkit-scrollbar        { width: 6px; }
+.contrato-texto::-webkit-scrollbar-track  { background: rgba(255,255,255,.05); border-radius: 4px; }
+.contrato-texto::-webkit-scrollbar-thumb  { background: rgba(0,198,255,.4); border-radius: 4px; }
+.contrato-texto::-webkit-scrollbar-thumb:hover { background: rgba(0,198,255,.7); }
+
+.contrato-texto h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #00c6ff;
+    margin: 18px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.contrato-texto h3:first-child { margin-top: 0; }
+
+.contrato-texto p {
+    margin: 0 0 10px;
+}
+
+/* Checkbox de aceite */
+.aceite-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(0,198,255,.07);
+    border: 1px solid rgba(0,198,255,.2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+    cursor: pointer;
+    transition: background .25s, border-color .25s;
+}
+
+.aceite-row:hover {
+    background: rgba(0,198,255,.13);
+    border-color: rgba(0,198,255,.4);
+}
+
+.aceite-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: #00c6ff;
+    cursor: pointer;
+}
+
+.aceite-row label {
+    font-size: 13.5px;
+    color: rgba(255,255,255,.88);
+    cursor: pointer;
+    line-height: 1.5;
+}
+
+.aceite-row label strong { color: #00c6ff; }
+
+/* Botão continuar */
+.btn-continuar {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(90deg, #00c6ff, #0072ff);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    letter-spacing: .5px;
+    cursor: pointer;
+    transition: opacity .25s, transform .2s, box-shadow .2s;
+    box-shadow: 0 4px 20px rgba(0,114,255,.4);
+}
+
+.btn-continuar:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.btn-continuar:not(:disabled):hover {
+    opacity: .9;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0,114,255,.55);
+}
+
+/* Mensagem de alerta de flash */
+.alerta {
+    border-radius: 10px;
+    padding: 11px 16px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    font-weight: 500;
+}
+.alerta-erro    { background: rgba(255,77,77,.18);  border: 1px solid rgba(255,77,77,.4);  color: #ff9e9e; }
+.alerta-sucesso { background: rgba(0,255,157,.12);  border: 1px solid rgba(0,255,157,.3);  color: #00ff9d; }
+</style>
+
+<div class="contrato-card">
+
+    <div class="logo-topo">
+        <i class="fas fa-file-signature"></i>
+    </div>
+
+    <h2>Contrato de Uso do Portal do Aluno</h2>
+    <p class="subtitulo">
+        Leia o contrato abaixo com aten&ccedil;&atilde;o antes de continuar.
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alerta alerta-{{ 'erro' if category == 'erro' else 'sucesso' }}">
+            <i class="fas fa-{{ 'exclamation-circle' if category == 'erro' else 'check-circle' }}"></i>
+            {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    <!-- CAIXA DE SCROLL COM O TEXTO DO CONTRATO -->
+    <div class="contrato-texto" id="caixaContrato">
+
+        {# ================================================================
+           SUBSTITUA O CONTEÚDO ABAIXO PELO TEXTO REAL DO CONTRATO.
+           Pode usar tags HTML: <h3>, <p>, <strong>, <ul>, <li> etc.
+           ================================================================ #}
+
+        <h3>1. Das Partes</h3>
+        <p>
+            O presente contrato é celebrado entre o <strong>Centro de Qualificação</strong>
+            (doravante denominado <strong>Instituição</strong>) e o aluno identificado
+            neste portal (doravante denominado <strong>Aluno</strong>).
+        </p>
+
+        <h3>2. Do Objeto</h3>
+        <p>
+            O presente contrato tem por objeto o acesso ao Portal do Aluno, plataforma
+            digital disponibilizada pela Instituição para acompanhamento acadêmico,
+            financeiro e de conteúdo didático.
+        </p>
+
+        <h3>3. Das Obrigações do Aluno</h3>
+        <p>
+            O Aluno se compromete a:
+        </p>
+        <ul>
+            <li>Manter suas credenciais de acesso (CPF e senha) em sigilo;</li>
+            <li>Não compartilhar o acesso ao portal com terceiros;</li>
+            <li>Utilizar o portal exclusivamente para fins acadêmicos;</li>
+            <li>Comunicar imediatamente a Instituição em caso de acesso não autorizado.</li>
+        </ul>
+
+        <h3>4. Do Conteúdo Didático</h3>
+        <p>
+            Todo o conteúdo disponibilizado no portal (aulas, apostilas, provas e
+            exercícios) é de propriedade exclusiva da Instituição, sendo proibida
+            sua reproduoção, distribuição ou comercialização sem autorização prévia
+            e expressa.
+        </p>
+
+        <h3>5. Da Privacidade</h3>
+        <p>
+            Os dados pessoais do Aluno serão tratados em conformidade com a
+            <strong>Lei nº 13.709/2018 (LGPD)</strong>, sendo utilizados exclusivamente
+            para a gestaão acadêmica e financeira.
+        </p>
+
+        <h3>6. Do Acesso</h3>
+        <p>
+            A Instituição reserva-se o direito de suspender ou revogar o acesso
+            ao portal em caso de descumprimento das cláusulas deste contrato ou
+            de inadimplência financeira.
+        </p>
+
+        <h3>7. Do Aceite Eletrônico</h3>
+        <p>
+            O presente contrato é aceito de forma eletrônica, tendo plena validade
+            jurídica nos termos do art. 10 da <strong>MP 2.200-2/2001</strong>.
+            A data e horário do aceite serão registrados no sistema.
+        </p>
+
+        {# ================================================================
+           FIM DO TEXTO DO CONTRATO
+           ================================================================ #}
+
+    </div>
+    <!-- /CAIXA DE SCROLL -->
+
+    <form method="POST" action="/aluno/contrato/assinar" id="formContrato">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="aceite-row" onclick="toggleAceite()">
+            <input
+                type="checkbox"
+                name="aceite"
+                id="checkAceite"
+                value="on"
+                onclick="event.stopPropagation()"
+                onchange="toggleBotao()"
+            >
+            <label for="checkAceite">
+                Li e estou de acordo com todos os termos do
+                <strong>Contrato de Uso do Portal do Aluno</strong>.
+            </label>
+        </div>
+
+        <button
+            type="submit"
+            class="btn-continuar"
+            id="btnContinuar"
+            disabled
+        >
+            <i class="fas fa-arrow-right"></i>
+            &nbsp; Continuar para o Portal
+        </button>
+    </form>
+
+    <p style="text-align:center;font-size:12px;color:rgba(255,255,255,.35);margin-top:18px;">
+        <i class="fas fa-lock" style="font-size:11px;"></i>
+        Aceite registrado com data e horário no banco de dados.
+    </p>
+
+</div>
+
+<script>
+function toggleAceite() {
+    var cb = document.getElementById('checkAceite');
+    cb.checked = !cb.checked;
+    toggleBotao();
+}
+
+function toggleBotao() {
+    var cb  = document.getElementById('checkAceite');
+    var btn = document.getElementById('btnContinuar');
+    btn.disabled = !cb.checked;
+}
+
+// Evita submissão dupla
+document.getElementById('formContrato').addEventListener('submit', function() {
+    var btn = document.getElementById('btnContinuar');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>&nbsp; Processando...';
+});
+</script>
+{% endblock %}
