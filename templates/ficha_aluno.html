@@ -199,6 +199,10 @@
                     <td class="acoes-texto">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
                            class="btn btn-sm btn-azul" target="_blank">Declaração</a>
+                        {% if m.status and m.status.upper() == 'ATIVA' %}
+                        <a href="/aluno/{{ aluno.id }}/declaracao-matricula"
+                           class="btn btn-sm btn-azul" target="_blank">Dec. Matrícula</a>
+                        {% endif %}
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
                            class="btn btn-sm btn-azul" target="_blank">Presença</a>
                         <form method="POST" action="/excluir_matricula/{{ m.id }}"
