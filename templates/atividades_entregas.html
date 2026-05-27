@@ -21,6 +21,37 @@ td{ padding:10px 12px; border-bottom:1px solid var(--color-border,#eee); vertica
 .btn-avaliar{ background:#3498db; color:#fff; border:none; border-radius:6px;
   padding:5px 12px; font-size:13px; font-weight:700; cursor:pointer; align-self:flex-end; }
 .link-arq{ color:#3498db; font-size:12px; }
+
+/* ── busca ── */
+.busca-form{ display:flex; gap:8px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+.busca-form input[type=search]{
+  padding:7px 12px; border-radius:8px; border:1px solid #ccc;
+  font-size:14px; width:280px;
+}
+.btn-busca{
+  background:#3498db; color:#fff; border:none; border-radius:8px;
+  padding:7px 16px; font-size:13px; font-weight:700; cursor:pointer;
+}
+.btn-limpar{
+  color:#3498db; font-size:13px; text-decoration:none;
+}
+
+/* ── paginação ── */
+.paginacao{
+  display:flex; align-items:center; gap:6px;
+  margin-top:24px; flex-wrap:wrap;
+}
+.paginacao a, .paginacao span{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:36px; height:36px; padding:0 10px;
+  border-radius:8px; font-size:13px; font-weight:700;
+  border:1px solid #d0d0d0; text-decoration:none; color:#333;
+  background:#fff;
+}
+.paginacao a:hover{ background:#f0f0f0; }
+.paginacao span.atual{ background:#3498db; color:#fff; border-color:#3498db; }
+.paginacao span.desabilitado{ opacity:.35; cursor:default; }
+.info-paginacao{ font-size:12px; opacity:.55; margin-top:10px; }
 </style>
 {% endblock %}
 
@@ -39,6 +70,25 @@ td{ padding:10px 12px; border-bottom:1px solid var(--color-border,#eee); vertica
   Curso: {{ atividade.curso.nome }}
   {% if atividade.materia %} &nbsp;|&nbsp; Matéria: {{ atividade.materia.nome }}{% endif %}
 </p>
+
+{# ── Barra de busca ── #}
+<form method="GET" action="" class="busca-form">
+  <input
+    type="search"
+    name="q"
+    value="{{ termo }}"
+    placeholder="Buscar por nome do aluno…"
+    autocomplete="off"
+  >
+  <button type="submit" class="btn-busca">
+    <i class="fas fa-search"></i> Buscar
+  </button>
+  {% if termo %}
+    <a href="?" class="btn-limpar">
+      <i class="fas fa-times"></i> Limpar
+    </a>
+  {% endif %}
+</form>
 
 {% if entregas %}
 <table>
@@ -87,7 +137,53 @@ td{ padding:10px 12px; border-bottom:1px solid var(--color-border,#eee); vertica
   {% endfor %}
   </tbody>
 </table>
+
+{# ── Info de paginação ── #}
+<p class="info-paginacao">
+  Exibindo {{ entregas|length }} de {{ paginacao.total }} entrega(s)
+  {% if termo %} para "<strong>{{ termo }}</strong>"{% endif %}
+  &nbsp;—&nbsp; Página {{ paginacao.page }} de {{ paginacao.pages }}
+</p>
+
+{# ── Navegação de páginas ── #}
+{% if paginacao.pages > 1 %}
+<nav class="paginacao" aria-label="Paginação">
+  {# Anterior #}
+  {% if paginacao.has_prev %}
+    <a href="?q={{ termo|urlencode }}&page={{ paginacao.prev_num }}">
+      <i class="fas fa-chevron-left"></i>
+    </a>
+  {% else %}
+    <span class="desabilitado"><i class="fas fa-chevron-left"></i></span>
+  {% endif %}
+
+  {# Números de página (janela ±2 ao redor da página atual) #}
+  {% for p in paginacao.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if p %}
+      {% if p == paginacao.page %}
+        <span class="atual">{{ p }}</span>
+      {% else %}
+        <a href="?q={{ termo|urlencode }}&page={{ p }}">{{ p }}</a>
+      {% endif %}
+    {% else %}
+      <span class="desabilitado">…</span>
+    {% endif %}
+  {% endfor %}
+
+  {# Próxima #}
+  {% if paginacao.has_next %}
+    <a href="?q={{ termo|urlencode }}&page={{ paginacao.next_num }}">
+      <i class="fas fa-chevron-right"></i>
+    </a>
+  {% else %}
+    <span class="desabilitado"><i class="fas fa-chevron-right"></i></span>
+  {% endif %}
+</nav>
+{% endif %}
+
 {% else %}
-<p style="opacity:.5">Nenhuma entrega recebida ainda.</p>
+<p style="opacity:.5;margin-top:16px">Nenhuma entrega encontrada
+  {% if termo %} para "<strong>{{ termo }}</strong>"{% endif %}.
+</p>
 {% endif %}
 {% endblock %}

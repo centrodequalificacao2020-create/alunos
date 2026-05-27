@@ -9,6 +9,8 @@ atividades_bp = Blueprint("atividades", __name__)
 
 PERFIS_ADMIN = {"ADMIN", "SECRETARIA", "INSTRUTOR"}
 
+PER_PAGE = 20
+
 
 def _operador():
     return session.get("usuario") or session.get("nome") or "sistema"
@@ -154,13 +156,30 @@ def excluir_atividade(atv_id):
 @atividades_bp.route("/atividades/<int:atv_id>/entregas")
 @login_required
 def ver_entregas(atv_id):
-    atv      = db.get_or_404(Atividade, atv_id)
-    entregas = EntregaAtividade.query.filter_by(atividade_id=atv_id).all()
+    atv   = db.get_or_404(Atividade, atv_id)
+    termo = request.args.get("q", "").strip()
+    page  = request.args.get("page", 1, type=int)
+
+    query = (
+        EntregaAtividade.query
+        .join(Aluno, Aluno.id == EntregaAtividade.aluno_id)
+        .filter(EntregaAtividade.atividade_id == atv_id)
+    )
+
+    if termo:
+        query = query.filter(Aluno.nome.ilike(f"%{termo}%"))
+
+    paginacao = query.order_by(EntregaAtividade.id.desc()).paginate(
+        page=page, per_page=PER_PAGE, error_out=False
+    )
+
     upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
     return render_template(
         "atividades_entregas.html",
         atividade     = atv,
-        entregas      = entregas,
+        paginacao     = paginacao,
+        entregas      = paginacao.items,
+        termo         = termo,
         upload_folder = upload_folder,
     )
 
