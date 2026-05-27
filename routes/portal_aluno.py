@@ -1,9 +1,11 @@
 import os
+import hashlib
 from datetime import date, datetime
-from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response, current_app, send_file
+from flask import Blueprint, render_template, request, redirect, session, flash, abort, Response, current_app, send_file, jsonify
 from models import (
     Aluno, Mensalidade, Frequencia, Conteudo, Materia, Matricula,
-    ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno
+    ProgressoAula, CursoMateria, Nota, Curso, LoginHistoricoAluno,
+    ContratoAceite
 )
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
@@ -22,6 +24,9 @@ _MIME_PERMITIDOS = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-excel",
 }
+
+# Versao atual do contrato — altere ao publicar um novo texto
+_VERSAO_CONTRATO = "v1.0"
 
 
 def _calcular_nota(total_pontos, pontos_max):
@@ -181,6 +186,25 @@ def verificar_contrato(aluno):
     return None
 
 
+def _hash_contrato(versao: str) -> str:
+    """Calcula o SHA-256 do arquivo de template do contrato.
+
+    Tenta ler o arquivo HTML do contrato em disco para produzir um hash
+    deterministico do conteudo exato exibido ao aluno. Se o arquivo nao
+    for encontrado (ambiente de testes, path alternativo etc.) usa o
+    hash da string de versao como fallback seguro.
+    """
+    try:
+        template_path = os.path.join(
+            current_app.root_path, "templates", "aluno", "contrato.html"
+        )
+        with open(template_path, "rb") as fh:
+            conteudo = fh.read()
+        return hashlib.sha256(conteudo).hexdigest()
+    except Exception:
+        return hashlib.sha256(versao.encode()).hexdigest()
+
+
 # --- LOGIN / LOGOUT -----------------------------------------------------------
 
 @portal_aluno_bp.route("/login", methods=["GET", "POST"])
@@ -242,11 +266,75 @@ def assinar_contrato():
     if aceite != "on":
         flash("Você precisa marcar o checkbox para aceitar o contrato.", "erro")
         return redirect("/aluno/contrato")
+
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Captura IP real mesmo atras de proxy
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+    if ip and "," in ip:
+        ip = ip.split(",")[0].strip()
+    ip = (ip or "")[:45]
+
+    ua = (request.headers.get("User-Agent") or "")[:500]
+
+    # Grava log imutavel de auditoria
+    db.session.add(ContratoAceite(
+        aluno_id      = aluno.id,
+        versao        = _VERSAO_CONTRATO,
+        hash_contrato = _hash_contrato(_VERSAO_CONTRATO),
+        aceito_em     = agora,
+        ip            = ip,
+        user_agent    = ua,
+    ))
+
     aluno.contrato_assinado    = True
-    aluno.contrato_assinado_em = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    aluno.contrato_assinado_em = agora
     db.session.commit()
     flash("Contrato aceito com sucesso! Bem-vindo ao portal.", "sucesso")
     return redirect("/aluno/dashboard")
+
+
+@portal_aluno_bp.route("/contrato/historico", methods=["GET"])
+@aluno_login_required
+def historico_contrato():
+    """Retorna o historico de aceites do contrato do aluno logado.
+
+    Formato de resposta JSON:
+    {
+        "aluno_id": 42,
+        "aceites": [
+            {
+                "id": 1,
+                "versao": "v1.0",
+                "hash_contrato": "<sha256hex>",
+                "aceito_em": "2026-05-27 18:00:00",
+                "ip": "177.10.20.30"
+            },
+            ...
+        ]
+    }
+    Campos sensiveis (user_agent) sao omitidos intencionalmente.
+    """
+    aluno_id = session["aluno_id"]
+    aceites  = (
+        ContratoAceite.query
+        .filter_by(aluno_id=aluno_id)
+        .order_by(ContratoAceite.aceito_em.desc())
+        .all()
+    )
+    return jsonify({
+        "aluno_id": aluno_id,
+        "aceites": [
+            {
+                "id":            a.id,
+                "versao":        a.versao,
+                "hash_contrato": a.hash_contrato,
+                "aceito_em":     a.aceito_em,
+                "ip":            a.ip,
+            }
+            for a in aceites
+        ],
+    })
 
 
 # --- DASHBOARD ----------------------------------------------------------------
