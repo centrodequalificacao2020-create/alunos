@@ -5,8 +5,9 @@ from flask import Flask, jsonify, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
+from flask_migrate import Migrate
 from config import Config
-from db import init_db
+from db import init_db, db
 from logging_config import configure_logging
 
 # Instância global — blueprints importam este objeto para usar @limiter.limit()
@@ -16,7 +17,8 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-csrf = CSRFProtect()
+csrf    = CSRFProtect()
+migrate = Migrate()
 
 
 def limpar_nome_arquivo(nome):
@@ -29,6 +31,7 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     init_db(app)
+    migrate.init_app(app, db)
     limiter.init_app(app)
     csrf.init_app(app)
     configure_logging(app)
