@@ -175,13 +175,23 @@ def _cursos_disponiveis(aluno_id):
 
 
 def verificar_contrato(aluno):
-    """Redireciona para a pagina do contrato se o aluno ainda nao assinou.
+    """Redireciona para /aluno/contrato se o aluno ainda nao assinou E
+    foi cadastrado apos a implantacao do sistema de contratos.
 
-    Deve ser chamada logo apos buscar o objeto aluno nas rotas protegidas
-    do portal. Nao altera o decorador @aluno_login_required.
-    Retorna um objeto Response de redirect ou None se o contrato ja foi assinado.
+    Alunos cadastrados antes da implantacao (contrato_assinado IS NULL/False
+    mas sem nenhum reset explicitamente solicitado pela secretaria via
+    POST /admin/alunos/<id>/contrato/reset) NAO sao redirecionados.
+
+    A secretaria pode forcar a assinatura de qualquer aluno pelo botao
+    'Forcar assinatura' na ficha, que seta contrato_assinado = False.
+    Apenas nesse caso (campo explicitamente False, nao NULL) o redirect
+    e ativado para alunos pre-existentes.
+
+    Retorna um Response de redirect ou None.
     """
-    if not aluno.contrato_assinado:
+    # NULL = aluno antigo que nunca interagiu com o sistema de contratos.
+    # False (booleano ou 0) = secretaria solicitou nova assinatura.
+    if aluno.contrato_assinado is False:
         return redirect("/aluno/contrato")
     return None
 
@@ -297,24 +307,7 @@ def assinar_contrato():
 @portal_aluno_bp.route("/contrato/historico", methods=["GET"])
 @aluno_login_required
 def historico_contrato():
-    """Retorna o historico de aceites do contrato do aluno logado.
-
-    Formato de resposta JSON:
-    {
-        "aluno_id": 42,
-        "aceites": [
-            {
-                "id": 1,
-                "versao": "v1.0",
-                "hash_contrato": "<sha256hex>",
-                "aceito_em": "2026-05-27 18:00:00",
-                "ip": "177.10.20.30"
-            },
-            ...
-        ]
-    }
-    Campos sensiveis (user_agent) sao omitidos intencionalmente.
-    """
+    """Retorna o historico de aceites do contrato do aluno logado (JSON)."""
     aluno_id = session["aluno_id"]
     aceites  = (
         ContratoAceite.query
@@ -1219,7 +1212,6 @@ def entregar_atividade(atividade_id):
             flash("É obrigatório anexar pelo menos um arquivo para entregar a atividade.", "erro")
             return redirect(f"/aluno/cursos/{atividade.curso_id}")
 
-        # Validação de MIME type: aceitar apenas PDF e Excel
         for campo in ["arquivo1", "arquivo2", "arquivo3"]:
             f = request.files.get(campo)
             if f and f.filename:
