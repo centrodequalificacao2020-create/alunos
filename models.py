@@ -72,6 +72,25 @@ class LoginHistoricoAluno(db.Model):
     user_agent = db.Column(db.String(300))
 
 
+class ContratoAceite(db.Model):
+    """Log imutável de cada aceite de contrato pelo aluno.
+    Uma linha por aceite — nunca é atualizada, apenas inserida.
+    Serve como prova eletrônica (MP 2.200-2/2001, art. 10).
+    """
+    __tablename__ = "contrato_aceites"
+    __table_args__ = (
+        db.Index("ix_contrato_aceite_aluno_id", "aluno_id"),
+        db.Index("ix_contrato_aceite_aceito_em", "aceito_em"),
+    )
+    id             = db.Column(db.Integer, primary_key=True)
+    aluno_id       = db.Column(db.Integer, db.ForeignKey("alunos.id"), nullable=False)
+    versao         = db.Column(db.String(20),  nullable=False, default="v1.0")
+    hash_contrato  = db.Column(db.String(64),  nullable=False)   # SHA-256 hex
+    aceito_em      = db.Column(db.String(19),  nullable=False)   # YYYY-MM-DD HH:MM:SS
+    ip             = db.Column(db.String(45),  nullable=True)    # IPv4 ou IPv6
+    user_agent     = db.Column(db.String(500), nullable=True)
+
+
 class Aluno(db.Model):
     __tablename__ = "alunos"
     id                     = db.Column(db.Integer, primary_key=True)
@@ -110,6 +129,13 @@ class Aluno(db.Model):
         cascade="all, delete-orphan",
         primaryjoin="Aluno.id == LoginHistoricoAluno.aluno_id",
         foreign_keys="[LoginHistoricoAluno.aluno_id]",
+    )
+    contrato_aceites = db.relationship(
+        "ContratoAceite", backref="aluno", lazy=True,
+        cascade="all, delete-orphan",
+        primaryjoin="Aluno.id == ContratoAceite.aluno_id",
+        foreign_keys="[ContratoAceite.aluno_id]",
+        order_by="ContratoAceite.aceito_em.desc()",
     )
 
     @property
