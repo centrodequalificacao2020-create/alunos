@@ -115,8 +115,10 @@ class Aluno(db.Model):
     responsavel_telefone   = db.Column(db.String(20))
     responsavel_parentesco = db.Column(db.String(40))
     senha                  = db.Column(db.String(256))
-    contrato_assinado      = db.Column(db.Boolean, default=False, nullable=False,
-                                       server_default="0")
+    # NULL  = aluno cadastrado antes da implantacao do contrato digital (isento)
+    # False = secretaria solicitou nova assinatura (sera redirecionado)
+    # True  = contrato assinado
+    contrato_assinado      = db.Column(db.Boolean, default=False, nullable=True)
     contrato_assinado_em   = db.Column(db.String(19), nullable=True)
 
     curso_rel    = db.relationship("Curso",      back_populates="alunos", lazy=True, foreign_keys=[curso_id])
