@@ -36,23 +36,24 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     configure_logging(app)
 
-    from routes.auth         import auth_bp
-    from routes.cursos       import cursos_bp
-    from routes.aluno        import aluno_bp
-    from routes.financeiro   import financeiro_bp
-    from routes.dashboard    import dashboard_bp
-    from routes.despesas     import despesas_bp
-    from routes.funcionario  import funcionario_bp
-    from routes.conteudos    import conteudos_bp
-    from routes.portal_aluno import portal_aluno_bp
-    from routes.academico    import academico_bp
-    from routes.backup       import backup_bp
-    from routes.provas       import provas_bp
-    from routes.provas_aluno import provas_aluno_bp
-    from routes.atividades   import atividades_bp
-    from routes.liberacoes   import liberacoes_bp
-    from routes.admin_utils  import admin_utils_bp
-    from routes.exercicios   import exercicios_bp
+    from routes.auth            import auth_bp
+    from routes.cursos          import cursos_bp
+    from routes.aluno           import aluno_bp
+    from routes.financeiro      import financeiro_bp
+    from routes.dashboard       import dashboard_bp
+    from routes.despesas        import despesas_bp
+    from routes.funcionario     import funcionario_bp
+    from routes.conteudos       import conteudos_bp
+    from routes.portal_aluno    import portal_aluno_bp
+    from routes.academico       import academico_bp
+    from routes.backup          import backup_bp
+    from routes.provas          import provas_bp
+    from routes.provas_aluno    import provas_aluno_bp
+    from routes.atividades      import atividades_bp
+    from routes.liberacoes      import liberacoes_bp
+    from routes.admin_utils     import admin_utils_bp
+    from routes.exercicios      import exercicios_bp
+    from routes.contrato_admin  import contrato_admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(cursos_bp)
@@ -69,8 +70,9 @@ def create_app(config_class=Config):
     app.register_blueprint(liberacoes_bp)
     app.register_blueprint(admin_utils_bp)
     app.register_blueprint(exercicios_bp)
-    app.register_blueprint(portal_aluno_bp, url_prefix="/aluno")
-    app.register_blueprint(provas_aluno_bp, url_prefix="/aluno")
+    app.register_blueprint(portal_aluno_bp,   url_prefix="/aluno")
+    app.register_blueprint(provas_aluno_bp,   url_prefix="/aluno")
+    app.register_blueprint(contrato_admin_bp, url_prefix="/admin")
 
     # BUG-19: filtro moeda corrigido — formato brasileiro R$ 1.234,56
     @app.template_filter("moeda")
