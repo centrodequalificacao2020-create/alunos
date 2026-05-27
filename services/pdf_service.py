@@ -1,8 +1,8 @@
 """Serviço centralizado de geração de PDFs.
 
 Consolidado: recibo, carnê, boletim de notas, histórico de frequência,
-declaração de conclusão e confirmação de pré-matrícula.
-As rotas em academico.py delegam para cá — zero lógica de PDF nas rotas.
+declaração de conclusão, confirmação de pré-matrícula e declaração de matrícula.
+As rotas delegam para cá — zero lógica de PDF nas rotas.
 """
 import io
 import os
@@ -37,7 +37,6 @@ def _assinatura_path(root_path: str) -> str:
 
 def _cabecalho(pdf, largura: float, altura: float, titulo: str,
                root_path: str = "") -> float:
-    """Cabeçalho com logo + dados institucionais. Retorna y disponível."""
     logo = _logo_path(root_path)
     if os.path.exists(logo):
         pdf.drawImage(logo, 50, altura - 120, width=80, height=60,
@@ -58,8 +57,6 @@ def _cabecalho(pdf, largura: float, altura: float, titulo: str,
 
 
 def _cabecalho_texto(pdf, largura: float, altura: float, titulo: str) -> float:
-    """Cabeçalho apenas textual (sem logo), estilo do histórico de frequência real.
-    Retorna y disponível."""
     y = altura - 50
     pdf.setFont("Helvetica-Bold", 13)
     pdf.drawCentredString(largura / 2, y, ESCOLA["nome"])
@@ -79,7 +76,6 @@ def _cabecalho_texto(pdf, largura: float, altura: float, titulo: str) -> float:
 
 
 def _rodape_assinatura(pdf, largura: float, root_path: str = ""):
-    """Rodapé com imagem de assinatura (ou linha) + nome e CNPJ da escola."""
     centro = largura / 2
     assin  = _assinatura_path(root_path)
     if os.path.exists(assin):
@@ -94,7 +90,6 @@ def _rodape_assinatura(pdf, largura: float, root_path: str = ""):
 
 
 def _rodape_institucional_texto(pdf, largura: float):
-    """Rodapé textual completo conforme modelo da declaração real."""
     cx = largura / 2
     pdf.setFont("Helvetica-Bold", 10)
     pdf.drawCentredString(cx, 95, f"{ESCOLA['nome']} {ESCOLA['sigla']}")
@@ -108,7 +103,6 @@ def _rodape_institucional_texto(pdf, largura: float):
 def _draw_wrapped_text(pdf, text: str, x: float, y: float,
                        max_width_chars: int, line_height: float,
                        font: str = "Helvetica", size: int = 11) -> float:
-    """Quebra texto em múltiplas linhas e retorna novo y."""
     pdf.setFont(font, size)
     for line in wrap(text, max_width_chars):
         pdf.drawString(x, y, line)
@@ -117,7 +111,6 @@ def _draw_wrapped_text(pdf, text: str, x: float, y: float,
 
 
 def _truncar(texto: str, font_name: str, font_size: int, max_px: float) -> str:
-    """Trunca texto com retiências se ultrapassar max_px pontos."""
     if stringWidth(texto, font_name, font_size) <= max_px:
         return texto
     while texto and stringWidth(texto + "…", font_name, font_size) > max_px:
@@ -126,7 +119,6 @@ def _truncar(texto: str, font_name: str, font_size: int, max_px: float) -> str:
 
 
 def _capitalizar_nome(nome: str) -> str:
-    """Capitaliza nome respeitando preposições comuns em português."""
     preposicoes = {"de", "da", "do", "das", "dos", "e", "em", "com"}
     partes = nome.strip().split()
     return " ".join(
@@ -135,7 +127,7 @@ def _capitalizar_nome(nome: str) -> str:
     )
 
 
-# ───────────────────────────────────────── RECIBO ─────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────── RECIBO
 
 def gerar_recibo(mensalidade, root_path: str = "") -> io.BytesIO:
     buf = io.BytesIO()
@@ -168,7 +160,7 @@ def gerar_recibo(mensalidade, root_path: str = "") -> io.BytesIO:
     return buf
 
 
-# ───────────────────────────────────────── CARNÊ ─────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────── CARNÊ
 
 def gerar_carne(aluno, parcelas, root_path: str = "") -> io.BytesIO:
     buf = io.BytesIO()
@@ -197,7 +189,7 @@ def gerar_carne(aluno, parcelas, root_path: str = "") -> io.BytesIO:
     return buf
 
 
-# ───────────────────────────────────────── BOLETIM ─────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────── BOLETIM
 
 def gerar_boletim_notas(aluno, curso, materias, notas_map,
                         root_path: str = "") -> io.BytesIO:
@@ -236,15 +228,13 @@ def gerar_boletim_notas(aluno, curso, materias, notas_map,
     return buf
 
 
-# ───────────────────────────────────────── FREQUÊNCIA ─────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────── FREQUÊNCIA
 
 def gerar_historico_frequencia(aluno, curso, historico,
                                root_path: str = "") -> io.BytesIO:
-    """Gera PDF do histórico de frequência com logo e dados institucionais."""
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=A4)
     larg, alt = A4
-
     y = _cabecalho(pdf, larg, alt, "HISTÓRICO DE FREQUÊNCIA", root_path)
     y -= 20
     pdf.setFont("Helvetica-Bold", 11)
@@ -255,7 +245,6 @@ def gerar_historico_frequencia(aluno, curso, historico,
     pdf.setFont("Helvetica", 10)
     pdf.drawString(50, y, f"Data: {date.today().strftime('%d/%m/%Y')}")
     y -= 28
-
     pdf.setFont("Helvetica", 11)
     for h in historico:
         txt = "Presente" if h.status == "P" else "Falta"
@@ -265,7 +254,6 @@ def gerar_historico_frequencia(aluno, curso, historico,
         if y < 120:
             pdf.showPage()
             y = alt - 60
-
     _rodape_assinatura(pdf, larg, root_path)
     pdf.showPage()
     pdf.save()
@@ -273,17 +261,11 @@ def gerar_historico_frequencia(aluno, curso, historico,
     return buf
 
 
-# ───────────────────────────────────────── DECLARAÇÃO DE CONCLUSÃO ─────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────── DECLARAÇÃO DE CONCLUSÃO
 
 def _draw_rich_paragraph(pdf, partes, x: float, y: float,
                          max_largura_px: float, line_height: float,
                          font_size: int = 11) -> float:
-    """Renderiza parágrafo com trechos de fonte normal e negrito misturados.
-
-    partes: lista de tuplas (texto, negrito:bool)
-    Quebra automaticamente as linhas respeitando max_largura_px.
-    Retorna o novo y após o parágrafo.
-    """
     tokens = []
     for texto, negrito in partes:
         fonte = "Helvetica-Bold" if negrito else "Helvetica"
@@ -338,12 +320,10 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     tipo_curso = curso.tipo.upper() if curso.tipo else "PROFISSIONAL"
     titulo = f"DECLARAÇÃO DE CONCLUSÃO - {tipo_curso}"
 
-    # ── Cabeçalho com logo + dados institucionais ──
     logo = _logo_path(root_path)
     if os.path.exists(logo):
         pdf.drawImage(logo, 50, alt - 120, width=80, height=60,
                       preserveAspectRatio=True, mask="auto")
-
     pdf.setFont("Helvetica-Bold", 12)
     pdf.drawString(140, alt - 60, f"{ESCOLA['nome']} {ESCOLA['sigla']}")
     pdf.setFont("Helvetica", 9)
@@ -354,22 +334,18 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     pdf.drawString(140, alt - 120, f"Tel.: {ESCOLA['telefone']}")
     pdf.line(50, alt - 135, larg - 50, alt - 135)
 
-    # ── Título centralizado com sublinhado ──
     y = alt - 165
     pdf.setFont("Helvetica-Bold", 14)
     titulo_w = stringWidth(titulo, "Helvetica-Bold", 14)
     titulo_x = (larg - titulo_w) / 2
     pdf.drawString(titulo_x, y, titulo)
     pdf.line(titulo_x, y - 3, titulo_x + titulo_w, y - 3)
-
     y -= 38
 
-    # ── Saudação ──
     pdf.setFont("Helvetica", font_size)
     pdf.drawString(margem, y, "A quem posso interessar,")
     y -= line_height * 1.8
 
-    # ── Parágrafo 1 com negritos ──
     nome_fmt = _capitalizar_nome(aluno.nome)
     cpf_fmt  = aluno.cpf if aluno.cpf else "não informado"
 
@@ -410,7 +386,6 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
                              max_largura_px, line_height, font_size)
     y -= line_height
 
-    # ── Parágrafo 2 ──
     p2 = (
         "O aluno cumpriu integralmente todas as atividades acadêmicas previstas, "
         "atendendo às exigências e etapas estabelecidas no processo de formação."
@@ -421,7 +396,6 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
         y -= line_height
     y -= line_height
 
-    # ── Parágrafo 3 ──
     p3 = (
         f"Este documento é emitido para atestar a conclusão e certificação da referida "
         f"formação {tipo_curso.lower()}, na modalidade {modalidade}"
@@ -431,17 +405,14 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
         pdf.drawString(margem, y, line)
         y -= line_height
 
-    # ── Duas assinaturas lado a lado ──
     assin_y_base = 150
     assin_path   = _assinatura_path(root_path)
-
     col_esq_centro = margem + 95
     pdf.line(margem, assin_y_base, margem + 190, assin_y_base)
     pdf.setFont("Helvetica", 9)
     pdf.drawCentredString(col_esq_centro, assin_y_base - 14, "Diretor Geral")
     pdf.drawCentredString(col_esq_centro, assin_y_base - 26,
                           "Randermei Marinho de Almeida Oliveira")
-
     col_dir_centro = larg - margem - 95
     if os.path.exists(assin_path):
         pdf.drawImage(assin_path,
@@ -452,10 +423,8 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     pdf.setFont("Helvetica", 9)
     pdf.drawCentredString(col_dir_centro, assin_y_base - 14,
                           f"{ESCOLA['nome']} {ESCOLA['sigla']}")
-    pdf.drawCentredString(col_dir_centro, assin_y_base - 26,
-                          "Alex de Assis Pessanha")
-    pdf.drawCentredString(col_dir_centro, assin_y_base - 38,
-                          f"CNPJ: {ESCOLA['cnpj']}")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 26, "Alex de Assis Pessanha")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 38, f"CNPJ: {ESCOLA['cnpj']}")
 
     pdf.showPage()
     pdf.save()
@@ -463,50 +432,153 @@ def gerar_declaracao_conclusao(aluno, curso, modalidade: str = "EAD",
     return buf
 
 
-# ───────────────────────────────────────── CONFIRMAÇÃO DE PRÉ-MATRÍCULA ─────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────── DECLARAÇÃO DE MATRÍCULA
+
+def gerar_declaracao_matricula(aluno, matricula, curso,
+                               root_path: str = "") -> io.BytesIO:
+    """Gera PDF de Declaração de Matrícula com cabeçalho idêntico ao de gerar_declaracao_conclusao."""
+    buf = io.BytesIO()
+    pdf = canvas.Canvas(buf, pagesize=A4)
+    larg, alt = A4
+    margem = 65
+    max_largura_px = larg - margem * 2
+    line_height = 18
+    font_size = 11
+
+    logo = _logo_path(root_path)
+    if os.path.exists(logo):
+        pdf.drawImage(logo, 50, alt - 120, width=80, height=60,
+                      preserveAspectRatio=True, mask="auto")
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(140, alt - 60, f"{ESCOLA['nome']} {ESCOLA['sigla']}")
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(140, alt - 75,  f"CNPJ: {ESCOLA['cnpj']}")
+    pdf.drawString(140, alt - 90,
+                   "Rua: Prata Mancebo nº 148. Centro – Carapebus – RJ CEP 27998-000")
+    pdf.drawString(140, alt - 105, f"E-mail: {ESCOLA['email']}")
+    pdf.drawString(140, alt - 120, f"Tel.: {ESCOLA['telefone']}")
+    pdf.line(50, alt - 135, larg - 50, alt - 135)
+
+    titulo = "DECLARAÇÃO DE MATRÍCULA"
+    y = alt - 165
+    pdf.setFont("Helvetica-Bold", 14)
+    titulo_w = stringWidth(titulo, "Helvetica-Bold", 14)
+    titulo_x = (larg - titulo_w) / 2
+    pdf.drawString(titulo_x, y, titulo)
+    pdf.line(titulo_x, y - 3, titulo_x + titulo_w, y - 3)
+    y -= 38
+
+    pdf.setFont("Helvetica", font_size)
+    pdf.drawString(margem, y, "A quem possa interessar,")
+    y -= line_height * 1.8
+
+    nome_fmt   = _capitalizar_nome(aluno.nome)
+    cpf_fmt    = aluno.cpf if aluno.cpf else "não informado"
+    status_fmt = (matricula.status or "não informado").capitalize()
+
+    data_raw = matricula.data_cadastro
+    if data_raw:
+        data_str    = str(data_raw)[:10]
+        partes_data = data_str.split("-")
+        data_fmt = f"{partes_data[2]}/{partes_data[1]}/{partes_data[0]}" \
+            if len(partes_data) == 3 else data_str
+    else:
+        data_fmt = "não informada"
+
+    partes_corpo = [
+        ("Declaramos que o(a) Sr(a). ", False),
+        (nome_fmt, True),
+        (", portador(a) do CPF ", False),
+        (cpf_fmt, True),
+        (", encontra-se regularmente matriculado(a) no curso ", False),
+        (curso.nome, True),
+        (" desde ", False),
+        (data_fmt, True),
+        (", com matrícula em situação ", False),
+        (status_fmt, True),
+        (".", False),
+    ]
+    y = _draw_rich_paragraph(pdf, partes_corpo, margem, y,
+                             max_largura_px, line_height, font_size)
+    y -= line_height * 1.5
+
+    dados_adicionais = [
+        ("Nome completo",       nome_fmt),
+        ("CPF",                 cpf_fmt),
+        ("Curso",               curso.nome),
+        ("Status da matrícula", status_fmt),
+        ("Data de início",      data_fmt),
+        ("Data de emissão",     date.today().strftime("%d/%m/%Y")),
+    ]
+    for label, valor in dados_adicionais:
+        pdf.setFont("Helvetica-Bold", font_size)
+        lw = stringWidth(f"{label}: ", "Helvetica-Bold", font_size)
+        pdf.drawString(margem, y, f"{label}: ")
+        pdf.setFont("Helvetica", font_size)
+        pdf.drawString(margem + lw, y, valor)
+        y -= line_height
+    y -= line_height
+
+    hoje = date.today()
+    meses_pt = ["", "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+    data_extenso = f"{hoje.day} de {meses_pt[hoje.month]} de {hoje.year}"
+    pdf.setFont("Helvetica", font_size)
+    pdf.drawString(margem, y, f"Carapebus-RJ, {data_extenso}.")
+
+    assin_y_base   = 150
+    assin_path     = _assinatura_path(root_path)
+    col_esq_centro = margem + 95
+    pdf.line(margem, assin_y_base, margem + 190, assin_y_base)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawCentredString(col_esq_centro, assin_y_base - 14, "Diretor Geral")
+    pdf.drawCentredString(col_esq_centro, assin_y_base - 26,
+                          "Randermei Marinho de Almeida Oliveira")
+    col_dir_centro = larg - margem - 95
+    if os.path.exists(assin_path):
+        pdf.drawImage(assin_path,
+                      col_dir_centro - 60, assin_y_base + 5,
+                      width=120, height=35,
+                      preserveAspectRatio=True, mask="auto")
+    pdf.line(larg - margem - 190, assin_y_base, larg - margem, assin_y_base)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 14,
+                          f"{ESCOLA['nome']} {ESCOLA['sigla']}")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 26, "Alex de Assis Pessanha")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 38, f"CNPJ: {ESCOLA['cnpj']}")
+
+    pdf.showPage()
+    pdf.save()
+    buf.seek(0)
+    return buf
+
+
+# ──────────────────────────────────────────────────────────────── CONFIRMAÇÃO DE PRÉ-MATRÍCULA
 
 def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
-    """Gera PDF de Confirmação de Pré-Matrícula conforme modelo institucional.
-
-    Args:
-        dados: dicionário com todas as informações necessárias:
-            - aluno_nome, aluno_idade, aluno_endereco, aluno_responsavel,
-              aluno_cpf, aluno_whatsapp
-            - taxa_matricula (float), valor_mensalidade (float),
-              parcelas (int), material_didatico (str),
-              valor_material (float), parcelas_material (int)
-            - data_pagamento_matricula (str dd/mm/aaaa),
-              data_primeira_mensalidade (str dd/mm/aaaa)
-            - numero_pre_matricula (str ou int)
-        root_path: caminho raiz da aplicação Flask.
-    """
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=A4)
     larg, alt = A4
     margem_esq = 50
     margem_dir = larg - 50
 
-    # ── CABEÇALHO ──
     logo = _logo_path(root_path)
     if os.path.exists(logo):
         pdf.drawImage(logo, margem_esq, alt - 110, width=70, height=55,
                       preserveAspectRatio=True, mask="auto")
-
     pdf.setFont("Helvetica-Bold", 13)
-    pdf.drawString(130, alt - 55, f"CENTRO DE QUALIFICAÇÃO PROFISSIONAL CQP")
+    pdf.drawString(130, alt - 55, "CENTRO DE QUALIFICAÇÃO PROFISSIONAL CQP")
     pdf.setFont("Helvetica", 9)
-    pdf.drawString(130, alt - 69, f"CNPJ: {ESCOLA['cnpj']}")
-    pdf.drawString(130, alt - 82, "Rua: Prata Mancebo nº 148 - Centro")
-    pdf.drawString(130, alt - 95, "Carapebus - RJ  CEP 27998-000")
+    pdf.drawString(130, alt - 69,  f"CNPJ: {ESCOLA['cnpj']}")
+    pdf.drawString(130, alt - 82,  "Rua: Prata Mancebo nº 148 - Centro")
+    pdf.drawString(130, alt - 95,  "Carapebus - RJ  CEP 27998-000")
     pdf.drawString(130, alt - 108, f"Tel.: {ESCOLA['telefone']}")
     pdf.drawString(130, alt - 121, f"E-mail: {ESCOLA['email']}")
     pdf.line(margem_esq, alt - 132, margem_dir, alt - 132)
 
-    # ── TÍTULO ──
     pdf.setFont("Helvetica-Bold", 14)
     pdf.drawCentredString(larg / 2, alt - 158, "CONFIRMAÇÃO DE PRÉ-MATRÍCULA")
 
-    # ── SEÇÃO: DADOS DO CANDIDATO ──
     y = alt - 185
     pdf.setFont("Helvetica-Bold", 11)
     pdf.drawString(margem_esq, y, "DADOS DO CANDIDATO:")
@@ -531,30 +603,23 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
                      larg_tabela, linha_h, margem_esq, negrito_ultima=False):
         max_label_px = col_valor - col_label - 8
         max_valor_px = (margem_esq + larg_tabela) - col_valor - 8
-
         for i, (label, valor) in enumerate(linhas):
             negrito = negrito_ultima and i == len(linhas) - 1
-
             pdf.rect(col_label, y - linha_h + 3, larg_tabela, linha_h, stroke=1, fill=0)
             pdf.line(col_valor, y - linha_h + 3, col_valor, y + 3)
-
-            fonte_label = "Helvetica-Bold"
-            pdf.setFont(fonte_label, 9)
-            label_safe = _truncar(label, fonte_label, 9, max_label_px)
+            pdf.setFont("Helvetica-Bold", 9)
+            label_safe = _truncar(label, "Helvetica-Bold", 9, max_label_px)
             pdf.drawString(col_label + 4, y - 9, label_safe)
-
             fonte_val = "Helvetica-Bold" if negrito else "Helvetica"
             pdf.setFont(fonte_val, 9)
             valor_safe = _truncar(str(valor), fonte_val, 9, max_valor_px)
             pdf.drawString(col_valor + 4, y - 9, valor_safe)
-
             y -= linha_h
         return y
 
     y = _draw_tabela(pdf, y, linhas_candidato, col_label, col_valor_cand,
                      largura_tabela, linha_h, margem_esq)
 
-    # ── SEÇÃO: DADOS FINANCEIROS ──
     y -= 14
     pdf.setFont("Helvetica-Bold", 11)
     pdf.drawString(margem_esq, y, "DADOS FINANCEIROS:")
@@ -579,7 +644,6 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     y = _draw_tabela(pdf, y, linhas_financeiro, col_label, col_valor_fin,
                      largura_tabela, linha_h, margem_esq, negrito_ultima=True)
 
-    # ── SEÇÃO: DATAS DE PAGAMENTOS ──
     y -= 18
     pdf.setFont("Helvetica-Bold", 11)
     pdf.drawString(margem_esq, y, "DATAS DE PAGAMENTOS")
@@ -596,7 +660,6 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     pdf.drawString(margem_esq, y,
                    f"Mensalidade + Apostila: R$ {mensalidade_apostila:.2f}")
 
-    # ── RODAPÉ: DATA DE EMISSÃO, NÚMERO, ASSINATURAS ──
     y_rodape = 160
     pdf.setFont("Helvetica", 10)
     pdf.drawString(margem_esq, y_rodape,
@@ -604,12 +667,12 @@ def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:
     pdf.drawString(margem_esq, y_rodape - 14,
                    f"Pré-matrícula nº: {dados.get('numero_pre_matricula', '')}")
 
-    assin_y = 95
+    assin_y    = 95
+    assin_path = _assinatura_path(root_path)
     pdf.line(margem_esq, assin_y, margem_esq + 190, assin_y)
     pdf.setFont("Helvetica", 9)
     pdf.drawCentredString(margem_esq + 95, assin_y - 14, "Assinatura do responsável")
 
-    assin_path = _assinatura_path(root_path)
     centro_dir = margem_dir - 95
     if os.path.exists(assin_path):
         pdf.drawImage(assin_path, centro_dir - 80, assin_y + 5,
