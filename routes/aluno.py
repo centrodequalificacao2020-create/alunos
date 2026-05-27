@@ -261,7 +261,7 @@ def editar_aluno(id):
 @aluno_bp.route("/aluno/<int:aluno_id>")
 @login_required
 def ficha_aluno(aluno_id):
-    from models import RespostaProva, RespostaExercicio, Prova, Exercicio, LoginHistoricoAluno
+    from models import RespostaProva, RespostaExercicio, Prova, Exercicio, LoginHistoricoAluno, ContratoAceite
     aluno      = db.get_or_404(Aluno, aluno_id)
     matriculas = (
         Matricula.query
@@ -282,6 +282,18 @@ def ficha_aluno(aluno_id):
         c for c in Curso.query.order_by(Curso.nome).all()
         if c.id not in ids_ativos
     ]
+
+    # Historico de aceites de contrato
+    try:
+        aceites_contrato = (
+            ContratoAceite.query
+            .filter_by(aluno_id=aluno_id)
+            .order_by(ContratoAceite.aceito_em.desc())
+            .all()
+        )
+    except OperationalError:
+        # Tabela ainda nao criada (migracao pendente)
+        aceites_contrato = []
 
     try:
         tentativas_provas = (
@@ -336,17 +348,18 @@ def ficha_aluno(aluno_id):
 
     return render_template(
         "ficha_aluno.html",
-        aluno=aluno,
-        ultimo_login=ultimo_login,
-        matriculas=matriculas,
-        cursos_disponiveis=cursos_disponiveis,
-        tentativas_provas=tentativas_provas,
-        tentativas_exercicios=tentativas_exercicios,
-        entregas_atividades=entregas_atividades,
+        aluno                = aluno,
+        ultimo_login         = ultimo_login,
+        matriculas           = matriculas,
+        cursos_disponiveis   = cursos_disponiveis,
+        tentativas_provas    = tentativas_provas,
+        tentativas_exercicios= tentativas_exercicios,
+        entregas_atividades  = entregas_atividades,
+        aceites_contrato     = aceites_contrato,
     )
 
 
-# ─── DECLARAÇÃO DE MATRÍCULA (PDF) ─────────────────────────────────────────────
+# ─── DECLARAÇÃO DE MATRÍCULA (PDF) ───────────────────────────────────────────────
 
 @aluno_bp.route("/aluno/<int:aluno_id>/declaracao-matricula/<int:matricula_id>")
 @login_required

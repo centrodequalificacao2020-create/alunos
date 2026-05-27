@@ -62,6 +62,87 @@
     </div>
 </div>
 
+{# ===== CONTRATO ===== #}
+<div class="card ficha-card-secao">
+    <h3>Contrato</h3>
+    <div class="ficha-contrato-status">
+        {% if aluno.contrato_assinado %}
+            <span class="ficha-contrato-badge ficha-contrato-badge--ok">&#10003; Assinado</span>
+            {% if aluno.contrato_assinado_em %}
+                {% set d = aluno.contrato_assinado_em | string %}
+                <span class="ficha-contrato-data">
+                    em {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+                    {% if d|length >= 16 %} às {{ d[11:16] }}{% endif %}
+                </span>
+            {% endif %}
+        {% else %}
+            <span class="ficha-contrato-badge ficha-contrato-badge--pendente">&#9888; Pendente — aluno ainda não assinou</span>
+        {% endif %}
+    </div>
+
+    {# Histórico de aceites #}
+    {% if aceites_contrato %}
+    <details class="ficha-contrato-historico">
+        <summary>Ver histórico de aceites ({{ aceites_contrato|length }})</summary>
+        <div class="tabela-planilha" style="margin-top:.75rem">
+            <table class="tabela-excel">
+                <thead>
+                    <tr>
+                        <th style="width:40px">#</th>
+                        <th style="width:70px">Versão</th>
+                        <th style="width:145px">Aceito em</th>
+                        <th style="width:140px">IP</th>
+                        <th>Hash SHA-256</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ac in aceites_contrato %}
+                    <tr>
+                        <td class="ficha-td-id">{{ ac.id }}</td>
+                        <td>{{ ac.versao }}</td>
+                        <td class="ficha-td-data">
+                            {% if ac.aceito_em %}
+                                {% set d = ac.aceito_em | string %}
+                                {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+                                {% if d|length >= 16 %} às {{ d[11:16] }}{% endif %}
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td><code>{{ ac.ip or '—' }}</code></td>
+                        <td><code class="ficha-hash">{{ ac.hash_contrato or '—' }}</code></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% else %}
+        {% if aluno.contrato_assinado %}
+        <p class="text-muted small" style="margin-top:.5rem">Aceite registrado antes da implantação do log de auditoria.</p>
+        {% endif %}
+    {% endif %}
+
+    {# Ações da secretaria #}
+    <div class="ficha-contrato-acoes">
+        {% if aluno.contrato_assinado %}
+        <form method="POST" action="/admin/alunos/{{ aluno.id }}/contrato/reset"
+              onsubmit="return confirm('Resetar contrato de {{ aluno.nome }}? O aluno será obrigado a assinar novamente no próximo acesso ao portal. O histórico de aceites anteriores é preservado.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-warning">
+                &#8635; Solicitar nova assinatura
+            </button>
+        </form>
+        {% else %}
+        <form method="POST" action="/admin/alunos/{{ aluno.id }}/contrato/reset"
+              onsubmit="return confirm('Marcar contrato de {{ aluno.nome }} como pendente? O aluno precisará assinar ao acessar o portal.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-azul">
+                &#8635; Forçar assinatura no próximo acesso
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
 {# ===== MATRICULAS ===== #}
 <div class="card ficha-card-secao">
     <h3>Matrículas</h3>
