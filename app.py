@@ -35,6 +35,8 @@ def create_app(config_class=Config):
     limiter.init_app(app)
     csrf.init_app(app)
     configure_logging(app)
+    from config import configurar_cloudinary
+    configurar_cloudinary(app)
 
     from routes.auth            import auth_bp
     from routes.cursos          import cursos_bp
@@ -108,7 +110,7 @@ def create_app(config_class=Config):
         escaped = markupsafe.escape(clean)
         return markupsafe.Markup(escaped.replace("\n", markupsafe.Markup("<br>\n")))
 
-    # ── Erro 413: arquivo maior que MAX_CONTENT_LENGTH ───────────────────────
+    # ── Erro 413: arquivo maior que MAX_CONTENT_LENGTH ─────────────────────
     @app.errorhandler(413)
     def arquivo_muito_grande(e):
         limite_mb = app.config.get("MAX_CONTENT_LENGTH", 0) // (1024 * 1024)
