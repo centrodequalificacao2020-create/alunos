@@ -57,3 +57,21 @@ class Config:
 
     # ── S5: Expiração automática da sessão em 1 hora ──────────────
     PERMANENT_SESSION_LIFETIME     = timedelta(hours=1)
+
+    # ── Cloudinary (armazenamento externo) ────────────────────────────
+    CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
+    CLOUDINARY_API_KEY    = os.environ.get('CLOUDINARY_API_KEY')
+    CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
+
+
+import cloudinary
+def configurar_cloudinary(app):
+    """Configura o SDK Cloudinary se as variáveis de ambiente estiverem definidas."""
+    cloud_name = app.config.get('CLOUDINARY_CLOUD_NAME')
+    if cloud_name:
+        cloudinary.config(
+            cloud_name=cloud_name,
+            api_key=app.config.get('CLOUDINARY_API_KEY'),
+            api_secret=app.config.get('CLOUDINARY_API_SECRET'),
+            secure=True
+        )
