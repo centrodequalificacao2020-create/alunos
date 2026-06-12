@@ -12,12 +12,10 @@
 <style>
 body{
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    /* Evita scroll em telas 1366x768: o conteúdo deve caber na viewport */
     height: 100vh;
     overflow: hidden;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-/* Em telas pequenas (tablet/mobile) volta a rolar normalmente */
 @media (max-height: 700px), (max-width: 768px) {
     body { height: auto; overflow: auto; }
 }
@@ -69,7 +67,80 @@ body{
     background: linear-gradient(145deg, rgba(0,198,255,.45), rgba(0,120,255,.25));
 }
 .home-card span{ font-weight: 600; font-size: 15px; color: #fff; letter-spacing: .5px; }
+
+/* --- Alerta de acesso restrito --- */
+#alerta-restrito {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(4px);
+}
+#alerta-restrito.visivel {
+    display: flex;
+}
+#alerta-box {
+    background: linear-gradient(145deg, #1a2a35, #0f2027);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 16px;
+    padding: 32px 28px 24px;
+    max-width: 360px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,.6);
+    animation: alertaEntrar .22s ease;
+}
+@keyframes alertaEntrar {
+    from { transform: scale(.92); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+#alerta-box .alerta-icone {
+    font-size: 36px;
+    margin-bottom: 12px;
+}
+#alerta-box h3 {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+#alerta-box p {
+    color: rgba(255,255,255,.65);
+    font-size: 13px;
+    margin: 0 0 20px;
+    line-height: 1.5;
+}
+#alerta-fechar {
+    background: linear-gradient(145deg, rgba(0,198,255,.35), rgba(0,120,255,.2));
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 28px;
+    cursor: pointer;
+    transition: .25s;
+}
+#alerta-fechar:hover {
+    background: linear-gradient(145deg, rgba(0,198,255,.55), rgba(0,120,255,.35));
+}
 </style>
+
+{# Overlay de alerta — renderizado apenas para perfis sem acesso à dashboard #}
+{% if not full_access %}
+<div id="alerta-restrito" role="dialog" aria-modal="true" aria-labelledby="alerta-titulo">
+    <div id="alerta-box">
+        <div class="alerta-icone">&#128274;</div>
+        <h3 id="alerta-titulo">Acesso restrito</h3>
+        <p>A Dashboard financeira está disponível apenas para os perfis
+           <strong>Administrador</strong> e <strong>Financeiro</strong>.</p>
+        <button id="alerta-fechar" onclick="fecharAlerta()">Entendido</button>
+    </div>
+</div>
+{% endif %}
 
 <div class="home-header">
     <h1>Centro de Qualifica&#231;&#227;o Profissional</h1>
@@ -90,12 +161,18 @@ body{
     </div>
     {% endif %}
 
-    {# Dashboard: card visível para todos os perfis.
-       O acesso é controlado server-side pelo decorator financeiro_required.
-       Secretaria e instrutor verão o card mas serão bloqueados ao clicar. #}
+    {# Card Dashboard visível para todos.
+       - full_access: navega normalmente para /dashboard
+       - demais perfis: abre o alerta de acesso restrito (sem redirect) #}
+    {% if full_access %}
     <div class="home-card" onclick="location.href='/dashboard'">
         <span>Dashboard</span>
     </div>
+    {% else %}
+    <div class="home-card" onclick="abrirAlerta()" title="Acesso restrito">
+        <span>Dashboard</span>
+    </div>
+    {% endif %}
 
     {# Notas e Frequência: todos #}
     <div class="home-card" onclick="location.href='/notas'">
@@ -148,4 +225,29 @@ body{
     </div>
 
 </div>
+
+{% block scripts %}{{ super() }}{% endblock %}
+<script>
+function abrirAlerta() {
+    var el = document.getElementById('alerta-restrito');
+    if (el) {
+        el.classList.add('visivel');
+        document.getElementById('alerta-fechar').focus();
+    }
+}
+function fecharAlerta() {
+    var el = document.getElementById('alerta-restrito');
+    if (el) el.classList.remove('visivel');
+}
+/* Fechar ao clicar fora da caixa ou pressionar Escape */
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') fecharAlerta();
+});
+var overlay = document.getElementById('alerta-restrito');
+if (overlay) {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) fecharAlerta();
+    });
+}
+</script>
 {% endblock %}
