@@ -78,7 +78,6 @@ body{
 
 <div class="home-grid">
 
-    {# Admin e Financeiro veem TUDO #}
     {% if full_access or meio_access %}
     <div class="home-card" onclick="location.href='/cadastro'">
         <span>Alunos</span>
@@ -89,12 +88,16 @@ body{
     <div class="home-card" onclick="location.href='/financeiro'">
         <span>Financeiro</span>
     </div>
+    {% endif %}
+
+    {# Dashboard: card visível para todos os perfis.
+       O acesso é controlado server-side pelo decorator financeiro_required.
+       Secretaria e instrutor verão o card mas serão bloqueados ao clicar. #}
     <div class="home-card" onclick="location.href='/dashboard'">
         <span>Dashboard</span>
     </div>
-    {% endif %}
 
-    {# Notas e Frequ&#234;ncia: todos #}
+    {# Notas e Frequência: todos #}
     <div class="home-card" onclick="location.href='/notas'">
         <span>Notas</span>
     </div>
@@ -102,7 +105,7 @@ body{
         <span>Frequ&#234;ncia</span>
     </div>
 
-    {# Acad&#234;mico: admin, financeiro, secretaria, instrutor #}
+    {# Acadêmico: admin, financeiro, secretaria, instrutor #}
     {% if full_access or meio_access or is_instrutor %}
     <div class="home-card" onclick="location.href='/turmas'">
         <span>Turmas</span>
