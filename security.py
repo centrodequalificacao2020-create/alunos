@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import session, redirect, flash, current_app
+from flask import session, redirect, flash, current_app, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Perfis reconhecidos pelo sistema
@@ -24,6 +24,15 @@ def extensao_permitida(filename: str) -> bool:
     return ext in current_app.config.get("EXTENSOES_PERMITIDAS", set())
 
 
+def _is_ajax() -> bool:
+    """Detecta requisições que esperam resposta JSON (fetch/XHR)."""
+    return (
+        request.is_json
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+
+
 def login_required(f):
     """Exige sessão admin ativa. Bloqueia alunos."""
     @wraps(f)
@@ -38,12 +47,22 @@ def login_required(f):
 
 
 def financeiro_required(f):
-    """Exige perfil admin ou financeiro."""
+    """Exige perfil admin ou financeiro.
+
+    Para requisições HTML redireciona para / com flash de erro.
+    Para requisições AJAX/JSON retorna 401 ou 403 em JSON,
+    evitando que fetch() receba um redirect HTML inesperado.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
         if "usuario_id" not in session:
+            if _is_ajax():
+                return jsonify({"erro": "Não autenticado."}), 401
+            flash("Faça login para continuar.", "erro")
             return redirect("/login")
         if session.get("perfil", "").lower() not in FINAN_PERFIS:
+            if _is_ajax():
+                return jsonify({"erro": "Acesso restrito ao setor financeiro."}), 403
             flash("Acesso restrito ao setor financeiro.", "erro")
             return redirect("/")
         return f(*args, **kwargs)
