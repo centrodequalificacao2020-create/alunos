@@ -38,8 +38,12 @@
         {% elif session.usuario_id %}
             <a href="/" class="{{ 'active' if request.path == '/' }}">Home</a>
 
+            {# Dashboard: somente admin e financeiro #}
+            {% if full_access %}
+                <a href="/dashboard" class="{{ 'active' if request.path == '/dashboard' }}">Dashboard</a>
+            {% endif %}
+
             {% if full_access or meio_access %}
-                <a href="/dashboard"  class="{{ 'active' if request.path == '/dashboard'  }}">Dashboard</a>
                 <a href="/financeiro" class="{{ 'active' if request.path == '/financeiro' }}">Financeiro</a>
                 <a href="/despesas"   class="{{ 'active' if request.path == '/despesas'   }}">Despesas</a>
                 <a href="/relatorio"  class="{{ 'active' if request.path == '/relatorio'  }}">Relat&#243;rios</a>
