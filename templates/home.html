@@ -97,10 +97,6 @@ body{
     from { transform: scale(.92); opacity: 0; }
     to   { transform: scale(1);   opacity: 1; }
 }
-#alerta-box .alerta-icone {
-    font-size: 36px;
-    margin-bottom: 12px;
-}
 #alerta-box h3 {
     color: #fff;
     font-size: 16px;
@@ -133,9 +129,8 @@ body{
 {% if not full_access %}
 <div id="alerta-restrito" role="dialog" aria-modal="true" aria-labelledby="alerta-titulo">
     <div id="alerta-box">
-        <div class="alerta-icone">&#128274;</div>
         <h3 id="alerta-titulo">Acesso restrito</h3>
-        <p>A Dashboard financeira está disponível apenas para os perfis
+        <p>A Dashboard financeira est&#225; dispon&#237;vel apenas para os perfis
            <strong>Administrador</strong> e <strong>Financeiro</strong>.</p>
         <button id="alerta-fechar" onclick="fecharAlerta()">Entendido</button>
     </div>
@@ -144,7 +139,7 @@ body{
 
 <div class="home-header">
     <h1>Centro de Qualifica&#231;&#227;o Profissional</h1>
-    <p>Ol&#225;, {{ session.get('usuario_nome', 'Usu&#225;rio') }} &#128075;</p>
+    <p>Ol&#225;, {{ session.get('usuario_nome', 'Usu&#225;rio') }}</p>
 </div>
 
 <div class="home-grid">
@@ -239,7 +234,6 @@ function fecharAlerta() {
     var el = document.getElementById('alerta-restrito');
     if (el) el.classList.remove('visivel');
 }
-/* Fechar ao clicar fora da caixa ou pressionar Escape */
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') fecharAlerta();
 });
