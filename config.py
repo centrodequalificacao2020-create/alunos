@@ -59,9 +59,12 @@ class Config:
     PERMANENT_SESSION_LIFETIME     = timedelta(hours=1)
 
     # ── Cloudinary (armazenamento externo) ────────────────────────────
-    CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
-    CLOUDINARY_API_KEY    = os.environ.get('CLOUDINARY_API_KEY')
-    CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
+    CLOUDINARY_CLOUD_NAME    = os.environ.get('CLOUDINARY_CLOUD_NAME')
+    CLOUDINARY_API_KEY       = os.environ.get('CLOUDINARY_API_KEY')
+    CLOUDINARY_API_SECRET    = os.environ.get('CLOUDINARY_API_SECRET')
+    # Prefixo de pasta — isola arquivos por cliente em conta compartilhada
+    # Ex no .env: CLOUDINARY_PASTA_PREFIXO=escola_abc
+    CLOUDINARY_PASTA_PREFIXO = os.environ.get('CLOUDINARY_PASTA_PREFIXO', 'default')
 
 
 import cloudinary
