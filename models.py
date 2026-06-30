@@ -364,13 +364,14 @@ class CursoMateria(db.Model):
 
 class Conteudo(db.Model):
     __tablename__ = "conteudos"
-    id         = db.Column(db.Integer, primary_key=True)
-    titulo     = db.Column(db.String(200))
-    materia_id = db.Column(db.Integer, db.ForeignKey("materias.id"))
-    modulo     = db.Column(db.String(60))
-    arquivo    = db.Column(db.String(300))
-    video      = db.Column(db.String(300))
-    data       = db.Column(db.String(10))
+    id                 = db.Column(db.Integer, primary_key=True)
+    titulo             = db.Column(db.String(200))
+    materia_id         = db.Column(db.Integer, db.ForeignKey("materias.id"))
+    modulo             = db.Column(db.String(60))
+    arquivo            = db.Column(db.String(300))
+    arquivo_public_id  = db.Column(db.String(500), nullable=True)  # Cloudinary public_id
+    video              = db.Column(db.String(300))
+    data               = db.Column(db.String(10))
 
 
 class Exercicio(db.Model):
@@ -379,18 +380,19 @@ class Exercicio(db.Model):
     __table_args__ = (
         db.Index("ix_exercicios_materia_id", "materia_id"),
     )
-    id           = db.Column(db.Integer, primary_key=True)
-    materia_id   = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
-    titulo       = db.Column(db.String(200), nullable=False)
-    descricao    = db.Column(db.Text)
-    arquivo      = db.Column(db.String(300))
-    ordem        = db.Column(db.Integer, default=1)
-    ativo        = db.Column(db.Integer, default=1)
-    tentativas   = db.Column(db.Integer, default=1)
-    tempo_limite = db.Column(db.Integer, nullable=True)
-    nota_minima  = db.Column(db.Float, default=6.0)
-    criado_em    = db.Column(db.String(19))
-    criado_por   = db.Column(db.String(80))
+    id                = db.Column(db.Integer, primary_key=True)
+    materia_id        = db.Column(db.Integer, db.ForeignKey("materias.id"), nullable=False)
+    titulo            = db.Column(db.String(200), nullable=False)
+    descricao         = db.Column(db.Text)
+    arquivo           = db.Column(db.String(300))
+    arquivo_public_id = db.Column(db.String(500), nullable=True)  # Cloudinary public_id
+    ordem             = db.Column(db.Integer, default=1)
+    ativo             = db.Column(db.Integer, default=1)
+    tentativas        = db.Column(db.Integer, default=1)
+    tempo_limite      = db.Column(db.Integer, nullable=True)
+    nota_minima       = db.Column(db.Float, default=6.0)
+    criado_em         = db.Column(db.String(19))
+    criado_por        = db.Column(db.String(80))
     liberacoes   = db.relationship("ExercicioLiberado",
                                    backref="exercicio", lazy=True,
                                    cascade="all, delete-orphan")
