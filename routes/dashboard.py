@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, jsonify
 from datetime import datetime
 from db import db
 from models import Mensalidade, Aluno, Matricula, Despesa, Relatorio, Curso
-from security import login_required
+from security import financeiro_required
 from sqlalchemy import func
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -84,7 +84,7 @@ def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
 
 
 @dashboard_bp.route("/dashboard")
-@login_required
+@financeiro_required
 def dashboard():
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
@@ -143,13 +143,11 @@ def dashboard():
     receita_projetada  = recebido_mes + a_receber_mes
     ticket_medio       = recebido_mes / alunos_ativos if alunos_ativos > 0 else 0
 
-    # ─── Taxa de inadimplência ────────────────────────────────────────────────
+    # ─── Taxa de inadimplência ────────────────────────────────────────────
     # Fórmula correta: Em atraso / (Recebido + A receber + Em atraso)
-    # O denominador representa a receita total do período (já paga + ainda a vencer + vencida).
-    # Isso evita a distorção de usar apenas a carteira pendente como base.
     receita_total      = float(recebido_mes) + float(a_receber_mes) + float(total_atraso)
     taxa_inadimplencia = (float(total_atraso) / receita_total * 100) if receita_total > 0 else 0
-    # ─────────────────────────────────────────────────────────────────────────
+    # ───────────────────────────────────────────────────────────────────────────
 
     cancelamentos = Aluno.query.filter(
         func.lower(Aluno.status) == "cancelado"
@@ -268,7 +266,7 @@ def dashboard():
 
 
 @dashboard_bp.route("/salvar_relatorio", methods=["POST"])
-@login_required
+@financeiro_required
 def salvar_relatorio():
     dados = request.get_json()
     r = Relatorio.query.filter_by(mes=dados.get("mes")).first()
@@ -284,13 +282,13 @@ def salvar_relatorio():
 
 
 @dashboard_bp.route("/relatorio")
-@login_required
+@financeiro_required
 def relatorio():
     return render_template("relatorio.html")
 
 
 @dashboard_bp.route("/carregar_relatorio/<mes>")
-@login_required
+@financeiro_required
 def carregar_relatorio(mes):
     r = Relatorio.query.filter_by(mes=mes).first()
     if r:
@@ -301,7 +299,7 @@ def carregar_relatorio(mes):
 
 
 @dashboard_bp.route("/relatorio_trimestre/<ano>/<tri>")
-@login_required
+@financeiro_required
 def relatorio_trimestre(ano, tri):
     meses_tri = {"1":["01","02","03"],"2":["04","05","06"],
                  "3":["07","08","09"],"4":["10","11","12"]}
@@ -318,7 +316,7 @@ def relatorio_trimestre(ano, tri):
 
 
 @dashboard_bp.route("/matriculas")
-@login_required
+@financeiro_required
 def matriculas_novas_detalhe():
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
@@ -374,7 +372,7 @@ def matriculas_novas_detalhe():
 
 
 @dashboard_bp.route("/rematriculas")
-@login_required
+@financeiro_required
 def rematriculas_detalhe():
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
