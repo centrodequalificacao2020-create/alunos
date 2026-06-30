@@ -99,13 +99,11 @@ def editar_atividade(atv_id):
             flash("Adicione pelo menos um enunciado.", "erro")
             return redirect(f"/atividades/{atv_id}/editar")
 
-        # Atualiza campos principais
         atv.titulo     = titulo
         atv.descricao  = descricao
         atv.curso_id   = curso_id
         atv.materia_id = materia_id
 
-        # Substitui questões: remove as antigas e cria as novas
         AtividadeQuestao.query.filter_by(atividade_id=atv_id).delete(
             synchronize_session=False
         )
@@ -138,9 +136,6 @@ def excluir_atividade(atv_id):
     from models import AtividadeLiberada
     atv = db.get_or_404(Atividade, atv_id)
 
-    # synchronize_session="fetch" garante que os objetos em memória
-    # na sessão sejam atualizados antes do flush, evitando que o ORM
-    # tente fazer UPDATE SET atividade_id=NULL ao deletar a Atividade.
     AtividadeLiberada.query.filter_by(atividade_id=atv_id).delete(
         synchronize_session="fetch"
     )
@@ -173,14 +168,12 @@ def ver_entregas(atv_id):
         page=page, per_page=PER_PAGE, error_out=False
     )
 
-    upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
     return render_template(
         "atividades_entregas.html",
-        atividade     = atv,
-        paginacao     = paginacao,
-        entregas      = paginacao.items,
-        termo         = termo,
-        upload_folder = upload_folder,
+        atividade = atv,
+        paginacao = paginacao,
+        entregas  = paginacao.items,
+        termo     = termo,
     )
 
 
@@ -200,11 +193,15 @@ def avaliar_entrega(atv_id, entrega_id):
     return redirect(f"/atividades/{atv_id}/entregas")
 
 
-# ─── DOWNLOAD DE ARQUIVO DE ENTREGA (admin) ─────────────────────────────
+# ─── DOWNLOAD / VISUALIZAÇÃO DE ENTREGA (admin) ──────────────────────────
+# Os arquivos agora são URLs do Cloudinary; o admin acessa diretamente pelo link.
 
 @atividades_bp.route("/atividades/download/<path:filename>")
 @login_required
 def download_entrega(filename):
+    """Mantido por compatibilidade com entregas legacy salvas em disco.
+    Novas entregas usam Cloudinary e não passam por esta rota.
+    """
     from flask import send_from_directory, abort
     upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
     safe = os.path.basename(filename)

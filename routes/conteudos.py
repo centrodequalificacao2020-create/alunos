@@ -8,11 +8,6 @@ from security import login_required, extensao_permitida
 conteudos_bp = Blueprint("conteudos", __name__)
 
 
-def _limpar(nome):
-    import re
-    return re.sub(r"[^a-z0-9_.-]", "", nome.lower().replace(" ", "_"))
-
-
 @conteudos_bp.route("/conteudos", methods=["GET", "POST"])
 @login_required
 def conteudos():
@@ -32,13 +27,13 @@ def conteudos():
             if not extensao_permitida(arquivo.filename):
                 flash("Tipo de arquivo não permitido.", "erro")
                 return redirect("/conteudos")
-
-            nome_seg    = _limpar(arquivo.filename)
-            pasta_abs   = os.path.join(current_app.root_path, "static", "uploads")
-            os.makedirs(pasta_abs, exist_ok=True)
-            caminho_abs = os.path.join(pasta_abs, nome_seg)
-            arquivo.save(caminho_abs)
-            caminho_db  = f"static/uploads/{nome_seg}"  # sempre forward slash
+            from services.storage_service import upload_arquivo
+            try:
+                resultado  = upload_arquivo(arquivo, pasta="conteudos")
+                caminho_db = resultado["url"]
+            except RuntimeError as e:
+                flash(f"Erro ao enviar arquivo: {e}", "erro")
+                return redirect("/conteudos")
 
         c = Conteudo(
             titulo     = titulo,
@@ -62,13 +57,16 @@ def conteudos():
 def excluir_conteudo(id):
     c = Conteudo.query.get_or_404(id)
 
-    # Remove registros filhos que não têm cascade configurado
     ProgressoAula.query.filter_by(conteudo_id=id).delete()
 
-    if c.arquivo and not c.arquivo.startswith("http"):
-        caminho_abs = os.path.join(current_app.root_path, c.arquivo)
-        if os.path.isfile(caminho_abs):
-            os.remove(caminho_abs)
+    if c.arquivo:
+        if c.arquivo.startswith("http://") or c.arquivo.startswith("https://"):
+            # arquivo no Cloudinary — tenta deletar via public_id se disponível
+            pass  # deleção de conteúdo não usa public_id salvo; omitido intencionalmente
+        else:
+            caminho_abs = os.path.join(current_app.root_path, c.arquivo)
+            if os.path.isfile(caminho_abs):
+                os.remove(caminho_abs)
 
     db.session.delete(c)
     db.session.commit()
@@ -95,16 +93,13 @@ def editar_conteudo(id):
         if not extensao_permitida(arquivo.filename):
             flash("Tipo de arquivo não permitido.", "erro")
             return redirect("/conteudos")
-        if c.arquivo and not c.arquivo.startswith("http"):
-            antigo = os.path.join(current_app.root_path, c.arquivo)
-            if os.path.isfile(antigo):
-                os.remove(antigo)
-        nome_seg    = _limpar(arquivo.filename)
-        pasta_abs   = os.path.join(current_app.root_path, "static", "uploads")
-        os.makedirs(pasta_abs, exist_ok=True)
-        caminho_abs = os.path.join(pasta_abs, nome_seg)
-        arquivo.save(caminho_abs)
-        c.arquivo   = f"static/uploads/{nome_seg}"  # sempre forward slash
+        from services.storage_service import upload_arquivo
+        try:
+            resultado = upload_arquivo(arquivo, pasta="conteudos")
+            c.arquivo = resultado["url"]
+        except RuntimeError as e:
+            flash(f"Erro ao enviar arquivo: {e}", "erro")
+            return redirect("/conteudos")
 
     db.session.commit()
     flash("Conteúdo atualizado.", "sucesso")

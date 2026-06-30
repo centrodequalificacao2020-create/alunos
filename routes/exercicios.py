@@ -22,10 +22,6 @@ def _allowed(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
 
 
-def _upload_folder():
-    return os.path.join(current_app.root_path, "static", "uploads", "exercicios")
-
-
 def _materias_json():
     materias = Materia.query.order_by(Materia.nome).all()
     return materias, [{"id": m.id, "nome": m.nome, "curso_id": m.curso_id} for m in materias]
@@ -35,6 +31,16 @@ def _calcular_nota(total_pontos, pontos_max):
     if not pontos_max or pontos_max <= 0.0:
         return 0.0
     return round((total_pontos / pontos_max) * 10, 2)
+
+
+def _upload_exercicio(file_obj, materia_id):
+    """Faz upload de arquivo de exercício para o Cloudinary e retorna a URL."""
+    from services.storage_service import upload_arquivo
+    nome_publico = secure_filename(
+        f"{materia_id}_{int(datetime.now().timestamp())}_{file_obj.filename}"
+    )
+    resultado = upload_arquivo(file_obj, pasta="exercicios", nome_publico=nome_publico)
+    return resultado["url"]
 
 
 # ── LISTAGEM GERAL ───────────────────────────────────────────────────────────────────
@@ -86,20 +92,18 @@ def novo_exercicio():
             flash("Título e matéria são obrigatórios.", "erro")
             return redirect("/exercicios/novo")
 
-        arquivo_nome = None
+        arquivo_url = None
         arq = request.files.get("arquivo")
         if arq and arq.filename and _allowed(arq.filename):
-            pasta = _upload_folder()
-            os.makedirs(pasta, exist_ok=True)
-            nome_seguro = secure_filename(
-                f"{materia_id}_{int(datetime.now().timestamp())}_{arq.filename}"
-            )
-            arq.save(os.path.join(pasta, nome_seguro))
-            arquivo_nome = f"exercicios/{nome_seguro}"
+            try:
+                arquivo_url = _upload_exercicio(arq, materia_id)
+            except RuntimeError as e:
+                flash(f"Erro ao enviar arquivo: {e}", "erro")
+                return redirect("/exercicios/novo")
 
         ex = Exercicio(
             materia_id=materia_id, titulo=titulo, descricao=descricao,
-            arquivo=arquivo_nome, ordem=ordem, tentativas=tentativas,
+            arquivo=arquivo_url, ordem=ordem, tentativas=tentativas,
             tempo_limite=tempo_limite, nota_minima=nota_minima, ativo=ativo,
             criado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             criado_por=session.get("usuario") or "",
@@ -137,13 +141,11 @@ def editar_exercicio(ex_id):
 
         arq = request.files.get("arquivo")
         if arq and arq.filename and _allowed(arq.filename):
-            pasta = _upload_folder()
-            os.makedirs(pasta, exist_ok=True)
-            nome_seguro = secure_filename(
-                f"{ex.materia_id}_{int(datetime.now().timestamp())}_{arq.filename}"
-            )
-            arq.save(os.path.join(pasta, nome_seguro))
-            ex.arquivo = f"exercicios/{nome_seguro}"
+            try:
+                ex.arquivo = _upload_exercicio(arq, ex.materia_id)
+            except RuntimeError as e:
+                flash(f"Erro ao enviar arquivo: {e}", "erro")
+                return redirect("/exercicios")
 
         db.session.commit()
         flash("Exercício atualizado!", "sucesso")
@@ -178,6 +180,8 @@ def toggle_exercicio(ex_id):
 @login_required
 def excluir_exercicio(ex_id):
     ex = db.get_or_404(Exercicio, ex_id)
+    if ex.arquivo and (ex.arquivo.startswith("http://") or ex.arquivo.startswith("https://")):
+        pass  # arquivos no Cloudinary: deleção controlada pelo painel ou etapa futura
     db.session.delete(ex)
     db.session.commit()
     flash("Exercício excluído.", "sucesso")
@@ -304,24 +308,14 @@ def resultados_exercicio(ex_id):
 
 
 # ── RECALCULAR NOTAS EM LOTE ────────────────────────────────────────────────────────────
-# Corrige tentativas que ficaram com nota_obtida=NULL porque foram salvas por
-# versões antigas do código (só objetivas; dissertativas são ignoradas).
-# Acessível em: POST /exercicios/<ex_id>/recalcular-notas
-#           ou: POST /exercicios/recalcular-notas  (todos os exercícios)
 
 def _recalcular_tentativas_sem_nota(exercicio_id=None):
-    """
-    Recalcula nota_obtida, aprovado e pontos_obtidos_total para todas as
-    RespostaExercicio com nota_obtida IS NULL que NÃO possuem questão
-    dissertativa pendente de correção.
-    Retorna (corrigidas, ignoradas).
-    """
     query = RespostaExercicio.query.filter(RespostaExercicio.nota_obtida.is_(None))
     if exercicio_id:
         query = query.filter_by(exercicio_id=exercicio_id)
 
     corrigidas = 0
-    ignoradas  = 0  # têm dissertativa não corrigida — precisam de correção manual
+    ignoradas  = 0
 
     for resp in query.all():
         ex = db.session.get(Exercicio, resp.exercicio_id)
@@ -335,7 +329,6 @@ def _recalcular_tentativas_sem_nota(exercicio_id=None):
             .all()
         )
 
-        # Verifica se há dissertativa não corrigida
         tem_diss_pendente = any(
             q.tipo == "dissertativa" and not rq.corrigida
             for rq, q in respostas_q
@@ -344,7 +337,6 @@ def _recalcular_tentativas_sem_nota(exercicio_id=None):
             ignoradas += 1
             continue
 
-        # Soma pontos de todas as questões
         total_pontos = 0.0
         pontos_max   = 0.0
         for rq, q in respostas_q:
@@ -363,12 +355,6 @@ def _recalcular_tentativas_sem_nota(exercicio_id=None):
 
 
 def recalcular_pontos_todos():
-    """
-    Backfill: preenche pontos_obtidos_total em TODAS as RespostaExercicio
-    (inclusive as já corrigidas / aprovadas) que ainda não possuem o campo.
-    Deve ser chamado uma única vez após a migration que adiciona a coluna.
-    Retorna o número de registros atualizados.
-    """
     query = RespostaExercicio.query.filter(
         RespostaExercicio.pontos_obtidos_total.is_(None)
     )
@@ -402,7 +388,6 @@ def recalcular_notas_exercicio(ex_id):
 @exercicios_bp.route("/exercicios/recalcular-notas", methods=["POST"])
 @login_required
 def recalcular_notas_todos():
-    """Recalcula notas pendentes de TODOS os exercícios de uma vez."""
     corrigidas, ignoradas = _recalcular_tentativas_sem_nota()
     msg = f"{corrigidas} nota(s) recalculada(s) em todos os exercícios."
     if ignoradas:
@@ -412,7 +397,6 @@ def recalcular_notas_todos():
 
 
 # ── CORRIGIR TENTATIVA ────────────────────────────────────────────────────────────────────
-# Espelho exato de routes/provas.py → corrigir_tentativa
 
 @exercicios_bp.route("/exercicios/<int:ex_id>/tentativa/<int:resp_id>/corrigir",
                      methods=["GET", "POST"])
@@ -541,20 +525,18 @@ def criar_exercicio(materia_id):
         flash("Título é obrigatório.", "erro")
         return redirect(f"/materias/{materia_id}/exercicios")
 
-    arquivo_nome = None
+    arquivo_url = None
     f = request.files.get("arquivo")
     if f and f.filename and _allowed(f.filename):
-        pasta = _upload_folder()
-        os.makedirs(pasta, exist_ok=True)
-        nome_seguro = secure_filename(
-            f"{materia_id}_{int(datetime.now().timestamp())}_{f.filename}"
-        )
-        f.save(os.path.join(pasta, nome_seguro))
-        arquivo_nome = f"exercicios/{nome_seguro}"
+        try:
+            arquivo_url = _upload_exercicio(f, materia_id)
+        except RuntimeError as e:
+            flash(f"Erro ao enviar arquivo: {e}", "erro")
+            return redirect(f"/materias/{materia_id}/exercicios")
 
     ex = Exercicio(
         materia_id=materia_id, titulo=titulo,
-        descricao=descricao or None, arquivo=arquivo_nome,
+        descricao=descricao or None, arquivo=arquivo_url,
         ordem=ordem, tentativas=max(1, tentativas or 1),
         tempo_limite=tempo_limite or None, ativo=1,
         criado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -572,9 +554,14 @@ def criar_exercicio(materia_id):
 @login_required
 def ver_arquivo_exercicio(ex_id):
     import mimetypes
+    from flask import redirect as flask_redirect
     ex = db.get_or_404(Exercicio, ex_id)
     if not ex.arquivo:
         abort(404)
+    # Se for URL do Cloudinary, redireciona diretamente
+    if ex.arquivo.startswith("http://") or ex.arquivo.startswith("https://"):
+        return flask_redirect(ex.arquivo)
+    # Fallback: arquivo local legado
     caminho = os.path.join(current_app.root_path, "static", "uploads", ex.arquivo)
     if not os.path.isfile(caminho):
         abort(404)
