@@ -34,13 +34,15 @@ def _calcular_nota(total_pontos, pontos_max):
 
 
 def _upload_exercicio(file_obj, materia_id):
-    """Faz upload de arquivo de exercício para o Cloudinary e retorna a URL."""
+    """Faz upload de arquivo de exercício para o Cloudinary.
+    Retorna (url, public_id).
+    """
     from services.storage_service import upload_arquivo
     nome_publico = secure_filename(
         f"{materia_id}_{int(datetime.now().timestamp())}_{file_obj.filename}"
     )
     resultado = upload_arquivo(file_obj, pasta="exercicios", nome_publico=nome_publico)
-    return resultado["url"]
+    return resultado["url"], resultado["public_id"]
 
 
 # ── LISTAGEM GERAL ───────────────────────────────────────────────────────────────────
@@ -79,31 +81,33 @@ def novo_exercicio():
 
     if request.method == "POST":
         f = request.form
-        titulo      = f.get("titulo", "").strip()
-        materia_id  = f.get("materia_id", type=int)
-        descricao   = f.get("descricao", "").strip() or None
-        ordem       = f.get("ordem", 1, type=int)
-        tentativas  = max(1, f.get("tentativas", 1, type=int))
+        titulo       = f.get("titulo", "").strip()
+        materia_id   = f.get("materia_id", type=int)
+        descricao    = f.get("descricao", "").strip() or None
+        ordem        = f.get("ordem", 1, type=int)
+        tentativas   = max(1, f.get("tentativas", 1, type=int))
         tempo_limite = f.get("tempo_limite", type=int) or None
-        nota_minima = f.get("nota_minima", 6.0, type=float)
-        ativo       = 1 if f.get("ativo") else 0
+        nota_minima  = f.get("nota_minima", 6.0, type=float)
+        ativo        = 1 if f.get("ativo") else 0
 
         if not titulo or not materia_id:
             flash("Título e matéria são obrigatórios.", "erro")
             return redirect("/exercicios/novo")
 
         arquivo_url = None
+        arquivo_pid = None
         arq = request.files.get("arquivo")
         if arq and arq.filename and _allowed(arq.filename):
             try:
-                arquivo_url = _upload_exercicio(arq, materia_id)
+                arquivo_url, arquivo_pid = _upload_exercicio(arq, materia_id)
             except RuntimeError as e:
                 flash(f"Erro ao enviar arquivo: {e}", "erro")
                 return redirect("/exercicios/novo")
 
         ex = Exercicio(
             materia_id=materia_id, titulo=titulo, descricao=descricao,
-            arquivo=arquivo_url, ordem=ordem, tentativas=tentativas,
+            arquivo=arquivo_url, arquivo_public_id=arquivo_pid,
+            ordem=ordem, tentativas=tentativas,
             tempo_limite=tempo_limite, nota_minima=nota_minima, ativo=ativo,
             criado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             criado_por=session.get("usuario") or "",
@@ -141,8 +145,13 @@ def editar_exercicio(ex_id):
 
         arq = request.files.get("arquivo")
         if arq and arq.filename and _allowed(arq.filename):
+            from services.storage_service import upload_arquivo, deletar_arquivo
+            if ex.arquivo_public_id:
+                deletar_arquivo(ex.arquivo_public_id)
             try:
-                ex.arquivo = _upload_exercicio(arq, ex.materia_id)
+                url, pid          = _upload_exercicio(arq, ex.materia_id)
+                ex.arquivo        = url
+                ex.arquivo_public_id = pid
             except RuntimeError as e:
                 flash(f"Erro ao enviar arquivo: {e}", "erro")
                 return redirect("/exercicios")
@@ -180,8 +189,13 @@ def toggle_exercicio(ex_id):
 @login_required
 def excluir_exercicio(ex_id):
     ex = db.get_or_404(Exercicio, ex_id)
-    if ex.arquivo and (ex.arquivo.startswith("http://") or ex.arquivo.startswith("https://")):
-        pass  # arquivos no Cloudinary: deleção controlada pelo painel ou etapa futura
+
+    if ex.arquivo:
+        if ex.arquivo_public_id:
+            from services.storage_service import deletar_arquivo
+            deletar_arquivo(ex.arquivo_public_id)
+        # arquivos legados (sem public_id) são apenas URLs; não há arquivo local para remover
+
     db.session.delete(ex)
     db.session.commit()
     flash("Exercício excluído.", "sucesso")
@@ -526,17 +540,19 @@ def criar_exercicio(materia_id):
         return redirect(f"/materias/{materia_id}/exercicios")
 
     arquivo_url = None
+    arquivo_pid = None
     f = request.files.get("arquivo")
     if f and f.filename and _allowed(f.filename):
         try:
-            arquivo_url = _upload_exercicio(f, materia_id)
+            arquivo_url, arquivo_pid = _upload_exercicio(f, materia_id)
         except RuntimeError as e:
             flash(f"Erro ao enviar arquivo: {e}", "erro")
             return redirect(f"/materias/{materia_id}/exercicios")
 
     ex = Exercicio(
         materia_id=materia_id, titulo=titulo,
-        descricao=descricao or None, arquivo=arquivo_url,
+        descricao=descricao or None,
+        arquivo=arquivo_url, arquivo_public_id=arquivo_pid,
         ordem=ordem, tentativas=max(1, tentativas or 1),
         tempo_limite=tempo_limite or None, ativo=1,
         criado_em=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -558,7 +574,6 @@ def ver_arquivo_exercicio(ex_id):
     ex = db.get_or_404(Exercicio, ex_id)
     if not ex.arquivo:
         abort(404)
-    # Se for URL do Cloudinary, redireciona diretamente
     if ex.arquivo.startswith("http://") or ex.arquivo.startswith("https://"):
         return flask_redirect(ex.arquivo)
     # Fallback: arquivo local legado
