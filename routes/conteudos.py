@@ -22,6 +22,7 @@ def conteudos():
         video      = request.form.get("video", "").strip() or None
         arquivo    = request.files.get("arquivo")
         caminho_db = None
+        public_id  = None
 
         if arquivo and arquivo.filename:
             if not extensao_permitida(arquivo.filename):
@@ -31,16 +32,18 @@ def conteudos():
             try:
                 resultado  = upload_arquivo(arquivo, pasta="conteudos")
                 caminho_db = resultado["url"]
+                public_id  = resultado["public_id"]
             except RuntimeError as e:
                 flash(f"Erro ao enviar arquivo: {e}", "erro")
                 return redirect("/conteudos")
 
         c = Conteudo(
-            titulo     = titulo,
-            materia_id = materia_id,
-            modulo     = modulo or None,
-            arquivo    = caminho_db,
-            video      = video,
+            titulo            = titulo,
+            materia_id        = materia_id,
+            modulo            = modulo or None,
+            arquivo           = caminho_db,
+            arquivo_public_id = public_id,
+            video             = video,
         )
         db.session.add(c)
         db.session.commit()
@@ -60,10 +63,11 @@ def excluir_conteudo(id):
     ProgressoAula.query.filter_by(conteudo_id=id).delete()
 
     if c.arquivo:
-        if c.arquivo.startswith("http://") or c.arquivo.startswith("https://"):
-            # arquivo no Cloudinary — tenta deletar via public_id se disponível
-            pass  # deleção de conteúdo não usa public_id salvo; omitido intencionalmente
-        else:
+        if c.arquivo_public_id:
+            from services.storage_service import deletar_arquivo
+            deletar_arquivo(c.arquivo_public_id)
+        elif not (c.arquivo.startswith("http://") or c.arquivo.startswith("https://")):
+            # arquivo local legado
             caminho_abs = os.path.join(current_app.root_path, c.arquivo)
             if os.path.isfile(caminho_abs):
                 os.remove(caminho_abs)
@@ -93,10 +97,14 @@ def editar_conteudo(id):
         if not extensao_permitida(arquivo.filename):
             flash("Tipo de arquivo não permitido.", "erro")
             return redirect("/conteudos")
-        from services.storage_service import upload_arquivo
+        from services.storage_service import upload_arquivo, deletar_arquivo
+        # remove arquivo anterior do Cloudinary se houver public_id
+        if c.arquivo_public_id:
+            deletar_arquivo(c.arquivo_public_id)
         try:
-            resultado = upload_arquivo(arquivo, pasta="conteudos")
-            c.arquivo = resultado["url"]
+            resultado         = upload_arquivo(arquivo, pasta="conteudos")
+            c.arquivo         = resultado["url"]
+            c.arquivo_public_id = resultado["public_id"]
         except RuntimeError as e:
             flash(f"Erro ao enviar arquivo: {e}", "erro")
             return redirect("/conteudos")
