@@ -1083,9 +1083,13 @@ def arquivo_exercicio_aluno(ex_id):
             abort(403)
         if not ex.arquivo:
             abort(404)
+        arquivo = ex.arquivo.strip()
+        if arquivo.startswith("http://") or arquivo.startswith("https://"):
+            from flask import redirect as flask_redirect
+            return flask_redirect(arquivo)
         caminho = os.path.join(
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
-            "static", "uploads", ex.arquivo
+            "static", "uploads", arquivo
         )
         if not os.path.isfile(caminho):
             abort(404)
@@ -1232,15 +1236,22 @@ def entregar_atividade(atividade_id):
             )
             db.session.add(entrega)
 
-        upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
-        os.makedirs(upload_folder, exist_ok=True)
-
+        from services.storage_service import upload_arquivo
         for idx, campo in enumerate(["arquivo1", "arquivo2", "arquivo3"], 1):
             f = request.files.get(campo)
             if f and f.filename:
-                fname = secure_filename(f"{aluno.id}_atv{atividade_id}_{idx}_{f.filename}")
-                f.save(os.path.join(upload_folder, fname))
-                setattr(entrega, campo, fname)
+                try:
+                    nome_publico = secure_filename(f"{aluno.id}_atv{atividade_id}_{idx}_{f.filename}")
+                    resultado    = upload_arquivo(f, pasta="entregas", nome_publico=nome_publico)
+                    setattr(entrega, campo, resultado["url"])
+                except RuntimeError as upload_err:
+                    db.session.rollback()
+                    flash(f"Erro ao enviar arquivo '{f.filename}'. Tente novamente.", "erro")
+                    current_app.logger.error(
+                        f"[entregar_atividade] Falha no upload Cloudinary aluno_id={aluno.id}: {upload_err}",
+                        exc_info=True
+                    )
+                    return redirect(f"/aluno/cursos/{atividade.curso_id}")
 
         entrega.status = "entregue"
         db.session.commit()
