@@ -69,23 +69,24 @@ class Config:
 
 import cloudinary
 def configurar_cloudinary(app):
-    """Configura o SDK Cloudinary se as variáveis de ambiente estiverem definidas.
+    """Configura o SDK Cloudinary.
 
-    O PythonAnywhere bloqueia conexões de saída em contas gratuitas e algumas pagas.
-    A variável PYTHONANYWHERE_PROXY (opcional no .env) permite definir o proxy.
-    Se não estiver definida, tenta o proxy padrão do PythonAnywhere automaticamente.
-    Para contas pagas com acesso irrestrito, basta não definir a variável.
+    Detecta proxy lendo as variáveis de ambiente https_proxy / http_proxy,
+    que o PythonAnywhere define automaticamente no ambiente do servidor WSGI.
+    Em outros ambientes (local, Railway, Render) essas variáveis não existem
+    e o proxy simplesmente não é aplicado.
     """
     cloud_name = app.config.get('CLOUDINARY_CLOUD_NAME')
     if not cloud_name:
         return
 
-    # Detecta proxy: variável explícita no .env tem prioridade;
-    # senão tenta o proxy padrão do PythonAnywhere.
-    proxy = os.environ.get('PYTHONANYWHERE_PROXY')
-    if proxy is None and os.path.exists('/etc/pythonanywhere_site_packages'):
-        # Ambiente PythonAnywhere detectado — usa proxy padrão
-        proxy = 'http://proxy.server:3128'
+    # Lê proxy do ambiente do sistema (definido pelo PythonAnywhere automaticamente)
+    # PYTHONANYWHERE_PROXY no .env permite sobrescrever se necessário
+    proxy = (
+        os.environ.get('PYTHONANYWHERE_PROXY')
+        or os.environ.get('https_proxy')
+        or os.environ.get('http_proxy')
+    )
 
     kwargs = dict(
         cloud_name = cloud_name,
