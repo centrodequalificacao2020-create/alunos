@@ -50,31 +50,45 @@ def _despesas_do_mes(mes: str) -> float:
 
 
 def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
-    matriculas_periodo = (
-        db.session.query(Matricula.aluno_id)
-        .filter(
-            Matricula.data_matricula.between(inicio, fim),
-            Matricula.data_matricula >= "2026-01-01"
-        )
-        .subquery()
-    )
+    """
+    Conta matrículas e rematrículas do período com base na baixa
+    do boleto de matrícula (Mensalidade.tipo == 'matricula', status == 'Pago').
 
-    ja_era_aluno = (
-        db.session.query(Matricula.aluno_id)
+    Regra:
+    - Só entra no contador quando a recepção registra o pagamento
+      da mensalidade do tipo 'matricula' no período.
+    - Nova: aluno que não tinha nenhuma mensalidade de matrícula
+      paga em períodos anteriores (desde 2026-01-01).
+    - Rematrícula: aluno que já tinha pelo menos uma mensalidade de
+      matrícula paga antes do início do período.
+    - Alunos sem boleto de matrícula (valor zero) não aparecem.
+    """
+    # IDs com baixa de matrícula no período
+    ids_periodo = {
+        r[0] for r in db.session.query(Mensalidade.aluno_id)
         .filter(
-            Matricula.data_matricula < inicio,
-            Matricula.data_matricula >= "2026-01-01"
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento.between(inicio, fim),
         )
         .distinct()
-        .subquery()
-    )
+        .all()
+    }
 
-    ids_periodo = [
-        r[0] for r in db.session.query(matriculas_periodo.c.aluno_id).distinct().all()
-    ]
+    if not ids_periodo:
+        return 0, 0
 
+    # IDs que já tinham baixa de matrícula em período anterior (desde 2026)
     ids_ja_eram = {
-        r[0] for r in db.session.query(ja_era_aluno.c.aluno_id).all()
+        r[0] for r in db.session.query(Mensalidade.aluno_id)
+        .filter(
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento >= "2026-01-01",
+            Mensalidade.data_pagamento < inicio,
+        )
+        .distinct()
+        .all()
     }
 
     novas        = sum(1 for aid in ids_periodo if aid not in ids_ja_eram)
@@ -143,11 +157,9 @@ def dashboard():
     receita_projetada  = recebido_mes + a_receber_mes
     ticket_medio       = recebido_mes / alunos_ativos if alunos_ativos > 0 else 0
 
-    # ─── Taxa de inadimplência ────────────────────────────────────────────
-    # Fórmula correta: Em atraso / (Recebido + A receber + Em atraso)
+    # ─── Taxa de inadimplência ────────────────────────────────────────────────────────────
     receita_total      = float(recebido_mes) + float(a_receber_mes) + float(total_atraso)
     taxa_inadimplencia = (float(total_atraso) / receita_total * 100) if receita_total > 0 else 0
-    # ───────────────────────────────────────────────────────────────────────────
 
     cancelamentos = Aluno.query.filter(
         func.lower(Aluno.status) == "cancelado"
@@ -318,6 +330,11 @@ def relatorio_trimestre(ano, tri):
 @dashboard_bp.route("/matriculas")
 @financeiro_required
 def matriculas_novas_detalhe():
+    """
+    Lista de matrículas novas do mês: alunos cuja mensalidade de
+    matrícula foi paga no período e que não tinham pagamento
+    anterior de matrícula desde 2026.
+    """
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
     mes       = request.args.get("mes") or mes_atual
@@ -325,38 +342,49 @@ def matriculas_novas_detalhe():
     fim       = _fim_mes(mes)
 
     ids_ja_eram = {
-        r[0] for r in db.session.query(Matricula.aluno_id)
+        r[0] for r in db.session.query(Mensalidade.aluno_id)
         .filter(
-            Matricula.data_matricula < inicio,
-            Matricula.data_matricula >= "2026-01-01"
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento >= "2026-01-01",
+            Mensalidade.data_pagamento < inicio,
         )
         .distinct()
         .all()
     }
 
-    matriculas_periodo = (
-        db.session.query(Matricula, Aluno, Curso)
-        .join(Aluno, Aluno.id == Matricula.aluno_id)
-        .outerjoin(Curso, Curso.id == Matricula.curso_id)
+    # Mensalidades de matrícula pagas no período, excluindo rematrículas
+    mens_periodo = (
+        db.session.query(Mensalidade, Aluno, Curso)
+        .join(Aluno, Aluno.id == Mensalidade.aluno_id)
+        .outerjoin(Curso, Curso.id == Mensalidade.curso_id)
         .filter(
-            Matricula.data_matricula.between(inicio, fim),
-            Matricula.data_matricula >= "2026-01-01",
-            Matricula.aluno_id.notin_(ids_ja_eram)
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento.between(inicio, fim),
+            Mensalidade.aluno_id.notin_(ids_ja_eram),
         )
-        .order_by(Matricula.data_matricula.desc())
+        .order_by(Mensalidade.data_pagamento.desc())
         .all()
     )
 
-    resultado = [
-        {
+    # Deduplica por aluno (pode haver mais de uma baixa no período)
+    vistos = set()
+    resultado = []
+    for mens, aluno, curso in mens_periodo:
+        if aluno.id in vistos:
+            continue
+        vistos.add(aluno.id)
+        mat = Matricula.query.filter_by(
+            aluno_id=aluno.id, curso_id=mens.curso_id
+        ).order_by(Matricula.id.desc()).first()
+        resultado.append({
             "aluno_id":   aluno.id,
             "aluno_nome": aluno.nome,
             "curso":      curso.nome if curso else "\u2014",
-            "data":       mat.data_matricula,
-            "status":     mat.status or "\u2014",
-        }
-        for mat, aluno, curso in matriculas_periodo
-    ]
+            "data":       mens.data_pagamento,
+            "status":     mat.status if mat else "\u2014",
+        })
 
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
                 "Jul","Ago","Set","Out","Nov","Dez"]
@@ -374,6 +402,11 @@ def matriculas_novas_detalhe():
 @dashboard_bp.route("/rematriculas")
 @financeiro_required
 def rematriculas_detalhe():
+    """
+    Lista de rematrículas do mês: alunos cuja mensalidade de
+    matrícula foi paga no período e que já tinham pagamento
+    anterior de matrícula desde 2026.
+    """
     hoje      = datetime.today()
     mes_atual = hoje.strftime("%Y-%m")
     mes       = request.args.get("mes") or mes_atual
@@ -381,50 +414,61 @@ def rematriculas_detalhe():
     fim       = _fim_mes(mes)
 
     ids_ja_eram = {
-        r[0] for r in db.session.query(Matricula.aluno_id)
+        r[0] for r in db.session.query(Mensalidade.aluno_id)
         .filter(
-            Matricula.data_matricula < inicio,
-            Matricula.data_matricula >= "2026-01-01"
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento >= "2026-01-01",
+            Mensalidade.data_pagamento < inicio,
         )
         .distinct()
         .all()
     }
 
-    matriculas_periodo = (
-        db.session.query(Matricula, Aluno, Curso)
-        .join(Aluno, Aluno.id == Matricula.aluno_id)
-        .outerjoin(Curso, Curso.id == Matricula.curso_id)
+    mens_periodo = (
+        db.session.query(Mensalidade, Aluno, Curso)
+        .join(Aluno, Aluno.id == Mensalidade.aluno_id)
+        .outerjoin(Curso, Curso.id == Mensalidade.curso_id)
         .filter(
-            Matricula.data_matricula.between(inicio, fim),
-            Matricula.data_matricula >= "2026-01-01",
-            Matricula.aluno_id.in_(ids_ja_eram)
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento.between(inicio, fim),
+            Mensalidade.aluno_id.in_(ids_ja_eram),
         )
-        .order_by(Matricula.data_matricula.desc())
+        .order_by(Mensalidade.data_pagamento.desc())
         .all()
     )
 
+    vistos = set()
     resultado = []
-    for mat, aluno, curso in matriculas_periodo:
-        mat_anterior = (
-            Matricula.query
+    for mens, aluno, curso in mens_periodo:
+        if aluno.id in vistos:
+            continue
+        vistos.add(aluno.id)
+
+        # Curso anterior: matrícula paga mais recente antes do período
+        mens_anterior = (
+            Mensalidade.query
             .filter(
-                Matricula.aluno_id == aluno.id,
-                Matricula.data_matricula < inicio,
-                Matricula.data_matricula >= "2026-01-01"
+                Mensalidade.aluno_id == aluno.id,
+                func.lower(Mensalidade.tipo) == "matricula",
+                Mensalidade.status == "Pago",
+                Mensalidade.data_pagamento >= "2026-01-01",
+                Mensalidade.data_pagamento < inicio,
             )
-            .order_by(Matricula.data_matricula.desc())
+            .order_by(Mensalidade.data_pagamento.desc())
             .first()
         )
         curso_anterior = None
-        if mat_anterior and mat_anterior.curso_id:
-            curso_anterior = Curso.query.get(mat_anterior.curso_id)
+        if mens_anterior and mens_anterior.curso_id:
+            curso_anterior = Curso.query.get(mens_anterior.curso_id)
 
         resultado.append({
             "aluno_id":       aluno.id,
             "aluno_nome":     aluno.nome,
             "curso_novo":     curso.nome if curso else "\u2014",
             "curso_anterior": curso_anterior.nome if curso_anterior else "\u2014",
-            "data":           mat.data_matricula,
+            "data":           mens.data_pagamento,
         })
 
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
