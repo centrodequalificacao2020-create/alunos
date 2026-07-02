@@ -26,8 +26,14 @@
             <div class="campo">
                 <label for="tipo">Tipo</label>
                 <select id="tipo" name="tipo">
-                    {% for t in ['Matrícula','Mensalidade','Material','Outros'] %}
-                    <option value="{{ t }}" {% if parcela.tipo == t %}selected{% endif %}>{{ t }}</option>
+                    {% set tipos_parcela = [
+                        ('matricula',   'Matrícula'),
+                        ('mensalidade', 'Mensalidade'),
+                        ('material',    'Material'),
+                        ('outros',      'Outros'),
+                    ] %}
+                    {% for valor, label in tipos_parcela %}
+                    <option value="{{ valor }}" {% if (parcela.tipo or '')|lower == valor %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
