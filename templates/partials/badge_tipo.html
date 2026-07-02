@@ -4,9 +4,9 @@
   Variável esperada: p (objeto com atributo .tipo)
 #}
 {% set _cores = {
-    'Matrícula':   'badge-matricula',
-    'Mensalidade': 'badge-mensalidade',
-    'Material':    'badge-material',
-    'Outros':      'badge-outros'
+    'matricula':   'badge-matricula',
+    'mensalidade': 'badge-mensalidade',
+    'material':    'badge-material',
+    'outros':      'badge-outros'
 } %}
-<span class="badge {{ _cores.get(p.tipo, 'badge-outros') }}">{{ p.tipo }}</span>
+<span class="badge {{ _cores.get(p.tipo | lower, 'badge-outros') }}">{{ p.tipo | capitalize }}</span>
