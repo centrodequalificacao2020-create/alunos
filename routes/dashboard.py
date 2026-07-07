@@ -143,7 +143,7 @@ def dashboard():
     receita_projetada  = recebido_mes + a_receber_mes
     ticket_medio       = recebido_mes / alunos_ativos if alunos_ativos > 0 else 0
 
-    # ─── Taxa de inadimplência ────────────────────────────────────────────
+    # ─── Taxa de inadimplência ─────────────────────────────────────────────────────────
     # Fórmula correta: Em atraso / (Recebido + A receber + Em atraso)
     receita_total      = float(recebido_mes) + float(a_receber_mes) + float(total_atraso)
     taxa_inadimplencia = (float(total_atraso) / receita_total * 100) if receita_total > 0 else 0
@@ -324,26 +324,18 @@ def matriculas_novas_detalhe():
     inicio    = f"{mes}-01"
     fim       = _fim_mes(mes)
 
-    ids_ja_eram = {
-        r[0] for r in db.session.query(Matricula.aluno_id)
-        .filter(
-            Matricula.data_matricula < inicio,
-            Matricula.data_matricula >= "2026-01-01"
-        )
-        .distinct()
-        .all()
-    }
-
-    matriculas_periodo = (
-        db.session.query(Matricula, Aluno, Curso)
-        .join(Aluno, Aluno.id == Matricula.aluno_id)
+    # Criterio financeiro: mensalidade de matricula paga no periodo
+    rows = (
+        db.session.query(Mensalidade, Aluno, Matricula, Curso)
+        .join(Aluno, Aluno.id == Mensalidade.aluno_id)
+        .join(Matricula, Matricula.aluno_id == Mensalidade.aluno_id)
         .outerjoin(Curso, Curso.id == Matricula.curso_id)
         .filter(
-            Matricula.data_matricula.between(inicio, fim),
-            Matricula.data_matricula >= "2026-01-01",
-            Matricula.aluno_id.notin_(ids_ja_eram)
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento.between(inicio, fim)
         )
-        .order_by(Matricula.data_matricula.desc())
+        .order_by(Mensalidade.data_pagamento.desc())
         .all()
     )
 
@@ -352,10 +344,9 @@ def matriculas_novas_detalhe():
             "aluno_id":   aluno.id,
             "aluno_nome": aluno.nome,
             "curso":      curso.nome if curso else "\u2014",
-            "data":       mat.data_matricula,
-            "status":     mat.status or "\u2014",
+            "data":       mens.data_pagamento,
         }
-        for mat, aluno, curso in matriculas_periodo
+        for mens, aluno, mat, curso in rows
     ]
 
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
