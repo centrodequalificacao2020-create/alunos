@@ -1130,26 +1130,41 @@ def conteudo_aluno(curso_id):
 @aluno_login_required
 def abrir_arquivo_conteudo(conteudo_id):
     import mimetypes
+    from flask import current_app  # Certifique-se de ter este import se não houver no topo
+
     conteudo = db.get_or_404(Conteudo, conteudo_id)
     if not _aluno_pode_acessar_conteudo(session["aluno_id"], conteudo):
         abort(403)
     if not conteudo.arquivo:
         abort(404)
+
     arquivo = conteudo.arquivo.strip()
+
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
         import requests
         try:
-            r = requests.get(arquivo, timeout=30)
+            # 1. Adiciona User-Agent de navegador para evitar que o Cloudinary bloqueie o PythonAnywhere
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            r = requests.get(arquivo, headers=headers, timeout=20)
             r.raise_for_status()
+
             resp = Response(r.content, mimetype="application/pdf")
             resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
+
+            # 2. ESSENCIAL: ALLOWALL permite que o pdf.js processe o stream no sandbox do browser
+            resp.headers["X-Frame-Options"]        = "ALLOWALL"
             resp.headers["X-Content-Type-Options"] = "nosniff"
             resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
             resp.headers["Pragma"]                 = "no-cache"
             return resp
-        except Exception:
+        except Exception as e:
+            # Se ainda der erro, o motivo real vai ser escrito no seu Error Log do PythonAnywhere
+            current_app.logger.error(f"[Cloudinary Proxy Error] Falha ao renderizar ID {conteudo_id}: {e}")
             abort(502)
+
+    # ─── Fluxo Local Antigo (Mantido como Fallback) ────────────────────────
     base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     caminho    = arquivo.lstrip("/")
     candidatos = [
@@ -1166,13 +1181,13 @@ def abrir_arquivo_conteudo(conteudo_id):
                 dados = f.read()
             resp = Response(dados, mimetype=mime)
             resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
+            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"  # Local pode manter SAMEORIGIN
             resp.headers["X-Content-Type-Options"] = "nosniff"
             resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
             resp.headers["Pragma"]                 = "no-cache"
             return resp
-    abort(404)
 
+    abort(404)
 
 # --- CONCLUIR AULA ------------------------------------------------------------
 
