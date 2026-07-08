@@ -1130,7 +1130,19 @@ def abrir_arquivo_conteudo(conteudo_id):
         abort(404)
     arquivo = conteudo.arquivo.strip()
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
-        return redirect(arquivo)
+        import requests
+        try:
+            r = requests.get(arquivo, timeout=30)
+            r.raise_for_status()
+            resp = Response(r.content, mimetype="application/pdf")
+            resp.headers["Content-Disposition"]   = "inline"
+            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
+            resp.headers["X-Content-Type-Options"] = "nosniff"
+            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"]                 = "no-cache"
+            return resp
+        except Exception:
+            abort(502)
     base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     caminho    = arquivo.lstrip("/")
     candidatos = [

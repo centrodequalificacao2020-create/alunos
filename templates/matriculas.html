@@ -29,8 +29,7 @@
             <th>#</th>
             <th>Aluno</th>
             <th>Curso</th>
-            <th>Status</th>
-            <th>Data</th>
+            <th>Data Pagamento</th>
             <th></th>
           </tr>
         </thead>
@@ -40,11 +39,6 @@
             <td style="color:var(--text-muted,#888)">{{ loop.index }}</td>
             <td style="font-weight:600">{{ r.aluno_nome }}</td>
             <td>{{ r.curso }}</td>
-            <td>
-              <span class="badge {{ 'badge-success' if r.status == 'Ativa' else 'badge-secondary' }}">
-                {{ r.status }}
-              </span>
-            </td>
             <td>
               {% if r.data %}
                 {{ r.data.strftime('%d/%m/%Y') if r.data is not string else r.data }}
