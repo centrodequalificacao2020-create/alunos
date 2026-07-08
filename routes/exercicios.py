@@ -575,7 +575,15 @@ def ver_arquivo_exercicio(ex_id):
     if not ex.arquivo:
         abort(404)
     if ex.arquivo.startswith("http://") or ex.arquivo.startswith("https://"):
-        return flask_redirect(ex.arquivo)
+        import requests
+        try:
+            r = requests.get(ex.arquivo, timeout=30)
+            r.raise_for_status()
+            resp = Response(r.content, mimetype="application/pdf")
+            resp.headers["Content-Disposition"] = "inline"
+            return resp
+        except Exception:
+            abort(502)
     # Fallback: arquivo local legado
     caminho = os.path.join(current_app.root_path, "static", "uploads", ex.arquivo)
     if not os.path.isfile(caminho):

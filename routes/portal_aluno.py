@@ -1085,8 +1085,15 @@ def arquivo_exercicio_aluno(ex_id):
             abort(404)
         arquivo = ex.arquivo.strip()
         if arquivo.startswith("http://") or arquivo.startswith("https://"):
-            from flask import redirect as flask_redirect
-            return flask_redirect(arquivo)
+            import requests
+            try:
+                r = requests.get(arquivo, timeout=30)
+                r.raise_for_status()
+                resp = Response(r.content, mimetype="application/pdf")
+                resp.headers["Content-Disposition"] = "inline"
+                return resp
+            except Exception:
+                abort(502)
         caminho = os.path.join(
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
             "static", "uploads", arquivo

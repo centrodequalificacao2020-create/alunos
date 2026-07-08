@@ -18,7 +18,7 @@ def upload_arquivo(file_object, pasta: str, nome_publico: str = None) -> dict:
     try:
         params = {
             "folder":          pasta_final,
-            "resource_type":   "auto",
+            "resource_type":   "raw",
             "use_filename":    True,
             "unique_filename": True,
         }
