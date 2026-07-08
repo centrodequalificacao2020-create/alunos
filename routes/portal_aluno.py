@@ -1131,7 +1131,8 @@ def conteudo_aluno(curso_id):
 def abrir_arquivo_conteudo(conteudo_id):
     import mimetypes
     import requests
-    import cloudinary.utils  # <--- ESSENCIAL PARA GERAR A ASSINATURA
+    import time
+    import cloudinary.utils
     from flask import current_app
 
     conteudo = db.get_or_404(Conteudo, conteudo_id)
@@ -1143,46 +1144,46 @@ def abrir_arquivo_conteudo(conteudo_id):
     arquivo = conteudo.arquivo.strip()
 
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
+        # Começamos tentando usar a própria URL armazenada no banco
+        url_para_requisicao = arquivo
+
+        if "cloudinary.com" in arquivo:
+            try:
+                partes = arquivo.split("/upload/")
+                if len(partes) > 1:
+                    sub_path = partes[1]
+                    if sub_path.startswith("v"):
+                        sub_path = "/".join(sub_path.split("/")[1:])
+
+                    # Tentamos assinar como 'upload' que condiz com sua dashboard aberta
+                    url_para_requisicao = cloudinary.utils.cloudinary_url(
+                        sub_path,
+                        resource_type="raw",
+                        sign_url=True,
+                        type="upload",
+                        expires_at=int(time.time() + 300)
+                    )[0]
+            except Exception as e_url:
+                current_app.logger.warning(f"[Cloudinary Sign] Falha ao assinar, usando URL original: {e_url}")
+                url_para_requisicao = arquivo
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+
         try:
-            # 1. Se o arquivo está no Cloudinary, precisamos extrair o public_id ou assinar a URL
-            # Para arquivos protegidos do tipo 'raw', geramos a URL assinada dinamicamente:
-            url_para_requisicao = arquivo
+            # TENTATIVA 1: Tenta baixar usando a URL processada/assinada
+            r = requests.get(url_para_requisicao, headers=headers, timeout=20)
 
-            # Se você salvou o public_id no modelo (ex: conteudo.public_id), use-o direto.
-            # Caso contrário, geramos a assinatura baseada na própria URL ou public_id extraído
-            if "cloudinary.com" in arquivo:
-                # Extrai o public_id a partir da URL (tudo após /upload/vXXXXXXXXX/)
-                # Ex: 'cqp/conteudos/arquivo_snp0ck.pdf'
-                try:
-                    partes = arquivo.split("/upload/")
-                    if len(partes) > 1:
-                        # Remove a versão (v1783450895/) se ela existir
-                        sub_path = partes[1]
-                        if sub_path.startswith("v"):
-                            sub_path = "/".join(sub_path.split("/")[1:])
+            # Se a assinada der 401 por incompatibilidade, faz o Fallback imediato para a URL limpa do banco
+            if r.status_code == 401 and url_para_requisicao != arquivo:
+                current_app.logger.info(f"[Cloudinary Proxy] URL assinada retornou 401. Tentando URL limpa original.")
+                r = requests.get(arquivo, headers=headers, timeout=20)
 
-                        # Gera uma URL assinada e segura que expira em 60 segundos
-                        url_para_requisicao = cloudinary.utils.cloudinary_url(
-                            sub_path,
-                            resource_type="raw",
-                            sign_url=True,
-                            type="upload", # ou "authenticated"/"private" dependendo da config da sua dashboard
-                            expires_at=int(os.time() + 60) if hasattr(os, 'time') else None
-                        )[0]
-                except Exception as e_url:
-                    current_app.logger.warning(f"[Cloudinary Sign] Falha ao assinar, tentando URL pura: {e_url}")
-
-            # 2. Faz a requisição emulando um navegador real
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-            r = requests.get(url_para_requisicao, headers=headers, timeout=25)
             r.raise_for_status()
 
             resp = Response(r.content, mimetype="application/pdf")
             resp.headers["Content-Disposition"]   = "inline"
-
-            # 3. Libera para o pdf.js embutido conseguir renderizar o stream binário
             resp.headers["X-Frame-Options"]        = "ALLOWALL"
             resp.headers["X-Content-Type-Options"] = "nosniff"
             resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
@@ -1190,8 +1191,33 @@ def abrir_arquivo_conteudo(conteudo_id):
             return resp
 
         except Exception as e:
-            current_app.logger.error(f"[Cloudinary Proxy Error] Falha ao renderizar ID {conteudo_id}: {e}")
+            current_app.logger.error(f"[Cloudinary Proxy Error] Falha crítica ao renderizar ID {conteudo_id}: {e}")
             abort(502)
+
+    # ─── Fluxo Local Antigo (Fallback) ─────────────────────────────────────
+    base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    caminho    = arquivo.lstrip("/")
+    candidatos = [
+        os.path.join(base_dir, caminho),
+        os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
+        os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
+        os.path.join(base_dir, "uploads", os.path.basename(caminho)),
+    ]
+    for candidato in candidatos:
+        if os.path.isfile(candidato):
+            mime, _ = mimetypes.guess_type(candidato)
+            mime = mime or "application/octet-stream"
+            with open(candidato, "rb") as f:
+                dados = f.read()
+            resp = Response(dados, mimetype=mime)
+            resp.headers["Content-Disposition"]   = "inline"
+            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
+            resp.headers["X-Content-Type-Options"] = "nosniff"
+            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"]                 = "no-cache"
+            return resp
+
+    abort(404)
 
     # ─── Fluxo Local Antigo (Fallback) ─────────────────────────────────────
     base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
