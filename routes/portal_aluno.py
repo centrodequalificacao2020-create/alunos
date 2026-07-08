@@ -1130,7 +1130,9 @@ def conteudo_aluno(curso_id):
 @aluno_login_required
 def abrir_arquivo_conteudo(conteudo_id):
     import mimetypes
-    from flask import current_app  # Certifique-se de ter este import se não houver no topo
+    import requests
+    import cloudinary.utils  # <--- ESSENCIAL PARA GERAR A ASSINATURA
+    from flask import current_app
 
     conteudo = db.get_or_404(Conteudo, conteudo_id)
     if not _aluno_pode_acessar_conteudo(session["aluno_id"], conteudo):
@@ -1141,30 +1143,57 @@ def abrir_arquivo_conteudo(conteudo_id):
     arquivo = conteudo.arquivo.strip()
 
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
-        import requests
         try:
-            # 1. Adiciona User-Agent de navegador para evitar que o Cloudinary bloqueie o PythonAnywhere
+            # 1. Se o arquivo está no Cloudinary, precisamos extrair o public_id ou assinar a URL
+            # Para arquivos protegidos do tipo 'raw', geramos a URL assinada dinamicamente:
+            url_para_requisicao = arquivo
+
+            # Se você salvou o public_id no modelo (ex: conteudo.public_id), use-o direto.
+            # Caso contrário, geramos a assinatura baseada na própria URL ou public_id extraído
+            if "cloudinary.com" in arquivo:
+                # Extrai o public_id a partir da URL (tudo após /upload/vXXXXXXXXX/)
+                # Ex: 'cqp/conteudos/arquivo_snp0ck.pdf'
+                try:
+                    partes = arquivo.split("/upload/")
+                    if len(partes) > 1:
+                        # Remove a versão (v1783450895/) se ela existir
+                        sub_path = partes[1]
+                        if sub_path.startswith("v"):
+                            sub_path = "/".join(sub_path.split("/")[1:])
+
+                        # Gera uma URL assinada e segura que expira em 60 segundos
+                        url_para_requisicao = cloudinary.utils.cloudinary_url(
+                            sub_path,
+                            resource_type="raw",
+                            sign_url=True,
+                            type="upload", # ou "authenticated"/"private" dependendo da config da sua dashboard
+                            expires_at=int(os.time() + 60) if hasattr(os, 'time') else None
+                        )[0]
+                except Exception as e_url:
+                    current_app.logger.warning(f"[Cloudinary Sign] Falha ao assinar, tentando URL pura: {e_url}")
+
+            # 2. Faz a requisição emulando um navegador real
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
-            r = requests.get(arquivo, headers=headers, timeout=20)
+            r = requests.get(url_para_requisicao, headers=headers, timeout=25)
             r.raise_for_status()
 
             resp = Response(r.content, mimetype="application/pdf")
             resp.headers["Content-Disposition"]   = "inline"
 
-            # 2. ESSENCIAL: ALLOWALL permite que o pdf.js processe o stream no sandbox do browser
+            # 3. Libera para o pdf.js embutido conseguir renderizar o stream binário
             resp.headers["X-Frame-Options"]        = "ALLOWALL"
             resp.headers["X-Content-Type-Options"] = "nosniff"
             resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
             resp.headers["Pragma"]                 = "no-cache"
             return resp
+
         except Exception as e:
-            # Se ainda der erro, o motivo real vai ser escrito no seu Error Log do PythonAnywhere
             current_app.logger.error(f"[Cloudinary Proxy Error] Falha ao renderizar ID {conteudo_id}: {e}")
             abort(502)
 
-    # ─── Fluxo Local Antigo (Mantido como Fallback) ────────────────────────
+    # ─── Fluxo Local Antigo (Fallback) ─────────────────────────────────────
     base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     caminho    = arquivo.lstrip("/")
     candidatos = [
@@ -1181,7 +1210,7 @@ def abrir_arquivo_conteudo(conteudo_id):
                 dados = f.read()
             resp = Response(dados, mimetype=mime)
             resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"  # Local pode manter SAMEORIGIN
+            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
             resp.headers["X-Content-Type-Options"] = "nosniff"
             resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
             resp.headers["Pragma"]                 = "no-cache"
