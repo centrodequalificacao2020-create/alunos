@@ -4,6 +4,29 @@ from models import Materia, CursoMateria, Nota, Matricula
 from enums import StatusMatricula
 
 
+def calcular_nota_escala(total_pontos: float, pontos_max: float,
+                         escala: float = 10.0) -> float:
+    """Calcula nota proporcional em uma escala (padrão 0–10).
+
+    Diferentemente das versões duplicadas anteriores, esta função:
+    - Usa explicitamente ``is None`` em vez de truthiness para não
+      confundir ``0.0`` (nota zero legítima) com falta de avaliação.
+    - Aceita um parâmetro ``escala`` (default 10.0).
+    - Retorna 0.0 quando *pontos_max* é ``None``, zero ou negativo.
+
+    Args:
+        total_pontos: pontos obtidos pelo aluno.
+        pontos_max:   total de pontos possíveis.
+        escala:       valor máximo da escala (padrão 10.0).
+
+    Returns:
+        Nota na escala desejada, arredondada com 2 casas decimais.
+    """
+    if pontos_max is None or pontos_max <= 0.0:
+        return 0.0
+    return round((total_pontos / pontos_max) * escala, 2)
+
+
 def get_materias_do_curso(curso_id: int):
     """Retorna matérias ativas de um curso via CursoMateria (fonte correta)."""
     return (

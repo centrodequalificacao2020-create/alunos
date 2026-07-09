@@ -13,6 +13,8 @@ from app import limiter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 from services.pdf_service import gerar_declaracao_matricula
+from services.notas_service import calcular_nota_escala
+from services.file_service import serve_local_file, proxy_remote_file
 
 portal_aluno_bp = Blueprint("portal_aluno", __name__)
 
@@ -30,10 +32,16 @@ _VERSAO_CONTRATO = "v1.0"
 
 
 def _calcular_nota(total_pontos, pontos_max):
-    """Nota na escala 0-10. Retorna 0.0 se pontos_max <= 0."""
-    if not pontos_max or pontos_max <= 0.0:
-        return 0.0
-    return round((total_pontos / pontos_max) * 10, 2)
+    """Nota na escala 0-10. Delega para o serviço centralizado.
+
+    Mantida como wrapper local para retrocompatibilidade com rotas
+    internas que ainda chamam _calcular_nota diretamente.
+
+    Como calcular_nota_escala usa ``is None`` / ``<= 0.0``, uma nota
+    zero legítima (total_pontos == 0 com pontos_max > 0) retorna 0.0,
+    e NÃO é confundida com "não avaliado".
+    """
+    return calcular_nota_escala(total_pontos, pontos_max)
 
 
 def _matriculas_ativas(aluno_id):
@@ -889,6 +897,7 @@ def realizar_exercicio(ex_id):
         exercicio      = ex,
         usadas         = usadas,
         max_tentativas = max_tent,
+        server_time    = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
 
@@ -914,22 +923,69 @@ def responder_exercicio(ex_id):
     if not lib:
         abort(403)
 
-    usadas   = RespostaExercicio.query.filter_by(exercicio_id=ex_id, aluno_id=aluno_id).count()
     max_tent = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
-    if usadas >= max_tent:
-        flash("Tentativas esgotadas.", "erro")
-        return redirect("/aluno/cursos")
 
-    tentativa_num  = usadas + 1
-    agora          = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    total_questoes = len(ex.questoes)
-
+    # ── Proteção contra race condition em SQLite ───────────────────────
+    # SQLite serializa todas as escritas. Dentro de um savepoint aninhado,
+    # recontamos as tentativas E criamos o registro de resposta de forma
+    # atómica. Se outro request concorrente já tiver consumido a última
+    # tentativa, o re-check dentro do savepoint deteta e retorna erro.
+    # ─────────────────────────────────────────────────────────────────────
+    savepoint = db.session.begin_nested()
     try:
+        usadas = (
+            RespostaExercicio.query
+            .filter_by(exercicio_id=ex_id, aluno_id=aluno_id)
+            .count()
+        )
+        if usadas >= max_tent:
+            savepoint.rollback()
+            flash("Tentativas esgotadas.", "erro")
+            return redirect("/aluno/cursos")
+
+        tentativa_num  = usadas + 1
+        agora          = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # ── Validação de tempo limite ──────────────────────────────────
+        iniciado_em_str = request.form.get("iniciado_em", "")
+        if ex.tempo_limite and iniciado_em_str:
+            try:
+                iniciado_dt = datetime.strptime(iniciado_em_str, "%Y-%m-%d %H:%M:%S")
+                decorrido   = (datetime.now() - iniciado_dt).total_seconds()
+                limite_seg  = ex.tempo_limite * 60
+                if decorrido > limite_seg:
+                    # Regista tentativa como expirada (sem acertos)
+                    resp_expirada = RespostaExercicio(
+                        aluno_id       = aluno_id,
+                        exercicio_id   = ex_id,
+                        tentativa_num  = tentativa_num,
+                        iniciado_em    = iniciado_em_str,
+                        finalizado_em  = agora,
+                        total_questoes = len(ex.questoes),
+                        acertos        = 0,
+                        percentual     = 0.0,
+                        nota_obtida    = None,
+                        aprovado       = 0,
+                    )
+                    db.session.add(resp_expirada)
+                    savepoint.commit()
+                    db.session.commit()
+                    flash(
+                        f"Tempo limite de {ex.tempo_limite} min excedido. "
+                        "Tentativa registada sem pontuação.",
+                        "erro",
+                    )
+                    return redirect("/aluno/cursos")
+            except (ValueError, TypeError):
+                pass  # timestamp inválido → prossegue sem validação de tempo
+
+        total_questoes = len(ex.questoes)
+
         resp = RespostaExercicio(
             aluno_id       = aluno_id,
             exercicio_id   = ex_id,
             tentativa_num  = tentativa_num,
-            iniciado_em    = agora,
+            iniciado_em    = iniciado_em_str or agora,
             finalizado_em  = agora,
             total_questoes = total_questoes,
             acertos        = 0,
@@ -940,9 +996,9 @@ def responder_exercicio(ex_id):
         db.session.add(resp)
         db.session.flush()
 
-        acertos     = 0
-        total_pontos = 0.0
-        pontos_max   = 0.0
+        acertos       = 0
+        total_pontos  = 0.0
+        pontos_max    = 0.0
 
         for q in ex.questoes:
             pts_questao   = max(0.0, float(q.pontos or 0.0))
@@ -992,7 +1048,7 @@ def responder_exercicio(ex_id):
             nota_final = None
             aprovado   = None
         else:
-            nota_final = _calcular_nota(total_pontos, pontos_max)
+            nota_final = calcular_nota_escala(total_pontos, pontos_max)
             nota_minima = float(ex.nota_minima or 6.0)
             aprovado    = 1 if nota_final >= nota_minima else 0
 
@@ -1002,9 +1058,12 @@ def responder_exercicio(ex_id):
         resp.nota_obtida         = nota_final
         resp.aprovado            = aprovado
         resp.pontos_obtidos_total = total_pontos
+
+        savepoint.commit()
         db.session.commit()
 
     except Exception:
+        savepoint.rollback()
         db.session.rollback()
         flash("Erro ao processar suas respostas. Tente novamente.", "erro")
         return redirect(f"/aluno/exercicio/{ex_id}")
@@ -1068,7 +1127,6 @@ def resultado_exercicio(ex_id, resp_id):
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/arquivo")
 @aluno_login_required
 def arquivo_exercicio_aluno(ex_id):
-    import mimetypes
     aluno_id = session["aluno_id"]
     aluno    = db.get_or_404(Aluno, aluno_id)
     redir = verificar_contrato(aluno)
@@ -1076,36 +1134,51 @@ def arquivo_exercicio_aluno(ex_id):
         return redir
 
     try:
-        from models import Exercicio, ExercicioLiberado
+        from models import Exercicio, ExercicioLiberado, CursoMateria
+
         ex = db.get_or_404(Exercicio, ex_id)
-        lib = ExercicioLiberado.query.filter_by(aluno_id=aluno_id, exercicio_id=ex_id, liberado=1).first()
+        lib = ExercicioLiberado.query.filter_by(
+            aluno_id=aluno_id, exercicio_id=ex_id, liberado=1
+        ).first()
         if not lib:
             abort(403)
+
+        # ── BOLA/IDOR: verifica que o aluno tem matrícula ativa no curso
+        #    que contém a matéria deste exercício ─────────────────────────
+        ids_cursos_ativos = {
+            m.curso_id for m in _matriculas_ativas(aluno_id)
+        }
+        vinculo = CursoMateria.query.filter(
+            CursoMateria.materia_id == ex.materia_id,
+            CursoMateria.curso_id.in_(ids_cursos_ativos),
+        ).first()
+        if not vinculo:
+            abort(403)
+
         if not ex.arquivo:
             abort(404)
+
         arquivo = ex.arquivo.strip()
+
+        # ── Proxy remoto (Cloudinary / URL externa) ─────────────────────
         if arquivo.startswith("http://") or arquivo.startswith("https://"):
-            import requests
             try:
-                r = requests.get(arquivo, timeout=30)
-                r.raise_for_status()
-                resp = Response(r.content, mimetype="application/pdf")
-                resp.headers["Content-Disposition"] = "inline"
-                return resp
+                return proxy_remote_file(arquivo)
             except Exception:
                 abort(502)
-        caminho = os.path.join(
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
-            "static", "uploads", arquivo
-        )
-        if not os.path.isfile(caminho):
+
+        # ── Arquivo local ───────────────────────────────────────────────
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        caminho  = arquivo.lstrip("/")
+        candidatos = [
+            os.path.join(base_dir, caminho),
+            os.path.join(base_dir, "static", "uploads", arquivo),
+        ]
+        try:
+            return serve_local_file(candidatos)
+        except FileNotFoundError:
             abort(404)
-        mime, _ = mimetypes.guess_type(caminho)
-        with open(caminho, "rb") as f:
-            dados = f.read()
-        resp = Response(dados, mimetype=mime or "application/octet-stream")
-        resp.headers["Content-Disposition"] = "inline"
-        return resp
+
     except OperationalError:
         abort(404)
 
@@ -1129,10 +1202,6 @@ def conteudo_aluno(curso_id):
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
 def abrir_arquivo_conteudo(conteudo_id):
-    import mimetypes
-    import requests
-    from flask import current_app
-
     conteudo = db.get_or_404(Conteudo, conteudo_id)
     if not _aluno_pode_acessar_conteudo(session["aluno_id"], conteudo):
         abort(403)
@@ -1141,108 +1210,30 @@ def abrir_arquivo_conteudo(conteudo_id):
 
     arquivo = conteudo.arquivo.strip()
 
+    # ── Proxy remoto (Cloudinary / URL externa) ───────────────────────────
     if arquivo.startswith("http://") or arquivo.startswith("https://"):
-        url_para_requisicao = arquivo
-
-        # Correção crucial: Se a URL antiga foi salva erroneamente com '/image/upload/',
-        # nós trocamos dinamicamente para '/raw/upload/', que é onde o Cloudinary guardou o PDF.
-        if "cloudinary.com" in arquivo and "/image/upload/" in arquivo:
-            url_para_requisicao = arquivo.replace("/image/upload/", "/raw/upload/")
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-
         try:
-            r = requests.get(url_para_requisicao, headers=headers, timeout=20)
-            r.raise_for_status()
-
-            resp = Response(r.content, mimetype="application/pdf")
-            resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "ALLOWALL"
-            resp.headers["X-Content-Type-Options"] = "nosniff"
-            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
-            resp.headers["Pragma"]                 = "no-cache"
-            return resp
-
+            return proxy_remote_file(arquivo)
         except Exception as e:
-            current_app.logger.error(f"[Cloudinary Proxy Error] Falha crítica ao renderizar ID {conteudo_id} (URL tentada: {url_para_requisicao}): {e}")
+            current_app.logger.error(
+                f"[Cloudinary Proxy Error] Falha ao servir conteúdo "
+                f"ID {conteudo_id} (URL: {arquivo}): {e}"
+            )
             abort(502)
 
-    # ─── Fluxo Local Antigo (Fallback) ─────────────────────────────────────
-    base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    caminho    = arquivo.lstrip("/")
+    # ── Fluxo Local (Fallback único) ─────────────────────────────────────
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    caminho  = arquivo.lstrip("/")
     candidatos = [
         os.path.join(base_dir, caminho),
         os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
         os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
         os.path.join(base_dir, "uploads", os.path.basename(caminho)),
     ]
-    for candidato in candidatos:
-        if os.path.isfile(candidato):
-            mime, _ = mimetypes.guess_type(candidato)
-            mime = mime or "application/octet-stream"
-            with open(candidato, "rb") as f:
-                dados = f.read()
-            resp = Response(dados, mimetype=mime)
-            resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
-            resp.headers["X-Content-Type-Options"] = "nosniff"
-            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
-            resp.headers["Pragma"]                 = "no-cache"
-            return resp
-
-    abort(404)
-
-    # ─── Fluxo Local Antigo (Fallback) ─────────────────────────────────────
-    base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    caminho    = arquivo.lstrip("/")
-    candidatos = [
-        os.path.join(base_dir, caminho),
-        os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
-        os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
-        os.path.join(base_dir, "uploads", os.path.basename(caminho)),
-    ]
-    for candidato in candidatos:
-        if os.path.isfile(candidato):
-            mime, _ = mimetypes.guess_type(candidato)
-            mime = mime or "application/octet-stream"
-            with open(candidato, "rb") as f:
-                dados = f.read()
-            resp = Response(dados, mimetype=mime)
-            resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
-            resp.headers["X-Content-Type-Options"] = "nosniff"
-            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
-            resp.headers["Pragma"]                 = "no-cache"
-            return resp
-
-    abort(404)
-
-    # ─── Fluxo Local Antigo (Fallback) ─────────────────────────────────────
-    base_dir   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    caminho    = arquivo.lstrip("/")
-    candidatos = [
-        os.path.join(base_dir, caminho),
-        os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
-        os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
-        os.path.join(base_dir, "uploads", os.path.basename(caminho)),
-    ]
-    for candidato in candidatos:
-        if os.path.isfile(candidato):
-            mime, _ = mimetypes.guess_type(candidato)
-            mime = mime or "application/octet-stream"
-            with open(candidato, "rb") as f:
-                dados = f.read()
-            resp = Response(dados, mimetype=mime)
-            resp.headers["Content-Disposition"]   = "inline"
-            resp.headers["X-Frame-Options"]        = "SAMEORIGIN"
-            resp.headers["X-Content-Type-Options"] = "nosniff"
-            resp.headers["Cache-Control"]          = "no-store, no-cache, must-revalidate, max-age=0"
-            resp.headers["Pragma"]                 = "no-cache"
-            return resp
-
-    abort(404)
+    try:
+        return serve_local_file(candidatos)
+    except FileNotFoundError:
+        abort(404)
 
 # --- CONCLUIR AULA ------------------------------------------------------------
 
