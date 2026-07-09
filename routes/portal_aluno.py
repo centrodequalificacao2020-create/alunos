@@ -1127,27 +1127,37 @@ def resultado_exercicio(ex_id, resp_id):
 @portal_aluno_bp.route("/exercicio/<int:ex_id>/arquivo")
 @aluno_login_required
 def arquivo_exercicio_aluno(ex_id):
+    """Serve o arquivo PDF (material de apoio) de um exercício ao aluno logado.
+
+    Validação de acesso (IDOR):
+        1. O aluno precisa estar na sessão.
+        2. O exercício precisa estar liberado (ExercicioLiberado.liberado=1).
+        3. O aluno precisa ter matrícula ativa num curso que contenha a
+           matéria à qual o exercício pertence.
+
+    Retorna Response com Content-Disposition: inline compatível com PDF.js.
+    """
+    from models import Exercicio, ExercicioLiberado, CursoMateria
+
     aluno_id = session["aluno_id"]
-    aluno    = db.get_or_404(Aluno, aluno_id)
-    redir = verificar_contrato(aluno)
-    if redir:
-        return redir
 
     try:
-        from models import Exercicio, ExercicioLiberado, CursoMateria
+        aluno = db.get_or_404(Aluno, aluno_id)
+        redir = verificar_contrato(aluno)
+        if redir:
+            return redir
 
         ex = db.get_or_404(Exercicio, ex_id)
+
+        # Verifica liberação do exercício para este aluno
         lib = ExercicioLiberado.query.filter_by(
             aluno_id=aluno_id, exercicio_id=ex_id, liberado=1
         ).first()
         if not lib:
             abort(403)
 
-        # ── BOLA/IDOR: verifica que o aluno tem matrícula ativa no curso
-        #    que contém a matéria deste exercício ─────────────────────────
-        ids_cursos_ativos = {
-            m.curso_id for m in _matriculas_ativas(aluno_id)
-        }
+        # Verifica vínculo matéria↔curso ativo (BOLA/IDOR)
+        ids_cursos_ativos = {m.curso_id for m in _matriculas_ativas(aluno_id)}
         vinculo = CursoMateria.query.filter(
             CursoMateria.materia_id == ex.materia_id,
             CursoMateria.curso_id.in_(ids_cursos_ativos),
@@ -1169,7 +1179,7 @@ def arquivo_exercicio_aluno(ex_id):
 
         # ── Arquivo local ───────────────────────────────────────────────
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        caminho  = arquivo.lstrip("/")
+        caminho = arquivo.lstrip("/")
         candidatos = [
             os.path.join(base_dir, caminho),
             os.path.join(base_dir, "static", "uploads", arquivo),
@@ -1202,37 +1212,58 @@ def conteudo_aluno(curso_id):
 @portal_aluno_bp.route("/arquivo/<int:conteudo_id>")
 @aluno_login_required
 def abrir_arquivo_conteudo(conteudo_id):
-    conteudo = db.get_or_404(Conteudo, conteudo_id)
-    if not _aluno_pode_acessar_conteudo(session["aluno_id"], conteudo):
-        abort(403)
-    if not conteudo.arquivo:
-        abort(404)
+    """Serve o arquivo PDF de um conteúdo (aula) ao aluno logado.
 
-    arquivo = conteudo.arquivo.strip()
+    Validação de acesso (IDOR):
+        - Verifica se o aluno tem matrícula ativa vinculada ao curso/matéria
+          do conteúdo via _aluno_pode_acessar_conteudo().
 
-    # ── Proxy remoto (Cloudinary / URL externa) ───────────────────────────
-    if arquivo.startswith("http://") or arquivo.startswith("https://"):
-        try:
-            return proxy_remote_file(arquivo)
-        except Exception as e:
-            current_app.logger.error(
-                f"[Cloudinary Proxy Error] Falha ao servir conteúdo "
-                f"ID {conteudo_id} (URL: {arquivo}): {e}"
-            )
-            abort(502)
+    Retorna Response com Content-Disposition: inline compatível com PDF.js.
+    O redirect /image/upload/ → /raw/upload/ do Cloudinary é feito
+    automaticamente por proxy_remote_file().
+    """
+    aluno_id = session["aluno_id"]
 
-    # ── Fluxo Local (Fallback único) ─────────────────────────────────────
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    caminho  = arquivo.lstrip("/")
-    candidatos = [
-        os.path.join(base_dir, caminho),
-        os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
-        os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
-        os.path.join(base_dir, "uploads", os.path.basename(caminho)),
-    ]
     try:
-        return serve_local_file(candidatos)
-    except FileNotFoundError:
+        conteudo = db.get_or_404(Conteudo, conteudo_id)
+
+        # Verifica acesso do aluno ao conteúdo (BOLA/IDOR)
+        if not _aluno_pode_acessar_conteudo(aluno_id, conteudo):
+            abort(403)
+
+        if not conteudo.arquivo:
+            abort(404)
+
+        arquivo = conteudo.arquivo.strip()
+
+        # ── Proxy remoto (Cloudinary / URL externa) ─────────────────────
+        if arquivo.startswith("http://") or arquivo.startswith("https://"):
+            try:
+                return proxy_remote_file(arquivo)
+            except Exception as e:
+                current_app.logger.error(
+                    "[Cloudinary Proxy Error] Falha ao servir conteúdo "
+                    "ID %s (URL: %s): %s",
+                    conteudo_id, arquivo, e,
+                    exc_info=True,
+                )
+                abort(502)
+
+        # ── Arquivo local ───────────────────────────────────────────────
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        caminho = arquivo.lstrip("/")
+        candidatos = [
+            os.path.join(base_dir, caminho),
+            os.path.join(base_dir, "static", caminho.replace("static/", "", 1)),
+            os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
+            os.path.join(base_dir, "uploads", os.path.basename(caminho)),
+        ]
+        try:
+            return serve_local_file(candidatos)
+        except FileNotFoundError:
+            abort(404)
+
+    except OperationalError:
         abort(404)
 
 # --- CONCLUIR AULA ------------------------------------------------------------
