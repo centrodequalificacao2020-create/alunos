@@ -305,9 +305,11 @@ body{
           {% set aulas_mat = conteudos_por_mat.get(mat.id, []) %}
           {% if aulas_mat %}
             {% for c, prog in aulas_mat %}
+            {# ── Detecta tipo de conteúdo: strip de query params (Cloudinary ?v=...) ── #}
+            {% set arq_lower = c.arquivo.lower().rsplit('?', 1)[0] if c.arquivo else '' %}
             <div class="aula-item {% if prog and prog.concluido %}concluida{% endif %}"
                  data-id="{{ c.id }}"
-                 data-tipo="{{ 'pdf' if c.arquivo and c.arquivo.lower().endswith('.pdf') else ('video' if c.video else ('arquivo' if c.arquivo else 'vazio')) }}"
+                 data-tipo="{{ 'pdf' if arq_lower.endswith('.pdf') else ('video' if c.video else ('arquivo' if c.arquivo else 'vazio')) }}"
                  data-video="{{ c.video or '' }}"
                  data-titulo="{{ c.titulo }}"
                  data-concluido="{{ '1' if prog and prog.concluido else '0' }}">
@@ -573,15 +575,20 @@ async function carregarPDF(cid){
   try{
     const r = await fetch(`/aluno/arquivo/${cid}`, {credentials:'same-origin'});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    // Verifica se o servidor realmente devolveu um PDF
+    const ct = r.headers.get('Content-Type') || '';
+    if(!ct.includes('application/pdf')) throw new Error('NOT_PDF');
     pdfDoc    = await pdfjsLib.getDocument({data: await r.arrayBuffer()}).promise;
     totalPags = pdfDoc.numPages;
     pagAtual  = 1;
     const inp = document.getElementById('pdfPagInput');
     if(inp) inp.max = totalPags;
     await renderPag(pagAtual);
+    return true;
   } catch(e){
     cont.innerHTML = `<p style="color:#f88;padding:20px">Erro ao carregar PDF: ${e.message}</p>`;
     tb.style.display = 'none';
+    throw e;  // re-lança para que abrirAula possa fazer fallback
   }
 }
 
@@ -644,8 +651,14 @@ function abrirAula(el){
         allowfullscreen allow="autoplay;encrypted-media"></iframe>`;
     }
   } else if(tipo==='arquivo'){
-    area.innerHTML=`<p><a href="/aluno/arquivo/${id}" target="_blank" class="btn-concluir">
-      <i class="fas fa-file-download"></i> Baixar arquivo</a></p>`;
+    // Tenta abrir com PDF.js primeiro (pode ser PDF que nao foi detectado
+    // pela extensao — ex: URL do Cloudinary sem .pdf explicito).
+    carregarPDF(id).catch(function(){
+      // Fallback: se nao for PDF, mostra botao de download
+      ocultarPDF();
+      area.innerHTML=`<p><a href="/aluno/arquivo/${id}" target="_blank" class="btn-concluir">
+        <i class="fas fa-file-download"></i> Baixar arquivo</a></p>`;
+    });
   } else {
     area.innerHTML='<p style="opacity:.4">Nenhum conte\u00fado para esta aula.</p>';
   }
