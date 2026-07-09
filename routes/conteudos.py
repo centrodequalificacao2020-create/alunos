@@ -13,7 +13,10 @@ conteudos_bp = Blueprint("conteudos", __name__)
 def conteudos():
     cursos   = Curso.query.order_by(Curso.nome).all()
     materias = Materia.query.order_by(Materia.nome).all()
-    lista    = Conteudo.query.order_by(Conteudo.id).all()
+    lista    = (Conteudo.query
+                .outerjoin(Materia, Conteudo.materia_id == Materia.id)
+                .order_by(Materia.nome, Conteudo.id)
+                .all())
 
     if request.method == "POST":
         titulo     = request.form.get("titulo")
@@ -51,8 +54,28 @@ def conteudos():
         return redirect("/conteudos")
 
     materias_json = [{"id": m.id, "nome": m.nome, "curso_id": m.curso_id} for m in materias]
+
+    # --- Agrupa conteúdos por matéria (evita duplicação de accordions) ---
+    grupos = []
+    for c in lista:
+        nome_mat   = c.materia.nome if c.materia else "Sem matéria"
+        nome_curso = c.materia.curso.nome if (c.materia and c.materia.curso) else None
+        materia_id = c.materia_id
+        # usa (materia_id ou nome) como chave para diferenciar matérias com mesmo nome
+        chave = materia_id if materia_id else nome_mat
+
+        if grupos and grupos[-1]["chave"] == chave:
+            grupos[-1]["conteudos"].append(c)
+        else:
+            grupos.append({
+                "chave":        chave,
+                "materia_nome": nome_mat,
+                "curso_nome":   nome_curso,
+                "conteudos":    [c],
+            })
+
     return render_template("conteudos.html", cursos=cursos, materias=materias,
-                           materias_json=materias_json, conteudos=lista)
+                           materias_json=materias_json, grupos=grupos)
 
 
 @conteudos_bp.route("/conteudos/excluir/<int:id>", methods=["POST"])
