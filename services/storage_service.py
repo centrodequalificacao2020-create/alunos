@@ -9,16 +9,20 @@ def upload_arquivo(file_object, pasta: str, nome_publico: str = None) -> dict:
     """
     Faz upload de um arquivo para o Cloudinary.
     A pasta final é: {CLOUDINARY_PASTA_PREFIXO}/{pasta}
-    Ex: pasta="entregas" → "cliente_abc/entregas"
     """
     from flask import current_app
     prefixo     = current_app.config.get('CLOUDINARY_PASTA_PREFIXO', 'default')
     pasta_final = f"{prefixo}/{pasta}"
 
     try:
+        # CRUCIAL: Reseta o ponteiro de leitura do arquivo para o início.
+        # Se o Flask ou outra função leu o arquivo antes, isso impede que ele suba zerado (corrompido).
+        if hasattr(file_object, 'seek'):
+            file_object.seek(0)
+
         params = {
             "folder":          pasta_final,
-            "resource_type":   "raw",
+            "resource_type":   "raw",  # Mantém raw para PDFs
             "use_filename":    True,
             "unique_filename": True,
         }
@@ -27,6 +31,7 @@ def upload_arquivo(file_object, pasta: str, nome_publico: str = None) -> dict:
             params["use_filename"] = False
 
         resultado = cloudinary.uploader.upload(file_object, **params)
+
         return {
             "url":       resultado.get("secure_url"),
             "public_id": resultado.get("public_id"),
