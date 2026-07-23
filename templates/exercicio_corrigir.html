@@ -84,9 +84,9 @@ body   { background:#0f1923; font-family:'Segoe UI',sans-serif; color:#fff; min-
         </a>
         {% if resp.nota_obtida is not none %}
             {% if resp.aprovado %}
-            <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ resp.nota_obtida }}</span>
+            <span class="pill pill-ok"><i class="fas fa-check"></i> Aprovado &mdash; {{ resp.pontos_obtidos_total | round(1) }}/{{ exercicio.total_pontos | round(1) }}</span>
             {% else %}
-            <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ resp.nota_obtida }}</span>
+            <span class="pill pill-err"><i class="fas fa-times"></i> Reprovado &mdash; {{ resp.pontos_obtidos_total | round(1) }}/{{ exercicio.total_pontos | round(1) }}</span>
             {% endif %}
         {% else %}
             <span class="pill pill-pend"><i class="fas fa-clock"></i> Aguardando corre&ccedil;&atilde;o</span>

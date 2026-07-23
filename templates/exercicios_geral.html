@@ -498,7 +498,7 @@
             <td>{{ r.finalizado_em or '&mdash;' }}</td>
             <td style="text-align:center">{{ r.acertos }} / {{ r.total_questoes }}</td>
             <td style="text-align:center;font-weight:700">
-                {% if r.nota_obtida is not none %}{{ '%.1f'|format(r.nota_obtida) }}{% else %}&mdash;{% endif %}
+                {% if r.nota_obtida is not none %}{{ '%.1f'|format(r.pontos_obtidos_total) }}/{{ exercicio.total_pontos | round(1) }}{% else %}&mdash;{% endif %}
             </td>
             <td style="text-align:center">
                 {% if r.nota_obtida is none %}

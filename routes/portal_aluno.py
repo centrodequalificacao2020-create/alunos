@@ -106,21 +106,39 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
     return False
 
 
+def _parse_vencimento(vencimento):
+    if not vencimento:
+        return None
+    if isinstance(vencimento, date):
+        return vencimento
+    try:
+        return date.fromisoformat(str(vencimento)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
 def _contar_atrasadas(mensalidades):
     hoje = date.today()
     count = 0
     for m in mensalidades:
-        if m.status == "Pago" or not m.vencimento:
+        if m.status in ("Pago", "Cancelado"):
             continue
-        venc = m.vencimento if isinstance(m.vencimento, date) else None
-        if venc is None:
-            try:
-                venc = date.fromisoformat(str(m.vencimento)[:10])
-            except (ValueError, TypeError):
-                continue
-        if venc < hoje:
+        venc = _parse_vencimento(m.vencimento)
+        if venc and venc < hoje:
             count += 1
     return count
+
+
+def _somar_valor_atrasado(mensalidades):
+    hoje = date.today()
+    total = 0
+    for m in mensalidades:
+        if m.status in ("Pago", "Cancelado"):
+            continue
+        venc = _parse_vencimento(m.vencimento)
+        if venc and venc < hoje:
+            total += float(m.valor or 0)
+    return total
 
 
 def _registrar_login(aluno_id):
@@ -432,7 +450,7 @@ def financeiro_aluno():
         )
 
     atrasadas = _contar_atrasadas(mensalidades)
-    val_pend  = sum(m.valor for m in mensalidades if m.status != "Pago")
+    val_pend  = _somar_valor_atrasado(mensalidades)
 
     return render_template(
         "aluno/financeiro.html",
@@ -1049,9 +1067,12 @@ def responder_exercicio(ex_id):
             aprovado   = None
         else:
             nota_final = calcular_nota_escala(total_pontos, pontos_max)
-            nota_minima = float(ex.nota_minima or 6.0)
-            aprovado    = 1 if nota_final >= nota_minima else 0
+            # Aprovação baseada nos pontos brutos, convertendo nota_minima (0-10)
+            # para o valor mínimo de pontos exigido neste exercício.
+            pontos_minimos = round((float(ex.nota_minima or 6.0) / 10.0) * pontos_max, 2)
+            aprovado    = 1 if total_pontos >= pontos_minimos else 0
 
+        # percentual de acertos objetivos (não confundir com nota na escala 0-10)
         percentual               = round((acertos / total_questoes * 100), 1) if total_questoes else 0.0
         resp.acertos             = acertos
         resp.percentual          = percentual

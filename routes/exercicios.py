@@ -28,9 +28,17 @@ def _materias_json():
 
 
 def _calcular_nota(total_pontos, pontos_max):
-    if not pontos_max or pontos_max <= 0.0:
+    """Calcula nota na escala 0-10 (legado). Retorna 0.0 se pontos_max <= 0."""
+    if pontos_max is None or pontos_max <= 0.0:
         return 0.0
     return round((total_pontos / pontos_max) * 10, 2)
+
+
+def _pontos_minimo_aprovacao(exercicio) -> float:
+    """Converte nota_minima (escala 0-10) para pontos na escala bruta do exercicio."""
+    total = float(exercicio.total_pontos or 0)
+    nota_min = float(exercicio.nota_minima or 6.0)
+    return round((nota_min / 10.0) * total, 2)
 
 
 def _upload_exercicio(file_obj, materia_id):
@@ -360,7 +368,7 @@ def _recalcular_tentativas_sem_nota(exercicio_id=None):
 
         nota_final                = _calcular_nota(total_pontos, pontos_max)
         resp.nota_obtida          = nota_final
-        resp.aprovado             = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
+        resp.aprovado             = 1 if total_pontos >= _pontos_minimo_aprovacao(ex) else 0
         resp.pontos_obtidos_total = total_pontos
         corrigidas               += 1
 
@@ -451,13 +459,14 @@ def corrigir_tentativa_exercicio(ex_id, resp_id):
 
         nota_final                = _calcular_nota(total_pontos, pontos_max)
         resp.nota_obtida          = nota_final
-        resp.aprovado             = 1 if nota_final >= float(ex.nota_minima or 6.0) else 0
+        resp.aprovado             = 1 if total_pontos >= _pontos_minimo_aprovacao(ex) else 0
         resp.pontos_obtidos_total = total_pontos
         db.session.commit()
 
         flash(
             f"Correção salva! {aluno.nome} — "
-            f"Nota: {nota_final} ({'Aprovado' if resp.aprovado else 'Reprovado'}).",
+            f"Nota: {total_pontos:.1f}/{ex.total_pontos:.1f} "
+            f"({'Aprovado' if resp.aprovado else 'Reprovado'}).",
             "sucesso"
         )
         return redirect(f"/exercicios/{ex_id}/resultados")
