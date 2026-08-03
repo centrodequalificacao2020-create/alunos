@@ -1,10 +1,10 @@
 import os
 import re
 import markupsafe
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect, url_for, flash
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_migrate import Migrate
 from config import Config
 from db import init_db, db
@@ -138,6 +138,19 @@ def create_app(config_class=Config):
         </div></body></html>
         """
         return html, 413
+
+    # ── Erro CSRF: token inválido/expirado (ex.: sessão expirou durante
+    #    uma atividade longa). Redireciona para o login com mensagem clara
+    #    em vez de exibir um "Bad Request" genérico. ──────────────────────
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        # Se for uma requisição AJAX/JSON, responde com JSON
+        if request.accept_mimetypes.best == "application/json" or request.is_json:
+            return jsonify(erro="Sua sessão expirou. Faça login novamente."), 400
+        # Redireciona para o portal do aluno (login) preservando o destino
+        destino = request.args.get("next") or request.referrer or "/aluno/login"
+        flash("Sua sessão expirou. Faça login novamente para continuar.", "aviso")
+        return redirect("/aluno/login")
 
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 

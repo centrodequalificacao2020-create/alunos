@@ -55,8 +55,10 @@ class Config:
     SESSION_COOKIE_SAMESITE        = "Lax"  # proteção básica contra CSRF
     SESSION_COOKIE_SECURE          = os.getenv("FLASK_ENV") == "production"
 
-    # ── S5: Expiração automática da sessão em 1 hora ──────────────
-    PERMANENT_SESSION_LIFETIME     = timedelta(hours=1)
+    # ── S5: Expiração automática da sessão ──────────────────────────
+    # 8 horas: cobre exercícios/provas com tempo limite de até 5h (300 min)
+    # + margem, evitando que o token CSRF expire no envio de atividades longas.
+    PERMANENT_SESSION_LIFETIME     = timedelta(hours=8)
 
     # ── Cloudinary (armazenamento externo) ────────────────────────────
     CLOUDINARY_CLOUD_NAME    = os.environ.get('CLOUDINARY_CLOUD_NAME')
