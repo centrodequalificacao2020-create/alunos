@@ -227,9 +227,11 @@ def gerar_boletim_notas(aluno, curso, materias, notas_map,
     pdf.setFont("Helvetica", 10)
     for m in materias:
         n = notas_map.get(m.id)
+        # DT-01 FIX: `is not None` em vez de truthiness — nota 0.0 é legítima
+        # e deve aparecer no boletim (reprovação não pode ficar invisível).
         pdf.drawString(50,  y, m.nome)
-        pdf.drawString(270, y, str(n.nota      if n and n.nota      else ""))
-        pdf.drawString(340, y, str(n.resultado if n and n.resultado else ""))
+        pdf.drawString(270, y, str(n.nota      if n is not None and n.nota is not None else ""))
+        pdf.drawString(340, y, str(n.resultado if n is not None and n.resultado else ""))
         y -= 18
         if y < 100:
             pdf.showPage()

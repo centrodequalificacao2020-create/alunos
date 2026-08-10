@@ -296,6 +296,44 @@
     {% endif %}
 </div>
 
+{# ===== NOTAS FINAIS (boletim) — mesma fonte do PDF, por matrícula ===== #}
+<div class="card ficha-card-secao">
+    <h3>Notas Finais</h3>
+    {% if matriculas %}
+        {% for m in matriculas %}
+        {% if m.notas_finais %}
+        <h4 style="margin:12px 0 6px;color:var(--color-primary)">{{ m.curso_nome }}</h4>
+        <div class="tabela-planilha">
+            <table class="tabela-excel">
+                <thead>
+                    <tr>
+                        <th>Matéria</th>
+                        <th>Nota</th>
+                        <th>Resultado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in m.notas_finais %}
+                    <tr>
+                        <td>{{ b.materia }}</td>
+                        <td>{{ b.nota if b.nota is not none else '—' }}</td>
+                        <td>{{ b.resultado or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="margin:8px 0">
+            <strong>{{ m.curso_nome }}:</strong> nenhuma nota lançada ainda.
+        </p>
+        {% endif %}
+        {% endfor %}
+    {% else %}
+    <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
+    {% endif %}
+</div>
+
 {# ===== DOCUMENTOS ===== #}
 <div class="card ficha-card-secao">
     <h3>Documentos</h3>

@@ -262,6 +262,7 @@ def editar_aluno(id):
 @login_required
 def ficha_aluno(aluno_id):
     from models import RespostaProva, RespostaExercicio, Prova, Exercicio, LoginHistoricoAluno, ContratoAceite
+    from services.notas_service import get_materias_do_curso, get_notas_map, get_boletim
     aluno      = db.get_or_404(Aluno, aluno_id)
     matriculas = (
         Matricula.query
@@ -273,6 +274,9 @@ def ficha_aluno(aluno_id):
         curso        = db.session.get(Curso, m.curso_id)
         m.curso_nome = curso.nome if curso else "\u2014"
         m.acesso_conteudo = _get_acesso(aluno_id, m.curso_id)
+        # Notas finais lançadas (tabela Nota) por matrícula — mesma fonte do
+        # boletim PDF, para fins de consistência entre ficha e boletim.
+        m.notas_finais = get_boletim(aluno_id, m.curso_id)
 
     ids_ativos = {
         m.curso_id for m in matriculas

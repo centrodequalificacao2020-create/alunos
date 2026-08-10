@@ -208,8 +208,22 @@ def notas():
     if request.method == "POST":
         aluno_id = request.form.get("aluno_id", type=int)
         curso_id = request.form.get("curso_id", type=int)
-        salvar_notas(aluno_id, curso_id, request.form)
-        flash("Notas salvas!", "sucesso")
+        if not aluno_id or not curso_id:
+            flash("Selecione o aluno e o curso para lan\u00e7ar notas.", "erro")
+            return redirect("/notas")
+        try:
+            salvar_notas(aluno_id, curso_id, request.form)
+            flash("Notas salvas!", "sucesso")
+        except ValueError as e:
+            flash(str(e), "erro")
+        except Exception as e:
+            current_app.logger.error(
+                f"[notas] Erro ao salvar notas aluno_id={aluno_id} "
+                f"curso_id={curso_id}: {e}",
+                exc_info=True
+            )
+            db.session.rollback()
+            flash("Erro ao salvar notas. Tente novamente.", "erro")
         return redirect(f"/notas?aluno_id={aluno_id}&curso_id={curso_id}")
 
     return render_template("notas.html",
