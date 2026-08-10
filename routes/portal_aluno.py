@@ -80,11 +80,11 @@ def _ids_materias_liberadas(aluno_id, curso_id):
 
 
 def _curso_tem_acesso(aluno_id, curso_id):
-    from models import MateriaLiberada
-    count = MateriaLiberada.query.filter_by(
-        aluno_id=aluno_id, curso_id=curso_id
-    ).count()
-    return count == 0 or len(_ids_materias_liberadas(aluno_id, curso_id)) > 0
+    # A liberação é granular por matéria. O acesso ao curso é concedido
+    # somente se houver ao menos UMA matéria explicitamente liberada
+    # (liberado=1). Registros com liberado=0 (bloqueio explícito) ou a
+    # ausência total de registros NÃO liberam o conteúdo.
+    return len(_ids_materias_liberadas(aluno_id, curso_id)) > 0
 
 
 def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
@@ -101,7 +101,8 @@ def _aluno_pode_acessar_conteudo(aluno_id, conteudo):
         )
         if vinculo:
             ids_lib = _ids_materias_liberadas(aluno_id, mat.curso_id)
-            if not ids_lib or conteudo.materia_id in ids_lib:
+            # Liberação granular: só acessa se a matéria foi explicitamente liberada
+            if conteudo.materia_id in ids_lib:
                 return True
     return False
 
@@ -757,10 +758,10 @@ def curso_detalhe(curso_id):
         .filter(CursoMateria.curso_id == curso_id, Materia.ativa == 1)
         .order_by(Materia.nome).all()
     )
-    if ids_mat_lib:
-        materias_liberadas = [m for m in materias_do_curso if m.id in ids_mat_lib]
-    else:
-        materias_liberadas = materias_do_curso
+    # Mostra apenas matérias explicitamente liberadas (liberado=1).
+    # O acesso ao curso já foi validado por _curso_tem_acesso acima,
+    # que exige ao menos uma matéria liberada.
+    materias_liberadas = [m for m in materias_do_curso if m.id in ids_mat_lib]
 
     ids_materias_visiveis = {m.id for m in materias_liberadas}
     conteudos_raw = (
