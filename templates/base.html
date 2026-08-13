@@ -94,18 +94,48 @@
 
 <script>
 (function () {
-  /* CSRF: injeta campo hidden em todos os forms no submit */
-  var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  /* CSRF: injeta/atualiza campo hidden em todos os forms no submit,
+     lendo o token da meta a cada submit (não apenas no load). */
+  function tokenAtual() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (form.method && form.method.toLowerCase() !== 'get') {
-      if (!form.querySelector('input[name="csrf_token"]')) {
-        var inp = document.createElement('input');
-        inp.type = 'hidden'; inp.name = 'csrf_token'; inp.value = token;
+      var inp = form.querySelector('input[name="csrf_token"]');
+      if (!inp) {
+        inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'csrf_token';
         form.appendChild(inp);
       }
+      inp.value = tokenAtual(); // sempre o token mais recente da sessão
     }
   }, true);
+
+  /* Heartbeat (portal do aluno): mantém a sessão viva e o token CSRF
+     renovado em páginas longas (provas/exercícios/atividades).
+     Cada request renova o cookie de sessão (SESSION_REFRESH_EACH_REQUEST)
+     e o token retornado é atualizado na meta + campos hidden. */
+  if (window.location.pathname.indexOf('/aluno') === 0) {
+    var HEARTBEAT_MS = 5 * 60 * 1000; // 5 min
+    function renovarToken() {
+      fetch('/aluno/csrf-token', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (data && data.csrf_token) {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta) meta.setAttribute('content', data.csrf_token);
+            var inputs = document.querySelectorAll('input[name="csrf_token"]');
+            for (var i = 0; i < inputs.length; i++) {
+              inputs[i].value = data.csrf_token;
+            }
+          }
+        })
+        .catch(function () { /* sessão expirada — fluxo normal de login */ });
+    }
+    setInterval(renovarToken, HEARTBEAT_MS);
+  }
 
   /* Ajusta padding-top do body conforme altura real do header */
   function ajustar() {

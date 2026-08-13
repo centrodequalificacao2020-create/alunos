@@ -60,6 +60,14 @@ class Config:
     # + margem, evitando que o token CSRF expire no envio de atividades longas.
     PERMANENT_SESSION_LIFETIME     = timedelta(hours=8)
 
+    # ── CSRF: validade explícita do token ───────────────────────────
+    # 8 horas, alinhado ao PERMANENT_SESSION_LIFETIME. Garante que o token
+    # CSRF não expire por tempo durante provas/exercícios/atividades longas.
+    # O default do Flask-WTF é None (sem expiração), mas definimos
+    # explicitamente para documentar a intenção e proteger contra mudanças
+    # futuras de default na biblioteca.
+    WTF_CSRF_TIME_LIMIT            = 8 * 3600  # segundos
+
     # ── Cloudinary (armazenamento externo) ────────────────────────────
     CLOUDINARY_CLOUD_NAME    = os.environ.get('CLOUDINARY_CLOUD_NAME')
     CLOUDINARY_API_KEY       = os.environ.get('CLOUDINARY_API_KEY')

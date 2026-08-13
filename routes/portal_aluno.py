@@ -10,6 +10,7 @@ from models import (
 from security import verificar_senha, aluno_login_required, hash_senha
 from db import db
 from app import limiter
+from flask_wtf.csrf import generate_csrf
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 from services.pdf_service import gerar_declaracao_matricula
@@ -280,6 +281,19 @@ def login_aluno():
 def logout_aluno():
     session.clear()
     return redirect("/aluno/login")
+
+
+@portal_aluno_bp.route("/csrf-token")
+@aluno_login_required
+def csrf_token_atual():
+    """Retorna o token CSRF válido para a sessão atual.
+
+    Usado pelo front (base.html) como heartbeat em páginas longas
+    (provas/exercícios/atividades): o request renova o cookie de sessão
+    (SESSION_REFRESH_EACH_REQUEST) e o token é atualizado na meta e nos
+    campos hidden, evitando CSRFError no envio após longa inatividade.
+    """
+    return jsonify({"csrf_token": generate_csrf()})
 
 
 # --- CONTRATO -----------------------------------------------------------------
