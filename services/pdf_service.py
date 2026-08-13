@@ -229,7 +229,10 @@ def gerar_boletim_notas(aluno, curso, materias, notas_map,
         n = notas_map.get(m.id)
         # DT-01 FIX: `is not None` em vez de truthiness — nota 0.0 é legítima
         # e deve aparecer no boletim (reprovação não pode ficar invisível).
-        pdf.drawString(50,  y, m.nome)
+        # Trunca o nome da matéria para caber entre a coluna Matéria (x=50)
+        # e a coluna Nota (x=270), evitando sobreposição com nomes longos.
+        nome_mat = _truncar(m.nome, "Helvetica", 10, 270 - 50 - 10)
+        pdf.drawString(50,  y, nome_mat)
         pdf.drawString(270, y, str(n.nota      if n is not None and n.nota is not None else ""))
         pdf.drawString(340, y, str(n.resultado if n is not None and n.resultado else ""))
         y -= 18
