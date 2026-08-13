@@ -105,7 +105,9 @@ td{ padding:10px 12px; border-bottom:1px solid var(--color-border,#eee); vertica
     <td style="white-space:nowrap">{{ e.entregue_em or '—' }}</td>
     <td>
       {% for arq in [e.arquivo1, e.arquivo2, e.arquivo3] if arq %}
-        <a href="/atividades/download/{{ arq }}" class="link-arq" target="_blank">
+        {% set idx = loop.index %}
+        <a href="/atividades/{{ atividade.id }}/entregas/{{ e.id }}/arquivo/{{ idx }}?download=1"
+           class="link-arq" target="_blank">
           <i class="fas fa-file-download"></i> {{ arq.split('_',3)[-1] if '_' in arq else arq }}
         </a><br>
       {% else %}

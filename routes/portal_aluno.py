@@ -1374,6 +1374,18 @@ def entregar_atividade(atividade_id):
                         "erro",
                     )
                     return redirect(f"/aluno/cursos/{atividade.curso_id}")
+                # Limite por arquivo — alinhado ao Cloudinary (10 MB)
+                max_bytes = current_app.config.get("CLOUDINARY_MAX_FILE_SIZE", 10 * 1024 * 1024)
+                f.seek(0, os.SEEK_END)
+                tamanho = f.tell()
+                f.seek(0)
+                if tamanho > max_bytes:
+                    flash(
+                        f"Arquivo '{f.filename}' excede o limite de "
+                        f"{max_bytes // (1024 * 1024)} MB por arquivo.",
+                        "erro",
+                    )
+                    return redirect(f"/aluno/cursos/{atividade.curso_id}")
 
         entrega = EntregaAtividade.query.filter_by(aluno_id=aluno.id, atividade_id=atividade_id).first()
         if not entrega:

@@ -46,7 +46,10 @@ class Config:
         "connect_args": {"check_same_thread": False, "timeout": 30},
     }
     UPLOAD_FOLDER                  = os.path.join(BASEDIR, "static", "uploads")
-    MAX_CONTENT_LENGTH             = 50 * 1024 * 1024  # 50 MB
+    MAX_CONTENT_LENGTH             = 30 * 1024 * 1024  # 30 MB (3 arquivos × 10 MB)
+    # Limite por arquivo — alinhado ao limite do plano Cloudinary (10 MB).
+    # Uploads maiores são rejeitados pelo Cloudinary com "File size too large".
+    CLOUDINARY_MAX_FILE_SIZE       = 10 * 1024 * 1024  # 10 MB por arquivo
     EXTENSOES_PERMITIDAS           = {"pdf", "png", "jpg", "jpeg", "docx", "mp4"}
     DEBUG                          = os.getenv("FLASK_DEBUG", "False") == "True"
 

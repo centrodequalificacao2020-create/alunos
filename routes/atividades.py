@@ -1,9 +1,10 @@
 import os
-from flask import Blueprint, render_template, request, redirect, flash, session, current_app
+from flask import Blueprint, render_template, request, redirect, flash, session, current_app, abort
 from db import db
 from models import Atividade, AtividadeQuestao, Curso, Materia, EntregaAtividade, Aluno
 from security import login_required
 from datetime import datetime
+from services.file_service import proxy_remote_file, serve_local_file
 
 atividades_bp = Blueprint("atividades", __name__)
 
@@ -194,15 +195,76 @@ def avaliar_entrega(atv_id, entrega_id):
 
 
 # ─── DOWNLOAD / VISUALIZAÇÃO DE ENTREGA (admin) ──────────────────────────
-# Os arquivos agora são URLs do Cloudinary; o admin acessa diretamente pelo link.
+# Os arquivos agora são URLs do Cloudinary; o admin acessa via proxy com
+# validação de perfil, evitando expor a URL crua e garantindo acesso
+# controlado. Entregas legacy salvas em disco continuam suportadas.
+
+@atividades_bp.route("/atividades/<int:atv_id>/entregas/<int:entrega_id>/arquivo/<int:idx>")
+@login_required
+def arquivo_entrega(atv_id, entrega_id, idx):
+    """Serve o arquivo (1..3) de uma entrega ao admin/instrutor/secretaria.
+
+    Validação de acesso:
+        1. Perfil admin/instrutor/secretaria (PERFIS_ADMIN).
+        2. A entrega pertence à atividade informada (evita IDOR).
+
+    Suporta:
+        - URL remota (Cloudinary) → proxy via proxy_remote_file().
+        - Path local (entregas legacy) → serve_local_file().
+
+    Query param ?download=1 força Content-Disposition: attachment.
+    """
+    perfil = (session.get("perfil") or "").upper()
+    if perfil not in PERFIS_ADMIN:
+        abort(403)
+
+    entrega = db.get_or_404(EntregaAtividade, entrega_id)
+    if entrega.atividade_id != atv_id:
+        abort(404)
+
+    if idx not in (1, 2, 3):
+        abort(404)
+
+    arquivo = getattr(entrega, f"arquivo{idx}", None)
+    if not arquivo:
+        abort(404)
+
+    arquivo = arquivo.strip()
+    baixar = request.args.get("download") == "1"
+    extra = {"Content-Disposition": "attachment"} if baixar else None
+
+    # ── URL remota (Cloudinary / externa) ─────────────────────────────
+    if arquivo.startswith("http://") or arquivo.startswith("https://"):
+        try:
+            return proxy_remote_file(arquivo, extra_headers=extra)
+        except Exception as e:
+            current_app.logger.error(
+                "[arquivo_entrega] Falha no proxy da entrega %s (URL: %s): %s",
+                entrega_id, arquivo, e, exc_info=True,
+            )
+            abort(502)
+
+    # ── Arquivo local (legacy) ────────────────────────────────────────
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    caminho = arquivo.lstrip("/")
+    candidatos = [
+        os.path.join(base_dir, caminho),
+        os.path.join(base_dir, "static", "uploads", os.path.basename(caminho)),
+        os.path.join(base_dir, "uploads", os.path.basename(caminho)),
+    ]
+    try:
+        return serve_local_file(candidatos, extra_headers=extra)
+    except FileNotFoundError:
+        abort(404)
+
 
 @atividades_bp.route("/atividades/download/<path:filename>")
 @login_required
 def download_entrega(filename):
     """Mantido por compatibilidade com entregas legacy salvas em disco.
-    Novas entregas usam Cloudinary e não passam por esta rota.
+    Novas entregas usam Cloudinary e passam pela rota arquivo_entrega.
     """
-    from flask import send_from_directory, abort
+    from flask import send_from_directory
     upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
     safe = os.path.basename(filename)
     full = os.path.join(upload_folder, safe)
