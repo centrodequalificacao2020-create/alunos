@@ -1,9 +1,12 @@
 """Serviço de arquivos — headers padronizados para PDF.js e proxy Cloudinary."""
 import os
 import logging
+import mimetypes
 import re
 import requests
+from dataclasses import dataclass
 from flask import Response
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 logger = logging.getLogger(__name__)
 
@@ -87,102 +90,244 @@ def serve_local_file(candidatos: list, extra_headers: dict = None) -> Response:
     )
 
 
-def _cloudinary_signed_url(url: str, delivery_type: str = "upload") -> str:
-    """Gera uma URL assinada do Cloudinary a partir de uma URL crua.
+@dataclass(frozen=True)
+class _CloudinaryAsset:
+    """Metadados recuperados de uma URL de delivery do Cloudinary.
 
-    URLs cruas (secure_url) de contas com "Signed URLs" habilitado retornam
-    401 Unauthorized em GET direto. Esta função extrai o public_id e o
-    resource_type da URL e usa o SDK (que tem o api_secret) para gerar uma
-    URL assinada válida.
-
-    A config do Cloudinary é carregada explicitamente a partir do
-    current_app (não depende do estado global), garantindo que o api_secret
-    esteja disponível mesmo se o módulo for importado antes da inicialização.
-
-    Args:
-        url:            URL crua do Cloudinary.
-        delivery_type:  "upload" (público) ou "private" (asset privado).
-
-    Retorna a URL original se não for possível identificar o Cloudinary.
+    O banco legado salva apenas ``secure_url``. Por isso a URL é a fonte de
+    verdade nesta camada. Uploads futuros devem persistir também
+    ``public_id``, ``resource_type``, ``type`` e ``version`` retornados pelo
+    upload API.
     """
-    if "cloudinary.com" not in url:
-        return url
 
+    cloud_name: str
+    resource_type: str
+    source_delivery_type: str
+    public_id: str
+    version: int | None
+    transformation: str | None
+    format: str | None
+
+
+_CLOUDINARY_HOST_RE = re.compile(r"(^|\.)res\.cloudinary\.com$", re.I)
+_CLOUDINARY_VERSION_RE = re.compile(r"^v(\d+)$")
+_CLOUDINARY_SIGNATURE_RE = re.compile(r"^s--[^/]+--$")
+_CLOUDINARY_RESOURCE_TYPES = {"image", "raw", "video"}
+_CLOUDINARY_DELIVERY_TYPES = {"upload", "private", "authenticated"}
+
+
+def _parse_cloudinary_url(url: str) -> _CloudinaryAsset | None:
+    """Extrai o descriptor de uma URL Cloudinary, sem perder ``version``.
+
+    URLs de raw têm a extensão dentro do próprio ``public_id``. Para image e
+    video a extensão é tratada como ``format`` e removida do public ID, como
+    exige o SDK Cloudinary.
+    """
+    parsed = urlsplit(url)
+    if not _CLOUDINARY_HOST_RE.match(parsed.hostname or ""):
+        return None
+
+    parts = [unquote(part) for part in parsed.path.split("/") if part]
+    if len(parts) < 4:
+        return None
+
+    cloud_name, resource_type, delivery_type = parts[:3]
+    if resource_type not in _CLOUDINARY_RESOURCE_TYPES:
+        return None
+    if delivery_type not in _CLOUDINARY_DELIVERY_TYPES:
+        return None
+
+    remainder = parts[3:]
+    # Assinaturas de delivery aparecem antes das transformações/versão.
+    remainder = [part for part in remainder
+                 if not _CLOUDINARY_SIGNATURE_RE.match(part)]
+
+    version_index = next(
+        (index for index, part in enumerate(remainder)
+         if _CLOUDINARY_VERSION_RE.match(part)),
+        None,
+    )
+    if version_index is None:
+        transformation_parts = []
+        asset_parts = remainder
+        version = None
+    else:
+        transformation_parts = remainder[:version_index]
+        asset_parts = remainder[version_index + 1:]
+        version = int(_CLOUDINARY_VERSION_RE.match(
+            remainder[version_index]
+        ).group(1))
+
+    if not asset_parts:
+        return None
+
+    public_id = "/".join(asset_parts)
+    asset_format = None
+    if resource_type != "raw":
+        # O formato de image/video normalmente é o último sufixo da URL.
+        # Não remove nomes sem extensão nem extensões com caracteres estranhos.
+        match = re.match(r"^(?P<id>.+)\.(?P<format>[A-Za-z0-9]{1,10})$",
+                         public_id)
+        if match:
+            public_id = match.group("id")
+            asset_format = match.group("format")
+
+    return _CloudinaryAsset(
+        cloud_name=cloud_name,
+        resource_type=resource_type,
+        source_delivery_type=delivery_type,
+        public_id=public_id,
+        version=version,
+        transformation="/".join(transformation_parts) or None,
+        format=asset_format,
+    )
+
+
+def _configure_cloudinary_for_delivery() -> bool:
+    """Carrega explicitamente as credenciais do Flask no SDK Cloudinary."""
     try:
         import cloudinary
-        from cloudinary.utils import cloudinary_url
         from flask import current_app
 
-        # Garante que a config do Cloudinary está carregada a partir do app.
         cloud_name = current_app.config.get("CLOUDINARY_CLOUD_NAME")
-        api_key    = current_app.config.get("CLOUDINARY_API_KEY")
+        api_key = current_app.config.get("CLOUDINARY_API_KEY")
         api_secret = current_app.config.get("CLOUDINARY_API_SECRET")
         if not (cloud_name and api_key and api_secret):
-            logger.warning(
-                "[file_service] Cloudinary não configurado (faltam credenciais) "
-                "— usando URL original."
+            logger.error(
+                "[file_service] Cloudinary sem configuração completa: "
+                "cloud_name=%s api_key=%s api_secret=%s",
+                bool(cloud_name), bool(api_key), bool(api_secret),
             )
-            return url
+            return False
 
-        cloudinary.config(
-            cloud_name=cloud_name,
-            api_key=api_key,
-            api_secret=api_secret,
-            secure=True,
+        options = {
+            "cloud_name": cloud_name,
+            "api_key": api_key,
+            "api_secret": api_secret,
+            "secure": True,
+        }
+        signature_algorithm = current_app.config.get(
+            "CLOUDINARY_SIGNATURE_ALGORITHM"
+        )
+        if signature_algorithm:
+            options["signature_algorithm"] = signature_algorithm
+        cloudinary.config(**options)
+        return True
+    except Exception:
+        logger.exception(
+            "[file_service] Não foi possível configurar o SDK Cloudinary"
+        )
+        return False
+
+
+def _cloudinary_signed_url(asset: _CloudinaryAsset,
+                           delivery_type: str = "upload") -> str:
+    """Gera uma URL de delivery assinada preservando a versão original."""
+    import cloudinary
+    from cloudinary.utils import cloudinary_url
+    from flask import current_app
+
+    options = {
+        "resource_type": asset.resource_type,
+        "type": delivery_type,
+        "sign_url": True,
+        "secure": True,
+        # Sem version, o SDK pode inventar v1 para public IDs com barras.
+        "force_version": asset.version is not None,
+    }
+    if asset.version is not None:
+        options["version"] = asset.version
+    if asset.transformation:
+        options["transformation"] = asset.transformation
+    if asset.format:
+        options["format"] = asset.format
+
+    configured_cloud_name = current_app.config.get("CLOUDINARY_CLOUD_NAME")
+    if configured_cloud_name != asset.cloud_name:
+        raise ValueError(
+            f"cloud_name da URL ({asset.cloud_name}) difere da configuração "
+            f"da aplicação ({configured_cloud_name})"
         )
 
-        # Extrai resource_type (image|raw|video) e public_id da URL.
-        # Formato: https://res.cloudinary.com/<cloud>/<resource>/upload/v<ver>/<public_id>
-        m = re.search(
-            r"res\.cloudinary\.com/[^/]+/(?P<type>image|raw|video)/upload/"
-            r"v\d+/(?P<public_id>.+)$",
-            url,
-        )
-        if not m:
-            logger.warning(
-                f"[file_service] Não foi possível extrair public_id da URL: {url}"
-            )
-            return url
+    signed, _ = cloudinary_url(asset.public_id, **options)
+    return signed
 
-        resource_type = m.group("type")
-        public_id = m.group("public_id")
 
-        # Gera URL assinada (sign_url=True) usando o api_secret configurado.
-        signed, _ = cloudinary_url(
-            public_id,
-            resource_type=resource_type,
-            type=delivery_type,
-            sign_url=True,
-            secure=True,
-        )
-        return signed
-    except Exception as e:
-        logger.warning(
-            f"[file_service] Falha ao gerar URL assinada Cloudinary, "
-            f"usando URL original: {e}",
-            exc_info=True,
-        )
-        return url
+def _cloudinary_private_download_url(asset: _CloudinaryAsset,
+                                     delivery_type: str) -> str:
+    """Gera o download API assinado para asset private/authenticated.
+
+    Para raw, a extensão já está no public_id; portanto ``format`` deve ser
+    vazio. Passar ``pdf`` aqui criaria um nome incorreto como ``file.pdf.pdf``.
+    """
+    from cloudinary.utils import private_download_url
+
+    options = {
+        "resource_type": asset.resource_type,
+        "type": delivery_type,
+    }
+    return private_download_url(
+        asset.public_id,
+        asset.format or "",
+        **options,
+    )
+
+
+def _safe_cloudinary_url(url: str) -> str:
+    """Remove assinaturas e query strings dos logs sem ocultar o diagnóstico."""
+    parsed = urlsplit(url)
+    path = re.sub(r"/s--[^/]+--/", "/s--<redacted>--/", parsed.path)
+    query = "<redacted>" if parsed.query else ""
+    return urlunsplit((parsed.scheme, parsed.netloc, path, query, ""))
+
+
+def _log_cloudinary_response(label: str, response: requests.Response) -> None:
+    """Registra status, headers relevantes e amostra do corpo do upstream."""
+    body = response.content[:4096].decode("utf-8", errors="replace")
+    logger.warning(
+        "[file_service] Cloudinary tentativa=%s status=%s content_type=%s "
+        "x_cld_error=%s body=%r",
+        label,
+        response.status_code,
+        response.headers.get("Content-Type"),
+        response.headers.get("X-Cld-Error"),
+        body,
+    )
+
+
+def _response_mimetype(response: requests.Response, source_url: str) -> str:
+    """Determina o MIME sem transformar DOCX/imagens em PDF por engano."""
+    content_type = (response.headers.get("Content-Type") or "").split(";", 1)[0].strip()
+    if content_type and content_type.lower() not in {
+        "application/octet-stream", "binary/octet-stream", "application/binary"
+    }:
+        return content_type
+
+    mime, _ = mimetypes.guess_type(urlsplit(source_url).path)
+    if mime:
+        return mime
+    return "application/pdf"
 
 
 def proxy_remote_file(url: str, timeout: int = 20,
                       extra_headers: dict = None) -> Response:
     """Baixa um arquivo remoto e retorna como Response para PDF.js.
 
-    Aplica correção automática: se a URL do Cloudinary tiver
-    /image/upload/ troca para /raw/upload/ (PDFs salvos erroneamente).
+    Para Cloudinary, as tentativas são deliberadamente explícitas:
 
-    Para URLs do Cloudinary, gera uma URL assinada via SDK (sign_url=True)
-    antes do GET — contas com "Signed URLs" habilitado retornam 401 em
-    URLs cruas.
+    1. delivery ``upload`` assinado;
+    2. delivery ``private`` assinado;
+    3. delivery ``authenticated`` assinado;
+    4. ``private_download_url`` para ``private``;
+    5. ``private_download_url`` para ``authenticated``.
 
-    Estratégia de fallback para assets privados: tenta primeiro a URL
-    assinada com delivery type "upload"; se o Cloudinary retornar 401,
-    tenta com delivery type "private" (assets com access_mode=private
-    exigem /private/ na URL, mesmo assinados).
+    A primeira tentativa não altera ``image`` para ``raw``. O
+    ``resource_type`` real do asset é parte da identidade do recurso e uma
+    troca cega pode produzir 401/404. Também preserva ``v<timestamp>`` da
+    URL original; sem isso o SDK pode gerar ``v1`` para IDs com pastas.
 
-    Força Content-Type para application/pdf quando o upstream retorna
-    um tipo genérico (octet-stream, binary, etc.).
+    Cada tentativa registra status HTTP, ``X-Cld-Error`` e uma amostra do
+    corpo retornado. Assinaturas/query strings são redigidas nos logs.
 
     Args:
         url:           URL do arquivo remoto.
@@ -195,12 +340,6 @@ def proxy_remote_file(url: str, timeout: int = 20,
     Raises:
         requests.RequestException em caso de falha na requisição.
     """
-    url_para_requisicao = url
-
-    # Correção Cloudinary: /image/upload/ → /raw/upload/ para PDFs
-    if "cloudinary.com" in url and "/image/upload/" in url:
-        url_para_requisicao = url.replace("/image/upload/", "/raw/upload/")
-
     req_headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -209,72 +348,93 @@ def proxy_remote_file(url: str, timeout: int = 20,
         ),
     }
 
-    # Para URLs do Cloudinary, tenta estratégias em ordem:
-    # 1. URL assinada com delivery type "upload"
-    # 2. URL assinada com delivery type "private" (se 401)
-    if "cloudinary.com" in url_para_requisicao:
-        candidatas = [
-            _cloudinary_signed_url(url_para_requisicao, delivery_type="upload"),
-            _cloudinary_signed_url(url_para_requisicao, delivery_type="private"),
-        ]
-        # Remove duplicatas preservando ordem
+    asset = _parse_cloudinary_url(url)
+    if asset is not None:
+        if not _configure_cloudinary_for_delivery():
+            raise requests.exceptions.RequestException(
+                "Cloudinary não está configurado para gerar URL de delivery"
+            )
+
+        candidatas = []
+        for delivery_type in ("upload", "private", "authenticated"):
+            try:
+                candidatas.append((
+                    f"signed-delivery/{delivery_type}",
+                    _cloudinary_signed_url(asset, delivery_type),
+                ))
+            except Exception as exc:
+                logger.exception(
+                    "[file_service] Falha ao gerar URL assinada "
+                    "delivery_type=%s asset=%s: %s",
+                    delivery_type, asset.public_id, exc,
+                )
+
+        for delivery_type in ("private", "authenticated"):
+            try:
+                candidatas.append((
+                    f"private-download/{delivery_type}",
+                    _cloudinary_private_download_url(asset, delivery_type),
+                ))
+            except Exception as exc:
+                logger.exception(
+                    "[file_service] Falha ao gerar private_download_url "
+                    "delivery_type=%s asset=%s: %s",
+                    delivery_type, asset.public_id, exc,
+                )
+
+        # Remove duplicatas sem perder o nome da estratégia para o log.
         vistas = set()
         candidatas_unicas = []
-        for c in candidatas:
-            if c not in vistas:
-                vistas.add(c)
-                candidatas_unicas.append(c)
+        for label, candidata in candidatas:
+            if candidata not in vistas:
+                vistas.add(candidata)
+                candidatas_unicas.append((label, candidata))
 
         ultimo_erro = None
-        for candidata in candidatas_unicas:
+        for label, candidata in candidatas_unicas:
+            logger.info(
+                "[file_service] Tentando Cloudinary strategy=%s url=%s "
+                "resource_type=%s source_type=%s public_id=%s version=%s",
+                label,
+                _safe_cloudinary_url(candidata),
+                asset.resource_type,
+                asset.source_delivery_type,
+                asset.public_id,
+                asset.version,
+            )
             try:
-                r = requests.get(candidata, headers=req_headers, timeout=timeout)
-                if r.status_code == 401:
-                    ultimo_erro = requests.exceptions.HTTPError(
-                        f"401 Client Error: Unauthorized for url: {candidata}",
-                        response=r,
+                response = requests.get(
+                    candidata, headers=req_headers, timeout=timeout
+                )
+                _log_cloudinary_response(label, response)
+                if 200 <= response.status_code < 300:
+                    return build_pdf_response(
+                        response.content,
+                        mimetype=_response_mimetype(response, url),
+                        extra_headers=extra_headers,
                     )
-                    continue  # tenta a próxima estratégia
-                r.raise_for_status()
 
-                # Detecta Content-Type real do upstream
-                upstream_mime = r.headers.get("Content-Type", "application/pdf")
-                if ";" in (upstream_mime or ""):
-                    upstream_mime = upstream_mime.split(";")[0].strip()
+                ultimo_erro = requests.exceptions.HTTPError(
+                    f"{response.status_code} upstream Cloudinary para "
+                    f"{_safe_cloudinary_url(candidata)}",
+                    response=response,
+                )
+            except requests.exceptions.RequestException as exc:
+                ultimo_erro = exc
+                logger.warning(
+                    "[file_service] Exceção na tentativa Cloudinary "
+                    "strategy=%s: %s",
+                    label, exc, exc_info=True,
+                )
 
-                # Fallback: se o upstream devolveu tipo genérico, força application/pdf
-                generic_types = {"application/octet-stream", "binary/octet-stream",
-                                 "application/binary", ""}
-                if (upstream_mime or "").lower() in generic_types:
-                    upstream_mime = "application/pdf"
-
-                return build_pdf_response(r.content, mimetype=upstream_mime,
-                                          extra_headers=extra_headers)
-            except requests.exceptions.RequestException as e:
-                ultimo_erro = e
-                continue
-
-        # Todas as estratégias falharam
         if ultimo_erro:
             raise ultimo_erro
         raise requests.exceptions.RequestException(
-            f"Falha ao baixar arquivo Cloudinary: {url_para_requisicao}"
+            f"Nenhuma estratégia Cloudinary foi gerada para {_safe_cloudinary_url(url)}"
         )
 
-    # URL não-Cloudinary: GET direto
-    r = requests.get(url_para_requisicao, headers=req_headers, timeout=timeout)
+    # URL não-Cloudinary: mantém o comportamento legado (GET direto).
+    r = requests.get(url, headers=req_headers, timeout=timeout)
     r.raise_for_status()
-
-    # Detecta Content-Type real do upstream
-    upstream_mime = r.headers.get("Content-Type", "application/pdf")
-    if ";" in (upstream_mime or ""):
-        upstream_mime = upstream_mime.split(";")[0].strip()
-
-    # Fallback: se o upstream devolveu tipo genérico, força application/pdf
-    generic_types = {"application/octet-stream", "binary/octet-stream",
-                     "application/binary", ""}
-    if (upstream_mime or "").lower() in generic_types:
-        upstream_mime = "application/pdf"
-
-    return build_pdf_response(r.content, mimetype=upstream_mime,
+    return build_pdf_response(r.content, mimetype=_response_mimetype(r, url),
                               extra_headers=extra_headers)

@@ -6,6 +6,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from db import db
+from services.file_service import proxy_remote_file, serve_local_file
 from models import (
     Materia, Exercicio, ExercicioQuestao, ExercicioAlternativa,
     RespostaExercicio, RespostaExercicioQuestao, ExercicioLiberado,
@@ -578,28 +579,17 @@ def criar_exercicio(materia_id):
 @exercicios_bp.route("/exercicios/<int:ex_id>/arquivo")
 @login_required
 def ver_arquivo_exercicio(ex_id):
-    import mimetypes
-    from flask import redirect as flask_redirect
     ex = db.get_or_404(Exercicio, ex_id)
     if not ex.arquivo:
         abort(404)
     if ex.arquivo.startswith("http://") or ex.arquivo.startswith("https://"):
-        import requests
         try:
-            r = requests.get(ex.arquivo, timeout=30)
-            r.raise_for_status()
-            resp = Response(r.content, mimetype="application/pdf")
-            resp.headers["Content-Disposition"] = "inline"
-            return resp
+            return proxy_remote_file(ex.arquivo)
         except Exception:
             abort(502)
     # Fallback: arquivo local legado
     caminho = os.path.join(current_app.root_path, "static", "uploads", ex.arquivo)
-    if not os.path.isfile(caminho):
+    try:
+        return serve_local_file([caminho])
+    except FileNotFoundError:
         abort(404)
-    mime, _ = mimetypes.guess_type(caminho)
-    with open(caminho, "rb") as fp:
-        dados = fp.read()
-    r = Response(dados, mimetype=mime or "application/octet-stream")
-    r.headers["Content-Disposition"] = "inline"
-    return r
