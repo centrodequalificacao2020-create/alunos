@@ -95,6 +95,10 @@ def _cloudinary_signed_url(url: str) -> str:
     resource_type da URL e usa o SDK (que tem o api_secret) para gerar uma
     URL assinada válida.
 
+    A config do Cloudinary é carregada explicitamente a partir do
+    current_app (não depende do estado global), garantindo que o api_secret
+    esteja disponível mesmo se o módulo for importado antes da inicialização.
+
     Retorna a URL original se não for possível identificar o Cloudinary.
     """
     if "cloudinary.com" not in url:
@@ -103,6 +107,25 @@ def _cloudinary_signed_url(url: str) -> str:
     try:
         import cloudinary
         from cloudinary.utils import cloudinary_url
+        from flask import current_app
+
+        # Garante que a config do Cloudinary está carregada a partir do app.
+        cloud_name = current_app.config.get("CLOUDINARY_CLOUD_NAME")
+        api_key    = current_app.config.get("CLOUDINARY_API_KEY")
+        api_secret = current_app.config.get("CLOUDINARY_API_SECRET")
+        if not (cloud_name and api_key and api_secret):
+            logger.warning(
+                "[file_service] Cloudinary não configurado (faltam credenciais) "
+                "— usando URL original."
+            )
+            return url
+
+        cloudinary.config(
+            cloud_name=cloud_name,
+            api_key=api_key,
+            api_secret=api_secret,
+            secure=True,
+        )
 
         # Extrai resource_type (image|raw|video) e public_id da URL.
         # Formato: https://res.cloudinary.com/<cloud>/<resource>/upload/v<ver>/<public_id>
@@ -112,6 +135,9 @@ def _cloudinary_signed_url(url: str) -> str:
             url,
         )
         if not m:
+            logger.warning(
+                f"[file_service] Não foi possível extrair public_id da URL: {url}"
+            )
             return url
 
         resource_type = m.group("type")
@@ -128,7 +154,8 @@ def _cloudinary_signed_url(url: str) -> str:
     except Exception as e:
         logger.warning(
             f"[file_service] Falha ao gerar URL assinada Cloudinary, "
-            f"usando URL original: {e}"
+            f"usando URL original: {e}",
+            exc_info=True,
         )
         return url
 
