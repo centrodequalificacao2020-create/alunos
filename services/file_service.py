@@ -143,10 +143,28 @@ def _cloudinary_signed_url(url: str) -> str:
         resource_type = m.group("type")
         public_id = m.group("public_id")
 
+        # Determina o delivery type correto (upload vs private) consultando
+        # a API do Cloudinary. Assets privados (access_mode=private) exigem
+        # o delivery type "private" na URL — com "/upload/" retornam 401
+        # mesmo com URL assinada.
+        delivery_type = "upload"
+        try:
+            import cloudinary.api
+            info = cloudinary.api.resource(public_id, resource_type=resource_type)
+            access_mode = info.get("access_mode", "public")
+            if access_mode in ("private", "authenticated"):
+                delivery_type = "private"
+        except Exception as e:
+            logger.warning(
+                f"[file_service] Não foi possível consultar access_mode do "
+                f"asset {public_id}: {e}"
+            )
+
         # Gera URL assinada (sign_url=True) usando o api_secret configurado.
         signed, _ = cloudinary_url(
             public_id,
             resource_type=resource_type,
+            type=delivery_type,
             sign_url=True,
             secure=True,
         )
