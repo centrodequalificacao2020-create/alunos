@@ -87,7 +87,7 @@ def serve_local_file(candidatos: list, extra_headers: dict = None) -> Response:
     )
 
 
-def _cloudinary_signed_url(url: str) -> str:
+def _cloudinary_signed_url(url: str, delivery_type: str = "upload") -> str:
     """Gera uma URL assinada do Cloudinary a partir de uma URL crua.
 
     URLs cruas (secure_url) de contas com "Signed URLs" habilitado retornam
@@ -98,6 +98,10 @@ def _cloudinary_signed_url(url: str) -> str:
     A config do Cloudinary é carregada explicitamente a partir do
     current_app (não depende do estado global), garantindo que o api_secret
     esteja disponível mesmo se o módulo for importado antes da inicialização.
+
+    Args:
+        url:            URL crua do Cloudinary.
+        delivery_type:  "upload" (público) ou "private" (asset privado).
 
     Retorna a URL original se não for possível identificar o Cloudinary.
     """
@@ -143,23 +147,6 @@ def _cloudinary_signed_url(url: str) -> str:
         resource_type = m.group("type")
         public_id = m.group("public_id")
 
-        # Determina o delivery type correto (upload vs private) consultando
-        # a API do Cloudinary. Assets privados (access_mode=private) exigem
-        # o delivery type "private" na URL — com "/upload/" retornam 401
-        # mesmo com URL assinada.
-        delivery_type = "upload"
-        try:
-            import cloudinary.api
-            info = cloudinary.api.resource(public_id, resource_type=resource_type)
-            access_mode = info.get("access_mode", "public")
-            if access_mode in ("private", "authenticated"):
-                delivery_type = "private"
-        except Exception as e:
-            logger.warning(
-                f"[file_service] Não foi possível consultar access_mode do "
-                f"asset {public_id}: {e}"
-            )
-
         # Gera URL assinada (sign_url=True) usando o api_secret configurado.
         signed, _ = cloudinary_url(
             public_id,
@@ -189,6 +176,11 @@ def proxy_remote_file(url: str, timeout: int = 20,
     antes do GET — contas com "Signed URLs" habilitado retornam 401 em
     URLs cruas.
 
+    Estratégia de fallback para assets privados: tenta primeiro a URL
+    assinada com delivery type "upload"; se o Cloudinary retornar 401,
+    tenta com delivery type "private" (assets com access_mode=private
+    exigem /private/ na URL, mesmo assinados).
+
     Força Content-Type para application/pdf quando o upstream retorna
     um tipo genérico (octet-stream, binary, etc.).
 
@@ -209,10 +201,6 @@ def proxy_remote_file(url: str, timeout: int = 20,
     if "cloudinary.com" in url and "/image/upload/" in url:
         url_para_requisicao = url.replace("/image/upload/", "/raw/upload/")
 
-    # Gera URL assinada para contas Cloudinary com Signed URLs habilitado
-    if "cloudinary.com" in url_para_requisicao:
-        url_para_requisicao = _cloudinary_signed_url(url_para_requisicao)
-
     req_headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -221,8 +209,60 @@ def proxy_remote_file(url: str, timeout: int = 20,
         ),
     }
 
-    r = requests.get(url_para_requisicao, headers=req_headers,
-                     timeout=timeout)
+    # Para URLs do Cloudinary, tenta estratégias em ordem:
+    # 1. URL assinada com delivery type "upload"
+    # 2. URL assinada com delivery type "private" (se 401)
+    if "cloudinary.com" in url_para_requisicao:
+        candidatas = [
+            _cloudinary_signed_url(url_para_requisicao, delivery_type="upload"),
+            _cloudinary_signed_url(url_para_requisicao, delivery_type="private"),
+        ]
+        # Remove duplicatas preservando ordem
+        vistas = set()
+        candidatas_unicas = []
+        for c in candidatas:
+            if c not in vistas:
+                vistas.add(c)
+                candidatas_unicas.append(c)
+
+        ultimo_erro = None
+        for candidata in candidatas_unicas:
+            try:
+                r = requests.get(candidata, headers=req_headers, timeout=timeout)
+                if r.status_code == 401:
+                    ultimo_erro = requests.exceptions.HTTPError(
+                        f"401 Client Error: Unauthorized for url: {candidata}",
+                        response=r,
+                    )
+                    continue  # tenta a próxima estratégia
+                r.raise_for_status()
+
+                # Detecta Content-Type real do upstream
+                upstream_mime = r.headers.get("Content-Type", "application/pdf")
+                if ";" in (upstream_mime or ""):
+                    upstream_mime = upstream_mime.split(";")[0].strip()
+
+                # Fallback: se o upstream devolveu tipo genérico, força application/pdf
+                generic_types = {"application/octet-stream", "binary/octet-stream",
+                                 "application/binary", ""}
+                if (upstream_mime or "").lower() in generic_types:
+                    upstream_mime = "application/pdf"
+
+                return build_pdf_response(r.content, mimetype=upstream_mime,
+                                          extra_headers=extra_headers)
+            except requests.exceptions.RequestException as e:
+                ultimo_erro = e
+                continue
+
+        # Todas as estratégias falharam
+        if ultimo_erro:
+            raise ultimo_erro
+        raise requests.exceptions.RequestException(
+            f"Falha ao baixar arquivo Cloudinary: {url_para_requisicao}"
+        )
+
+    # URL não-Cloudinary: GET direto
+    r = requests.get(url_para_requisicao, headers=req_headers, timeout=timeout)
     r.raise_for_status()
 
     # Detecta Content-Type real do upstream
