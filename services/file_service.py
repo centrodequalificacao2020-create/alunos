@@ -1,6 +1,7 @@
 """Serviço de arquivos — headers padronizados para PDF.js e proxy Cloudinary."""
 import os
 import logging
+import re
 import requests
 from flask import Response
 
@@ -86,12 +87,62 @@ def serve_local_file(candidatos: list, extra_headers: dict = None) -> Response:
     )
 
 
+def _cloudinary_signed_url(url: str) -> str:
+    """Gera uma URL assinada do Cloudinary a partir de uma URL crua.
+
+    URLs cruas (secure_url) de contas com "Signed URLs" habilitado retornam
+    401 Unauthorized em GET direto. Esta função extrai o public_id e o
+    resource_type da URL e usa o SDK (que tem o api_secret) para gerar uma
+    URL assinada válida.
+
+    Retorna a URL original se não for possível identificar o Cloudinary.
+    """
+    if "cloudinary.com" not in url:
+        return url
+
+    try:
+        import cloudinary
+        from cloudinary.utils import cloudinary_url
+
+        # Extrai resource_type (image|raw|video) e public_id da URL.
+        # Formato: https://res.cloudinary.com/<cloud>/<resource>/upload/v<ver>/<public_id>
+        m = re.search(
+            r"res\.cloudinary\.com/[^/]+/(?P<type>image|raw|video)/upload/"
+            r"v\d+/(?P<public_id>.+)$",
+            url,
+        )
+        if not m:
+            return url
+
+        resource_type = m.group("type")
+        public_id = m.group("public_id")
+
+        # Gera URL assinada (sign_url=True) usando o api_secret configurado.
+        signed, _ = cloudinary_url(
+            public_id,
+            resource_type=resource_type,
+            sign_url=True,
+            secure=True,
+        )
+        return signed
+    except Exception as e:
+        logger.warning(
+            f"[file_service] Falha ao gerar URL assinada Cloudinary, "
+            f"usando URL original: {e}"
+        )
+        return url
+
+
 def proxy_remote_file(url: str, timeout: int = 20,
                       extra_headers: dict = None) -> Response:
     """Baixa um arquivo remoto e retorna como Response para PDF.js.
 
     Aplica correção automática: se a URL do Cloudinary tiver
     /image/upload/ troca para /raw/upload/ (PDFs salvos erroneamente).
+
+    Para URLs do Cloudinary, gera uma URL assinada via SDK (sign_url=True)
+    antes do GET — contas com "Signed URLs" habilitado retornam 401 em
+    URLs cruas.
 
     Força Content-Type para application/pdf quando o upstream retorna
     um tipo genérico (octet-stream, binary, etc.).
@@ -112,6 +163,10 @@ def proxy_remote_file(url: str, timeout: int = 20,
     # Correção Cloudinary: /image/upload/ → /raw/upload/ para PDFs
     if "cloudinary.com" in url and "/image/upload/" in url:
         url_para_requisicao = url.replace("/image/upload/", "/raw/upload/")
+
+    # Gera URL assinada para contas Cloudinary com Signed URLs habilitado
+    if "cloudinary.com" in url_para_requisicao:
+        url_para_requisicao = _cloudinary_signed_url(url_para_requisicao)
 
     req_headers = {
         "User-Agent": (
