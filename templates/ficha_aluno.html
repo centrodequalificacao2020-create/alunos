@@ -9,8 +9,8 @@
             <p class="card-subtitle">Ficha completa do aluno</p>
         </div>
         <div class="ficha-header-acoes">
-            <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno">&#9998;</a>
-            <a href="/cadastro" class="btn btn-azul">&larr; Voltar</a>
+            <a href="/editar_aluno/{{ aluno.id }}" class="btn btn-editar tooltip" data-tooltip="Editar aluno" aria-label="Editar aluno">&#9998;</a>
+            <a href="/cadastro" class="btn btn-azul" aria-label="Voltar para listagem">&larr; Voltar</a>
         </div>
     </div>
 
@@ -24,7 +24,20 @@
         </div>
         <div>
             <p><strong>Status:</strong>
-                <span class="status-{{ aluno.status|lower }}">{{ aluno.status }}</span>
+                {% set st = (aluno.status or '') | lower %}
+                {% if st == 'ativo' %}
+                    <span class="status-badge status-badge--ativo">{{ aluno.status }}</span>
+                {% elif st == 'trancado' %}
+                    <span class="status-badge status-badge--trancado">{{ aluno.status }}</span>
+                {% elif st == 'cancelado' %}
+                    <span class="status-badge status-badge--cancelado">{{ aluno.status }}</span>
+                {% elif st == 'finalizado' %}
+                    <span class="status-badge status-badge--finalizado">{{ aluno.status }}</span>
+                {% elif st == 'inadimplente' %}
+                    <span class="status-badge status-badge--inadimplente">{{ aluno.status }}</span>
+                {% else %}
+                    <span class="status-badge status-badge--outro">{{ aluno.status or '—' }}</span>
+                {% endif %}
             </p>
             <p><strong>Endereço:</strong>
                 {{ aluno.endereco or '' }}{% if aluno.complemento %}, {{ aluno.complemento }}{% endif %}
@@ -63,11 +76,18 @@
 </div>
 
 {# ===== CONTRATO ===== #}
-<details class="card ficha-card-secao">
+<details class="card ficha-card-secao" id="ficha-sec-contrato">
     <summary class="ficha-accordion-summary">
         <span>Contrato</span>
         {% if aluno.contrato_assinado %}
-        <span class="ficha-accordion-estado ficha-accordion-estado--ok">Assinado</span>
+        <span class="ficha-accordion-estado ficha-accordion-estado--ok">
+            {% if aluno.contrato_assinado_em %}
+                {% set d = aluno.contrato_assinado_em | string %}
+                Assinado em {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+            {% else %}
+                Assinado
+            {% endif %}
+        </span>
         {% else %}
         <span class="ficha-accordion-estado ficha-accordion-estado--pendente">Pendente</span>
         {% endif %}
@@ -91,14 +111,15 @@
     {% if aceites_contrato %}
     <details class="ficha-contrato-historico">
         <summary>Ver histórico de aceites ({{ aceites_contrato|length }})</summary>
-        <div class="tabela-planilha" style="margin-top:.75rem">
+        <div class="tabela-planilha ficha-mt-table">
             <table class="tabela-excel">
+                <caption class="sr-only">Histórico de aceites do contrato de {{ aluno.nome }}</caption>
                 <thead>
                     <tr>
-                        <th style="width:40px">#</th>
-                        <th style="width:70px">Versão</th>
-                        <th style="width:145px">Aceito em</th>
-                        <th style="width:140px">IP</th>
+                        <th class="ficha-th-id">#</th>
+                        <th class="ficha-th-vw">Versão</th>
+                        <th class="ficha-th-aceito">Aceito em</th>
+                        <th class="ficha-th-ip">IP</th>
                         <th>Hash SHA-256</th>
                     </tr>
                 </thead>
@@ -124,7 +145,7 @@
     </details>
     {% else %}
         {% if aluno.contrato_assinado %}
-        <p class="text-muted small" style="margin-top:.5rem">Aceite registrado antes da implantação do log de auditoria.</p>
+        <p class="text-muted small ficha-mt-sm">Aceite registrado antes da implantação do log de auditoria.</p>
         {% endif %}
     {% endif %}
 
@@ -156,10 +177,11 @@
 </details>
 
 {# ===== MATRICULAS ===== #}
-<details class="card ficha-card-secao">
+<details class="card ficha-card-secao" id="ficha-sec-matriculas">
     <summary class="ficha-accordion-summary">
         <span>Matrículas</span>
-        <span class="ficha-accordion-contagem">{{ matriculas|length }}</span>
+        {% set ativas = matriculas | selectattr('status', 'equalto', 'ATIVA') | list %}
+        <span class="ficha-accordion-contagem">{{ matriculas|length }}{% if ativas|length %} · {{ ativas|length }} ativa{% endif %}</span>
     </summary>
 
     {% if cursos_disponiveis %}
@@ -244,6 +266,7 @@
     {% if matriculas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
+            <caption class="sr-only">Matrículas de {{ aluno.nome }}</caption>
             <thead>
                 <tr>
                     <th>Curso</th>
@@ -272,7 +295,7 @@
                               class="form-status-matricula"
                               onchange="this.submit()">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <select name="status" class="select-status-matricula status-{{ m.status|lower }}">
+                            <select name="status" aria-label="Status da matrícula em {{ m.curso_nome }}" class="select-status-matricula status-{{ m.status|lower }}">
                                 {% for s, label in [
                                     ('PRE_MATRICULA', 'Pré-Matrícula'),
                                     ('ATIVA',         'Ativa'),
@@ -312,22 +335,24 @@
 </details>
 
 {# ===== NOTAS FINAIS (boletim) — mesma fonte do PDF, por matrícula ===== #}
-<details class="card ficha-card-secao">
+<details class="card ficha-card-secao" id="ficha-sec-notas">
     <summary class="ficha-accordion-summary">
         <span>Notas Finais</span>
-        <span class="ficha-accordion-contagem">{{ matriculas|length }} matrícula(s)</span>
+        {% set total_notas = matriculas | map(attribute='notas_finais') | select | list | map('length') | sum %}
+        <span class="ficha-accordion-contagem">{{ total_notas }} matéria(s){{ ' · ' ~ (matriculas|length) ~ ' matrícula(s)' if matriculas|length }}</span>
     </summary>
 
     {% if matriculas %}
         {% for m in matriculas %}
         {% if m.notas_finais %}
         <div class="ficha-nota-curso-header">
-            <h4 style="margin:12px 0 6px;color:var(--color-primary)">{{ m.curso_nome }}</h4>
+            <h4>{{ m.curso_nome }}</h4>
             <a href="/notas?aluno_id={{ aluno.id }}&curso_id={{ m.curso_id }}"
                class="btn btn-sm btn-azul">&#9998; Lançar nota</a>
         </div>
         <div class="tabela-planilha">
             <table class="tabela-excel">
+                <caption class="sr-only">Notas finais de {{ m.curso_nome }}</caption>
                 <thead>
                     <tr>
                         <th>Matéria</th>
@@ -347,10 +372,10 @@
             </table>
         </div>
         {% else %}
-        <p class="text-muted" style="margin:8px 0">
+        <p class="ficha-sem-nota ficha-div-nota">
             <strong>{{ m.curso_nome }}:</strong> nenhuma nota lançada ainda.
             <a href="/notas?aluno_id={{ aluno.id }}&curso_id={{ m.curso_id }}"
-               class="btn btn-sm btn-azul" style="margin-left:8px">&#9998; Lançar nota</a>
+               class="btn btn-sm btn-azul ficha-link-inline">&#9998; Lançar nota</a>
         </p>
         {% endif %}
         {% endfor %}
@@ -360,7 +385,7 @@
 </details>
 
 {# ===== DOCUMENTOS ===== #}
-<details class="card ficha-card-secao">
+<details class="card ficha-card-secao" id="ficha-sec-documentos">
     <summary class="ficha-accordion-summary">
         <span>Documentos</span>
         <span class="ficha-accordion-contagem">{{ matriculas|length }} matrícula(s)</span>
@@ -369,6 +394,7 @@
     {% if matriculas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
+            <caption class="sr-only">Documentos disponíveis para {{ aluno.nome }}</caption>
             <thead>
                 <tr>
                     <th>Curso</th>
@@ -383,19 +409,22 @@
                     <td><strong>{{ m.curso_nome }}</strong></td>
                     <td class="ficha-th-centro">
                         <a href="/aluno/{{ aluno.id }}/declaracao-matricula/{{ m.id }}"
-                           class="btn btn-sm btn-azul" target="_blank">
+                           class="btn btn-sm btn-azul" target="_blank"
+                           aria-label="Baixar declaração de matrícula de {{ m.curso_nome }}">
                             &#11015; Baixar
                         </a>
                     </td>
                     <td class="ficha-th-centro">
                         <a href="/frequencia_historico_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-azul" target="_blank">
+                           class="btn btn-sm btn-azul" target="_blank"
+                           aria-label="Baixar declaração de presença de {{ m.curso_nome }}">
                             &#11015; Baixar
                         </a>
                     </td>
                     <td class="ficha-th-centro">
                         <a href="/declaracao_conclusao_pdf/{{ aluno.id }}/{{ m.curso_id }}"
-                           class="btn btn-sm btn-azul" target="_blank">
+                           class="btn btn-sm btn-azul" target="_blank"
+                           aria-label="Baixar declaração de conclusão de {{ m.curso_nome }}">
                             &#11015; Baixar
                         </a>
                     </td>
@@ -410,7 +439,7 @@
 </details>
 
 {# ===== TENTATIVAS DE PROVAS ===== #}
-<details class="card ficha-card-secao">
+<details class="card ficha-card-secao" id="ficha-sec-provas">
     <summary class="ficha-accordion-summary">
         <span>Tentativas de Provas</span>
         <span class="ficha-accordion-contagem">{{ tentativas_provas|length }}</span>
@@ -419,15 +448,16 @@
     {% if tentativas_provas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
+            <caption class="sr-only">Tentativas de provas de {{ aluno.nome }}</caption>
             <thead>
                 <tr>
-                    <th style="width:40px">#</th>
+                    <th class="ficha-th-id">#</th>
                     <th>Prova</th>
-                    <th class="ficha-th-centro" style="width:80px">Tentativa</th>
-                    <th style="width:140px">Realizada em</th>
-                    <th class="ficha-th-centro" style="width:60px">Nota</th>
-                    <th style="width:130px">Situa&ccedil;&atilde;o</th>
-                    <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
+                    <th class="ficha-th-centro ficha-th-tent">Tentativa</th>
+                    <th class="ficha-th-real">Realizada em</th>
+                    <th class="ficha-th-centro ficha-th-nota">Nota</th>
+                    <th class="ficha-th-situ">Situa&ccedil;&atilde;o</th>
+                    <th class="acoes-texto ficha-th-acao">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -451,11 +481,11 @@
                             <span class="ficha-pendente">Pendente</span>
                         {% endif %}
                     </td>
-                    <td style="white-space:nowrap">
+                    <td class="ficha-td-nowrap">
                         {% if tp.aprovado == 1 %}
-                            <span class="status-ativo">Aprovado</span>
+                            <span class="status-badge status-badge--aprovado">Aprovado</span>
                         {% elif tp.aprovado == 0 %}
-                            <span class="status-inativo">Reprovado</span>
+                            <span class="status-badge status-badge--reprovado">Reprovado</span>
                         {% else %}
                             <span class="ficha-aguardando">Aguard. corre&ccedil;&atilde;o</span>
                         {% endif %}
@@ -480,7 +510,7 @@
 </details>
 
 {# ===== TENTATIVAS DE EXERCICIOS ===== #}
-<details class="card ficha-card-secao">
+<details class="card ficha-card-secao" id="ficha-sec-exercicios">
     <summary class="ficha-accordion-summary">
         <span>Tentativas de Exerc&iacute;cios</span>
         <span class="ficha-accordion-contagem">{{ tentativas_exercicios|length }}</span>
@@ -489,15 +519,16 @@
     {% if tentativas_exercicios %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
+            <caption class="sr-only">Tentativas de exercícios de {{ aluno.nome }}</caption>
             <thead>
                 <tr>
-                    <th style="width:40px">#</th>
+                    <th class="ficha-th-id">#</th>
                     <th>Exerc&iacute;cio</th>
-                    <th class="ficha-th-centro" style="width:80px">Tentativa</th>
-                    <th style="width:140px">Realizado em</th>
-                    <th class="ficha-th-centro" style="width:60px">Nota</th>
-                    <th style="width:130px">Situa&ccedil;&atilde;o</th>
-                    <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
+                    <th class="ficha-th-centro ficha-th-tent">Tentativa</th>
+                    <th class="ficha-th-real">Realizado em</th>
+                    <th class="ficha-th-centro ficha-th-nota">Nota</th>
+                    <th class="ficha-th-situ">Situa&ccedil;&atilde;o</th>
+                    <th class="acoes-texto ficha-th-acao">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -521,11 +552,11 @@
                             <span class="ficha-pendente">Pendente</span>
                         {% endif %}
                     </td>
-                    <td style="white-space:nowrap">
+                    <td class="ficha-td-nowrap">
                         {% if te.aprovado == 1 %}
-                            <span class="status-ativo">Aprovado</span>
+                            <span class="status-badge status-badge--aprovado">Aprovado</span>
                         {% elif te.aprovado == 0 %}
-                            <span class="status-inativo">Reprovado</span>
+                            <span class="status-badge status-badge--reprovado">Reprovado</span>
                         {% else %}
                             <span class="ficha-aguardando">Aguard. corre&ccedil;&atilde;o</span>
                         {% endif %}
@@ -550,7 +581,7 @@
 </details>
 
 {# ===== ENTREGAS DE ATIVIDADES ===== #}
-<details class="card ficha-card-secao">
+<details class="card ficha-card-secao" id="ficha-sec-entregas">
     <summary class="ficha-accordion-summary">
         <span>Entregas de Atividades</span>
         <span class="ficha-accordion-contagem">{{ entregas_atividades|length }}</span>
@@ -559,14 +590,15 @@
     {% if entregas_atividades %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
+            <caption class="sr-only">Entregas de atividades de {{ aluno.nome }}</caption>
             <thead>
                 <tr>
-                    <th style="width:40px">#</th>
+                    <th class="ficha-th-id">#</th>
                     <th>Atividade</th>
-                    <th style="width:140px">Entregue em</th>
-                    <th style="width:110px">Status</th>
-                    <th class="ficha-th-centro" style="width:60px">Nota</th>
-                    <th class="acoes-texto" style="width:100px">A&ccedil;&otilde;es</th>
+                    <th class="ficha-th-real">Entregue em</th>
+                    <th class="ficha-th-entregue">Status</th>
+                    <th class="ficha-th-centro ficha-th-nota">Nota</th>
+                    <th class="acoes-texto ficha-th-acao">A&ccedil;&otilde;es</th>
                 </tr>
             </thead>
             <tbody>
@@ -582,9 +614,9 @@
                             {% if d|length >= 16 %} &#224;s {{ d[11:16] }}{% endif %}
                         {% else %}&mdash;{% endif %}
                     </td>
-                    <td style="white-space:nowrap">
+                    <td class="ficha-td-nowrap">
                         {% if ea.status == 'corrigida' %}
-                            <span class="status-ativo">Corrigida</span>
+                            <span class="status-badge status-badge--aprovado">Corrigida</span>
                         {% elif ea.status == 'entregue' %}
                             <span class="ficha-aguardando">Entregue</span>
                         {% else %}
