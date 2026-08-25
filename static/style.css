@@ -1083,6 +1083,20 @@ details[open] > .ficha-accordion-summary::after {
     color:var(--color-primary);
 }
 
+/* Tabela de notas finais (ficha) — colunas compactas e alinhadas.
+   O .tabela-excel padrão usa min-width:100%, o que estica as colunas
+   curtas (Nota/Resultado) e espalha os cabeçalhos pelo card. Aqui
+   fixamos o layout e damos larguras fixas às colunas numéricas. */
+#ficha-sec-notas table.tabela-excel {
+    width:100%;table-layout:fixed;
+}
+#ficha-sec-notas table.tabela-excel th:nth-child(1),
+#ficha-sec-notas table.tabela-excel td:nth-child(1) { text-align:left; }
+#ficha-sec-notas table.tabela-excel th:nth-child(2),
+#ficha-sec-notas table.tabela-excel td:nth-child(2) { width:90px;text-align:center; }
+#ficha-sec-notas table.tabela-excel th:nth-child(3),
+#ficha-sec-notas table.tabela-excel td:nth-child(3) { width:150px;text-align:center; }
+
 /* ════════════════════════════════════════════════════════════════
    34. PRÉ-MATRÍCULA — formulário expandível (ficha_aluno.html)
    ════════════════════════════════════════════════════════════════ */
