@@ -63,8 +63,15 @@
 </div>
 
 {# ===== CONTRATO ===== #}
-<div class="card ficha-card-secao">
-    <h3>Contrato</h3>
+<details class="card ficha-card-secao">
+    <summary class="ficha-accordion-summary">
+        <span>Contrato</span>
+        {% if aluno.contrato_assinado %}
+        <span class="ficha-accordion-estado ficha-accordion-estado--ok">Assinado</span>
+        {% else %}
+        <span class="ficha-accordion-estado ficha-accordion-estado--pendente">Pendente</span>
+        {% endif %}
+    </summary>
     <div class="ficha-contrato-status">
         {% if aluno.contrato_assinado %}
             <span class="ficha-contrato-badge ficha-contrato-badge--ok">&#10003; Assinado</span>
@@ -124,6 +131,11 @@
     {# Ações da secretaria #}
     <div class="ficha-contrato-acoes">
         {% if aluno.contrato_assinado %}
+        {% if aceites_contrato %}
+        <a href="/aluno/{{ aluno.id }}/contrato/pdf" class="btn btn-sm btn-azul" target="_blank">
+            &#11015; Baixar contrato assinado
+        </a>
+        {% endif %}
         <form method="POST" action="/admin/alunos/{{ aluno.id }}/contrato/reset"
               onsubmit="return confirm('Resetar contrato de {{ aluno.nome }}? O aluno será obrigado a assinar novamente no próximo acesso ao portal. O histórico de aceites anteriores é preservado.')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -141,11 +153,14 @@
         </form>
         {% endif %}
     </div>
-</div>
+</details>
 
 {# ===== MATRICULAS ===== #}
-<div class="card ficha-card-secao">
-    <h3>Matrículas</h3>
+<details class="card ficha-card-secao">
+    <summary class="ficha-accordion-summary">
+        <span>Matrículas</span>
+        <span class="ficha-accordion-contagem">{{ matriculas|length }}</span>
+    </summary>
 
     {% if cursos_disponiveis %}
     <form method="POST" action="/matricular_aluno" class="toolbar-matricula">
@@ -294,15 +309,23 @@
     {% else %}
     <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
     {% endif %}
-</div>
+</details>
 
 {# ===== NOTAS FINAIS (boletim) — mesma fonte do PDF, por matrícula ===== #}
-<div class="card ficha-card-secao">
-    <h3>Notas Finais</h3>
+<details class="card ficha-card-secao">
+    <summary class="ficha-accordion-summary">
+        <span>Notas Finais</span>
+        <span class="ficha-accordion-contagem">{{ matriculas|length }} matrícula(s)</span>
+    </summary>
+
     {% if matriculas %}
         {% for m in matriculas %}
         {% if m.notas_finais %}
-        <h4 style="margin:12px 0 6px;color:var(--color-primary)">{{ m.curso_nome }}</h4>
+        <div class="ficha-nota-curso-header">
+            <h4 style="margin:12px 0 6px;color:var(--color-primary)">{{ m.curso_nome }}</h4>
+            <a href="/notas?aluno_id={{ aluno.id }}&curso_id={{ m.curso_id }}"
+               class="btn btn-sm btn-azul">&#9998; Lançar nota</a>
+        </div>
         <div class="tabela-planilha">
             <table class="tabela-excel">
                 <thead>
@@ -326,17 +349,23 @@
         {% else %}
         <p class="text-muted" style="margin:8px 0">
             <strong>{{ m.curso_nome }}:</strong> nenhuma nota lançada ainda.
+            <a href="/notas?aluno_id={{ aluno.id }}&curso_id={{ m.curso_id }}"
+               class="btn btn-sm btn-azul" style="margin-left:8px">&#9998; Lançar nota</a>
         </p>
         {% endif %}
         {% endfor %}
     {% else %}
     <p class="empty-state">Nenhuma matrícula registrada para este aluno.</p>
     {% endif %}
-</div>
+</details>
 
 {# ===== DOCUMENTOS ===== #}
-<div class="card ficha-card-secao">
-    <h3>Documentos</h3>
+<details class="card ficha-card-secao">
+    <summary class="ficha-accordion-summary">
+        <span>Documentos</span>
+        <span class="ficha-accordion-contagem">{{ matriculas|length }} matrícula(s)</span>
+    </summary>
+
     {% if matriculas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
@@ -378,11 +407,15 @@
     {% else %}
     <p class="empty-state">Nenhuma matrícula encontrada.</p>
     {% endif %}
-</div>
+</details>
 
 {# ===== TENTATIVAS DE PROVAS ===== #}
-<div class="card ficha-card-secao">
-    <h3>Tentativas de Provas</h3>
+<details class="card ficha-card-secao">
+    <summary class="ficha-accordion-summary">
+        <span>Tentativas de Provas</span>
+        <span class="ficha-accordion-contagem">{{ tentativas_provas|length }}</span>
+    </summary>
+
     {% if tentativas_provas %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
@@ -444,11 +477,15 @@
     {% else %}
     <p class="empty-state">Nenhuma tentativa de prova registrada.</p>
     {% endif %}
-</div>
+</details>
 
 {# ===== TENTATIVAS DE EXERCICIOS ===== #}
-<div class="card ficha-card-secao">
-    <h3>Tentativas de Exerc&iacute;cios</h3>
+<details class="card ficha-card-secao">
+    <summary class="ficha-accordion-summary">
+        <span>Tentativas de Exerc&iacute;cios</span>
+        <span class="ficha-accordion-contagem">{{ tentativas_exercicios|length }}</span>
+    </summary>
+
     {% if tentativas_exercicios %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
@@ -510,11 +547,15 @@
     {% else %}
     <p class="empty-state">Nenhuma tentativa de exerc&iacute;cio registrada.</p>
     {% endif %}
-</div>
+</details>
 
 {# ===== ENTREGAS DE ATIVIDADES ===== #}
-<div class="card ficha-card-secao">
-    <h3>Entregas de Atividades</h3>
+<details class="card ficha-card-secao">
+    <summary class="ficha-accordion-summary">
+        <span>Entregas de Atividades</span>
+        <span class="ficha-accordion-contagem">{{ entregas_atividades|length }}</span>
+    </summary>
+
     {% if entregas_atividades %}
     <div class="tabela-planilha">
         <table class="tabela-excel">
@@ -574,5 +615,5 @@
     {% else %}
     <p class="empty-state">Nenhuma entrega de atividade registrada.</p>
     {% endif %}
-</div>
+</details>
 {% endblock %}

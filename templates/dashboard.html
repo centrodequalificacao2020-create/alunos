@@ -169,9 +169,17 @@
         <h4>Parcelas pendentes</h4>
         <p class="valor-orange">{{ vencendo }}</p>
     </div>
-    <div class="card dashboard-card card--dark">
-        <h4>Matr&#237;culas futuras</h4>
-        <p>{{ matriculas_futuras|moeda }}</p>
+
+    <!-- Card duplo: Matrículas futuras | Recebimento de apostilas — cada lado é um valor -->
+    <div class="card dashboard-card card--dark card-duplo">
+        <a href="/matriculas?mes={{ mes }}" class="lado" title="Ver matrículas futuras">
+            <h4>Matr&#237;culas futuras</h4>
+            <p class="num" style="color:#2c3e50">{{ matriculas_futuras|moeda }}</p>
+        </a>
+        <a href="/lancar_mensalidade" class="lado" title="Lançar apostilas">
+            <h4>Receb. de apostilas (m&#234;s em diante)</h4>
+            <p class="num" style="color:#2c3e50">{{ recebimento_apostilas|moeda }}</p>
+        </a>
     </div>
 </div>
 

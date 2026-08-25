@@ -570,6 +570,157 @@ def gerar_declaracao_matricula(aluno, matricula, curso,
     return buf
 
 
+# ────────────────────────────────────────────────────────────────── CONTRATO ASSINADO
+
+def gerar_contrato_assinado(aluno, aceite, root_path: str = "") -> io.BytesIO:
+    """Gera PDF comprovante de aceite de contrato digital.
+
+    Exibe os dados do aluno e a evidência do aceite registrado em
+    ContratoAceite (versão, hash SHA-256, data/hora, IP e user-agent).
+    Usa apenas o último aceite (registro mais recente).
+    """
+    buf = io.BytesIO()
+    pdf = canvas.Canvas(buf, pagesize=A4)
+    larg, alt = A4
+    margem = 65
+    line_height = 18
+    font_size = 11
+    max_largura_px = larg - margem * 2
+
+    logo = _logo_path(root_path)
+    if os.path.exists(logo):
+        pdf.drawImage(logo, 50, alt - 120, width=80, height=60,
+                      preserveAspectRatio=True, mask="auto")
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(140, alt - 60, f"{ESCOLA['nome']} {ESCOLA['sigla']}")
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(140, alt - 75,  f"CNPJ: {ESCOLA['cnpj']}")
+    pdf.drawString(140, alt - 90,
+                   "Rua: Prata Mancebo nº 148. Centro – Carapebus – RJ CEP 27998-000")
+    pdf.drawString(140, alt - 105, f"E-mail: {ESCOLA['email']}")
+    pdf.drawString(140, alt - 120, f"Tel.: {ESCOLA['telefone']}")
+    pdf.line(50, alt - 135, larg - 50, alt - 135)
+
+    titulo = "COMPROVANTE DE ACEITE DE CONTRATO"
+    y = alt - 165
+    pdf.setFont("Helvetica-Bold", 14)
+    titulo_w = stringWidth(titulo, "Helvetica-Bold", 14)
+    titulo_x = (larg - titulo_w) / 2
+    pdf.drawString(titulo_x, y, titulo)
+    pdf.line(titulo_x, y - 3, titulo_x + titulo_w, y - 3)
+    y -= 38
+
+    pdf.setFont("Helvetica", font_size)
+    pdf.drawString(margem, y, "Declaramos que o(a) aluno(a) abaixo aceitou eletronicamente o contrato de prestação de serviços educacionais, nos termos registrados a seguir:")
+    y -= line_height * 1.8
+
+    # ── Dados do aluno ──────────────────────────────────────────────
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(margem, y, "DADOS DO ALUNO:")
+    y -= 16
+
+    nome_fmt = _capitalizar_nome(aluno.nome)
+    dados_aluno = [
+        ("Nome completo",       nome_fmt),
+        ("CPF",                 aluno.cpf or "não informado"),
+        ("RG",                  aluno.rg or "não informado"),
+        ("Data de nascimento",  aluno.data_nascimento or "não informado"),
+        ("E-mail",              aluno.email or "não informado"),
+        ("Telefone/WhatsApp",   aluno.telefone or "não informado"),
+    ]
+    for label, valor in dados_aluno:
+        pdf.setFont("Helvetica-Bold", font_size)
+        lw = stringWidth(f"{label}: ", "Helvetica-Bold", font_size)
+        pdf.drawString(margem, y, f"{label}: ")
+        pdf.setFont("Helvetica", font_size)
+        pdf.drawString(margem + lw, y, valor)
+        y -= line_height
+    y -= line_height
+
+    # ── Evidência do aceite ─────────────────────────────────────────
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(margem, y, "EVIDÊNCIA DO ACEITE ELETRÔNICO:")
+    y -= 16
+
+    versao = getattr(aceite, "versao", "") or "—"
+    hash_contrato = getattr(aceite, "hash_contrato", "") or "—"
+    aceito_em = getattr(aceite, "aceito_em", "") or "—"
+    ip = getattr(aceite, "ip", "") or "—"
+    ua = getattr(aceite, "user_agent", "") or "—"
+
+    if aceito_em != "—":
+        a_str = str(aceito_em)[:19]
+        partes = a_str.split(" ")
+        data_p = partes[0].split("-")
+        data_fmt = f"{data_p[2]}/{data_p[1]}/{data_p[0]}" \
+            if len(data_p) == 3 else partes[0]
+        hora_fmt = partes[1] if len(partes) > 1 else ""
+        aceito_fmt = f"{data_fmt} {hora_fmt}".strip()
+    else:
+        aceito_fmt = "—"
+
+    dados_aceite = [
+        ("Versão do contrato",  versao),
+        ("Hash SHA-256",        hash_contrato),
+        ("Aceito em",           aceito_fmt),
+        ("Endereço IP",         ip),
+    ]
+    for label, valor in dados_aceite:
+        pdf.setFont("Helvetica-Bold", font_size)
+        lw = stringWidth(f"{label}: ", "Helvetica-Bold", font_size)
+        pdf.drawString(margem, y, f"{label}: ")
+        pdf.setFont("Helvetica", font_size)
+        pdf.drawString(margem + lw, y, valor)
+        y -= line_height
+
+    # ── User-Agent (quebrado em linhas) ─────────────────────────────
+    y -= line_height
+    pdf.setFont("Helvetica-Bold", font_size)
+    pdf.drawString(margem, y, "Dispositivo/Navegador (User-Agent):")
+    y -= line_height
+    pdf.setFont("Helvetica", 9)
+    for line in wrap(ua, 90):
+        if y < 80:
+            break
+        pdf.drawString(margem, y, line)
+        y -= 13
+    y -= 20
+
+    hoje = date.today()
+    meses_pt = ["", "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+    data_extenso = f"{hoje.day} de {meses_pt[hoje.month]} de {hoje.year}"
+    pdf.setFont("Helvetica", font_size)
+    pdf.drawString(margem, y, f"Carapebus-RJ, {data_extenso}.")
+
+    # ── Assinatura institucional ────────────────────────────────────
+    assin_y_base = 150
+    assin_path = _assinatura_path(root_path)
+    col_esq_centro = margem + 95
+    pdf.line(margem, assin_y_base, margem + 190, assin_y_base)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawCentredString(col_esq_centro, assin_y_base - 14, "Diretor Geral")
+    pdf.drawCentredString(col_esq_centro, assin_y_base - 26,
+                          "Randermei Marinho de Almeida Oliveira")
+    col_dir_centro = larg - margem - 95
+    if os.path.exists(assin_path):
+        pdf.drawImage(assin_path,
+                      col_dir_centro - 60, assin_y_base + 5,
+                      width=120, height=35,
+                      preserveAspectRatio=True, mask="auto")
+    pdf.line(larg - margem - 190, assin_y_base, larg - margem, assin_y_base)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 14,
+                          f"{ESCOLA['nome']} {ESCOLA['sigla']}")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 26, "Alex de Assis Pessanha")
+    pdf.drawCentredString(col_dir_centro, assin_y_base - 38, f"CNPJ: {ESCOLA['cnpj']}")
+
+    pdf.showPage()
+    pdf.save()
+    buf.seek(0)
+    return buf
+
+
 # ────────────────────────────────────────────────────────────────── CONFIRMAÇÃO DE PRÉ-MATRÍCULA
 
 def gerar_pre_matricula(dados: dict, root_path: str = "") -> io.BytesIO:

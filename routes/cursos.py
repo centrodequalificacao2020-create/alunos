@@ -83,7 +83,11 @@ def excluir_curso(id):
 @cursos_bp.route("/cursos/<int:curso_id>/alunos")
 @login_required
 def alunos_por_curso(curso_id):
-    """Retorna JSON com alunos matriculados em um curso específico."""
+    """Retorna JSON com alunos de um curso, separados em ativos e demais.
+
+    A separação usa o status do ALUNO (Aluno.status == 'Ativo'), não o
+    status da matrícula. Inclui contagem de alunos ativos.
+    """
     rows = (
         db.session.query(Aluno, Matricula.status)
         .join(Matricula, Matricula.aluno_id == Aluno.id)
@@ -91,15 +95,26 @@ def alunos_por_curso(curso_id):
         .order_by(Aluno.nome)
         .all()
     )
-    return jsonify([
-        {
+    ativos, outros = [], []
+    for a, m_status in rows:
+        item = {
             "id": a.id,
             "nome": a.nome,
             "status_aluno": a.status or "—",
             "status_matricula": m_status or "—",
         }
-        for a, m_status in rows
-    ])
+        if (a.status or "").strip().lower() == "ativo":
+            ativos.append(item)
+        else:
+            outros.append(item)
+
+    return jsonify({
+        "total":       len(rows),
+        "total_ativos": len(ativos),
+        "total_outros": len(outros),
+        "ativos":      ativos,
+        "outros":      outros,
+    })
 
 
 @cursos_bp.route("/cursos/tipo/<path:tipo>/alunos")

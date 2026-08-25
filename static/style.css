@@ -899,6 +899,75 @@ body.tema-aluno .btn-secondary:hover { background:rgba(255,255,255,.20);opacity:
 .ficha-form-inline { display:inline-flex;align-items:center; }
 
 /* ════════════════════════════════════════════════════════════════
+   33b. FICHA — ACCORDION (cards de seção expansíveis)
+   Os cards de seção viraram <details>/<summary>. O <summary> atua
+   como cabeçalho clicável; o estado aberto/fechado é nativo do HTML.
+   ════════════════════════════════════════════════════════════════ */
+.ficha-accordion-summary {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:12px 16px;
+    margin:0 0 16px 0;
+    cursor:pointer;
+    user-select:none;
+    border:1px solid var(--color-border);
+    border-radius:var(--radius-md);
+    background:var(--surface-2, #f6f8fb);
+    font-weight:700;
+    font-size:16px;
+    color:var(--color-text);
+}
+.ficha-accordion-summary::-webkit-details-marker { display:none; }
+.ficha-accordion-summary::after {
+    content:"▾";
+    font-size:14px;
+    color:var(--color-text-muted);
+    transition:transform .18s ease;
+    order:3;
+}
+details[open] > .ficha-accordion-summary::after {
+    transform:rotate(180deg);
+}
+.ficha-accordion-summary:hover {
+    background:var(--surface-3, #eef2f7);
+}
+/* Contador à direita (ex: nº de matrículas) */
+.ficha-accordion-contagem {
+    font-size:12px;
+    font-weight:600;
+    color:var(--color-text-muted);
+    background:rgba(124,58,237,.10);
+    padding:2px 10px;
+    border-radius:999px;
+    order:2;
+    white-space:nowrap;
+}
+/* Estado do contrato no cabeçalho */
+.ficha-accordion-estado {
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    padding:3px 10px;
+    border-radius:999px;
+    order:2;
+    white-space:nowrap;
+}
+.ficha-accordion-estado--ok      { background:#dcfce7; color:#15803d; }
+.ficha-accordion-estado--pendente{ background:#fef3c7; color:#b45309; }
+/* Cabeçalho de curso na seção de notas finais (título + botão lançar nota) */
+.ficha-nota-curso-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:12px;
+}
+.ficha-nota-curso-header h4 { margin:0; }
+
+/* ════════════════════════════════════════════════════════════════
    34. PRÉ-MATRÍCULA — formulário expandível (ficha_aluno.html)
    ════════════════════════════════════════════════════════════════ */
 .pre-matricula-details { margin-bottom:14px; }

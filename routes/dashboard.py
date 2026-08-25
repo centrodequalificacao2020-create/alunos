@@ -130,6 +130,12 @@ def dashboard():
         Mensalidade.vencimento >= inicio
     ).scalar() or 0
 
+    recebimento_apostilas = db.session.query(func.sum(Mensalidade.valor)).filter(
+        Mensalidade.status == "Pendente",
+        func.lower(Mensalidade.tipo) == "material",
+        Mensalidade.vencimento >= inicio
+    ).scalar() or 0
+
     recebimento_matricula = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pago",
         func.lower(Mensalidade.tipo) == "matricula",
@@ -244,6 +250,7 @@ def dashboard():
         rematriculas=rematriculas,
         vencendo=vencendo,
         matriculas_futuras=matriculas_futuras,
+        recebimento_apostilas=recebimento_apostilas,
         receita_projetada=receita_projetada,
         ticket_medio=ticket_medio,
         taxa_inadimplencia=taxa_inadimplencia,

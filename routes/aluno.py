@@ -386,6 +386,37 @@ def declaracao_matricula_pdf(aluno_id, matricula_id):
     )
 
 
+@aluno_bp.route("/aluno/<int:aluno_id>/contrato/pdf")
+@login_required
+def contrato_pdf(aluno_id):
+    """Gera o PDF de comprovante do último aceite de contrato (secretaria)."""
+    from flask import current_app
+    from models import ContratoAceite
+    from services.pdf_service import gerar_contrato_assinado
+
+    aluno = db.get_or_404(Aluno, aluno_id)
+    aceite = (
+        ContratoAceite.query
+        .filter_by(aluno_id=aluno_id)
+        .order_by(ContratoAceite.aceito_em.desc())
+        .first()
+    )
+    if not aceite:
+        flash("Este aluno não possui aceite de contrato registrado.", "erro")
+        return redirect(url_for("aluno.ficha_aluno", aluno_id=aluno_id))
+
+    buf = gerar_contrato_assinado(aluno, aceite, root_path=current_app.root_path)
+    import re
+    nome = re.sub(r"[^a-zA-Z0-9_-]", "_", aluno.nome.strip()).lower() or "aluno"
+    nome_arquivo = f"contrato_assinado_{nome}_{aluno_id}.pdf"
+    return send_file(
+        buf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=nome_arquivo,
+    )
+
+
 @aluno_bp.route("/aluno/<int:aluno_id>/tentativa_prova/<int:resp_id>/excluir", methods=["POST"])
 @login_required
 def excluir_tentativa_prova(aluno_id, resp_id):

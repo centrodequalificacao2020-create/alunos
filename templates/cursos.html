@@ -75,6 +75,18 @@ function renderTabela(alunos) {
       </table>`;
 }
 
+/* ── renderiza um grupo de alunos com título e contagem ── */
+function renderGrupo(titulo, alunos, cor) {
+    if (!alunos.length) return '';
+    return `<div style="margin-top:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <strong style="color:${cor || 'var(--primary)'}">${titulo}</strong>
+          <span class="contagem-ativo" style="font-size:.85em">${alunos.length} aluno(s)</span>
+        </div>
+        ${renderTabela(alunos)}
+      </div>`;
+}
+
 /* ── Aba "Por Curso" ── */
 async function carregarCurso() {
     const sel    = document.getElementById('sel_curso');
@@ -85,11 +97,18 @@ async function carregarCurso() {
     const res  = await fetch(`/cursos/${id}/alunos`);
     const data = await res.json();
     const txt  = sel.options[sel.selectedIndex].text;
-    painel.innerHTML =
-        `<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
            <strong>${txt}</strong>
-           <span class="contagem-ativo" style="font-size:.85em">${data.length} aluno(s)</span>
-         </div>` + renderTabela(data);
+           <span class="contagem-ativo" style="font-size:.85em">
+             ${data.total_ativos} ativo(s) de ${data.total} aluno(s)
+           </span>
+         </div>`;
+    html += renderGrupo('Alunos Ativos', data.ativos, '#15803d');
+    html += renderGrupo('Outros alunos', data.outros, '#7f8c8d');
+    if (!data.ativos.length && !data.outros.length) {
+        html += '<p style="color:var(--text-muted);padding:8px 0">Nenhum aluno matriculado.</p>';
+    }
+    painel.innerHTML = html;
 }
 
 /* ── Aba "Por Tipo" ── */
