@@ -125,13 +125,13 @@ def dashboard():
     ).count()
 
     matriculas_futuras = db.session.query(func.sum(Mensalidade.valor)).filter(
-        Mensalidade.status == "Pendente",
+        Mensalidade.status.in_(["Pendente", "Atrasado"]),
         func.lower(Mensalidade.tipo) == "matricula",
         Mensalidade.vencimento >= inicio
     ).scalar() or 0
 
     recebimento_apostilas = db.session.query(func.sum(Mensalidade.valor)).filter(
-        Mensalidade.status == "Pendente",
+        Mensalidade.status.in_(["Pendente", "Atrasado"]),
         func.lower(Mensalidade.tipo) == "material",
         Mensalidade.vencimento >= inicio
     ).scalar() or 0
@@ -139,6 +139,13 @@ def dashboard():
     recebimento_matricula = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pago",
         func.lower(Mensalidade.tipo) == "matricula",
+        Mensalidade.data_pagamento.between(inicio, fim)
+    ).scalar() or 0
+
+    # Apostilas (material) pagas no mês — lado direito do card teal
+    recebimento_apostila_pago = db.session.query(func.sum(Mensalidade.valor)).filter(
+        Mensalidade.status == "Pago",
+        func.lower(Mensalidade.tipo) == "material",
         Mensalidade.data_pagamento.between(inicio, fim)
     ).scalar() or 0
 
@@ -265,6 +272,7 @@ def dashboard():
         vendas_tipo=vendas_tipo,
         faturamento_tipo=faturamento_tipo,
         recebimento_matricula=recebimento_matricula,
+        recebimento_apostila_pago=recebimento_apostila_pago,
         rel_meta=rel["meta"],
         rel_realizado=rel["realizado"],
         rel_matriculas=rel["matriculas"],
@@ -434,5 +442,129 @@ def rematriculas_detalhe():
         "rematriculas.html",
         mes=mes,
         mes_label=mes_label,
+        resultado=resultado,
+    )
+
+
+@dashboard_bp.route("/matriculas-futuras")
+@financeiro_required
+def matriculas_futuras_detalhe():
+    """Matrículas a receber (Pendentes) com vencimento no mês em diante."""
+    hoje      = datetime.today()
+    mes_atual = hoje.strftime("%Y-%m")
+    mes       = request.args.get("mes") or mes_atual
+    inicio    = f"{mes}-01"
+    fim       = _fim_mes(mes)
+
+    rows = (
+        db.session.query(Mensalidade, Aluno, Curso)
+        .join(Aluno, Aluno.id == Mensalidade.aluno_id)
+        .outerjoin(Curso, Curso.id == Mensalidade.curso_id)
+        .filter(
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status.in_(["Pendente", "Atrasado"]),
+            Mensalidade.vencimento >= inicio,
+        )
+        .order_by(Mensalidade.vencimento.asc())
+        .all()
+    )
+
+    resultado = [
+        {
+            "aluno_id":   aluno.id,
+            "aluno_nome": aluno.nome,
+            "curso":      curso.nome if curso else "\u2014",
+            "vencimento": mens.vencimento,
+            "valor":      mens.valor,
+            "status":     mens.status,
+        }
+        for mens, aluno, curso in rows
+    ]
+
+    meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
+                "Jul","Ago","Set","Out","Nov","Dez"]
+    ano_n, mes_n = int(mes[:4]), int(mes[5:7])
+    mes_label = f"{meses_pt[mes_n - 1]}/{str(ano_n)[2:]}"
+
+    return render_template(
+        "matriculas_futuras.html",
+        mes=mes,
+        mes_label=mes_label,
+        resultado=resultado,
+    )
+
+
+@dashboard_bp.route("/apostilas")
+@financeiro_required
+def apostilas_detalhe():
+    """Recebimento de apostilas (material): pagas no mês ou pendentes a receber."""
+    hoje      = datetime.today()
+    mes_atual = hoje.strftime("%Y-%m")
+    mes       = request.args.get("mes") or mes_atual
+    situacao  = request.args.get("situacao", "futuras")  # 'pagas' | 'futuras'
+    inicio    = f"{mes}-01"
+    fim       = _fim_mes(mes)
+
+    if situacao == "pagas":
+        rows = (
+            db.session.query(Mensalidade, Aluno, Curso)
+            .join(Aluno, Aluno.id == Mensalidade.aluno_id)
+            .outerjoin(Curso, Curso.id == Mensalidade.curso_id)
+            .filter(
+                func.lower(Mensalidade.tipo) == "material",
+                Mensalidade.status == "Pago",
+                Mensalidade.data_pagamento.between(inicio, fim)
+            )
+            .order_by(Mensalidade.data_pagamento.desc())
+            .all()
+        )
+        resultado = [
+            {
+                "aluno_id":   aluno.id,
+                "aluno_nome": aluno.nome,
+                "curso":      curso.nome if curso else "\u2014",
+                "data":       mens.data_pagamento,
+                "valor":      mens.valor,
+            }
+            for mens, aluno, curso in rows
+        ]
+        titulo = "Recebimento de apostilas (pagas)"
+    else:
+        rows = (
+            db.session.query(Mensalidade, Aluno, Curso)
+            .join(Aluno, Aluno.id == Mensalidade.aluno_id)
+            .outerjoin(Curso, Curso.id == Mensalidade.curso_id)
+            .filter(
+                func.lower(Mensalidade.tipo) == "material",
+                Mensalidade.status.in_(["Pendente", "Atrasado"]),
+                Mensalidade.vencimento >= inicio
+            )
+            .order_by(Mensalidade.vencimento.asc())
+            .all()
+        )
+        resultado = [
+            {
+                "aluno_id":   aluno.id,
+                "aluno_nome": aluno.nome,
+                "curso":      curso.nome if curso else "\u2014",
+                "vencimento": mens.vencimento,
+                "valor":      mens.valor,
+                "status":     mens.status,
+            }
+            for mens, aluno, curso in rows
+        ]
+        titulo = "Recebimento futuro de apostilas"
+
+    meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
+                "Jul","Ago","Set","Out","Nov","Dez"]
+    ano_n, mes_n = int(mes[:4]), int(mes[5:7])
+    mes_label = f"{meses_pt[mes_n - 1]}/{str(ano_n)[2:]}"
+
+    return render_template(
+        "apostilas.html",
+        mes=mes,
+        mes_label=mes_label,
+        situacao=situacao,
+        titulo=titulo,
         resultado=resultado,
     )

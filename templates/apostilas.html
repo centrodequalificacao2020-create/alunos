@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — {{ mes_label }}{% endblock %}
+
+{% block content %}
+<div class="executivo">
+  <div style="max-width:960px;margin:0 auto">
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <a href="/dashboard?mes={{ mes }}" class="btn btn-outline" title="Voltar ao Dashboard">
+        &#8592; Dashboard
+      </a>
+      <h2 style="margin:0;font-size:20px">{{ titulo }} &mdash; {{ mes_label }}</h2>
+      <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <input type="month" name="mes" value="{{ mes }}"
+               style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-color,#ccc);
+                      background:var(--input-bg,#fff);color:var(--text-color,#333);font-size:13px">
+        <input type="hidden" name="situacao" value="{{ situacao }}">
+        <button type="submit" class="btn btn-azul" style="font-size:13px">Filtrar</button>
+      </form>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <a href="/apostilas?mes={{ mes }}&situacao=futuras"
+         class="btn btn-sm {{ 'btn-azul' if situacao == 'futuras' else 'btn-outline' }}">
+        &#8594; Futuras (a receber)
+      </a>
+      <a href="/apostilas?mes={{ mes }}&situacao=pagas"
+         class="btn btn-sm {{ 'btn-azul' if situacao == 'pagas' else 'btn-outline' }}">
+        &#10003; Pagas no m&ecirc;s
+      </a>
+    </div>
+
+    {% if resultado %}
+    <p style="margin-bottom:10px;font-size:13px;font-weight:600;color:var(--text-muted,#888)">
+      {{ resultado|length }} parcela{{ 's' if resultado|length != 1 else '' }} de apostila{{ 's' if resultado|length != 1 else '' }}
+    </p>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="tabela-padrao" style="font-size:14px">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Aluno</th>
+            <th>Curso</th>
+            {% if situacao == 'pagas' %}
+              <th>Data Pagamento</th>
+            {% else %}
+              <th>Vencimento</th>
+              <th>Status</th>
+            {% endif %}
+            <th style="text-align:right">Valor</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resultado %}
+          <tr>
+            <td style="color:var(--text-muted,#888)">{{ loop.index }}</td>
+            <td style="font-weight:600">{{ r.aluno_nome }}</td>
+            <td>{{ r.curso }}</td>
+            {% if situacao == 'pagas' %}
+              <td>{{ r.data }}</td>
+            {% else %}
+              <td>{{ r.vencimento }}</td>
+              <td>
+                {% if r.status == 'Pendente' %}
+                  <span style="color:#d97706;font-weight:600">{{ r.status }}</span>
+                {% elif r.status == 'Atrasado' %}
+                  <span style="color:#dc2626;font-weight:600">{{ r.status }}</span>
+                {% else %}
+                  {{ r.status }}
+                {% endif %}
+              </td>
+            {% endif %}
+            <td style="text-align:right">{{ r.valor | moeda }}</td>
+            <td>
+              <a href="/aluno/{{ r.aluno_id }}" class="btn btn-sm btn-outline"
+                 title="Ver ficha do aluno">Ver ficha</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div style="text-align:center;padding:60px 20px;color:var(--text-muted,#888)">
+      <p style="font-size:32px;margin-bottom:12px">&#128203;</p>
+      <p style="font-size:15px">Nenhum registro de apostila para {{ mes_label }}.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
