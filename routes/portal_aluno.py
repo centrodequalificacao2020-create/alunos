@@ -806,21 +806,50 @@ def curso_detalhe(curso_id):
             el.exercicio_id: el
             for el in ExercicioLiberado.query.filter_by(aluno_id=aluno.id, liberado=1).all()
         }
+        # Busca única das tentativas para evitar N+1 e obter a última por exercício
+        exs_por_mat = {}
+        for mat in materias_liberadas:
+            exs = Exercicio.query.filter_by(materia_id=mat.id, ativo=1).order_by(Exercicio.ordem).all()
+            if exs:
+                exs_por_mat[mat.id] = exs
+
+        ids_exs_liberados = {
+            ex.id
+            for exs in exs_por_mat.values()
+            for ex in exs
+            if ex.id in ids_ex_lib
+        }
+
+        ultima_por_ex, contagem_por_ex = {}, {}
+        if ids_exs_liberados:
+            respostas = (
+                RespostaExercicio.query
+                .filter(
+                    RespostaExercicio.aluno_id     == aluno.id,
+                    RespostaExercicio.exercicio_id.in_(ids_exs_liberados),
+                )
+                .order_by(RespostaExercicio.tentativa_num.desc(), RespostaExercicio.id.desc())
+                .all()
+            )
+            for r in respostas:
+                if r.exercicio_id not in ultima_por_ex:
+                    ultima_por_ex[r.exercicio_id] = r  # maior tentativa = última
+                contagem_por_ex[r.exercicio_id] = contagem_por_ex.get(r.exercicio_id, 0) + 1
+
         for mat in materias_liberadas:
             exs_mat = []
-            for ex in Exercicio.query.filter_by(materia_id=mat.id, ativo=1).order_by(Exercicio.ordem).all():
+            for ex in exs_por_mat.get(mat.id, []):
                 lib = ids_ex_lib.get(ex.id)
                 if not lib:
                     continue
-                usadas   = RespostaExercicio.query.filter_by(
-                    exercicio_id=ex.id, aluno_id=aluno.id
-                ).count()
+                usadas   = contagem_por_ex.get(ex.id, 0)
                 max_tent = (ex.tentativas or 1) + (lib.extra_tentativas or 0)
                 exs_mat.append({
                     "exercicio":         ex,
                     "tentativas_usadas": usadas,
                     "max_tentativas":    max_tent,
                     "pode_fazer":        usadas < max_tent,
+                    "ultima":            ultima_por_ex.get(ex.id),
                 })
             if exs_mat:
                 exercicios_por_mat[mat.id] = exs_mat
@@ -834,14 +863,36 @@ def curso_detalhe(curso_id):
             pl.prova_id
             for pl in ProvaLiberada.query.filter_by(aluno_id=aluno.id, liberado=1).all()
         }
-        for p in Prova.query.filter_by(curso_id=curso_id, ativa=1).all():
-            if p.id not in ids_provas_lib:
-                continue
-            usadas = RespostaProva.query.filter_by(prova_id=p.id, aluno_id=aluno.id).count()
+        provas_lib = [
+            p for p in Prova.query.filter_by(curso_id=curso_id, ativa=1).all()
+            if p.id in ids_provas_lib
+        ]
+        ids_provas = {p.id for p in provas_lib}
+
+        # Busca única das tentativas para evitar N+1 e obter a última por prova
+        ultima_por_prova, contagem_por_prova = {}, {}
+        if ids_provas:
+            respostas_prova = (
+                RespostaProva.query
+                .filter(
+                    RespostaProva.aluno_id == aluno.id,
+                    RespostaProva.prova_id.in_(ids_provas),
+                )
+                .order_by(RespostaProva.tentativa_num.desc(), RespostaProva.id.desc())
+                .all()
+            )
+            for r in respostas_prova:
+                if r.prova_id not in ultima_por_prova:
+                    ultima_por_prova[r.prova_id] = r  # maior tentativa = última
+                contagem_por_prova[r.prova_id] = contagem_por_prova.get(r.prova_id, 0) + 1
+
+        for p in provas_lib:
+            usadas = contagem_por_prova.get(p.id, 0)
             provas.append({
                 "prova":             p,
                 "tentativas_usadas": usadas,
                 "pode_fazer":        usadas < (p.tentativas or 1),
+                "ultima":            ultima_por_prova.get(p.id),
             })
     except Exception as e:
         current_app.logger.error(

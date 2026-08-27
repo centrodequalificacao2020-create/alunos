@@ -174,11 +174,35 @@ body{
   text-decoration:none; transition:.2s;
 }
 .btn-prova:hover{ background:rgba(199,125,255,.3); }
-.pill-esgotada{
+/* Estados de resultado (B+C): cor a serviço do significado
+   - âmbar/neutro = limite atingido (informativo, NÃO é erro)
+   - verde = conclusão bem-sucedida
+   - vermelho = apenas falha real (reprovado sem tentativas restantes)  */
+.pill-resultado{
   display:inline-flex; align-items:center; gap:5px;
   padding:5px 14px; border-radius:999px; font-size:12px; font-weight:700;
-  background:rgba(255,77,77,.1); color:#ff4d4d; border:1px solid #ff4d4d;
 }
+.pill-resultado.concluido  { background:rgba(0,255,157,.1);  color:#00ff9d; border:1px solid rgba(0,255,157,.4); }
+.pill-resultado.limite    { background:rgba(255,193,7,.1);  color:#ffc107; border:1px solid rgba(255,193,7,.4); }
+.pill-resultado.reprovado { background:rgba(255,77,77,.1);  color:#ff4d4d; border:1px solid rgba(255,77,77,.4); }
+.pill-resultado.aguardando{ background:rgba(199,125,255,.1);color:#c77dff; border:1px solid rgba(199,125,255,.4); }
+.pill-resultado.limitado  { background:rgba(255,255,255,.06);color:#888;     border:1px solid rgba(255,255,255,.18); }
+/* Ação de contato (plano C): link informativo, não botão morto */
+.btn-secretaria{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.05); color:#dfe6ee;
+  border:1px solid rgba(255,255,255,.15);
+  padding:7px 14px; border-radius:10px; font-size:12px; font-weight:600;
+  text-decoration:none; transition:.2s;
+}
+.btn-secretaria:hover{ background:rgba(255,255,255,.12); color:#fff; }
+.btn-resultado-link{
+  display:inline-flex; align-items:center; gap:6px;
+  color:#dfe6ee; background:transparent; border:1px solid rgba(255,255,255,.15);
+  padding:7px 14px; border-radius:10px; font-size:12px; font-weight:600;
+  text-decoration:none; transition:.2s;
+}
+.btn-resultado-link:hover{ background:rgba(255,255,255,.12); }
 
 /* ─ EXERCÍCIOS ──────────────────────────────────────────────────── */
 .ex-secao-titulo{
@@ -401,7 +425,23 @@ body{
               {% if item.pode_fazer %}
                 <a href="/aluno/exercicio/{{ ex.id }}" class="btn-ex-realizar"><i class="fas fa-pen"></i> Realizar</a>
               {% else %}
-                <span class="pill-esgotada"><i class="fas fa-ban"></i> Esgotado</span>
+                {# Exauriu todas as tentativas → diferenciação por resultado (plano B) #}
+                {% set ult = item.ultima %}
+                {% if ult and ult.aprovado == 1 %}
+                  <span class="pill-resultado concluido"><i class="fas fa-check"></i> Conclu&iacute;do</span>
+                {% elif ult and ult.nota_obtida is none %}
+                  <span class="pill-resultado aguardando"><i class="fas fa-hourglass-half"></i> Aguardando corre&ccedil;&atilde;o</span>
+                {% elif ult and ult.aprovado == 0 %}
+                  <span class="pill-resultado reprovado"><i class="fas fa-times"></i> Limite atingido</span>
+                {% else %}
+                  <span class="pill-resultado limite"><i class="fas fa-redo"></i> Tentativas usadas</span>
+                {% endif %}
+                {% if ult %}
+                  <a href="/aluno/exercicio/{{ ex.id }}/resultado/{{ ult.id }}" class="btn-resultado-link"><i class="fas fa-chart-bar"></i> Ver resultado</a>
+                {% endif %}
+                {% if ult and ult.aprovado == 0 %}
+                  <a href="https://wa.me/5522998684334" target="_blank" rel="noopener" class="btn-secretaria"><i class="fab fa-whatsapp"></i> Falar com a secretaria</a>
+                {% endif %}
               {% endif %}
             </div>
           </div>
@@ -429,7 +469,22 @@ body{
         {% if item.pode_fazer %}
           <a href="/aluno/provas/{{ item.prova.id }}/realizar" class="btn-prova"><i class="fas fa-pen"></i> Realizar</a>
         {% else %}
-          <span class="pill-esgotada"><i class="fas fa-ban"></i> Tentativas esgotadas</span>
+          {% set ult = item.ultima %}
+          {% if ult and ult.aprovado == 1 %}
+            <span class="pill-resultado concluido"><i class="fas fa-check"></i> Conclu&iacute;do</span>
+          {% elif ult and ult.nota_obtida is none %}
+            <span class="pill-resultado aguardando"><i class="fas fa-hourglass-half"></i> Aguardando corre&ccedil;&atilde;o</span>
+          {% elif ult and ult.aprovado == 0 %}
+            <span class="pill-resultado reprovado"><i class="fas fa-times"></i> Limite atingido</span>
+          {% else %}
+            <span class="pill-resultado limite"><i class="fas fa-redo"></i> Tentativas usadas</span>
+          {% endif %}
+          {% if ult %}
+            <a href="/aluno/provas/{{ item.prova.id }}/resultado/{{ ult.id }}" class="btn-resultado-link"><i class="fas fa-chart-bar"></i> Ver resultado</a>
+          {% endif %}
+          {% if ult and ult.aprovado == 0 %}
+            <a href="https://wa.me/5522998684334" target="_blank" rel="noopener" class="btn-secretaria"><i class="fab fa-whatsapp"></i> Falar com a secretaria</a>
+          {% endif %}
         {% endif %}
       </div>
       {% endfor %}

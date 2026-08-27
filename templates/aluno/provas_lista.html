@@ -121,8 +121,14 @@ body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff; min-
                     <span class="pill pill-pend"><i class="fas fa-hourglass-half"></i> Aguardando corre&ccedil;&atilde;o</span>
                 {% elif item.pode_fazer %}
                     <span class="pill pill-disp"><i class="fas fa-play"></i> Dispon&iacute;vel</span>
+                {% elif ul and ul.aprovado == 1 %}
+                    <span class="pill pill-ok"><i class="fas fa-check"></i> Conclu&iacute;do</span>
+                {% elif ul and ul.nota_obtida is none %}
+                    <span class="pill pill-pend"><i class="fas fa-hourglass-half"></i> Aguardando corre&ccedil;&atilde;o</span>
+                {% elif ul and ul.aprovado == 0 %}
+                    <span class="pill pill-err"><i class="fas fa-times"></i> Limite atingido</span>
                 {% else %}
-                    <span class="pill pill-esgot"><i class="fas fa-lock"></i> Tentativas esgotadas</span>
+                    <span class="pill pill-esgot"><i class="fas fa-lock"></i> Tentativas usadas</span>
                 {% endif %}
             </div>
         </div>
@@ -158,6 +164,11 @@ body { background:var(--bg); font-family:'Segoe UI',sans-serif; color:#fff; min-
             {% if ul %}
             <a href="/aluno/provas/{{ p.id }}/resultado/{{ ul.id }}" class="btn btn-resultado">
                 <i class="fas fa-chart-bar"></i> Ver &uacute;ltimo resultado
+            </a>
+            {% endif %}
+            {% if ul and ul.aprovado == 0 and not item.pode_fazer %}
+            <a href="https://wa.me/5522998684334" target="_blank" rel="noopener" class="btn btn-resultado">
+                <i class="fab fa-whatsapp"></i> Falar com a secretaria
             </a>
             {% endif %}
         </div>
