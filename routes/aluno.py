@@ -531,6 +531,7 @@ def matricular_aluno():
     m = Matricula(
         aluno_id       = aluno_id,
         curso_id       = curso_id,
+        tipo_curso     = curso.tipo or "",
         status         = "ATIVA",
         data_matricula = date.today().isoformat(),
         data_cadastro  = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

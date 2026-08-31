@@ -246,7 +246,7 @@ class Matricula(db.Model):
                                     nullable=False, index=True)
     curso_id            = db.Column(db.Integer, db.ForeignKey("cursos.id"),
                                     nullable=False)
-    tipo_curso          = db.Column(db.String(60))
+    tipo_curso          = db.Column(db.String(60), default="")
     data_matricula      = db.Column(db.String(10))
     data_cadastro       = db.Column(db.String(19))
     status              = db.Column(db.String(20), default=StatusMatricula.ATIVA.value)
