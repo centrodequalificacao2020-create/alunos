@@ -13,7 +13,7 @@ function filtrarAlunos() {
         const matchTexto = nome.includes(filtroTexto);
         let matchStatus  = true;
 
-        if      (filtroStatus === 'Inadimplente') matchStatus = inad === '1';
+        if      (filtroStatus === 'Inadimplente') matchStatus = inad === 'true';
         else if (filtroStatus !== '')             matchStatus = status === filtroStatus;
 
         linha.style.display = (matchTexto && matchStatus) ? '' : 'none';

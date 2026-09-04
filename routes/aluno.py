@@ -43,18 +43,52 @@ def _toggle_acesso(aluno_id, curso_id, acao, admin_nome):
         return False
 
 
+def _data_vencida(vencimento, hoje=None):
+    """Retorna True se a parcela (String) venceu antes de `hoje`.
+
+    Tenta os formatos ISO e brasileiro, com parse defensivo — evita a
+    comparação lexicográfica de strings que quebra quando o banco contém
+    datas fora do padrão `YYYY-MM-DD` (zero-padded).
+    """
+    if not vencimento:
+        return False
+    if hoje is None:
+        hoje = date.today()
+    texto = str(vencimento).strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(texto[:10], fmt).date() < hoje
+        except (ValueError, TypeError):
+            continue
+    return False
+
+
+def _inadimplentes_ids():
+    """Alunos com ao menos uma parcela vencida e não paga.
+
+    Considera os status "Pendente" E "Atrasado" (o enum define ambos),
+    alinhado ao critério usado em `dashboard.py` e `portal_aluno.py`.
+    """
+    hoje = date.today()
+    return {
+        aluno_id
+        for aluno_id, vencimento in db.session.query(
+            Mensalidade.aluno_id, Mensalidade.vencimento
+        )
+        .filter(Mensalidade.status.in_(["Pendente", "Atrasado"]))
+        .all()
+        if _data_vencida(vencimento, hoje)
+    }
+
+
 def _contagens_globais():
-    hoje = date.today().isoformat()
     rows = (
         db.session.query(Aluno.status, func.count(Aluno.id))
         .group_by(Aluno.status)
         .all()
     )
     por_status = {r[0]: r[1] for r in rows}
-    inadimplentes_ids = {
-        r[0] for r in db.session.query(Mensalidade.aluno_id.distinct())
-        .filter(Mensalidade.status == "Pendente", Mensalidade.vencimento < hoje).all()
-    }
+    inadimplentes_ids = _inadimplentes_ids()
     return {
         "cnt_ativos":         por_status.get("Ativo", 0),
         "cnt_trancados":      por_status.get("Trancado", 0),
