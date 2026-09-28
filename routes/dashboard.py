@@ -49,6 +49,64 @@ def _despesas_do_mes(mes: str) -> float:
     return float(variaveis) + fixas
 
 
+def _status_matricula_por_aluno():
+    """Mapa aluno_id -> status da matrícula mais recente (normalizado em maiúsculas).
+
+    Alunos sem nenhum registro em `Matricula` não aparecem no mapa.
+    """
+    sub = (
+        db.session.query(
+            Matricula.aluno_id.label("aluno_id"),
+            Matricula.status.label("status"),
+        )
+        .order_by(Matricula.aluno_id, Matricula.id.desc())
+        .distinct(Matricula.aluno_id)
+        .subquery()
+    )
+    return {
+        row.aluno_id: (row.status or "").upper().strip()
+        for row in db.session.query(sub.c.aluno_id, sub.c.status).all()
+    }
+
+
+def _em_atraso_por_status_matricula(inicio: str):
+    """Separa o valor em atraso entre matrículas ATIVAS e não-ativas.
+
+    Critério de "em atraso": status da mensalidade em (Pendente, Atrasado)
+    e vencimento anterior ao início do mês de referência.
+
+    Retorna (em_aberto, perda_financeira, qtd_em_aberto, qtd_perda).
+    Alunos sem registro de matrícula contam como perda financeira.
+    """
+    rows = (
+        db.session.query(
+            Mensalidade.aluno_id,
+            func.sum(Mensalidade.valor).label("total"),
+        )
+        .filter(
+            Mensalidade.status.in_(["Pendente", "Atrasado"]),
+            Mensalidade.vencimento < inicio,
+        )
+        .group_by(Mensalidade.aluno_id)
+        .all()
+    )
+
+    status_por_aluno = _status_matricula_por_aluno()
+
+    em_aberto = perda = 0.0
+    qtd_em_aberto = qtd_perda = 0
+    for aluno_id, total in rows:
+        valor = float(total or 0)
+        if status_por_aluno.get(aluno_id) == "ATIVA":
+            em_aberto += valor
+            qtd_em_aberto += 1
+        else:
+            perda += valor
+            qtd_perda += 1
+
+    return em_aberto, perda, qtd_em_aberto, qtd_perda
+
+
 def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
     matriculas_periodo = (
         db.session.query(Matricula.aluno_id)
@@ -103,14 +161,18 @@ def dashboard():
     ).scalar() or 0
 
     total_atraso = db.session.query(func.sum(Mensalidade.valor)).filter(
-        Mensalidade.status == "Pendente",
+        Mensalidade.status.in_(["Pendente", "Atrasado"]),
         Mensalidade.vencimento < inicio
     ).scalar() or 0
+
+    # Em Aberto (matrícula ATIVA) x Perda Financeira (demais status / sem matrícula)
+    em_aberto, perda_financeira, qtd_em_aberto, qtd_perda = \
+        _em_atraso_por_status_matricula(inicio)
 
     inadimplentes = db.session.query(
         func.count(Mensalidade.aluno_id.distinct())
     ).filter(
-        Mensalidade.status == "Pendente",
+        Mensalidade.status.in_(["Pendente", "Atrasado"]),
         Mensalidade.vencimento < inicio
     ).scalar() or 0
 
@@ -247,6 +309,10 @@ def dashboard():
         recebido_mes=recebido_mes,
         a_receber_mes=a_receber_mes,
         total_atraso=total_atraso,
+        em_aberto=em_aberto,
+        perda_financeira=perda_financeira,
+        qtd_em_aberto=qtd_em_aberto,
+        qtd_perda=qtd_perda,
         inadimplentes=inadimplentes,
         alunos_ativos=alunos_ativos,
         despesas_mes=despesas_mes,
@@ -567,4 +633,94 @@ def apostilas_detalhe():
         situacao=situacao,
         titulo=titulo,
         resultado=resultado,
+    )
+
+
+def _mes_label(mes: str) -> str:
+    meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
+                "Jul","Ago","Set","Out","Nov","Dez"]
+    ano_n, mes_n = int(mes[:4]), int(mes[5:7])
+    return f"{meses_pt[mes_n - 1]}/{str(ano_n)[2:]}"
+
+
+def _listar_atraso(inicio: str, apenas_ativos: bool):
+    """Lista mensalidades em atraso (Pendente/Atrasado, vencimento < inicio).
+
+    `apenas_ativos=True`  → somente alunos com matrícula ATIVA (Em Aberto).
+    `apenas_ativos=False` → demais status e alunos sem matrícula (Perda Financeira).
+    """
+    rows = (
+        db.session.query(Mensalidade, Aluno, Curso)
+        .join(Aluno, Aluno.id == Mensalidade.aluno_id)
+        .outerjoin(Curso, Curso.id == Mensalidade.curso_id)
+        .filter(
+            Mensalidade.status.in_(["Pendente", "Atrasado"]),
+            Mensalidade.vencimento < inicio,
+        )
+        .order_by(Mensalidade.vencimento.asc())
+        .all()
+    )
+
+    status_por_aluno = _status_matricula_por_aluno()
+
+    resultado = []
+    for mens, aluno, curso in rows:
+        status_mat = status_por_aluno.get(aluno.id)
+        is_ativo   = status_mat == "ATIVA"
+        if is_ativo != apenas_ativos:
+            continue
+        resultado.append({
+            "aluno_id":        aluno.id,
+            "aluno_nome":      aluno.nome,
+            "curso":           curso.nome if curso else "\u2014",
+            "tipo":            mens.tipo or "\u2014",
+            "parcela_ref":     mens.parcela_ref or "\u2014",
+            "vencimento":      mens.vencimento,
+            "valor":           mens.valor,
+            "status":          mens.status,
+            "status_matricula": status_mat or "Sem matr\u00edcula",
+        })
+
+    return resultado
+
+
+@dashboard_bp.route("/em-aberto")
+@financeiro_required
+def em_aberto_detalhe():
+    """Parcelas/material em atraso de alunos com matrícula ATIVA."""
+    hoje      = datetime.today()
+    mes_atual = hoje.strftime("%Y-%m")
+    mes       = request.args.get("mes") or mes_atual
+    inicio    = f"{mes}-01"
+
+    resultado = _listar_atraso(inicio, apenas_ativos=True)
+    total     = sum(float(r["valor"] or 0) for r in resultado)
+
+    return render_template(
+        "em_aberto.html",
+        mes=mes,
+        mes_label=_mes_label(mes),
+        resultado=resultado,
+        total=total,
+    )
+
+
+@dashboard_bp.route("/perda-financeira")
+@financeiro_required
+def perda_financeira_detalhe():
+    """Parcelas/material em atraso de alunos com matrícula não-ativa ou sem matrícula."""
+    hoje      = datetime.today()
+    mes_atual = hoje.strftime("%Y-%m")
+    mes       = request.args.get("mes") or mes_atual
+    inicio    = f"{mes}-01"
+
+    resultado = _listar_atraso(inicio, apenas_ativos=False)
+    total     = sum(float(r["valor"] or 0) for r in resultado)
+
+    return render_template(
+        "perda_financeira.html",
+        mes=mes,
+        mes_label=_mes_label(mes),
+        resultado=resultado,
+        total=total,
     )

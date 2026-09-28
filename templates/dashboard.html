@@ -118,6 +118,80 @@
 .card--teal.card-duplo .lado + .lado {
     border-left: 1px solid rgba(0,0,0,.08);
 }
+
+/* lado que é <button> (Add. Caixa) — reset visual para ficar igual aos links */
+.card-duplo .lado-btn {
+    background: none;
+    border: 0;
+    font: inherit;
+    width: 100%;
+}
+.lado-hint {
+    font-size: 10px;
+    color: #6b7280;
+    line-height: 1.2;
+}
+
+/* ── Modal Add. Caixa ─────────────────────────────────────────── */
+.modal-caixa {
+    max-width: 560px;
+    text-align: left;
+    max-height: 88vh;
+    overflow-y: auto;
+}
+.modal-caixa h3 { text-align: center; }
+.modal-caixa > p { text-align: center; margin-bottom: 18px; }
+.modal-caixa .acoes-form { justify-content: flex-end; }
+.lista-add-caixa {
+    margin-top: 20px;
+    border-top: 1px solid var(--color-border, #e0e0e0);
+    padding-top: 14px;
+}
+.lista-add-caixa__titulo {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--color-text-muted, #6c757d);
+    margin-bottom: 10px;
+}
+.add-caixa-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: var(--radius-md, 8px);
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+.add-caixa-item__info { flex: 1; min-width: 0; }
+.add-caixa-item__desc {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.add-caixa-item__meta {
+    font-size: 11px;
+    color: var(--color-text-muted, #6c757d);
+}
+.add-caixa-item__valor {
+    font-weight: 700;
+    color: var(--color-success, #198754);
+    white-space: nowrap;
+}
+.add-caixa-vazio {
+    text-align: center;
+    color: var(--color-text-muted, #6c757d);
+    font-size: 13px;
+    padding: 12px 0;
+}
 </style>
 {% endblock %}
 
@@ -135,17 +209,37 @@
 
 <h3 class="section-title">Indicadores Financeiros Principais</h3>
 <div class="grid-4">
-    <div class="card dashboard-card card--success">
-        <h4>Recebido no m&#234;s</h4>
-        <p class="valor-success">{{ recebido_mes|moeda }}</p>
+    <!-- Card duplo: Entradas (recebido no mês) | Add. Caixa (entrada manual) -->
+    <div class="card dashboard-card card--success card-duplo">
+        <div class="lado" title="Total recebido no m&ecirc;s">
+            <h4>Entradas</h4>
+            <p class="num" style="color:var(--color-success)">{{ recebido_mes|moeda }}</p>
+        </div>
+        <button type="button" class="lado lado-btn" id="btnAddCaixa"
+                title="Adicionar entrada de caixa manualmente">
+            <h4>Add. Caixa</h4>
+            <p class="num" style="color:var(--color-success)" id="addCaixaTotal">R$ 0,00</p>
+            <span class="lado-hint">entradas manuais</span>
+        </button>
     </div>
     <div class="card dashboard-card card--info">
         <h4>A receber</h4>
         <p class="valor-info">{{ a_receber_mes|moeda }}</p>
     </div>
-    <div class="card dashboard-card card--danger">
-        <h4>Total em atraso</h4>
-        <p class="valor-danger">{{ total_atraso|moeda }}</p>
+    <!-- Card duplo: Em Aberto (matrícula ativa) | Perda Financeira (demais status) -->
+    <div class="card dashboard-card card--danger card-duplo">
+        <a href="/em-aberto?mes={{ mes }}" class="lado"
+           title="Ver parcelas em atraso de alunos com matr&iacute;cula ativa">
+            <h4>Em Aberto</h4>
+            <p class="num" style="color:var(--color-danger)">{{ em_aberto|moeda }}</p>
+            <span class="lado-hint">{{ qtd_em_aberto }} aluno{{ 's' if qtd_em_aberto != 1 else '' }}</span>
+        </a>
+        <a href="/perda-financeira?mes={{ mes }}" class="lado"
+           title="Ver parcelas em atraso de alunos sem matr&iacute;cula ativa">
+            <h4>Perda Financeira</h4>
+            <p class="num" style="color:var(--color-danger)">{{ perda_financeira|moeda }}</p>
+            <span class="lado-hint">{{ qtd_perda }} aluno{{ 's' if qtd_perda != 1 else '' }}</span>
+        </a>
     </div>
     <div class="card dashboard-card card--teal">
         <h4>Alunos ativos</h4>
@@ -297,6 +391,65 @@
     </div>
 </div>
 
+</div>
+
+<!-- ── Modal: Add. Caixa (entradas manuais — front-end only) ────────────── -->
+<div class="modal-overlay" id="modalAddCaixa" role="dialog" aria-modal="true"
+     aria-labelledby="tituloAddCaixa">
+    <div class="modal modal-caixa">
+        <h3 id="tituloAddCaixa">Add. Caixa</h3>
+        <p>Registre entradas de caixa manuais. Os valores ficam salvos apenas
+           neste navegador (ainda n&atilde;o v&atilde;o para o banco).</p>
+
+        <form id="formAddCaixa" novalidate>
+            <div class="campo">
+                <label for="ac_descricao">Descri&ccedil;&atilde;o</label>
+                <input type="text" id="ac_descricao" name="descricao" maxlength="120"
+                       placeholder="Ex.: venda de apostila avulsa" required>
+            </div>
+            <div class="grid-2">
+                <div class="campo">
+                    <label for="ac_valor">Valor (R$)</label>
+                    <input type="number" id="ac_valor" name="valor" step="0.01" min="0.01"
+                           placeholder="0,00" required>
+                </div>
+                <div class="campo">
+                    <label for="ac_data">Data</label>
+                    <input type="date" id="ac_data" name="data" required>
+                </div>
+            </div>
+            <div class="campo">
+                <label for="ac_forma">Forma de recebimento</label>
+                <select id="ac_forma" name="forma">
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="PIX">PIX</option>
+                    <option value="Cart&atilde;o d&eacute;bito">Cart&atilde;o d&eacute;bito</option>
+                    <option value="Cart&atilde;o cr&eacute;dito">Cart&atilde;o cr&eacute;dito</option>
+                    <option value="Transfer&ecirc;ncia">Transfer&ecirc;ncia</option>
+                    <option value="Outro">Outro</option>
+                </select>
+            </div>
+
+            <p id="ac_erro" class="add-caixa-vazio"
+               style="display:none;color:var(--color-danger,#c62828)"></p>
+
+            <div class="acoes-form">
+                <button type="button" class="btn btn-secondary" id="ac_fechar"
+                        style="background:var(--color-text-muted);color:#fff">Fechar</button>
+                <button type="submit" class="btn btn-verde">Adicionar entrada</button>
+            </div>
+        </form>
+
+        <div class="lista-add-caixa">
+            <div class="lista-add-caixa__titulo">
+                <span>Entradas manuais</span>
+                <span id="ac_total">Total: R$ 0,00</span>
+            </div>
+            <div id="ac_lista"></div>
+            <button type="button" class="btn btn-sm btn-outline" id="ac_limpar"
+                    style="display:none;margin-top:8px">Limpar todas</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -457,5 +610,145 @@ new Chart('graficoVendas', { type:'bar',
                        borderRadius:4, categoryPercentage:0.6, barPercentage:0.9 }]},
     options: cfgComercial
 });
+
+/* ── Add. Caixa (front-end only, persistido em localStorage) ────────────── */
+(function () {
+    var CHAVE = 'cqp_add_caixa_v1';
+    var overlay = document.getElementById('modalAddCaixa');
+    if (!overlay) return;
+
+    var form    = document.getElementById('formAddCaixa');
+    var elLista = document.getElementById('ac_lista');
+    var elTotal = document.getElementById('ac_total');
+    var elCard  = document.getElementById('addCaixaTotal');
+    var elErro  = document.getElementById('ac_erro');
+    var btnLimp = document.getElementById('ac_limpar');
+
+    function ler() {
+        try {
+            var raw = localStorage.getItem(CHAVE);
+            var arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+    }
+
+    function gravar(arr) {
+        try { localStorage.setItem(CHAVE, JSON.stringify(arr)); } catch (e) { /* quota/privado */ }
+    }
+
+    function escapar(t) {
+        var d = document.createElement('div');
+        d.textContent = t == null ? '' : String(t);
+        return d.innerHTML;
+    }
+
+    function dataBR(iso) {
+        if (!iso || iso.length < 10) return iso || '';
+        return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
+    }
+
+    function render() {
+        var arr = ler();
+        var total = arr.reduce(function (s, i) { return s + safeValue(i.valor); }, 0);
+
+        elTotal.textContent = 'Total: ' + moedaFmt(total);
+        elCard.textContent  = moedaFmt(total);
+        btnLimp.style.display = arr.length ? 'inline-flex' : 'none';
+
+        if (!arr.length) {
+            elLista.innerHTML = '<p class="add-caixa-vazio">Nenhuma entrada manual registrada.</p>';
+            return;
+        }
+
+        elLista.innerHTML = arr.map(function (i) {
+            return '<div class="add-caixa-item">' +
+                     '<div class="add-caixa-item__info">' +
+                       '<div class="add-caixa-item__desc">' + escapar(i.descricao) + '</div>' +
+                       '<div class="add-caixa-item__meta">' +
+                         dataBR(i.data) + ' &middot; ' + escapar(i.forma || 'Outro') +
+                       '</div>' +
+                     '</div>' +
+                     '<span class="add-caixa-item__valor">' + moedaFmt(safeValue(i.valor)) + '</span>' +
+                     '<button type="button" class="btn btn-sm btn-vermelho" ' +
+                             'data-remover="' + escapar(i.id) + '" title="Remover">&times;</button>' +
+                   '</div>';
+        }).join('');
+    }
+
+    function abrir() {
+        var d = document.getElementById('ac_data');
+        if (d && !d.value) d.value = new Date().toISOString().slice(0, 10);
+        elErro.style.display = 'none';
+        overlay.classList.add('aberto');
+        var foco = document.getElementById('ac_descricao');
+        if (foco) foco.focus();
+    }
+
+    function fechar() {
+        overlay.classList.remove('aberto');
+        form.reset();
+        elErro.style.display = 'none';
+    }
+
+    document.getElementById('btnAddCaixa').addEventListener('click', abrir);
+    document.getElementById('ac_fechar').addEventListener('click', fechar);
+
+    overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) fechar();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && overlay.classList.contains('aberto')) fechar();
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        var descricao = document.getElementById('ac_descricao').value.trim();
+        var valor     = parseFloat(document.getElementById('ac_valor').value);
+        var data      = document.getElementById('ac_data').value;
+        var forma     = document.getElementById('ac_forma').value;
+
+        if (!descricao) { return erro('Informe uma descri\u00e7\u00e3o.'); }
+        if (!isFinite(valor) || valor <= 0) { return erro('Informe um valor maior que zero.'); }
+        if (!data) { return erro('Informe a data da entrada.'); }
+
+        var arr = ler();
+        arr.push({
+            id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            descricao: descricao,
+            valor: Math.round(valor * 100) / 100,
+            data: data,
+            forma: forma
+        });
+        gravar(arr);
+        render();
+
+        form.reset();
+        document.getElementById('ac_data').value = new Date().toISOString().slice(0, 10);
+        elErro.style.display = 'none';
+        document.getElementById('ac_descricao').focus();
+    });
+
+    function erro(msg) {
+        elErro.textContent = msg;
+        elErro.style.display = 'block';
+    }
+
+    elLista.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-remover]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-remover');
+        gravar(ler().filter(function (i) { return String(i.id) !== id; }));
+        render();
+    });
+
+    btnLimp.addEventListener('click', function () {
+        if (!confirm('Remover todas as entradas manuais deste navegador?')) return;
+        gravar([]);
+        render();
+    });
+
+    render();
+})();
 </script>
 {% endblock %}
