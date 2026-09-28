@@ -1,5 +1,6 @@
 # SYSTEM_CONTEXT_v5.md
 _Gerado na Sessão 5 — 26/08/2026 | Re-verificação completa por módulo (17 commits pós-v4, branch `feature/cloudinary-storage`)_
+_Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas manuais de caixa com exclusão lógica)._
 
 ---
 
@@ -101,6 +102,12 @@ _Gerado na Sessão 5 — 26/08/2026 | Re-verificação completa por módulo (17 
 ### `Despesa`
 * Saídas de caixa. Campos: `valor`, `recorrente`, `dia_vencimento`, `data_inicio`, `data_fim`, `categoria`.
 
+### `EntradaCaixa` ⭐ NOVO
+* Entradas de caixa **manuais**, sem vínculo com aluno ou mensalidade (ex.: venda de apostila avulsa no balcão, taxa extra, recebimento diverso). É o espelho de `Despesa` no lado das entradas.
+* Campos: `descricao`, `valor`, `data` (String `YYYY-MM-DD`), `forma` (Dinheiro/PIX/Cartão débito/Cartão crédito/Transferência/Outro), `categoria`, `observacao`, `criado_em`, `criado_por`, `cancelado`, `cancelado_em`, `cancelado_por`, `motivo_cancelamento`.
+* Índices: `(data)`, `(cancelado)`.
+* **Exclusão LÓGICA** (`cancelado=1`): o registro nunca é apagado, preservando o histórico contábil — em contraste com DT-06/DT-07, que são deleção física.
+
 ### `Relatorio`
 * Metas mensais. Campos: `mes` (YYYY-MM, **unique**), `meta`, `realizado`, `matriculas`, `matriculas_venda`.
 
@@ -120,6 +127,7 @@ _Gerado na Sessão 5 — 26/08/2026 | Re-verificação completa por módulo (17 
 | `financeiro_bp` | `routes/financeiro.py` | `/` | Mensalidades e pagamentos |
 | `dashboard_bp` | `routes/dashboard.py` | `/` | Relatórios gerenciais |
 | `despesas_bp` | `routes/despesas.py` | `/` | Fluxo de despesas |
+| `entradas_bp` ⭐ | `routes/entradas_caixa.py` | `/` | Entradas de caixa manuais (listagem, criação, cancelamento lógico) |
 | `funcionario_bp` | `routes/funcionario.py` | `/` | Gestão de funcionários |
 | `conteudos_bp` | `routes/conteudos.py` | `/` | Upload de aulas e apostilas |
 | `academico_bp` | `routes/academico.py` | `/` | Notas, frequências, diário, turmas |
@@ -169,6 +177,10 @@ _Gerado na Sessão 5 — 26/08/2026 | Re-verificação completa por módulo (17 
 * **PDF.js compatível:** `file_service.py` serve PDFs com headers `Content-Disposition: inline`, `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store, no-cache, must-revalidate, max-age=0` ⚠️ (doc v4 dizia só `no-store`; inclui `Pragma: no-cache`), `Accept-Ranges: bytes`.
 * **Proxy Cloudinary robusto (5 estratégias):** `file_service.py:312-438` tenta, em ordem: `upload` assinado → `private` assinado → `authenticated` assinado → `private_download_url(private)` → `private_download_url(authenticated)`. Usa `requests.get` para baixar e re-servir. Gera URL assinada via `_cloudinary_signed_url`.
 * **CSRF heartbeat para páginas longas:** `GET /aluno/csrf-token` (`portal_aluno.py:296`) renova o token/cookie CSRF em provas/exercícios/atividades longas (commit `f3923b7`).
+* **Entradas manuais somam no card "Entradas":** `dashboard.py` calcula `entradas_total = recebido_mes (mensalidades Pagas) + entradas_manuais (EntradaCaixa não canceladas no mês)`. **`entradas_total` substituiu `recebido_mes` em todos os indicadores derivados** — `lucro_liquido`, `margem_lucro`, `receita_projetada`, `ticket_medio`, `receita_total`, `receita_media` e no gráfico `("Receita", entradas_total)`. Ou seja, uma entrada manual impacta EBITDA, margem, ticket médio e receita projetada.
+* **Exclusão lógica de entradas:** `POST /entradas-caixa/<id>/cancelar` marca `cancelado=1` + `cancelado_em`/`cancelado_por`/`motivo_cancelamento`; o registro permanece no banco. Cancelar duas vezes retorna 400. Entradas canceladas são excluídas de todas as somas.
+* **Validação de entrada manual:** `_validar()` exige descrição (≤200), valor numérico > 0 e ≤ R$ 1.000.000, data no formato `AAAA-MM-DD`; `forma` fora da lista cai em `"Outro"`. Erros voltam como flash + redirect para `/entradas-caixa`.
+* **Lançamento de entradas é só pela página dedicada:** o card "Add. Caixa" do dashboard é um **link** para `/entradas-caixa` (não há modal). A página oferece formulário de lançamento, filtro por qualquer mês, categoria/observação/quem lançou e o cancelamento.
 
 ---
 
@@ -191,7 +203,7 @@ _Gerado na Sessão 5 — 26/08/2026 | Re-verificação completa por módulo (17 
 | Módulo | Arquivo(s) | Status |
 |:---|:---|:---|
 | Bootstrap + modelos | `app.py`, `models.py`, `config.py`, `security.py`, `enums.py`, `requirements.txt`, `runtime.txt` | ✅ Sessão 1 |
-| Todas as rotas (`/routes`) | `academico.py`, `admin_utils.py`, `aluno.py`, `atividades.py`, `auth.py`, `backup.py`, `conteudos.py`, `contrato_admin.py`, `cursos.py`, `dashboard.py`, `despesas.py`, `exercicios.py`, `financeiro.py`, `funcionario.py`, `liberacoes.py`, `portal_aluno.py`, `provas.py`, `provas_aluno.py` | ✅ Sessão 2 + Sessão 4 + **Sessão 5 (re-verificação)** |
+| Todas as rotas (`/routes`) | `academico.py`, `admin_utils.py`, `aluno.py`, `atividades.py`, `auth.py`, `backup.py`, `conteudos.py`, `contrato_admin.py`, `cursos.py`, `dashboard.py`, `despesas.py`, `entradas_caixa.py` ⭐, `exercicios.py`, `financeiro.py`, `funcionario.py`, `liberacoes.py`, `portal_aluno.py`, `provas.py`, `provas_aluno.py` | ✅ Sessão 2 + Sessão 4 + **Sessão 5 (re-verificação)** |
 | Services | `matricula_service.py`, `pdf_service.py`, `notas_service.py`, `frequencia_service.py`, `aluno_service.py`, `file_service.py`, `storage_service.py` | ✅ Sessão 3 + Sessão 4 + **Sessão 5 (re-verificação)** |
 
 ---
@@ -287,6 +299,7 @@ _Gerado na Sessão 5 — 26/08/2026 | Re-verificação completa por módulo (17 
 | `services/file_service.py` | Abstração de serving de arquivos com headers compatíveis com PDF.js. Suporta arquivos locais e proxy de URLs remotas (Cloudinary). |
 | `services/storage_service.py` | Upload e deleção de arquivos no Cloudinary. Suporta prefixo de pasta configurável por cliente. |
 | `routes/contrato_admin.py` | Endpoints administrativos para auditoria de aceites de contrato (`GET /admin/alunos/<id>/contrato/aceites`) e reset de assinatura (`POST /admin/alunos/<id>/contrato/reset`). |
+| `routes/entradas_caixa.py` ⭐ | Entradas de caixa manuais (tabela `entradas_caixa`). Rotas: `GET/POST /entradas-caixa` (listagem/criação) e `POST /entradas-caixa/<id>/cancelar` (exclusão lógica). Todas com `@financeiro_required`. Helpers: `_validar`, `_listar`, `_usuario`. |
 | `models.ContratoAceite` | Tabela imutável de log de aceite de contrato digital com SHA-256, IP e User-Agent. |
 | `models.AtividadeLiberada` | Tabela de liberação granular de atividades com `extra_tentativas`. |
 | `GET /aluno/csrf-token` | Endpoint heartbeat (`portal_aluno.py:296`) que renova o token/cookie CSRF em páginas longas (provas/exercícios/atividades). Commit `f3923b7`. |

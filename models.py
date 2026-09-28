@@ -312,6 +312,35 @@ class Despesa(db.Model):
     dia_vencimento = db.Column(db.Integer)
 
 
+class EntradaCaixa(db.Model):
+    """Entrada de caixa manual, sem vínculo com aluno ou mensalidade.
+
+    Ex.: venda de apostila avulsa no balcão, taxa extra, recebimento diverso.
+    É o espelho de `Despesa` no lado das entradas.
+
+    A exclusão é LÓGICA (`cancelado=1`): o registro nunca é apagado, apenas
+    marcado como cancelado, preservando o histórico contábil (ver DT-06/DT-07).
+    """
+    __tablename__ = "entradas_caixa"
+    __table_args__ = (
+        db.Index("ix_entradas_caixa_data",      "data"),
+        db.Index("ix_entradas_caixa_cancelado", "cancelado"),
+    )
+    id                  = db.Column(db.Integer, primary_key=True)
+    descricao           = db.Column(db.String(200), nullable=False)
+    valor               = db.Column(db.Float, nullable=False, default=0)
+    data                = db.Column(db.String(10), nullable=False)
+    forma               = db.Column(db.String(40))
+    categoria           = db.Column(db.String(60))
+    observacao          = db.Column(db.Text)
+    criado_em           = db.Column(db.String(19))
+    criado_por          = db.Column(db.String(80))
+    cancelado           = db.Column(db.Integer, default=0, nullable=False)
+    cancelado_em        = db.Column(db.String(19))
+    cancelado_por       = db.Column(db.String(80))
+    motivo_cancelamento = db.Column(db.String(200))
+
+
 class Relatorio(db.Model):
     __tablename__ = "relatorios"
     id               = db.Column(db.Integer, primary_key=True)

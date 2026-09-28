@@ -2,7 +2,7 @@ import calendar
 from flask import Blueprint, render_template, request, jsonify
 from datetime import datetime
 from db import db
-from models import Mensalidade, Aluno, Matricula, Despesa, Relatorio, Curso
+from models import Mensalidade, Aluno, Matricula, Despesa, Relatorio, Curso, EntradaCaixa
 from security import financeiro_required
 from sqlalchemy import func
 
@@ -155,6 +155,15 @@ def dashboard():
         Mensalidade.data_pagamento.between(inicio, fim)
     ).scalar() or 0
 
+    # Entradas manuais de caixa (tabela entradas_caixa, exclusão lógica).
+    # Somam no card "Entradas" junto com o recebido de mensalidades.
+    entradas_manuais = db.session.query(func.sum(EntradaCaixa.valor)).filter(
+        EntradaCaixa.cancelado == 0,
+        EntradaCaixa.data.between(inicio, fim),
+    ).scalar() or 0
+
+    entradas_total = float(recebido_mes or 0) + float(entradas_manuais or 0)
+
     a_receber_mes = db.session.query(func.sum(Mensalidade.valor)).filter(
         Mensalidade.status == "Pendente",
         Mensalidade.vencimento.between(inicio, fim)
@@ -213,14 +222,15 @@ def dashboard():
 
     despesas_mes = _despesas_do_mes(mes)
 
-    lucro_liquido      = recebido_mes - despesas_mes
-    margem_lucro       = (lucro_liquido / recebido_mes * 100) if recebido_mes > 0 else 0
-    receita_projetada  = recebido_mes + a_receber_mes
-    ticket_medio       = recebido_mes / alunos_ativos if alunos_ativos > 0 else 0
+    # EBITDA e margem consideram as entradas manuais (dinheiro real que entrou).
+    lucro_liquido      = entradas_total - despesas_mes
+    margem_lucro       = (lucro_liquido / entradas_total * 100) if entradas_total > 0 else 0
+    receita_projetada  = entradas_total + a_receber_mes
+    ticket_medio       = entradas_total / alunos_ativos if alunos_ativos > 0 else 0
 
     # ─── Taxa de inadimplência ─────────────────────────────────────────────────────────
     # Fórmula correta: Em atraso / (Recebido + A receber + Em atraso)
-    receita_total      = float(recebido_mes) + float(a_receber_mes) + float(total_atraso)
+    receita_total      = float(entradas_total) + float(a_receber_mes) + float(total_atraso)
     taxa_inadimplencia = (float(total_atraso) / receita_total * 100) if receita_total > 0 else 0
     # ───────────────────────────────────────────────────────────────────────────
 
@@ -228,13 +238,13 @@ def dashboard():
         func.lower(Aluno.status) == "cancelado"
     ).count()
 
-    receita_media = recebido_mes / matriculas_mes if matriculas_mes > 0 else 0
+    receita_media = entradas_total / matriculas_mes if matriculas_mes > 0 else 0
     meta_mensal   = alunos_ativos * 200
     total_alunos  = alunos_ativos + cancelamentos
     taxa_evasao   = (cancelamentos / total_alunos * 100) if total_alunos > 0 else 0
 
     grafico_financeiro = [
-        ("Receita",  recebido_mes),
+        ("Receita",  entradas_total),
         ("Despesas", despesas_mes),
         ("Lucro",    lucro_liquido if lucro_liquido > 0 else 0),
     ]
@@ -307,6 +317,8 @@ def dashboard():
         "dashboard.html",
         mes=mes,
         recebido_mes=recebido_mes,
+        entradas_manuais=entradas_manuais,
+        entradas_total=entradas_total,
         a_receber_mes=a_receber_mes,
         total_atraso=total_atraso,
         em_aberto=em_aberto,

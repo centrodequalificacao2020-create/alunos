@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Entradas de Caixa{% endblock %}
+
+{% block content %}
+<div class="executivo">
+  <div style="max-width:1000px;margin:0 auto">
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <a href="/dashboard{% if mes %}?mes={{ mes }}{% endif %}" class="btn btn-outline"
+         title="Voltar ao Dashboard">&#8592; Dashboard</a>
+      <h2 style="margin:0;font-size:20px">Entradas de Caixa</h2>
+      <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <input type="month" name="mes" value="{{ mes }}"
+               style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-color,#ccc);
+                      background:var(--input-bg,#fff);color:var(--text-color,#333);font-size:13px">
+        <button type="submit" class="btn btn-azul" style="font-size:13px">Filtrar</button>
+        {% if mes %}
+        <a href="/entradas-caixa" class="btn btn-outline" style="font-size:13px">Limpar</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <p style="margin-bottom:14px;font-size:13px;color:var(--text-muted,#888)">
+      Entradas de caixa lançadas manualmente, sem v&iacute;nculo com aluno ou mensalidade.
+      Elas somam no card <strong>Entradas</strong> do dashboard.
+    </p>
+
+    <!-- Formulário de lançamento -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span>&#10133;</span>
+        <h2>Nova entrada</h2>
+      </div>
+      <form method="post" action="/entradas-caixa">
+        <div class="grid-2">
+          <div class="campo">
+            <label for="descricao">Descri&ccedil;&atilde;o</label>
+            <input type="text" id="descricao" name="descricao" maxlength="200" required
+                   placeholder="Ex.: venda de apostila avulsa">
+          </div>
+          <div class="campo">
+            <label for="categoria">Categoria (opcional)</label>
+            <input type="text" id="categoria" name="categoria" maxlength="60"
+                   placeholder="Ex.: Material did&aacute;tico">
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="campo">
+            <label for="valor">Valor (R$)</label>
+            <input type="number" id="valor" name="valor" step="0.01" min="0.01"
+                   required placeholder="0,00">
+          </div>
+          <div class="campo">
+            <label for="data">Data</label>
+            <input type="date" id="data" name="data" required>
+          </div>
+          <div class="campo">
+            <label for="forma">Forma de recebimento</label>
+            <select id="forma" name="forma">
+              {% for f in formas %}
+              <option value="{{ f }}">{{ f }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="observacao">Observa&ccedil;&atilde;o (opcional)</label>
+          <input type="text" id="observacao" name="observacao" maxlength="300">
+        </div>
+        <div class="acoes-form">
+          <button type="submit" class="btn btn-verde">Registrar entrada</button>
+        </div>
+      </form>
+    </div>
+
+    {% if entradas %}
+    <div class="card" style="padding:14px 18px;margin-bottom:14px;display:flex;
+                            justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <span style="font-size:13px;font-weight:600;color:var(--text-muted,#888)">
+        {{ entradas|length }} entrada{{ 's' if entradas|length != 1 else '' }}
+        {% if mes %}em {{ mes }}{% endif %}
+      </span>
+      <span style="font-size:20px;font-weight:700;color:var(--color-success,#198754)">
+        Total: {{ total | moeda }}
+      </span>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-responsive">
+        <table class="tabela-padrao" style="font-size:14px">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Data</th>
+              <th>Descri&ccedil;&atilde;o</th>
+              <th>Categoria</th>
+              <th>Forma</th>
+              <th>Lan&ccedil;ado por</th>
+              <th style="text-align:right">Valor</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in entradas %}
+            <tr>
+              <td style="color:var(--text-muted,#888)">{{ loop.index }}</td>
+              <td>{{ e.data }}</td>
+              <td style="font-weight:600">{{ e.descricao }}</td>
+              <td>{{ e.categoria or '—' }}</td>
+              <td>{{ e.forma or '—' }}</td>
+              <td style="color:var(--text-muted,#888);font-size:12px">
+                {{ e.criado_por or '—' }}
+              </td>
+              <td style="text-align:right;white-space:nowrap">{{ e.valor | moeda }}</td>
+              <td>
+                <form method="post" action="/entradas-caixa/{{ e.id }}/cancelar"
+                      onsubmit="return confirm('Cancelar esta entrada? O registro permanece no hist\u00f3rico.');"
+                      style="margin:0">
+                  <button type="submit" class="btn btn-sm btn-vermelho"
+                          title="Cancelar entrada (exclus&atilde;o l&oacute;gica)">Cancelar</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% else %}
+    <div style="text-align:center;padding:60px 20px;color:var(--text-muted,#888)">
+      <p style="font-size:32px;margin-bottom:12px">&#128181;</p>
+      <p style="font-size:15px">
+        Nenhuma entrada manual registrada{% if mes %} em {{ mes }}{% endif %}.
+      </p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Pré-preenche a data com hoje no formulário de lançamento. */
+(function () {
+  var d = document.getElementById('data');
+  if (d && !d.value) d.value = new Date().toISOString().slice(0, 10);
+})();
+</script>
+{% endblock %}

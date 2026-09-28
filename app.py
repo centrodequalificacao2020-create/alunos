@@ -56,6 +56,7 @@ def create_app(config_class=Config):
     from routes.admin_utils     import admin_utils_bp
     from routes.exercicios      import exercicios_bp
     from routes.contrato_admin  import contrato_admin_bp
+    from routes.entradas_caixa  import entradas_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(cursos_bp)
@@ -72,6 +73,7 @@ def create_app(config_class=Config):
     app.register_blueprint(liberacoes_bp)
     app.register_blueprint(admin_utils_bp)
     app.register_blueprint(exercicios_bp)
+    app.register_blueprint(entradas_bp)
     app.register_blueprint(portal_aluno_bp,   url_prefix="/aluno")
     app.register_blueprint(provas_aluno_bp,   url_prefix="/aluno")
     app.register_blueprint(contrato_admin_bp, url_prefix="/admin")
