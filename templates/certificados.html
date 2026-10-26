@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Certificados — {{ aluno.nome }}{% endblock %}
+
+{% block content %}
+<div class="executivo">
+  <div style="max-width:1000px;margin:0 auto">
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <a href="/aluno/{{ aluno.id }}" class="btn btn-secondary"
+         title="Voltar para a ficha do aluno">&#8592; Ficha do aluno</a>
+      <h2 style="margin:0;font-size:20px">Certificados &mdash; {{ aluno.nome }}</h2>
+    </div>
+
+    <p style="margin-bottom:14px;font-size:13px;color:var(--text-muted,#888)">
+      O certificado é emitido em A4 paisagem sobre a moldura institucional.
+      Os dados abaixo ficam gravados como <strong>snapshot</strong>: alterações
+      posteriores no nome do aluno ou do curso não modificam certificados já emitidos.
+    </p>
+
+    {# ── Formulário de emissão ─────────────────────────────────────── #}
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span>&#127891;</span>
+        <h2>Emitir novo certificado</h2>
+      </div>
+
+      {% if not matriculas %}
+        <p class="empty-state">
+          Este aluno não possui matrícula. Cadastre uma matrícula antes de emitir o certificado.
+        </p>
+      {% else %}
+      <form method="post" action="/aluno/{{ aluno.id }}/certificados">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="campo">
+          <label for="matricula_id">Matrícula (define o curso)</label>
+          <select id="matricula_id" name="matricula_id" required>
+            {% for m in matriculas %}
+            <option value="{{ m.id }}">
+              {{ cursos[m.curso_id].nome if m.curso_id in cursos else 'Curso removido' }}
+              &mdash; matrícula em {{ m.data_matricula or 'data não informada' }}
+              ({{ m.status or 'sem status' }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="grid-2">
+          <div class="campo">
+            <label for="carga_horaria">Carga horária (horas)</label>
+            <input type="number" id="carga_horaria" name="carga_horaria"
+                   min="1" max="10000" step="1" required
+                   placeholder="Ex.: 180">
+          </div>
+          <div class="campo">
+            <label for="aproveitamento">Aproveitamento (%)</label>
+            <input type="number" id="aproveitamento" name="aproveitamento"
+                   min="0" max="100" step="0.01" required
+                   placeholder="Ex.: 90">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="campo">
+            <label for="data_inicio">Data de início</label>
+            <input type="date" id="data_inicio" name="data_inicio" required>
+          </div>
+          <div class="campo">
+            <label for="data_fim">Data de conclusão</label>
+            <input type="date" id="data_fim" name="data_fim" required>
+          </div>
+        </div>
+
+        <p style="font-size:12px;color:var(--text-muted,#888);margin-top:-6px">
+          A carga horária e o aproveitamento são informados na emissão porque o
+          cadastro de cursos não possui carga horária e as notas históricas não
+          estão publicadas. Confira antes de emitir &mdash; o certificado não pode ser editado.
+        </p>
+
+        <div class="acoes-form">
+          <button type="submit" class="btn btn-verde">Emitir certificado</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+
+    {# ── Histórico ────────────────────────────────────────────────── #}
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="card-header" style="padding:14px 18px 0">
+        <span>&#128196;</span>
+        <h2>Certificados emitidos</h2>
+      </div>
+
+      {% if certificados %}
+      <div class="table-responsive">
+        <table class="tabela-padrao" style="font-size:14px">
+          <caption class="sr-only">Certificados emitidos para {{ aluno.nome }}</caption>
+          <thead>
+            <tr>
+              <th>Curso</th>
+              <th>Carga</th>
+              <th class="ficha-th-centro">Aproveit.</th>
+              <th>Conclusão</th>
+              <th>Código</th>
+              <th>Emitido em</th>
+              <th class="ficha-th-centro">Status</th>
+              <th class="acoes-texto">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in certificados %}
+            <tr>
+              <td><strong>{{ c.nome_curso }}</strong></td>
+              <td>{{ c.carga_horaria_texto }} h</td>
+              <td class="ficha-th-centro">{{ c.aproveitamento_texto }}%</td>
+              <td>
+                {% if c.data_fim %}
+                  {% set d = c.data_fim | string %}
+                  {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}
+                {% else %}&mdash;{% endif %}
+              </td>
+              <td><code>{{ c.codigo_verificacao }}</code></td>
+              <td class="ficha-td-cadastro">
+                {% if c.emitido_em %}
+                  {% set e = c.emitido_em | string %}
+                  {{ e[8:10] }}/{{ e[5:7] }}/{{ e[0:4] }}
+                  {% if e|length >= 16 %}&#224;s {{ e[11:16] }}{% endif %}
+                {% else %}&mdash;{% endif %}
+                {% if c.emitido_por %}
+                  <br><span style="font-size:11px;color:var(--text-muted,#888)">{{ c.emitido_por }}</span>
+                {% endif %}
+              </td>
+              <td class="ficha-th-centro">
+                {% if c.cancelado %}
+                  <span class="status-badge status-badge--cancelado">Cancelado</span>
+                {% else %}
+                  <span class="status-badge status-badge--aprovado">Emitido</span>
+                {% endif %}
+              </td>
+              <td class="acoes-texto">
+                <a href="/certificados/{{ c.id }}/pdf" class="btn btn-sm btn-azul"
+                   target="_blank" rel="noopener"
+                   aria-label="Baixar certificado de {{ c.nome_curso }}">
+                  &#11015; PDF
+                </a>
+                {% if not c.cancelado %}
+                <form method="POST" action="/certificados/{{ c.id }}/cancelar"
+                      class="ficha-form-inline"
+                      onsubmit="return confirm('Cancelar o certificado {{ c.codigo_verificacao }}? O código continuará consultável como cancelado.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-vermelho tooltip"
+                          data-tooltip="Cancelar certificado">Cancelar</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% if c.cancelado and c.motivo_cancelamento %}
+            <tr>
+              <td colspan="8" style="font-size:12px;color:var(--text-muted,#888);
+                                     border-top:none;padding-top:0">
+                <strong>Motivo do cancelamento:</strong> {{ c.motivo_cancelamento }}
+                {% if c.cancelado_por %}&mdash; por {{ c.cancelado_por }}{% endif %}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="empty-state">Nenhum certificado emitido para este aluno.</p>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

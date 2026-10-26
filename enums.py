@@ -70,3 +70,17 @@ class StatusFrequencia(str, Enum):
     @classmethod
     def valores(cls):
         return {e.value for e in cls}
+
+
+class StatusCertificado(str, Enum):
+    """Ciclo de vida de um certificado emitido.
+
+    Não existe exclusão física: um certificado emitido por engano é
+    CANCELADO, preservando o código de verificação e o hash para auditoria.
+    """
+    EMITIDO   = "EMITIDO"
+    CANCELADO = "CANCELADO"
+
+    @classmethod
+    def valores(cls):
+        return {e.value for e in cls}

@@ -12,6 +12,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
+from services.frequencia_service import is_presente
+
 ESCOLA = {
     "nome":     "CENTRO DE QUALIFICAÇÃO PROFISSIONAL",
     "sigla":    "CQP",
@@ -264,7 +266,7 @@ def gerar_historico_frequencia(aluno, curso, historico,
     y -= 28
     pdf.setFont("Helvetica", 11)
     for h in historico:
-        txt = "Presente" if h.status == "P" else "Falta"
+        txt = "Presente" if is_presente(h.status) else "Falta"
         data_fmt = h.data.strftime("%d/%m/%Y") if hasattr(h.data, "strftime") else str(h.data)
         pdf.drawString(50, y, f"{data_fmt}  -  {txt}")
         y -= 18

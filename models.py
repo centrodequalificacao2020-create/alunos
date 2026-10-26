@@ -2,7 +2,7 @@ from db import db
 from datetime import datetime
 from enums import (
     PerfilUsuario, StatusMatricula, StatusAluno,
-    StatusMensalidade, StatusFrequencia, ResultadoNota
+    StatusMensalidade, StatusFrequencia, ResultadoNota, StatusCertificado
 )
 
 PERFIS_VALIDOS   = PerfilUsuario.valores()
@@ -702,3 +702,85 @@ class RespostaQuestao(db.Model):
     texto_resposta    = db.Column(db.Text,    nullable=True)
     pontos_obtidos    = db.Column(db.Float,   nullable=True)
     corrigida         = db.Column(db.Integer, default=0)
+
+
+class Certificado(db.Model):
+    """Certificado de conclusão emitido — snapshot imutável do que foi impresso.
+
+    Por que snapshot e não apenas FKs: o PDF é um documento probatório. Se o
+    aluno mudar de nome, o curso for renomeado ou a carga horária for corrigida
+    depois, o certificado já entregue precisa continuar provando exatamente o
+    que foi emitido. Por isso nome, CPF, curso, carga horária e aproveitamento
+    são copiados para cá no momento da emissão.
+
+    ``hash_sha256`` é o hash do PDF gerado. Como o renderer usa
+    ``invariant=1``, a mesma entrada produz sempre os mesmos bytes — o hash
+    permite detectar qualquer adulteração do arquivo armazenado.
+
+    Não há exclusão física: emitir por engano significa ``status=CANCELADO``,
+    preservando o código de verificação para que a consulta pública continue
+    respondendo "cancelado" em vez de "inexistente".
+    """
+    __tablename__ = "certificados"
+    __table_args__ = (
+        db.Index("ix_certificados_codigo", "codigo_verificacao"),
+        db.UniqueConstraint("codigo_verificacao", name="uq_certificados_codigo"),
+    )
+
+    id                 = db.Column(db.Integer, primary_key=True)
+    # SET NULL: excluir aluno/matrícula/curso não pode ser bloqueado por um
+    # certificado já emitido, nem apagar o registro probatório. O snapshot
+    # abaixo é autossuficiente — o certificado continua válido e auditável
+    # mesmo sem as linhas originais.
+    aluno_id           = db.Column(db.Integer,
+                                   db.ForeignKey("alunos.id", ondelete="SET NULL"),
+                                   nullable=True, index=True)
+    matricula_id       = db.Column(db.Integer,
+                                   db.ForeignKey("matriculas.id", ondelete="SET NULL"),
+                                   nullable=True)
+    curso_id           = db.Column(db.Integer,
+                                   db.ForeignKey("cursos.id", ondelete="SET NULL"),
+                                   nullable=True)
+
+    # ── Snapshot do conteúdo impresso ──────────────────────────────────
+    nome_aluno         = db.Column(db.String(120), nullable=False)
+    cpf_aluno          = db.Column(db.String(14))
+    nome_curso         = db.Column(db.String(120), nullable=False)
+    carga_horaria      = db.Column(db.Integer, nullable=False)
+    aproveitamento     = db.Column(db.Float, nullable=False)
+    data_inicio        = db.Column(db.String(10))
+    data_fim           = db.Column(db.String(10))
+
+    # ── Rastreabilidade ────────────────────────────────────────────────
+    codigo_verificacao = db.Column(db.String(20), nullable=False)
+    hash_sha256        = db.Column(db.String(64), nullable=False)
+    layout_id          = db.Column(db.String(60))
+    arquivo_url        = db.Column(db.String(500))
+    arquivo_public_id  = db.Column(db.String(500))
+    status             = db.Column(db.String(20), nullable=False,
+                                   default=StatusCertificado.EMITIDO.value)
+    emitido_em         = db.Column(db.String(19), nullable=False)
+    emitido_por        = db.Column(db.String(80))
+    cancelado_em       = db.Column(db.String(19))
+    cancelado_por      = db.Column(db.String(80))
+    motivo_cancelamento = db.Column(db.String(200))
+
+    aluno    = db.relationship("Aluno",    backref="certificados", lazy=True)
+    curso    = db.relationship("Curso",    lazy=True)
+    matricula = db.relationship("Matricula", lazy=True)
+
+    @property
+    def cancelado(self) -> bool:
+        return (self.status or "").upper() == StatusCertificado.CANCELADO.value
+
+    @property
+    def carga_horaria_texto(self) -> str:
+        """Carga horária sem casa decimal desnecessária, com vírgula pt-BR."""
+        valor = float(self.carga_horaria or 0)
+        return f"{valor:g}".replace(".", ",")
+
+    @property
+    def aproveitamento_texto(self) -> str:
+        """Aproveitamento com vírgula decimal (92,5% em vez de 92.5%)."""
+        valor = float(self.aproveitamento or 0)
+        return f"{valor:g}".replace(".", ",")

@@ -1,6 +1,8 @@
-# SYSTEM_CONTEXT_v5.md
+# SYSTEM_CONTEXT_v6.md
 _Gerado na Sessão 5 — 26/08/2026 | Re-verificação completa por módulo (17 commits pós-v4, branch `feature/cloudinary-storage`)_
 _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas manuais de caixa com exclusão lógica)._
+_Atualizado em 26/10/2026 (Sessão 6) — **DT-02 corrigida e verificada**; módulo de certificados introduzido; suíte de testes criada._
+_Atualizado em 26/10/2026 (Sessão 7) — **DT-23 resolvida**: tabela `certificados`, rotas de emissão/download/cancelamento e snapshot imutável. Renderer agora é determinístico (`invariant=1`), o que torna o `hash_sha256` verificável._
 
 ---
 
@@ -108,6 +110,13 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 * Índices: `(data)`, `(cancelado)`.
 * **Exclusão LÓGICA** (`cancelado=1`): o registro nunca é apagado, preservando o histórico contábil — em contraste com DT-06/DT-07, que são deleção física.
 
+### `Certificado` ⭐ NOVO
+* Certificado de conclusão emitido. **Snapshot imutável** do que foi impresso: `nome_aluno`, `cpf_aluno`, `nome_curso`, `carga_horaria`, `aproveitamento`, `data_inicio`, `data_fim`.
+* Por que snapshot: o PDF é documento probatório. Se o aluno mudar de nome ou o curso for renomeado depois, o certificado já entregue precisa continuar provando o que foi emitido.
+* Rastreabilidade: `codigo_verificacao` (10 chars, único, sem `O/0/I/1/L`), `hash_sha256` do PDF, `layout_id`, `arquivo_url`/`arquivo_public_id` (Cloudinary, opcional), `emitido_em`, `emitido_por`.
+* **Exclusão LÓGICA** (`status=CANCELADO` + `cancelado_em/por/motivo`): o código de verificação permanece consultável como "cancelado" em vez de "inexistente".
+* Índices: `(aluno_id)`, `(codigo_verificacao)` + unique constraint.
+
 ### `Relatorio`
 * Metas mensais. Campos: `mes` (YYYY-MM, **unique**), `meta`, `realizado`, `matriculas`, `matriculas_venda`.
 
@@ -140,6 +149,7 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 | `portal_aluno_bp` | `routes/portal_aluno.py` | `/aluno` | Portal do aluno (notas, progresso, aulas, exercícios, contrato) |
 | `provas_aluno_bp` | `routes/provas_aluno.py` | `/aluno` | Realização de provas pelo aluno |
 | `contrato_admin_bp` ⭐ | `routes/contrato_admin.py` | `/admin` | Auditoria e reset de aceite de contrato |
+| `certificados_bp` ⭐ | `routes/certificados.py` | `/` | Emissão, download e cancelamento de certificados de conclusão |
 
 ---
 
@@ -150,7 +160,10 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 | `matricula_service.py` | `criar_matricula`, `get_matricula_ativa`, `get_cursos_matriculados_ativos`, `normalizar_status` | `routes/financeiro.py` (só `criar_matricula`), `routes/portal_aluno.py`, `routes/academico.py`. **⚠️ `routes/aluno.py` NÃO usa este service** — duplica lógica de matrícula localmente (`matricular_aluno`, `atualizar_status_matricula`) |
 | `pdf_service.py` | `gerar_recibo` ⭐, `gerar_carne`, `gerar_boletim_notas`, `gerar_historico_frequencia`, `gerar_declaracao_conclusao`, `gerar_pre_matricula`, `gerar_declaracao_matricula` ⭐, **`gerar_contrato_assinado`** ⭐ NOVO | `routes/financeiro.py`, `routes/academico.py`, `routes/portal_aluno.py`, `routes/aluno.py` |
 | `notas_service.py` | `calcular_nota_escala` ⭐, `get_materias_do_curso`, `get_notas_map`, `get_boletim`, `salvar_notas`, `get_curso_ativo_do_aluno` | `routes/academico.py`, `routes/portal_aluno.py`, `pdf_service.py` |
-| `frequencia_service.py` | `registrar_frequencia`, `get_historico`, `calcular_percentual` | `routes/academico.py`, `routes/portal_aluno.py`, `pdf_service.py` |
+| `frequencia_service.py` | `registrar_frequencia`, `get_historico`, `calcular_percentual`, `normalizar_status` ⭐, `is_presente` ⭐, `percentual_presenca` ⭐ | `routes/academico.py`, `routes/portal_aluno.py`, `pdf_service.py` |
+| `certificado_service.py` ⭐ | `validar_emissao`, `emitir_certificado`, `cancelar_certificado`, `certificados_do_aluno`, `buscar_por_codigo`, `pdf_do_certificado`, `normalizar_cpf`, `gerar_codigo_verificacao` | `routes/certificados.py` |
+| `certificado_pdf.py` ⭐ | `gerar_certificado`, `dados_de_matricula`, `quebrar_em_linhas`, `carregar_layout_padrao` | `services/certificado_service.py` |
+| `certificado_layout.py` ⭐ | `carregar_layout` | `services/certificado_pdf.py` |
 | `aluno_service.py` | `buscar_alunos`, `get_aluno_ou_404` | `routes/aluno.py`, `routes/portal_aluno.py` |
 | `file_service.py` ⭐ | `build_pdf_response`, `serve_local_file`, `proxy_remote_file` | `routes/portal_aluno.py`, `routes/atividades.py` |
 | `storage_service.py` ⭐ | `upload_arquivo`, `deletar_arquivo` | `routes/conteudos.py`, `routes/exercicios.py`. **⚠️ `routes/atividades.py` NÃO usa `storage_service`** — usa `file_service.proxy_remote_file`/`serve_local_file` |
@@ -168,6 +181,8 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 * **Assinatura HMAC em provas:** Provas com tempo limite geram token HMAC-SHA256 contendo timestamp de início e mapa de embaralhamento de alternativas, validado no POST para impedir fraudes.
 * **Limite de upload:** **30 MB** (`MAX_CONTENT_LENGTH = 30 * 1024 * 1024` em `config.py:49` — o doc v4 dizia 50 MB). Excedido → HTTP 413 com resposta JSON ou página HTML com redirect automático em 4s.
 * **Datas como String:** Todos os campos de data (`vencimento`, `data_cadastro`, `iniciado_em`, etc.) são `String(10)` ou `String(19)`. Ordenação e validação temporal são responsabilidade do código Python.
+* **Frequência: `P`/`F`/`J` são os valores canônicos.** O formulário (`templates/frequencia.html:64`) envia códigos curtos; `enums.StatusFrequencia` define os rótulos por extenso; o model declara default `"Presente"` (divergência histórica). **Use sempre `frequencia_service.is_presente()` / `normalizar_status()` — nunca compare strings de status diretamente.** Os dados reais são 100% `P`/`F`; `Justificada` nunca foi gravada e não conta como presença.
+* **`Curso` não tem carga horária** — apenas `duracao` (`String(60)`), vazia em 100% dos 45 cursos. A carga horária do certificado é informada na emissão e persistida como snapshot em `certificados.carga_horaria` (ver DT-23, resolvida).
 * **Filtros customizados:** `moeda` (float → R$ formato brasileiro) e `nl2br` (quebras de linha com escape seguro via `markupsafe`, normalizando `<br>` literais).
 * **Segurança de ambiente:** Sem `FLASK_SECRET_KEY` em produção → `RuntimeError` na inicialização. Em dev → chave temporária gerada com `secrets.token_hex(32)` + `warnings.warn`.
 * **SQLite concorrência:** Configurado com `check_same_thread: False`, `timeout: 30s` e `PRAGMA foreign_keys=ON`.
@@ -181,6 +196,14 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 * **Exclusão lógica de entradas:** `POST /entradas-caixa/<id>/cancelar` marca `cancelado=1` + `cancelado_em`/`cancelado_por`/`motivo_cancelamento`; o registro permanece no banco. Cancelar duas vezes retorna 400. Entradas canceladas são excluídas de todas as somas.
 * **Validação de entrada manual:** `_validar()` exige descrição (≤200), valor numérico > 0 e ≤ R$ 1.000.000, data no formato `AAAA-MM-DD`; `forma` fora da lista cai em `"Outro"`. Erros voltam como flash + redirect para `/entradas-caixa`.
 * **Lançamento de entradas é só pela página dedicada:** o card "Add. Caixa" do dashboard é um **link** para `/entradas-caixa` (não há modal). A página oferece formulário de lançamento, filtro por qualquer mês, categoria/observação/quem lançou e o cancelamento.
+* **Certificado é snapshot, não view:** `emitir_certificado` copia nome, CPF, curso, carga horária, aproveitamento e datas para `certificados`. Renomear o aluno ou o curso depois **não** altera certificados já emitidos. Não existe edição — emitir errado significa cancelar e emitir outro.
+* **Carga horária e aproveitamento são informados na emissão:** `Curso` não tem carga horária (`duracao` vazia em 45/45) e nenhuma matrícula `CONCLUIDA` tem nota publicada (DT-24). Ambos são validados (`1–10000` horas, `0–100%`) e persistidos como snapshot.
+* **Renderer determinístico:** `gerar_certificado` usa `canvas.Canvas(..., invariant=1)`, que remove data de criação e ID aleatório do PDF. A mesma entrada gera sempre os mesmos bytes — por isso `hash_sha256` detecta adulteração e `pdf_do_certificado` reproduz o arquivo original.
+* **Cancelamento de certificado é lógico:** `status=CANCELADO` + `cancelado_em/por/motivo`. O `codigo_verificacao` continua existindo para que a consulta pública responda "cancelado" em vez de "inexistente". Cancelar duas vezes → flash de erro. **Nada é apagado** — não há `DELETE` em nenhum caminho de certificado.
+* **FKs de `certificados` usam `ON DELETE SET NULL`:** excluir aluno, matrícula ou curso não pode ser bloqueado por um certificado já emitido, nem apagar o registro probatório. O snapshot é autossuficiente — o certificado continua válido e auditável com `aluno_id`/`matricula_id`/`curso_id` nulos.
+* **Migração `f7a8b9c0d1e2` reconstrói a tabela:** como `db.create_all()` roda em todo startup, a tabela `certificados` normalmente já existe quando a migração executa — criada pelo ORM, com FKs `NO ACTION`. A migração detecta isso e reconstrói a tabela preservando as linhas (SQLite não suporta `ALTER` de FK). Sem esse passo, excluir aluno/matrícula passaria a falhar com `FOREIGN KEY constraint failed`.
+* **Upload ao Cloudinary é opcional:** sem `CLOUDINARY_CLOUD_NAME` configurado, `_tentar_upload` retorna cedo e o download re-renderiza o PDF a partir do snapshot. Falha de upload também não invalida a emissão (o snapshot já está no banco).
+* **Vírgula decimal no certificado:** carga horária e aproveitamento são impressos em pt-BR (`92,5%`, não `92.5%`), tanto no PDF (`text_corpo`) quanto na tela (`aproveitamento_texto`).
 
 ---
 
@@ -227,6 +250,8 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 | BUG-15 🆕 | `gerar_boletim_notas` ocultava nota 0.0 — `if n and n.nota` → `if n is not None and n.nota is not None` (`pdf_service.py:236`) | ✅ Corrigido (equivalente à DT-01) |
 | BUG-13 | `registrar_frequencia` sem validação de data futura — adicionada | ✅ Corrigido |
 | BUG-14 | `criar_matricula` sem rollback em erro — envolvido em try/except com rollback explícito | ✅ Corrigido |
+| BUG-16 🆕 | **`calcular_percentual` retornava 0,0% para 100% dos alunos** — comparava `"Presente"`, mas o banco guarda `P`. Corrigido com `normalizar_status`/`is_presente` | ✅ Corrigido (v6) |
+| BUG-17 🆕 | **`frequencia_historico.html` renderizava tabela vazia** — template lia `r.data_aula`, `r.presente`, `r.justificativa`, mas o model só tem `data` e `status`. Data em branco, todas as linhas "Falta" | ✅ Corrigido (v6) |
 
 ---
 
@@ -237,7 +262,7 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 | ID | Descrição | Local | Impacto |
 |:---|:---|:---|:---|
 | **DT-01** | ✅ **CORRIGIDA (v5)** — `if n and n.nota` → `if n is not None and n.nota is not None` (`pdf_service.py:236`). Nota 0.0 agora aparece no boletim | `services/pdf_service.py:236` | ~~Reprovação não documentada~~ — resolvida no commit `89c8ff2` |
-| **DT-02** | **Status de frequência inconsistente no PDF** — `gerar_historico_frequencia` verifica `h.status == "P"` mas o sistema salva `"Presente"`. Presença ainda aparece como "Falta". **🔴 NÃO CORRIGIDA** | `services/pdf_service.py:267` | Histórico de frequência em PDF mostra todos como falta |
+| **DT-02** | ✅ **CORRIGIDA (v6)** — o diagnóstico anterior estava **invertido**. Os dados reais são `P`/`F` (1087 `P`, 265 `F`, **zero** `Presente`); quem estava errado era `calcular_percentual`, que comparava `"Presente"` e retornava **0,0% sempre**. O PDF (`pdf_service.py:267`) já comparava `"P"` corretamente. Agora ambos usam `frequencia_service.is_presente()` | `services/frequencia_service.py`, `services/pdf_service.py` | ~~Frequência sempre 0%~~ — resolvida |
 | **DT-03** | **`_calcular_nota` ainda duplicada em 3 rotas** — `provas_aluno.py:66`, `exercicios.py:31`, `provas.py:9` têm suas próprias implementações. Apenas `portal_aluno.py` importa do service. | `routes/provas_aluno.py`, `routes/exercicios.py`, `routes/provas.py` | Divergência de comportamento entre módulos |
 | **DT-04** | **Mensagem de erro de data contraditória** — `_validar_data` faz parse de `YYYY-MM-DD` (`:84`) mas a mensagem orienta `DD/MM/AAAA` (`:93`). Se o usuário seguir a mensagem, o parse falha. | `services/matricula_service.py:75-93` | Confusão do usuário, erros de cadastro |
 | **DT-05** | **Arredondamento de parcelas de material sem ajuste da última** — `round(valor_material / parcelas_material, 2)` por parcela, sem compensar o saldo na última. Perda de centavos. | `services/matricula_service.py:294` | Perda financeira acumulada |
@@ -268,6 +293,8 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 | **DT-20** 🆕 | **`aluno.py` duplica lógica de matrícula** — `matricular_aluno` (:511) e `atualizar_status_matricula` (:546) manipulam `Matricula.status` diretamente, sem usar `matricula_service.normalizar_status`. O §5 afirmava que `aluno.py` chama o service, mas não usa. | `routes/aluno.py:511,546` | Divergência de comportamento financeiro |
 | **DT-21** 🆕 | **`liberacoes.py` não controla `AcessoConteudoCurso` nem `extra_tentativas`** — O §3/§6 afirmava o painel de liberações gerencia as 5 tabelas e o campo `extra_tentativas`. O código só manipula `MateriaLiberada`, `ProvaLiberada`, `ExercicioLiberado`, `AtividadeLiberada` e grava apenas `liberado/liberado_por/liberado_em`. `AcessoConteudoCurso` é tratado só em `aluno.py`. | `routes/liberacoes.py` | Funcionalidade documentada não implementada no painel; `extra_tentativas` nunca é gravado |
 | **DT-22** 🆕 | **Input de valores sem validação de tipo** — `float(f.get("valor_mensal") or 0)` e `int(f.get("parcelas") or 1)` em `cursos.py:29-30,125`; `float(f.get("valor") or 0)` em `despesas.py:40,66`, sem `try/except`. Input não numérico → `ValueError` → HTTP 500. | `routes/cursos.py`, `routes/despesas.py` | Falha de robustez; input inválido derruba a rota |
+| ~~**DT-23**~~ ✅ | ~~**Certificado não persiste metadados**~~ — **Resolvida na Sessão 7.** Tabela `certificados` com snapshot imutável (nome, CPF, curso, carga horária, aproveitamento, datas), `codigo_verificacao` único, `hash_sha256` do PDF, `layout_id`, autor e timestamps. Rotas: `GET/POST /aluno/<id>/certificados`, `GET /certificados/<id>/pdf`, `POST /certificados/<id>/cancelar` (lógico). O renderer passou a usar `invariant=1`, então o hash é reproduzível e detecta adulteração. | `models.Certificado`, `services/certificado_service.py`, `routes/certificados.py` | ~~Emissão sem rastreabilidade~~ |
+| **DT-24** 🆕🟡 | **Nenhuma matrícula concluída possui nota publicada** — 68 matrículas `CONCLUIDA`, **zero** com nota no mesmo curso; 423 notas com `publicada=0`. Não é possível derivar `aproveitamento` do banco. Consequência de BUG-15/DT-01 ou de notas nunca publicadas. | `cqp.db` / fluxo de notas | Aproveitamento precisa ser informado manualmente |
 
 ---
 
@@ -282,7 +309,7 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 * **Deleção física de questões** — remove registros referenciados por respostas históricas. Corrompe histórico retroativamente. [CONFIRMADO em provas e exercícios]
 * **HMAC implementado para provas** — timestamp de início e ordem de alternativas são assinados. [CORRIGIDO]
 * **Tempo limite enforçado em exercícios** — backend agora valida `tempo_limite`. [CORRIGIDO]
-* **Status de frequência inconsistente** — `"Presente"` vs `"P"`: corrigido no service (`calcular_percentual:53`), mas **NÃO corrigido no PDF** (`gerar_historico_frequencia:267` ainda compara `== "P"`). [PARCIALMENTE CORRIGIDO — ver DT-02]
+* **Status de frequência inconsistente** — ⚠️ **o registro anterior estava invertido**. Formulário grava `P`/`F`; model declara default `Presente`; `enums.StatusFrequencia` define rótulos por extenso. `calcular_percentual` comparava só `"Presente"` → 0,0% sempre. **CORRIGIDO na v6** via `normalizar_status()` / `is_presente()`, que aceitam `P`, `p`, `Presente`, `presente`. [VERIFICADO contra `cqp.db`]
 * **Nota zero oculta no boletim** — `if n.nota` falha para `0.0`. [**CORRIGIDO na v5** — `pdf_service.py:236` usa `is not None`. Ver DT-01]
 * **Proxy Cloudinary** — `file_service.py` usa 5 estratégias de URL assinada (`upload`/`private`/`authenticated`/`private_download_url`) com `requests`. [NOVO na v5 — ver §6]
 * **Mensalidades duplicadas sem proteção** — `criar_matricula` agora tem guarda de duplicidade. [CORRIGIDO]
@@ -306,6 +333,14 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 | `exercicios.py` recalculo em lote | Funções `_recalcular_tentativas_sem_nota` (~380-420) e `recalcular_pontos_todos` (~447), além de `_pontos_minimo_aprovacao` (:37) que converte `nota_minima` (0-10) para pontos brutos. |
 | `gerar_contrato_assinado` | PDF de comprovante de aceite de contrato digital (versão, hash SHA-256, IP, user-agent) em `pdf_service.py:575-740`. |
 | Proxy Cloudinary 5 estratégias | `file_service.py:312-438` tenta URL assinada/private/authenticated/private_download_url em cascata, com `requests`. |
+| `services/certificado_pdf.py` ⭐ | Renderer do certificado de conclusão em A4 paisagem sobre moldura gráfica. Função pura: `gerar_certificado(dados, layout) -> bytes`. Irmão de `pdf_service.py` — este cuida de documentos de fluxo (retrato), aquele de layout absoluto (paisagem). Usa `invariant=1` para que a mesma entrada gere sempre os mesmos bytes (base do `hash_sha256`). |
+| `services/certificado_layout.py` ⭐ | Carrega e valida `layouts/*.toml`: página, margens, 5 blocos tipográficos, cores, fontes, município, formato de data. Posições fora do código. |
+| `services/certificado_service.py` ⭐ | Domínio da emissão: `validar_emissao`, `emitir_certificado` (gera PDF + persiste snapshot), `cancelar_certificado` (lógico), `buscar_por_codigo`, `pdf_do_certificado` (re-render a partir do snapshot). Testável sem Flask. |
+| `routes/certificados.py` ⭐ | `GET/POST /aluno/<id>/certificados` (histórico + emissão), `GET /certificados/<id>/pdf`, `POST /certificados/<id>/cancelar`. Upload ao Cloudinary é opcional: sem credenciais o PDF é re-renderizado do snapshot. |
+| `models.Certificado` ⭐ | Snapshot imutável do certificado emitido + `codigo_verificacao` (único), `hash_sha256`, `layout_id`, autor e timestamps. Cancelamento é lógico (`status=CANCELADO`), nunca exclusão. |
+| `layouts/certificado_cqp.toml` ⭐ | Especificação visual do certificado (v1). Editar aqui não exige tocar em Python. |
+| `static/fonts/` ⭐ | Liberation Sans (4 pesos) + `LICENSE-Liberation.txt` (SIL OFL 1.1). Métricas idênticas ao Arial, sem depender de fonte do SO. |
+| `tests/` ⭐ | **Primeira suíte de testes do projeto** (144 testes). `conftest.py` usa SQLite em memória — nunca toca `cqp.db`. |
 
 ---
 
@@ -316,7 +351,7 @@ _Atualizado em 28/09/2026 — adiciona `EntradaCaixa` / `entradas_bp` (entradas 
 | Migrar SQLite → PostgreSQL | Sim — sem writes concorrentes | Alto |
 | Adicionar `tenant_id` em todas as tabelas | Sim — sem multi-tenancy | Alto |
 | Unificar `_calcular_nota` nas 3 rotas restantes | Não | Baixo |
-| Corrigir `gerar_historico_frequencia` 🚨 (status `"P"` → `"Presente"` — `pdf_service.py:267`, única crítica não resolvida) | Não | Baixo |
+| ~~Corrigir `gerar_historico_frequencia`~~ ✅ **Feito na v6** — o bug real estava em `calcular_percentual`, não no PDF | Não | Baixo |
 | ~~Corrigir `gerar_boletim_notas` (nota zero → `if n is not None`)~~ ✅ **Feito na v5** (`pdf_service.py:236`) | Não | Baixo |
 | Adicionar `extra_tentativas` no painel de liberações + `AcessoConteudoCurso` | Não | Médio |
 | Validar input numérico em `cursos.py`/`despesas.py` (DT-22) | Não | Baixo |

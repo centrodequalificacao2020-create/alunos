@@ -231,6 +231,32 @@ O limite `client_max_body_size 55M` respeita o `MAX_CONTENT_LENGTH = 50 * 1024 *
 
 ## 10. Migracoes e scripts de manutencao
 
+### 10.1 Migracoes Alembic (Flask-Migrate)
+
+O projeto usa Flask-Migrate. As migracoes ficam em `migrations/versions/` e
+devem ser aplicadas **apos** o deploy do codigo novo:
+
+```bash
+flask db upgrade
+```
+
+> **Atencao:** `db.init_db()` chama `db.create_all()` em todo startup. Isso
+> significa que tabelas novas ja sao criadas automaticamente quando a
+> aplicacao sobe — mas **sem** os ajustes que so a migracao faz (indices,
+> `ON DELETE`, reconstrucao de tabela). Rodar `flask db upgrade` continua
+> necessario para deixar o schema e o `alembic_version` corretos.
+
+Migracoes sao idempotentes: rodar duas vezes nao duplica dados nem falha.
+
+Para conferir o estado atual:
+
+```bash
+flask db current      # revisao aplicada
+flask db heads        # ultima revisao disponivel
+```
+
+### 10.2 Scripts pontuais
+
 Os scripts abaixo ficam na pasta `scripts/` e devem ser executados pontualmente conforme necessidade:
 
 | Script | Quando executar |

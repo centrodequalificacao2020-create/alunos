@@ -401,6 +401,7 @@
                     <th class="ficha-th-centro">Declaração de Matrícula</th>
                     <th class="ficha-th-centro">Declaração de Presença</th>
                     <th class="ficha-th-centro">Declaração de Conclusão</th>
+                    <th class="ficha-th-centro">Certificado</th>
                 </tr>
             </thead>
             <tbody>
@@ -426,6 +427,13 @@
                            class="btn btn-sm btn-azul" target="_blank"
                            aria-label="Baixar declaração de conclusão de {{ m.curso_nome }}">
                             &#11015; Baixar
+                        </a>
+                    </td>
+                    <td class="ficha-th-centro">
+                        <a href="/aluno/{{ aluno.id }}/certificados"
+                           class="btn btn-sm btn-verde"
+                           aria-label="Emitir ou consultar certificado de {{ m.curso_nome }}">
+                            &#127891; Emitir
                         </a>
                     </td>
                 </tr>

@@ -25,29 +25,36 @@
 {% if historico %}
 <div class="card">
     <h3>Registro de Presenças</h3>
+    <p style="margin:8px 0 16px;color:#555;">
+        Frequência: <strong>{{ '%.1f'|format(percentual) }}%</strong>
+        ({{ historico|length }} registro{{ 's' if historico|length != 1 else '' }})
+    </p>
     <div class="tabela-planilha">
         <table class="tabela-excel">
             <thead>
                 <tr>
                     <th>Data</th>
-                    <th>Matéria</th>
+                    <th>Curso</th>
                     <th>Presença</th>
-                    <th>Justificativa</th>
+                    <th>Observação</th>
                 </tr>
             </thead>
             <tbody>
                 {% for r in historico %}
                 <tr>
-                    <td>{{ r.data_aula }}</td>
-                    <td>{{ r.materia_nome }}</td>
+                    <td>{{ r.data }}</td>
+                    <td>{{ curso.nome if curso else '-' }}</td>
                     <td>
-                        {% if r.presente %}
+                        {% set situacao = r.status|lower %}
+                        {% if situacao in ['p', 'presente'] %}
                         <span class="status-ativo">✅ Presente</span>
+                        {% elif situacao in ['j', 'justificada', 'justificado'] %}
+                        <span class="status-ativo">⚠️ Justificada</span>
                         {% else %}
                         <span class="status-inativo">❌ Falta</span>
                         {% endif %}
                     </td>
-                    <td>{{ r.justificativa or '-' }}</td>
+                    <td>-</td>
                 </tr>
                 {% endfor %}
             </tbody>

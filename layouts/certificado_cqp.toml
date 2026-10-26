@@ -1,0 +1,62 @@
+# Layout do certificado de conclusão — CQP
+#
+# Posições e tamanhos em pontos (1 pt = 1/72 pol). Origem no canto INFERIOR
+# esquerdo. Página A4 paisagem: 841,89 x 595,28 pt.
+#
+# O campo `font` referencia uma chave da seção [fonts].
+# Para uma nova versão visual, copie este arquivo e aponte CERTIFICADO_LAYOUT
+# para ele — certificados antigos permanecem com o layout de origem.
+
+id = "cqp-certificado-v1"
+descricao = "Certificado de conclusão — moldura institucional CQP"
+
+# Formato das datas impressas (diretivas strftime).
+date_format = "%d/%m/%Y"
+
+[page]
+width = 841.89
+height = 595.28
+margin_left = 80.0
+margin_right = 80.0
+
+[background]
+# A moldura já traz o título caligráfico, o brasão CQP, a assinatura do
+# diretor e as linhas de assinatura. Nada disso é redesenhado.
+image = "static/certificados/moldura.png"
+
+[title]
+text = "O Centro de Qualificação Profissional CQP certifica que:"
+font = "regular"
+size = 18
+y = 410.0
+color = [0.0, 0.0, 0.0]
+
+[name]
+font = "bold_italic"
+size = 22
+y = 325.0
+color = [0.0, 0.0, 0.0]
+uppercase = true
+# Faixas [limite_de_caracteres, tamanho]; limite 0 = "acima de todos".
+size_steps = [[35, 30], [45, 26], [0, 22]]
+
+[body]
+font = "regular"
+size = 13
+x = 80.0
+y = 285.0
+line_height = 28.0
+color = [0.0, 0.0, 0.0]
+
+[footer]
+font = "regular"
+size = 11
+y = 30.0
+color = [0.0, 0.0, 0.0]
+city = "Carapebus"
+
+[fonts]
+regular     = "LiberationSans-Regular.ttf"
+bold        = "LiberationSans-Bold.ttf"
+italic      = "LiberationSans-Italic.ttf"
+bold_italic = "LiberationSans-BoldItalic.ttf"
