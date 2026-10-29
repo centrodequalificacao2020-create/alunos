@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, jsonify
 from datetime import datetime
 from db import db
 from models import Mensalidade, Aluno, Matricula, Despesa, Relatorio, Curso, EntradaCaixa
-from security import financeiro_required
+from security import financeiro_required, relatorio_required
 from sqlalchemy import func
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -359,7 +359,7 @@ def dashboard():
 
 
 @dashboard_bp.route("/salvar_relatorio", methods=["POST"])
-@financeiro_required
+@relatorio_required
 def salvar_relatorio():
     dados = request.get_json()
     r = Relatorio.query.filter_by(mes=dados.get("mes")).first()
@@ -375,13 +375,13 @@ def salvar_relatorio():
 
 
 @dashboard_bp.route("/relatorio")
-@financeiro_required
+@relatorio_required
 def relatorio():
     return render_template("relatorio.html")
 
 
 @dashboard_bp.route("/carregar_relatorio/<mes>")
-@financeiro_required
+@relatorio_required
 def carregar_relatorio(mes):
     r = Relatorio.query.filter_by(mes=mes).first()
     if r:
@@ -392,7 +392,7 @@ def carregar_relatorio(mes):
 
 
 @dashboard_bp.route("/relatorio_trimestre/<ano>/<tri>")
-@financeiro_required
+@relatorio_required
 def relatorio_trimestre(ano, tri):
     meses_tri = {"1":["01","02","03"],"2":["04","05","06"],
                  "3":["07","08","09"],"4":["10","11","12"]}

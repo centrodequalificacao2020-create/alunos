@@ -3,9 +3,10 @@ from flask import session, redirect, flash, current_app, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Perfis reconhecidos pelo sistema
-PERFIS_VALIDOS = {"admin", "administrador", "secretaria", "financeiro", "instrutor"}
-ADMIN_PERFIS   = {"administrador", "admin"}
-FINAN_PERFIS   = {"administrador", "admin", "financeiro"}
+PERFIS_VALIDOS  = {"admin", "administrador", "secretaria", "financeiro", "instrutor"}
+ADMIN_PERFIS    = {"administrador", "admin"}
+FINAN_PERFIS    = {"administrador", "admin", "financeiro"}
+RELATORIO_PERFIS = FINAN_PERFIS | {"secretaria"}
 
 
 def hash_senha(senha: str) -> str:
@@ -46,27 +47,40 @@ def login_required(f):
     return decorated
 
 
-def financeiro_required(f):
-    """Exige perfil admin ou financeiro.
+def _perfil_required(perfis: set, mensagem: str):
+    """Restringe o acesso aos perfis informados.
 
     Para requisições HTML redireciona para / com flash de erro.
     Para requisições AJAX/JSON retorna 401 ou 403 em JSON,
     evitando que fetch() receba um redirect HTML inesperado.
     """
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if "usuario_id" not in session:
-            if _is_ajax():
-                return jsonify({"erro": "Não autenticado."}), 401
-            flash("Faça login para continuar.", "erro")
-            return redirect("/login")
-        if session.get("perfil", "").lower() not in FINAN_PERFIS:
-            if _is_ajax():
-                return jsonify({"erro": "Acesso restrito ao setor financeiro."}), 403
-            flash("Acesso restrito ao setor financeiro.", "erro")
-            return redirect("/")
-        return f(*args, **kwargs)
-    return decorated
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if "usuario_id" not in session:
+                if _is_ajax():
+                    return jsonify({"erro": "Não autenticado."}), 401
+                flash("Faça login para continuar.", "erro")
+                return redirect("/login")
+            if session.get("perfil", "").lower() not in perfis:
+                if _is_ajax():
+                    return jsonify({"erro": mensagem}), 403
+                flash(mensagem, "erro")
+                return redirect("/")
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
+def financeiro_required(f):
+    """Exige perfil admin ou financeiro."""
+    return _perfil_required(FINAN_PERFIS, "Acesso restrito ao setor financeiro.")(f)
+
+
+def relatorio_required(f):
+    """Exige perfil admin, financeiro ou secretaria (relatórios comerciais)."""
+    return _perfil_required(RELATORIO_PERFIS,
+                            "Acesso restrito aos relatórios comerciais.")(f)
 
 
 def admin_required(f):

@@ -329,6 +329,8 @@ O arquivo gerado segue o padrao `backup_cqp_YYYYMMDDHHMMSS.db`.
 
 O modulo financeiro (`/financeiro`, `/despesas`) exige perfil `administrador`, `admin` ou `financeiro` via decorador `@financeiro_required`.
 
+A pagina de relatorios comerciais (`/relatorio` e endpoints JSON associados) usa `@relatorio_required`, que aceita `administrador`, `admin`, `financeiro` e `secretaria`.
+
 ---
 
 ## 14. Variaveis de configuracao disponiveis
