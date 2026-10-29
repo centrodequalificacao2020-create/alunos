@@ -21,6 +21,7 @@
     {% if resultado %}
     <p style="margin-bottom:10px;font-size:13px;font-weight:600;color:var(--text-muted,#888)">
       Total de {{ resultado|length }} matr&#237;cula{{ 's' if resultado|length != 1 else '' }} nova{{ 's' if resultado|length != 1 else '' }}
+      com taxa paga em {{ mes_label }}
     </p>
     <div class="card" style="padding:0;overflow:hidden">
       <table class="tabela-padrao" style="font-size:14px">

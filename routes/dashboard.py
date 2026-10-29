@@ -107,38 +107,94 @@ def _em_atraso_por_status_matricula(inicio: str):
     return em_aberto, perda, qtd_em_aberto, qtd_perda
 
 
-def _matriculas_novas_e_rematriculas(inicio: str, fim: str):
-    matriculas_periodo = (
-        db.session.query(Matricula.aluno_id)
+def _pagamentos_matricula_periodo(inicio: str, fim: str):
+    """Taxas de matrícula PAGAS no período — fonte única do dashboard e das listas.
+
+    Regra de negócio (definida pelo cliente em 2026-10-29):
+    a matrícula conta no mês em que a **taxa de matrícula foi paga**, não na
+    data em que o aluno se matriculou. Ex.: aluno matriculado em julho que
+    paga a taxa em agosto aparece em agosto.
+
+    Classificação:
+    - `rematricula`: o aluno já tinha matrícula em OUTRO curso até a data
+      do pagamento.
+    - `nova`: caso contrário.
+
+    Deduplicação por (aluno, curso): duas taxas pagas no mesmo mês para o
+    mesmo curso contam uma única vez, garantindo que o número do card seja
+    sempre igual ao número de linhas da lista.
+
+    Retorna uma lista de dicts com: aluno_id, aluno_nome, curso,
+    curso_anterior, data, tipo ("nova" | "rematricula").
+    """
+    rows = (
+        db.session.query(Mensalidade, Aluno)
+        .join(Aluno, Aluno.id == Mensalidade.aluno_id)
         .filter(
-            Matricula.data_matricula.between(inicio, fim),
-            Matricula.data_matricula >= "2026-01-01"
+            func.lower(Mensalidade.tipo) == "matricula",
+            Mensalidade.status == "Pago",
+            Mensalidade.data_pagamento.between(inicio, fim),
         )
-        .subquery()
+        .order_by(Mensalidade.data_pagamento.asc(), Mensalidade.id.asc())
+        .all()
     )
+    if not rows:
+        return []
 
-    ja_era_aluno = (
-        db.session.query(Matricula.aluno_id)
-        .filter(
-            Matricula.data_matricula < inicio,
-            Matricula.data_matricula >= "2026-01-01"
-        )
-        .distinct()
-        .subquery()
-    )
+    aluno_ids = {mens.aluno_id for mens, _ in rows}
 
-    ids_periodo = [
-        r[0] for r in db.session.query(matriculas_periodo.c.aluno_id).distinct().all()
-    ]
+    matriculas_por_aluno = {}
+    for mat in (
+        Matricula.query
+        .filter(Matricula.aluno_id.in_(aluno_ids))
+        .order_by(Matricula.aluno_id, Matricula.data_matricula, Matricula.id)
+        .all()
+    ):
+        matriculas_por_aluno.setdefault(mat.aluno_id, []).append(mat)
 
-    ids_ja_eram = {
-        r[0] for r in db.session.query(ja_era_aluno.c.aluno_id).all()
-    }
+    cursos = {c.id: c.nome for c in Curso.query.all()}
 
-    novas        = sum(1 for aid in ids_periodo if aid not in ids_ja_eram)
-    rematriculas = sum(1 for aid in ids_periodo if aid in ids_ja_eram)
+    vistos = set()
+    resultado = []
+    for mens, aluno in rows:
+        pagamento = mens.data_pagamento or ""
+        curso_id  = mens.curso_id
+        mats      = matriculas_por_aluno.get(aluno.id, [])
 
-    return novas, rematriculas
+        # Legado: taxas antigas podem estar sem `curso_id`. Usa a matrícula
+        # mais recente até a data do pagamento para descobrir o curso.
+        if curso_id is None:
+            candidatas = [
+                m for m in mats if (m.data_matricula or "") <= pagamento
+            ]
+            escolhida = candidatas[-1] if candidatas else (mats[-1] if mats else None)
+            curso_id = escolhida.curso_id if escolhida else None
+
+        chave = (aluno.id, curso_id)
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+
+        # Matrículas anteriores em outros cursos, até a data do pagamento.
+        anteriores = [
+            m for m in mats
+            if m.curso_id != curso_id and (m.data_matricula or "") <= pagamento
+        ]
+        rematricula = bool(anteriores)
+
+        resultado.append({
+            "aluno_id":       aluno.id,
+            "aluno_nome":     aluno.nome,
+            "curso":          cursos.get(curso_id) or "\u2014",
+            "curso_anterior": (
+                cursos.get(anteriores[-1].curso_id) or "\u2014"
+                if rematricula else None
+            ),
+            "data":           mens.data_pagamento,
+            "tipo":           "rematricula" if rematricula else "nova",
+        })
+
+    return resultado
 
 
 @dashboard_bp.route("/dashboard")
@@ -187,8 +243,12 @@ def dashboard():
 
     alunos_ativos = Aluno.query.filter_by(status="Ativo").count()
 
-    matriculas_novas, rematriculas = _matriculas_novas_e_rematriculas(inicio, fim)
-    matriculas_mes = matriculas_novas + rematriculas
+    # Card e listas usam a MESMA fonte (taxa de matrícula paga no mês),
+    # garantindo que o número do card == número de linhas da lista.
+    pagamentos_matricula = _pagamentos_matricula_periodo(inicio, fim)
+    matriculas_novas = sum(1 for p in pagamentos_matricula if p["tipo"] == "nova")
+    rematriculas     = sum(1 for p in pagamentos_matricula if p["tipo"] == "rematricula")
+    matriculas_mes   = matriculas_novas + rematriculas
 
     vencendo = Mensalidade.query.filter(
         Mensalidade.status == "Pendente",
@@ -417,30 +477,12 @@ def matriculas_novas_detalhe():
     inicio    = f"{mes}-01"
     fim       = _fim_mes(mes)
 
-    # Criterio financeiro: mensalidade de matricula paga no periodo
-    rows = (
-        db.session.query(Mensalidade, Aluno, Matricula, Curso)
-        .join(Aluno, Aluno.id == Mensalidade.aluno_id)
-        .join(Matricula, Matricula.aluno_id == Mensalidade.aluno_id)
-        .outerjoin(Curso, Curso.id == Matricula.curso_id)
-        .filter(
-            func.lower(Mensalidade.tipo) == "matricula",
-            Mensalidade.status == "Pago",
-            Mensalidade.data_pagamento.between(inicio, fim)
-        )
-        .order_by(Mensalidade.data_pagamento.desc())
-        .all()
-    )
-
+    # Mesma fonte do card: taxa de matrícula paga no período, apenas as "novas".
     resultado = [
-        {
-            "aluno_id":   aluno.id,
-            "aluno_nome": aluno.nome,
-            "curso":      curso.nome if curso else "\u2014",
-            "data":       mens.data_pagamento,
-        }
-        for mens, aluno, mat, curso in rows
+        p for p in _pagamentos_matricula_periodo(inicio, fim)
+        if p["tipo"] == "nova"
     ]
+    resultado.sort(key=lambda p: p["data"] or "", reverse=True)
 
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
                 "Jul","Ago","Set","Out","Nov","Dez"]
@@ -464,52 +506,19 @@ def rematriculas_detalhe():
     inicio    = f"{mes}-01"
     fim       = _fim_mes(mes)
 
-    ids_ja_eram = {
-        r[0] for r in db.session.query(Matricula.aluno_id)
-        .filter(
-            Matricula.data_matricula < inicio,
-            Matricula.data_matricula >= "2026-01-01"
-        )
-        .distinct()
-        .all()
-    }
-
-    matriculas_periodo = (
-        db.session.query(Matricula, Aluno, Curso)
-        .join(Aluno, Aluno.id == Matricula.aluno_id)
-        .outerjoin(Curso, Curso.id == Matricula.curso_id)
-        .filter(
-            Matricula.data_matricula.between(inicio, fim),
-            Matricula.data_matricula >= "2026-01-01",
-            Matricula.aluno_id.in_(ids_ja_eram)
-        )
-        .order_by(Matricula.data_matricula.desc())
-        .all()
-    )
-
-    resultado = []
-    for mat, aluno, curso in matriculas_periodo:
-        mat_anterior = (
-            Matricula.query
-            .filter(
-                Matricula.aluno_id == aluno.id,
-                Matricula.data_matricula < inicio,
-                Matricula.data_matricula >= "2026-01-01"
-            )
-            .order_by(Matricula.data_matricula.desc())
-            .first()
-        )
-        curso_anterior = None
-        if mat_anterior and mat_anterior.curso_id:
-            curso_anterior = Curso.query.get(mat_anterior.curso_id)
-
-        resultado.append({
-            "aluno_id":       aluno.id,
-            "aluno_nome":     aluno.nome,
-            "curso_novo":     curso.nome if curso else "\u2014",
-            "curso_anterior": curso_anterior.nome if curso_anterior else "\u2014",
-            "data":           mat.data_matricula,
-        })
+    # Mesma fonte do card: taxa de matrícula paga no período, apenas rematrículas.
+    resultado = [
+        {
+            "aluno_id":       p["aluno_id"],
+            "aluno_nome":     p["aluno_nome"],
+            "curso_novo":     p["curso"],
+            "curso_anterior": p["curso_anterior"] or "\u2014",
+            "data":           p["data"],
+        }
+        for p in _pagamentos_matricula_periodo(inicio, fim)
+        if p["tipo"] == "rematricula"
+    ]
+    resultado.sort(key=lambda p: p["data"] or "", reverse=True)
 
     meses_pt = ["Jan","Fev","Mar","Abr","Mai","Jun",
                 "Jul","Ago","Set","Out","Nov","Dez"]

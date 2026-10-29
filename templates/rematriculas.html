@@ -21,6 +21,7 @@
     {% if resultado %}
     <p style="margin-bottom:10px;font-size:13px;font-weight:600;color:var(--text-muted,#888)">
       Total de {{ resultado|length }} rematr&#237;cula{{ 's' if resultado|length != 1 else '' }}
+      com taxa paga em {{ mes_label }}
     </p>
     <div class="card" style="padding:0;overflow:hidden">
       <table class="tabela-padrao" style="font-size:14px">
@@ -30,7 +31,7 @@
             <th>Aluno</th>
             <th>Curso anterior</th>
             <th>Novo curso</th>
-            <th>Data</th>
+            <th>Data Pagamento</th>
             <th></th>
           </tr>
         </thead>
