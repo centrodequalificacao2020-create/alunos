@@ -173,12 +173,14 @@ def _matriculas_novas_periodo(inicio: str, fim: str):
             continue
         vistos.add(chave)
 
-        # Já era aluno ativo em outro curso antes do pagamento -> rematrícula,
-        # que não tem taxa e por isso não entra aqui.
+        # O aluno já tinha qualquer matrícula em OUTRO curso antes do pagamento
+        # -> é rematrícula, que não tem taxa e por isso não entra aqui.
+        # Não exigimos que a matrícula anterior esteja ATIVA: aluno que
+        # transferiu (INATIVA/CONCLUIDA) e entrou em outro curso continua
+        # sendo rematrícula.
         ja_era_aluno = any(
             m.curso_id != curso_id
             and (m.data_matricula or "") <= pagamento
-            and (m.status or "").upper() == "ATIVA"
             for m in mats
         )
         if ja_era_aluno:
@@ -197,21 +199,26 @@ def _matriculas_novas_periodo(inicio: str, fim: str):
 def _rematriculas_periodo(inicio: str, fim: str):
     """Rematrículas: aluno ATIVO que se matriculou em OUTRO curso no período.
 
-    Rematrícula **não tem taxa de matrícula**, então o critério é a data da
-    matrícula (`Matricula.data_matricula`), nunca pagamento.
+    Definição do cliente: rematrícula é o aluno que **já estudava aqui** e se
+    cadastrou em **outro curso**. Rematrícula **não tem taxa de matrícula**,
+    então o critério é a data da matrícula (`Matricula.data_matricula`),
+    nunca pagamento.
 
     Critérios:
-    - a matrícula está ATIVA e tem `data_matricula` no período;
-    - o aluno já tinha outra matrícula ATIVA, em curso diferente, anterior
-      a esta.
+    - a nova matrícula tem `data_matricula` no período;
+    - o aluno está com `Aluno.status = Ativo`;
+    - o aluno já tinha alguma matrícula em curso diferente, anterior a esta.
+      Não exigimos que a anterior esteja ATIVA (transferência fica INATIVA).
 
     Retorna lista de dicts: aluno_id, aluno_nome, curso, curso_anterior, data.
     """
     candidatas = (
         Matricula.query
+        .join(Aluno, Aluno.id == Matricula.aluno_id)
         .filter(
             Matricula.data_matricula.between(inicio, fim),
             func.upper(Matricula.status) == "ATIVA",
+            func.upper(Aluno.status) == "ATIVO",
         )
         .order_by(Matricula.data_matricula, Matricula.id)
         .all()
@@ -239,8 +246,7 @@ def _rematriculas_periodo(inicio: str, fim: str):
         anteriores = [
             m for m in mats
             if m.curso_id != mat.curso_id
-            and (m.data_matricula or "") <= (mat.data_matricula or "")
-            and (m.status or "").upper() == "ATIVA"
+            and (m.data_matricula or "") < (mat.data_matricula or "")
         ]
         if not anteriores:
             continue
